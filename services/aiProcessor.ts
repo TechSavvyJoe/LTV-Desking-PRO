@@ -87,6 +87,43 @@ export type DealSuggestion = {
     }[];
 };
 
+const normalizeNumber = (value: unknown): number | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : undefined;
+};
+
+const normalizeTier = (tier: any): LenderTier | null => {
+    if (!tier || typeof tier !== 'object') return null;
+    return {
+        name: typeof tier.name === 'string' ? tier.name : 'Unnamed Tier',
+        minFico: normalizeNumber(tier.minFico),
+        maxFico: normalizeNumber(tier.maxFico),
+        minYear: normalizeNumber(tier.minYear),
+        maxYear: normalizeNumber(tier.maxYear),
+        minMileage: normalizeNumber(tier.minMileage),
+        maxMileage: normalizeNumber(tier.maxMileage),
+        minTerm: normalizeNumber(tier.minTerm),
+        maxTerm: normalizeNumber(tier.maxTerm),
+        maxLtv: normalizeNumber(tier.maxLtv),
+        minAmountFinanced: normalizeNumber(tier.minAmountFinanced),
+        maxAmountFinanced: normalizeNumber(tier.maxAmountFinanced),
+    };
+};
+
+const normalizeProfile = (profile: any): Partial<LenderProfile> => {
+    if (!profile || typeof profile !== 'object') return {};
+    const tiers = Array.isArray(profile.tiers) ? profile.tiers.map(normalizeTier).filter(Boolean) as LenderTier[] : [];
+    return {
+        id: profile.id || `ai_${Date.now()}`,
+        name: typeof profile.name === 'string' ? profile.name : 'Unnamed Lender',
+        minIncome: normalizeNumber(profile.minIncome),
+        maxPti: normalizeNumber(profile.maxPti),
+        bookValueSource: profile.bookValueSource === 'Retail' ? 'Retail' : 'Trade',
+        tiers,
+    };
+};
+
 export const processLenderSheet = async (file: File): Promise<Partial<LenderProfile>> => {
     const apiKey = process.env.API_KEY;
     if (!apiKey) throw new Error("API Key is missing. Please check your .env.local file.");
@@ -96,11 +133,14 @@ export const processLenderSheet = async (file: File): Promise<Partial<LenderProf
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-3.0-flash",
+            model: "gemini-3.0-pro",
             contents: {
                 parts: [
                     { inlineData: { mimeType: "application/pdf", data: base64Data } },
-                    { text: "Extract lender guidelines into structured JSON. Focus on FICO, LTV, term, and vehicle restrictions." }
+                    { text: `Extract lender guidelines into structured JSON.
+Return a single lender profile with an array of tiers. Capture all ranges explicitly (min/max FICO, year, mileage, term, LTV, amount financed).
+Include bank-level requirements like minIncome and maxPti when present. Default bookValueSource to "Trade" if missing.
+Do not hallucinate values; omit fields that are not present in the document.` }
                 ]
             },
             config: {
@@ -121,11 +161,8 @@ export const processLenderSheet = async (file: File): Promise<Partial<LenderProf
         
         if (!parsed) return {}; 
         
-        if (!parsed.tiers || !Array.isArray(parsed.tiers)) {
-            parsed.tiers = [];
-        }
-
-        return parsed;
+        const normalized = normalizeProfile(parsed);
+        return normalized;
 
     } catch (error: any) {
         console.error("AI Processing Error:", error);

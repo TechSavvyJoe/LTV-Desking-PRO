@@ -19,11 +19,11 @@ const InputGroup: React.FC<{ label: string; children: React.ReactNode; htmlFor?:
 );
 
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input {...props} className="w-full px-3 py-2 text-base bg-slate-50 dark:bg-transparent border border-x-border rounded-lg placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0" />
+    <input {...props} className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl placeholder-x-text-secondary focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 shadow-sm" />
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-    <select {...props} className="w-full px-3 py-2 text-base bg-slate-50 dark:bg-x-black border border-x-border rounded-lg placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0" />
+    <select {...props} className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl placeholder-x-text-secondary focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 shadow-sm" />
 );
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {

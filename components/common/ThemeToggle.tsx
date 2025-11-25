@@ -12,20 +12,20 @@ const ThemeToggle: React.FC = () => {
   ] as const;
 
   return (
-    <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-200 dark:bg-x-border">
+    <div className="flex items-center gap-1 p-1 rounded-full bg-white/20 dark:bg-white/10 backdrop-blur border border-white/30 shadow-sm">
       {options.map((option) => (
         <button
           key={option.value}
           onClick={() => setTheme(option.value)}
-          className={`flex items-center justify-center gap-2 px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+          className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
             theme === option.value
-              ? 'bg-white text-slate-800 dark:bg-x-hover-light dark:text-x-text-primary'
-              : 'text-slate-500 hover:text-slate-800 dark:text-x-text-secondary dark:hover:text-x-text-primary'
+              ? 'bg-white text-slate-900 shadow-md'
+              : 'text-white/80 hover:text-white'
           }`}
           aria-label={`Switch to ${option.name} mode`}
         >
           {option.icon}
-          <span>{option.name}</span>
+          <span className="hidden sm:inline">{option.name}</span>
         </button>
       ))}
     </div>

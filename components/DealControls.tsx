@@ -13,21 +13,21 @@ interface InputGroupProps {
 
 const InputGroup: React.FC<InputGroupProps> = ({ label, children, htmlFor, className, error, labelClassName }) => (
   <div className={`flex flex-col ${className}`}>
-    <label htmlFor={htmlFor} className={`mb-1.5 text-sm font-medium ${labelClassName || 'text-slate-700 dark:text-gray-300'}`}>{label}</label>
+    <label htmlFor={htmlFor} className={`mb-1.5 text-sm font-semibold ${labelClassName || 'text-slate-700 dark:text-gray-200 tracking-tight'}`}>{label}</label>
     {children}
     {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
   </div>
 );
 
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) => {
-    const errorClasses = props.error ? 'border-red-500/50 focus:border-red-500' : 'border-slate-300 dark:border-gray-700 focus:border-blue-500';
+    const errorClasses = props.error ? 'border-red-400 focus:border-red-400 focus:ring-red-300/60' : 'border-slate-200 dark:border-gray-700 focus:border-sky-300 focus:ring-sky-400/70';
     return (
-        <input {...props} className={`w-full px-3 py-2 text-base bg-white dark:bg-transparent border ${errorClasses} rounded-lg placeholder-slate-400 dark:placeholder-gray-500 text-slate-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 ease-in-out`} />
+        <input {...props} className={`w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border ${errorClasses} rounded-xl placeholder-slate-400 dark:placeholder-gray-500 text-slate-900 dark:text-gray-100 focus:outline-none focus:ring-2 transition-all duration-200 ease-in-out shadow-sm`} />
     );
 };
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select {...props} className="w-full px-3 py-2 text-base bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded-lg placeholder-slate-400 dark:placeholder-gray-500 text-slate-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 ease-in-out" />
+  <select {...props} className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-gray-700 rounded-xl placeholder-slate-400 dark:placeholder-gray-500 text-slate-900 dark:text-gray-100 focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 transition-all duration-200 ease-in-out shadow-sm" />
 );
 
 const SpinnerIcon = () => (
@@ -123,8 +123,11 @@ const DealControls: React.FC<DealControlsProps> = ({
 
   return (
     <div className="border-b border-slate-200 dark:border-gray-700 space-y-4 py-4">
-      <div className="border-2 border-slate-200 dark:border-gray-700 rounded-lg p-4 space-y-2 bg-white/50 dark:bg-white/5">
-        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white">Customer & Deal Info</h3>
+    <div className="border border-slate-200 dark:border-gray-700 rounded-2xl p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
+        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white flex items-center gap-2">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white text-sm font-black">1</span>
+          Customer & Deal Info
+        </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             <InputGroup label="Customer Name" htmlFor="customerName" className="lg:col-span-1">
                 <StyledInput type="text" id="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g., John Doe" />
@@ -171,8 +174,11 @@ const DealControls: React.FC<DealControlsProps> = ({
         </div>
       </div>
       
-      <div className="border-2 border-slate-200 dark:border-gray-700 rounded-lg p-4 space-y-2 bg-white/50 dark:bg-white/5">
-        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white">Global Deal Structure</h3>
+      <div className="border border-slate-200 dark:border-gray-700 rounded-2xl p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
+        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white flex items-center gap-2">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-sm font-black">2</span>
+          Global Deal Structure
+        </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             <InputGroup label="Down Pmt ($)" htmlFor="downPayment" error={errors.downPayment}>
                 <StyledInput type="number" id="downPayment" value={dealData.downPayment === 0 ? '' : dealData.downPayment} onChange={handleDealChange} min="0" step="100" error={!!errors.downPayment} placeholder="0" />

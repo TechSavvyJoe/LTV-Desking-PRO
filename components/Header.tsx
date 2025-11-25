@@ -10,18 +10,22 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onOpenAiModal, onOpenSettingsModal }) => (
-  <header className="sticky top-0 z-30 backdrop-blur-md bg-slate-50/80 dark:bg-x-black/80 border-b border-slate-200 dark:border-x-border px-4">
-    <div className="flex flex-wrap justify-between items-center gap-4 py-3">
+  <header className="sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 text-white shadow-lg px-4">
+    <div className="flex flex-wrap justify-between items-center gap-4 py-4">
         <div>
-        <h1 className="text-2xl font-extrabold text-slate-900 dark:text-x-text-primary tracking-tight">LTV & Desking Pro</h1>
-        <p className="mt-1 text-base text-slate-500 dark:text-x-text-secondary">
-            Your all-in-one automotive deal structuring tool.
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight">LTV & Desking Pro</h1>
+        <p className="mt-1 text-sm sm:text-base text-slate-200/80">
+            Precision deal structuring, lender intelligence, and desking in one refined workspace.
         </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <ThemeToggle />
-          <Button variant="secondary" onClick={onOpenSettingsModal} size="sm" className="!rounded-md"><Icons.CogIcon /> Settings</Button>
-          <Button variant="secondary" onClick={onOpenAiModal} size="sm" className="!rounded-md"><Icons.WandIcon /> AI Lender Tools</Button>
+          <Button variant="secondary" onClick={onOpenSettingsModal} size="sm" className="!rounded-full gap-2">
+            <Icons.CogIcon className="w-4 h-4" /> Settings
+          </Button>
+          <Button onClick={onOpenAiModal} size="sm" className="!rounded-full gap-2 bg-gradient-to-r from-purple-500 to-pink-500">
+            <Icons.SparklesIcon className="w-4 h-4" /> AI Lender Tools
+          </Button>
         </div>
     </div>
   </header>

@@ -619,12 +619,12 @@ const FloatingToolsPanel: React.FC<ToolProps> = (props) => {
                 </div>
             </div>
             <div
-                className="absolute top-0 right-0 bg-slate-200 dark:bg-x-border text-slate-800 dark:text-x-text-primary px-3 py-4 rounded-l-lg shadow-lg cursor-pointer pointer-events-auto"
+                className="absolute top-0 right-0 bg-gradient-to-b from-sky-500 to-indigo-600 text-white px-3 py-4 rounded-l-xl shadow-2xl cursor-pointer pointer-events-auto"
                 aria-hidden="true"
             >
                 <div className="flex flex-col items-center gap-2">
-                    <Icons.WrenchToolIcon />
-                    <span className="font-bold text-sm [writing-mode:vertical-rl] rotate-180">Toolbox</span>
+                    <Icons.WrenchToolIcon className="w-6 h-6" />
+                    <span className="font-extrabold text-sm tracking-tight [writing-mode:vertical-rl] rotate-180">Toolbox</span>
                 </div>
             </div>
         </div>

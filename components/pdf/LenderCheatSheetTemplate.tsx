@@ -130,9 +130,24 @@ interface LenderCheatSheetTemplateProps {
     profiles: LenderProfile[];
 }
 
-export const LenderCheatSheetTemplate: React.FC<LenderCheatSheetTemplateProps> = ({ profiles }) => {
+const summarizeTiers = (tiers: LenderTier[] | undefined): string[] => {
+    if (!tiers || !Array.isArray(tiers) || tiers.length === 0) return ['No tiers defined'];
+    return tiers.slice(0, 3).map(t => {
+        const parts: string[] = [];
+        if (t.minFico !== undefined) parts.push(`FICO ${t.minFico}${t.maxFico ? `-${t.maxFico}` : '+'}`);
+        else if (t.maxFico !== undefined) parts.push(`FICO ≤ ${t.maxFico}`);
+        if (t.minYear || t.maxYear) parts.push(`Yrs ${t.minYear || 'any'}-${t.maxYear || 'newer'}`);
+        if (t.maxMileage) parts.push(`≤${t.maxMileage.toLocaleString()} mi`);
+        if (t.maxLtv) parts.push(`LTV ${t.maxLtv}%`);
+        if (t.maxTerm) parts.push(`Term ≤${t.maxTerm}`);
+        return `${t.name || 'Tier'}: ${parts.join(' • ') || 'See sheet'}`;
+    });
+};
 
-    const aggregatedData = profiles.map(profile => ({
+export const LenderCheatSheetTemplate: React.FC<LenderCheatSheetTemplateProps> = ({ profiles }) => {
+    const safeProfiles = Array.isArray(profiles) ? profiles.filter(p => p && typeof p === 'object') : [];
+
+    const aggregatedData = safeProfiles.map(profile => ({
         ...profile,
         ficoRange: getTierMinMaxRange(profile.tiers, 'minFico', 'maxFico'),
         yearRange: getTierMinMaxRange(profile.tiers, 'minYear', 'maxYear'),
@@ -140,6 +155,7 @@ export const LenderCheatSheetTemplate: React.FC<LenderCheatSheetTemplateProps> =
         ltvRange: getTierValueRange(profile.tiers, 'maxLtv', v => `${v}%`),
         termRange: getTierValueRange(profile.tiers, 'maxTerm', v => `${v}mo`),
         amountRange: getTierMinMaxRange(profile.tiers, 'minAmountFinanced', 'maxAmountFinanced', '$'),
+        tierSummary: summarizeTiers(profile.tiers)
     }));
 
     return el('div', { className: 'page' },
@@ -163,24 +179,28 @@ export const LenderCheatSheetTemplate: React.FC<LenderCheatSheetTemplateProps> =
                     )
                 ),
                 el('tbody', null,
-                    ...aggregatedData.map(p => el('tr', { key: p.id },
-                        el('td', null,
-                            el('div', { className: 'lender-name' }, p.name),
-                            el('div', { className: 'book-source' }, `Book: ${p.bookValueSource || 'Trade'}`)
-                        ),
-                        el('td', null, p.ficoRange),
-                        el('td', null, p.yearRange),
-                        el('td', null, p.mileageRange),
-                        el('td', null, p.ltvRange),
-                        el('td', null, p.termRange),
-                        el('td', null, p.amountRange),
-                        el('td', null,
-                            el('ul', { className: 'notes-list' },
-                                p.minIncome ? el('li', null, `Min Income: $${p.minIncome.toLocaleString()}`) : null,
-                                p.maxPti ? el('li', null, `Max PTI: ${p.maxPti}%`) : null
+                    aggregatedData.length === 0
+                        ? el('tr', null,
+                            el('td', { colSpan: 8, style: { textAlign: 'center', padding: '12px', color: '#6b7280' } }, 'No lender profiles available.'))
+                        : aggregatedData.map(p => el('tr', { key: p.id || p.name },
+                            el('td', null,
+                                el('div', { className: 'lender-name' }, p.name),
+                                el('div', { className: 'book-source' }, `Book: ${p.bookValueSource || 'Trade'}`)
+                            ),
+                            el('td', null, p.ficoRange),
+                            el('td', null, p.yearRange),
+                            el('td', null, p.mileageRange),
+                            el('td', null, p.ltvRange),
+                            el('td', null, p.termRange),
+                            el('td', null, p.amountRange),
+                            el('td', null,
+                                el('ul', { className: 'notes-list' },
+                                    p.minIncome ? el('li', null, `Min Income: $${p.minIncome.toLocaleString()}`) : null,
+                                    p.maxPti ? el('li', null, `Max PTI: ${p.maxPti}%`) : null,
+                                    ...p.tierSummary.map((note, idx) => el('li', { key: `${p.id || p.name}-tier-${idx}` }, note))
+                                )
                             )
-                        )
-                    ))
+                        ))
                 )
             )
         ),
