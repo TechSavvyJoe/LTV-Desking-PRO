@@ -68,7 +68,11 @@ const detectDelimiter = (headerLine: string): string => {
 
 const parseNumber = (str: string | undefined): number | 'N/A' => {
   if (str === undefined || str === null || String(str).trim() === '') return 'N/A';
-  const num = parseFloat(String(str).replace(/[^0-9.-]+/g, ""));
+  const cleaned = String(str).replace(/[^0-9.-]+/g, "");
+  // Prevent multiple dots/dashes that would yield NaN.
+  const isLikelyNumber = /^-?\d+(\.\d+)?$/.test(cleaned);
+  if (!isLikelyNumber) return 'N/A';
+  const num = parseFloat(cleaned);
   return isNaN(num) ? 'N/A' : num;
 };
 

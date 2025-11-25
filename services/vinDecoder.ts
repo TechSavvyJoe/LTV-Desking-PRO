@@ -14,7 +14,17 @@ export const decodeVin = async (vin: string): Promise<VinDetails> => {
   const url = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`;
   
   try {
-    const response = await fetch(url);
+    if (typeof fetch !== 'function') {
+      throw new Error("VIN lookup is unavailable in this environment.");
+    }
+
+    // Add a timeout to avoid hanging UI on bad networks.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       throw new Error(`NHTSA API failed with status: ${response.status}`);
     }
@@ -44,6 +54,9 @@ export const decodeVin = async (vin: string): Promise<VinDetails> => {
     return { make, model, year };
 
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error("VIN lookup timed out. Please check your connection and try again.");
+    }
     if (error instanceof Error) {
       // Re-throw known errors to be displayed in the UI.
       throw error;

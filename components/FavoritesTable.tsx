@@ -168,31 +168,41 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({ favorites, dealData, se
 
   const handleDownloadPdf = async (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
       e.stopPropagation();
-      const pdfData = preparePdfData(vehicle);
-      const blob = await generateDealPdf(pdfData, settings);
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+      try {
+          const pdfData = preparePdfData(vehicle);
+          const blob = await generateDealPdf(pdfData, settings);
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+      } catch (error) {
+          console.error("Error generating PDF:", error);
+          alert("Failed to generate PDF. Please check deal data.");
+      }
   };
 
   const handleSharePdf = async (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
       e.stopPropagation();
-      const pdfData = preparePdfData(vehicle);
-      const blob = await generateDealPdf(pdfData, settings);
-      const file = new File([blob], `Deal_Sheet_${vehicle.vehicle}.pdf`, { type: 'application/pdf' });
-      
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-              await navigator.share({
-                  title: `Deal Sheet for ${vehicle.vehicle}`,
-                  text: `Here are the numbers for the ${vehicle.vehicle}.`,
-                  files: [file],
-              });
-          } catch (error) {
-              console.error('Error sharing:', error);
+      try {
+          const pdfData = preparePdfData(vehicle);
+          const blob = await generateDealPdf(pdfData, settings);
+          const file = new File([blob], `Deal_Sheet_${vehicle.vehicle}.pdf`, { type: 'application/pdf' });
+          
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              try {
+                  await navigator.share({
+                      title: `Deal Sheet for ${vehicle.vehicle}`,
+                      text: `Here are the numbers for the ${vehicle.vehicle}.`,
+                      files: [file],
+                  });
+              } catch (error) {
+                  console.error('Error sharing:', error);
+              }
+          } else {
+              alert("Sharing of this file type is not supported on your device.");
           }
-      } else {
-          alert("Sharing of this file type is not supported on your device.");
+      } catch (error) {
+          console.error('Error generating PDF:', error);
+          alert("Failed to generate PDF for sharing. Please try again.");
       }
   };
 

@@ -35,13 +35,44 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
-        const processedValue = type === 'number' ? Number(value) : value;
-        setLocalSettings(prev => ({ ...prev, [name]: processedValue }));
+        // Keep numeric fields non-negative and avoid NaN when clearing inputs.
+        setLocalSettings(prev => {
+            const current = prev[name as keyof Settings];
+            if (type === 'number') {
+                if (value === '') return prev; // ignore empty to keep last valid value
+                const numeric = Number(value);
+                if (Number.isNaN(numeric)) return prev;
+                return { ...prev, [name]: Math.max(0, numeric) } as Settings;
+            }
+            return { ...prev, [name]: value } as Settings;
+        });
     };
 
     const handleSave = () => {
         onSave(localSettings);
         onClose();
+    };
+
+    const handleResetAllData = () => {
+        const confirmed = window.confirm('This will clear saved inventory, favorites, deals, filters, and settings. Continue?');
+        if (!confirmed) return;
+        const keys = [
+            'ltvInventory',
+            'ltvDealData',
+            'ltvFilters',
+            'ltvFavorites',
+            'ltvBankProfiles',
+            'ltvSavedDeals',
+            'ltvScratchPad',
+            'ltvAppSettings'
+        ];
+        try {
+            keys.forEach(k => window.localStorage.removeItem(k));
+            window.location.reload();
+        } catch (err) {
+            console.error('Failed to reset data', err);
+            alert('Could not reset data. Please clear site data manually in your browser.');
+        }
     };
 
     if (!isOpen) return null;
@@ -92,9 +123,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         </div>
                     </div>
                 </div>
-                <div className="p-4 border-t border-x-border flex justify-end gap-3 bg-slate-50 dark:bg-x-black sticky bottom-0">
-                    <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-                    <Button type="button" onClick={handleSave}>Save Settings</Button>
+                <div className="p-4 border-t border-x-border flex justify-between items-center gap-3 bg-slate-50 dark:bg-x-black sticky bottom-0 flex-wrap">
+                    <Button type="button" variant="danger" size="sm" onClick={handleResetAllData}>Reset All Data</Button>
+                    <div className="flex gap-3">
+                        <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+                        <Button type="button" onClick={handleSave}>Save Settings</Button>
+                    </div>
                 </div>
             </div>
         </div>

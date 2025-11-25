@@ -8,6 +8,10 @@ import { LenderCheatSheetTemplate } from '../components/pdf/LenderCheatSheetTemp
 import type { DealPdfData, LenderProfile, Settings } from '../types';
 
 const renderComponentAsPdfBlob = async (component: React.ReactElement, orientation: 'portrait' | 'landscape' = 'portrait'): Promise<Blob> => {
+    if (typeof document === 'undefined') {
+        throw new Error("PDF generation is only supported in the browser.");
+    }
+
     // Create a container element that will be placed off-screen.
     // This is the most reliable way to ensure the browser renders the content fully.
     const container = document.createElement('div');

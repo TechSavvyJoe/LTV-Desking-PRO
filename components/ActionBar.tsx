@@ -50,31 +50,41 @@ const ActionBar: React.FC<ActionBarProps> = ({
 
     const handleDownloadFavoritesPdf = async () => {
         if (favoritesData.length === 0) return alert("No favorites to generate a PDF for.");
-        const pdfData = prepareFavoritesPdfData();
-        const blob = await generateFavoritesPdf(pdfData, settings);
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+        try {
+            const pdfData = prepareFavoritesPdfData();
+            const blob = await generateFavoritesPdf(pdfData, settings);
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        } catch (err) {
+            console.error('PDF generation failed', err);
+            alert('Unable to generate PDF. Please check your data and try again.');
+        }
     };
 
     const handleShareFavoritesPdf = async () => {
         if (favoritesData.length === 0) return alert("No favorites to share.");
-        const pdfData = prepareFavoritesPdfData();
-        const blob = await generateFavoritesPdf(pdfData, settings);
-        const file = new File([blob], 'Favorites_Deal_Sheets.pdf', { type: 'application/pdf' });
-        
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    title: 'Favorites Deal Summary',
-                    text: 'Here are the vehicle options we discussed.',
-                    files: [file],
-                });
-            } catch (error) {
-                console.error('Error sharing:', error);
+        try {
+            const pdfData = prepareFavoritesPdfData();
+            const blob = await generateFavoritesPdf(pdfData, settings);
+            const file = new File([blob], 'Favorites_Deal_Sheets.pdf', { type: 'application/pdf' });
+            
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'Favorites Deal Summary',
+                        text: 'Here are the vehicle options we discussed.',
+                        files: [file],
+                    });
+                } catch (error) {
+                    console.error('Error sharing:', error);
+                }
+            } else {
+                alert("Sharing of this file type is not supported on your device.");
             }
-        } else {
-            alert("Sharing of this file type is not supported on your device.");
+        } catch (err) {
+            console.error('PDF generation failed', err);
+            alert('Unable to generate PDF for sharing. Please try again.');
         }
     };
 
