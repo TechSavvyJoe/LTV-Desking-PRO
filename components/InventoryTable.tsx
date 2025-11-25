@@ -14,7 +14,7 @@ const DetailItem = ({ label, value, valueToCopy }: { label: string; value: React
     <span className="text-slate-500 dark:text-gray-400">{label}</span>
     {valueToCopy !== undefined ? (
         <CopyToClipboard valueToCopy={valueToCopy}>
-            <span className="font-medium text-slate-900 dark:text-gray-100">{value}</span>
+            <span className="font-medium text-slate-900 dark:text-gray-100 hover:text-blue-500 transition-colors">{value}</span>
         </CopyToClipboard>
     ) : (
         <span className="font-medium text-slate-900 dark:text-gray-100">{value}</span>
@@ -23,7 +23,7 @@ const DetailItem = ({ label, value, valueToCopy }: { label: string; value: React
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-    <select {...props} className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-gray-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-gray-100" />
+    <select {...props} className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-gray-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-gray-100 cursor-pointer" />
 );
 
 
@@ -52,7 +52,7 @@ const EditableField = ({ label, value, onUpdate, type = 'number', step = '1' }: 
                 value={currentValue}
                 onChange={(e) => setCurrentValue(e.target.value)}
                 onBlur={handleBlur}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()} // Stop click from collapsing row
                 className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-gray-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-gray-100"
             />
         </div>
@@ -100,16 +100,21 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     });
   };
   
-  const columns = [
+  // Memoize columns to prevent re-renders
+  const columns = useMemo(() => [
     { header: '', accessor: 'expand' as const, className: 'w-10 text-center', render: (item: CalculatedVehicle) => {
         if (!item || !item.vin) return null;
         const isExpanded = expandedRows?.has(item.vin) || false;
-        return <Icons.ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : '-rotate-90'}`} />;
+        return (
+            <div className="flex justify-center items-center h-full w-full cursor-pointer">
+                <Icons.ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : '-rotate-90'}`} />
+            </div>
+        );
     }},
     { header: 'Actions', accessor: 'action' as const, className: 'min-w-[200px]', render: (item: CalculatedVehicle) => {
         if (!item) return null;
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={(e) => { e.stopPropagation(); toggleFavorite(item.vin); }}
               className={`p-2 rounded-full transition-colors group focus:outline-none hover:bg-slate-100 dark:hover:bg-white/10`}
@@ -121,7 +126,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
               variant="secondary"
               size="sm"
               onClick={(e) => { e.stopPropagation(); onStructureDeal(item); }}
-              className="!py-1.5 !px-3 !text-xs shadow-sm"
+              className="!py-1.5 !px-3 !text-xs shadow-sm hover:shadow-md transition-all"
             >
               <Icons.WrenchIcon className="w-4 h-4 mr-1.5" />
               Structure
@@ -141,7 +146,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     { header: 'OTD LTV', accessor: 'otdLtv' as const, isNumeric: true, className: 'text-right', render: (item: CalculatedVehicle) => <OtdLtvCell value={item.otdLtv} /> },
     { header: 'Payment', accessor: 'monthlyPayment' as const, isNumeric: true, className: 'text-right', render: (item: CalculatedVehicle) => <PaymentCell value={item.monthlyPayment} /> },
     { header: 'VIN', accessor: 'vin' as const, render: (item: CalculatedVehicle) => <CopyToClipboard valueToCopy={item.vin}><span className="font-mono text-xs">{item.vin}</span></CopyToClipboard> },
-  ];
+  ], [expandedRows, favoriteVins, toggleFavorite, onStructureDeal]); // Dependencies
 
   const preparePdfData = (vehicle: CalculatedVehicle): DealPdfData => {
       const safeProfiles = (Array.isArray(lenderProfiles) ? lenderProfiles : []).filter(p => p && typeof p === 'object');
@@ -206,7 +211,6 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   const renderExpandedRow = (item: CalculatedVehicle) => {
     if (!item) return null;
     
-    // CRITICAL FIX: Wrap expanded row logic in try-catch to prevent crashes if lender data is malformed
     try {
         const safeProfiles = (Array.isArray(lenderProfiles) ? lenderProfiles : []).filter(p => p && typeof p === 'object');
         
@@ -220,7 +224,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         const hasCustomerData = customerFilters.creditScore || customerFilters.monthlyIncome;
 
         return (
-          <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8 bg-slate-50 dark:bg-white/5 border-t border-slate-200 dark:border-gray-700 shadow-inner">
+          <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8 bg-slate-50 dark:bg-white/5 border-t border-slate-200 dark:border-gray-700 shadow-inner cursor-default" onClick={e => e.stopPropagation()}>
             {/* Financial Breakdown */}
             <div className="bg-white dark:bg-black p-4 rounded-xl border border-slate-200 dark:border-gray-800 shadow-sm">
               <div className="flex justify-between items-center mb-4">
@@ -336,6 +340,4 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   );
 };
 
-// Add CarIcon locally if not in Icons (or add to Icons.tsx)
-// To be safe, I will add a fallback Icon here if missing from imports, but I updated Icons.tsx above.
 export default InventoryTable;

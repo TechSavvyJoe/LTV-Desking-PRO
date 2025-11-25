@@ -7,12 +7,21 @@ interface CopyToClipboardProps {
   className?: string;
 }
 
-const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ children, valueToCopy, className }) => {
+const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ children, valueToCopy, className = '' }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation(); 
-    if (valueToCopy === 'N/A' || valueToCopy === 'Error' || valueToCopy === null || valueToCopy === undefined) return;
+    e.preventDefault(); // Essential to stop propagation to row
+    e.stopPropagation();
+    
+    // Validate value before processing
+    if (
+        valueToCopy === 'N/A' || 
+        valueToCopy === 'Error' || 
+        valueToCopy === null || 
+        valueToCopy === undefined || 
+        Number.isNaN(valueToCopy)
+    ) return;
 
     const textToCopy = String(valueToCopy).replace(/[^0-9.-]/g, '');
     if(textToCopy === '') return;
@@ -26,25 +35,21 @@ const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ children, valueToCopy
   };
 
   return (
-    <span onClick={handleCopy} className={`relative cursor-pointer group ${className}`} title="Click to copy value">
+    <div 
+        onClick={handleCopy} 
+        className={`relative cursor-pointer group inline-block ${className}`}
+        title="Click to copy value"
+        role="button"
+        tabIndex={0}
+    >
       {children}
       {copied && (
-        <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded-md z-10 animate-fade-in-out">
+        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg z-50 whitespace-nowrap pointer-events-none">
           Copied!
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></span>
         </span>
       )}
-      <style>{`
-        @keyframes fade-in-out {
-          0% { opacity: 0; transform: translate(-50%, -5px); }
-          20% { opacity: 1; transform: translate(-50%, 0); }
-          80% { opacity: 1; transform: translate(-50%, 0); }
-          100% { opacity: 0; transform: translate(-50%, -5px); }
-        }
-        .animate-fade-in-out {
-          animation: fade-in-out 1.5s ease-in-out;
-        }
-      `}</style>
-    </span>
+    </div>
   );
 };
 
