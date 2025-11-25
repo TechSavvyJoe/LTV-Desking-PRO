@@ -134,7 +134,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
           </div>
         );
     }},
-    { header: 'Vehicle', accessor: 'vehicle' as const, className: 'font-medium text-slate-900 dark:text-gray-100 min-w-[180px]' },
+    { header: 'Vehicle', accessor: 'vehicle' as const, className: 'font-medium text-slate-900 dark:text-gray-100 min-w-[200px]' },
     { header: 'Stock #', accessor: 'stock' as const, className: 'text-slate-500 dark:text-gray-400' },
     { header: 'Year', accessor: 'modelYear' as const, isNumeric: true, render: (item: CalculatedVehicle) => <CopyToClipboard valueToCopy={item.modelYear}>{item.modelYear}</CopyToClipboard> },
     { header: 'Miles', accessor: 'mileage' as const, isNumeric: true, render: (item: CalculatedVehicle) => <CopyToClipboard valueToCopy={item.mileage}>{formatNumber(item.mileage)}</CopyToClipboard> },
@@ -145,7 +145,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     { header: 'Amt to Fin', accessor: 'amountToFinance' as const, isNumeric: true, className: 'text-right font-semibold text-blue-600 dark:text-blue-400', render: (item: CalculatedVehicle) => <CopyToClipboard valueToCopy={item.amountToFinance}>{formatCurrency(item.amountToFinance)}</CopyToClipboard> },
     { header: 'OTD LTV', accessor: 'otdLtv' as const, isNumeric: true, className: 'text-right', render: (item: CalculatedVehicle) => <OtdLtvCell value={item.otdLtv} /> },
     { header: 'Payment', accessor: 'monthlyPayment' as const, isNumeric: true, className: 'text-right', render: (item: CalculatedVehicle) => <PaymentCell value={item.monthlyPayment} /> },
-    { header: 'VIN', accessor: 'vin' as const, render: (item: CalculatedVehicle) => <CopyToClipboard valueToCopy={item.vin}><span className="font-mono text-xs">{item.vin}</span></CopyToClipboard> },
+    { header: 'VIN', accessor: 'vin' as const, className: 'min-w-[240px]', render: (item: CalculatedVehicle) => <CopyToClipboard valueToCopy={item.vin}><span className="font-mono text-xs break-all">{item.vin}</span></CopyToClipboard> },
   ], [expandedRows, favoriteVins, toggleFavorite, onStructureDeal]); // Dependencies
 
   const preparePdfData = (vehicle: CalculatedVehicle): DealPdfData => {

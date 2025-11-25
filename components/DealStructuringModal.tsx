@@ -35,25 +35,25 @@ interface InputGroupProps {
 
 const InputGroup: React.FC<InputGroupProps> = ({ label, children, htmlFor, error }) => (
   <div className="flex flex-col">
-    <label htmlFor={htmlFor} className="mb-1.5 text-sm font-medium text-slate-500 dark:text-x-text-secondary">{label}</label>
+    <label htmlFor={htmlFor} className="mb-1.5 text-sm font-semibold text-slate-200">{label}</label>
     {children}
     {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
   </div>
 );
 
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) => {
-    const errorClasses = props.error ? 'border-red-500/50 focus:border-red-500' : 'border-slate-300 dark:border-x-border focus:border-x-blue';
+    const errorClasses = props.error ? 'border-red-500/60 focus:border-red-400 focus:ring-red-300/50' : 'border-slate-700 focus:border-sky-400 focus:ring-sky-400/40';
     return (
-        <input {...props} className={`w-full px-3 py-2 text-base bg-transparent border ${errorClasses} rounded-lg placeholder-slate-400 dark:placeholder-x-text-secondary focus:outline-none focus:ring-0 transition-colors duration-200 ease-in-out`} />
+        <input {...props} className={`w-full px-3 py-2.5 text-base bg-slate-900 border ${errorClasses} rounded-xl placeholder-slate-500 text-slate-100 focus:outline-none focus:ring-2 transition-all duration-200 ease-in-out shadow-sm`} />
     );
 };
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select {...props} className="w-full px-3 py-2 text-base bg-slate-50 dark:bg-x-black border border-slate-300 dark:border-x-border rounded-lg placeholder-slate-400 dark:placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0 transition-colors duration-200 ease-in-out" />
+  <select {...props} className="w-full px-3 py-2.5 text-base bg-slate-900 border border-slate-700 rounded-xl placeholder-slate-400 text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 transition-all duration-200 ease-in-out shadow-sm" />
 );
 
 const StyledTextarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-    <textarea {...props} rows={4} className={`w-full px-3 py-2 text-base bg-transparent border border-slate-300 dark:border-x-border rounded-lg placeholder-slate-400 dark:placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0 transition-colors duration-200 ease-in-out`} />
+    <textarea {...props} rows={4} className={`w-full px-3 py-2.5 text-base bg-slate-900 border border-slate-700 rounded-xl placeholder-slate-500 text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 transition-all duration-200 ease-in-out shadow-sm`} />
 );
 
 const SummaryRow = ({ label, value, valueToCopy, isBold = false }: { label: string; value: React.ReactNode; valueToCopy?: string | number | 'N/A' | 'Error'; isBold?: boolean; }) => (
@@ -122,19 +122,19 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({ vehicle, de
 
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
-            <div className="bg-slate-50 dark:bg-x-black border border-slate-200 dark:border-x-border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                <div className="p-4 sticky top-0 bg-slate-50/80 dark:bg-x-black/80 backdrop-blur-md z-10 border-b border-slate-200 dark:border-x-border">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col text-slate-100" onClick={e => e.stopPropagation()}>
+                <div className="p-4 sticky top-0 bg-slate-900/80 backdrop-blur-md z-10 border-b border-slate-800">
                     <div className="flex justify-between items-center">
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-x-text-primary">Structure Deal</h2>
-                            <p className="text-slate-500 dark:text-x-text-secondary">{vehicle.vehicle}</p>
+                            <h2 className="text-xl font-bold text-white">Structure Deal</h2>
+                            <p className="text-slate-300">{vehicle.vehicle}</p>
                         </div>
-                        <button onClick={onClose} className="p-2 rounded-full text-slate-500 dark:text-x-text-secondary hover:bg-slate-200 dark:hover:bg-x-hover-light"><CloseIcon /></button>
+                        <button onClick={onClose} className="p-2 rounded-full text-slate-300 hover:bg-slate-800"><CloseIcon /></button>
                     </div>
                 </div>
 
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto">
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto bg-slate-950">
                     {/* Left Side: Inputs */}
                     <div className="space-y-4">
                         <div className="space-y-4">
@@ -168,32 +168,32 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({ vehicle, de
                     </div>
 
                     {/* Right Side: Summary */}
-                    <div className="bg-slate-100 dark:bg-x-hover-dark p-6 rounded-lg sticky top-0">
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-x-text-primary mb-4 border-b border-slate-200 dark:border-x-border pb-3">Deal Summary</h3>
+                    <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-lg sticky top-0">
+                        <h3 className="text-lg font-semibold text-white mb-4 border-b border-slate-800 pb-3">Deal Summary</h3>
                         <div className="space-y-2">
                              <SummaryRow label="Vehicle Sale Price" value={formatCurrency(vehicle.price)} valueToCopy={vehicle.price} />
                              <SummaryRow label="Base OTD Price" value={formatCurrency(localCalculated.baseOutTheDoorPrice)} valueToCopy={localCalculated.baseOutTheDoorPrice} />
-                             <hr className="my-2 border-slate-200 dark:border-x-border"/>
+                             <hr className="my-2 border-slate-800"/>
                              <SummaryRow label="Cash Down Payment" value={formatCurrency(dealData.downPayment)} valueToCopy={dealData.downPayment} />
                              <SummaryRow label="Net Trade-In Equity" value={formatCurrency(netTradeIn)} valueToCopy={netTradeIn} />
                              <SummaryRow label="Total Down" value={formatCurrency(totalDown)} isBold={true} valueToCopy={totalDown} />
-                             <hr className="my-2 border-slate-200 dark:border-x-border"/>
+                             <hr className="my-2 border-slate-800"/>
                              <SummaryRow label="Backend Products" value={formatCurrency(dealData.backendProducts)} valueToCopy={dealData.backendProducts} />
                              <SummaryRow label="Amount to Finance" value={formatCurrency(localCalculated.amountToFinance)} isBold={true} valueToCopy={localCalculated.amountToFinance} />
-                             <hr className="my-2 border-slate-200 dark:border-x-border"/>
+                             <hr className="my-2 border-slate-800"/>
 
-                             <div className="flex justify-between items-center py-2 bg-x-blue/10 px-3 rounded-md">
-                                <span className="font-bold text-lg text-x-blue">Monthly Payment</span>
+                             <div className="flex justify-between items-center py-3 bg-slate-800 px-4 rounded-lg">
+                                <span className="font-bold text-lg text-sky-300">Monthly Payment</span>
                                 <CopyToClipboard valueToCopy={localCalculated.monthlyPayment}>
-                                    <span className="font-bold text-lg text-x-blue">{formatCurrency(localCalculated.monthlyPayment)}</span>
+                                    <span className="font-bold text-lg text-sky-200">{formatCurrency(localCalculated.monthlyPayment)}</span>
                                 </CopyToClipboard>
                              </div>
                              <div className="flex justify-between items-center py-2">
-                                <span className="font-semibold text-slate-500 dark:text-x-text-secondary">Front-End LTV</span>
+                                <span className="font-semibold text-slate-300">Front-End LTV</span>
                                 <LtvCell value={localCalculated.frontEndLtv} />
                              </div>
                              <div className="flex justify-between items-center py-2">
-                                <span className="font-semibold text-slate-500 dark:text-x-text-secondary">OTD LTV</span>
+                                <span className="font-semibold text-slate-300">OTD LTV</span>
                                 <OtdLtvCell value={localCalculated.otdLtv} />
                              </div>
                              
