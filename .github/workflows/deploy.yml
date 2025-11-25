@@ -33,10 +33,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Note: Secrets are not automatically available in build unless specified
-          # If you have secrets, add them to Repository Settings -> Secrets and Variables -> Actions
-          # and reference them here like: GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CI: false
+          # Inject the secret from GitHub Settings into the build process
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
