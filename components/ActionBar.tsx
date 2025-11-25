@@ -1,135 +1,57 @@
-
-import React, { useRef } from 'react';
-import Button from './common/Button';
-import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from '../types';
-import { generateFavoritesPdf } from '../services/pdfGenerator';
-import { checkBankEligibility } from '../services/lenderMatcher';
-import * as Icons from './common/Icons';
+import React from "react";
+import Button from "./common/Button";
+import * as Icons from "./common/Icons";
 
 interface ActionBarProps {
-  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  fileName: string;
-  onSaveDeal: () => void;
-  onClearDeal: () => void;
-  activeVehicle: CalculatedVehicle | null;
-  isDealDirty: boolean;
-  visibleData: CalculatedVehicle[];
-  favoritesData: CalculatedVehicle[];
-  dealData: DealData; 
-  customerFilters: FilterData; 
-  lenderProfiles: LenderProfile[]; 
-  customerName: string; 
-  salespersonName: string; 
-  settings: Settings;
+  activeTab: "inventory" | "favorites" | "lenders" | "saved" | "scratchpad";
+  favoritesCount: number;
+  onDownloadFavorites: () => void;
+  onDownloadCheatSheet: () => void;
 }
 
-const ActionBar: React.FC<ActionBarProps> = ({ 
-    onFileChange, fileName, onSaveDeal, onClearDeal, activeVehicle, isDealDirty, 
-    visibleData, favoritesData, dealData, customerFilters, lenderProfiles,
-    customerName, salespersonName, settings
+const ActionBar: React.FC<ActionBarProps> = ({
+  activeTab,
+  favoritesCount,
+  onDownloadFavorites,
+  onDownloadCheatSheet,
 }) => {
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const isShareSupported = typeof navigator !== 'undefined' && !!navigator.share;
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-4">
+      <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
+        Actions
+      </h3>
 
-    const handleUploadClick = () => {
-        fileInputRef.current?.click();
-    };
+      <div className="space-y-3">
+        <Button
+          variant="secondary"
+          className="w-full justify-start"
+          onClick={onDownloadFavorites}
+          disabled={favoritesCount === 0}
+        >
+          <Icons.DocumentDuplicateIcon className="w-5 h-5 mr-2 text-blue-500" />
+          Download Favorites PDF
+          <span className="ml-auto text-xs bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-400">
+            {favoritesCount}
+          </span>
+        </Button>
 
-    const prepareFavoritesPdfData = () => {
-        // Strict defensive check for lenderProfiles array
-        const safeProfiles = Array.isArray(lenderProfiles) ? lenderProfiles : [];
-        
-        return favoritesData.map(vehicle => {
-            const lenderEligibility = safeProfiles.map(bank => ({
-                name: bank.name,
-                ...checkBankEligibility(vehicle, { ...dealData, ...customerFilters }, bank)
-            }));
-            return { vehicle, dealData, customerFilters, customerName, salespersonName, lenderEligibility };
-        });
-    };
+        <Button
+          variant="secondary"
+          className="w-full justify-start"
+          onClick={onDownloadCheatSheet}
+        >
+          <Icons.BanknotesIcon className="w-5 h-5 mr-2 text-emerald-500" />
+          Lender Cheat Sheet
+        </Button>
+      </div>
 
-    const handleDownloadFavoritesPdf = async () => {
-        if (favoritesData.length === 0) return alert("No favorites to generate a PDF for.");
-        try {
-            const pdfData = prepareFavoritesPdfData();
-            const blob = await generateFavoritesPdf(pdfData, settings);
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-        } catch (err) {
-            console.error('PDF generation failed', err);
-            alert('Unable to generate PDF. Please check your data and try again.');
-        }
-    };
-
-    const handleShareFavoritesPdf = async () => {
-        if (favoritesData.length === 0) return alert("No favorites to share.");
-        try {
-            const pdfData = prepareFavoritesPdfData();
-            const blob = await generateFavoritesPdf(pdfData, settings);
-            const file = new File([blob], 'Favorites_Deal_Sheets.pdf', { type: 'application/pdf' });
-            
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        title: 'Favorites Deal Summary',
-                        text: 'Here are the vehicle options we discussed.',
-                        files: [file],
-                    });
-                } catch (error) {
-                    console.error('Error sharing:', error);
-                }
-            } else {
-                alert("Sharing of this file type is not supported on your device.");
-            }
-        } catch (err) {
-            console.error('PDF generation failed', err);
-            alert('Unable to generate PDF for sharing. Please try again.');
-        }
-    };
-
-    const exportToCsv = (data: CalculatedVehicle[], filename: string) => {
-        if (!data || data.length === 0) return alert("No data to export.");
-        const headers = Object.keys(data[0]).join(',');
-        const rows = data.map(row => 
-            Object.values(row).map(value => {
-                const stringValue = String(value ?? '');
-                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-                    return `"${stringValue.replace(/"/g, '""')}"`;
-                }
-                return stringValue;
-            }).join(',')
-        );
-        const csvString = [headers, ...rows].join('\r\n');
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    return (
-        <div className="flex flex-wrap justify-between items-center mb-4 gap-4 py-4 border-b border-slate-800 text-slate-100">
-            <div className="flex items-center gap-4">
-                <input type="file" ref={fileInputRef} onChange={onFileChange} className="hidden" accept=".csv,.txt,.xls,.xlsx" />
-                <Button variant="secondary" onClick={handleUploadClick}><Icons.UploadIcon /> Upload</Button>
-                <span className="text-sm text-slate-400">{fileName}</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-                <Button onClick={onSaveDeal} disabled={!activeVehicle} title={!activeVehicle ? "Select a vehicle and structure a deal first" : (isDealDirty ? "Save current changes" : "Deal is saved")}>
-                    {isDealDirty ? 'Save Deal' : 'Deal Saved'}
-                </Button>
-                <Button variant="secondary" onClick={onClearDeal}>Clear</Button>
-                <Button variant="ghost" onClick={() => exportToCsv(visibleData, 'visible_inventory.csv')} disabled={visibleData.length === 0}>Export Visible</Button>
-                <Button variant="ghost" onClick={handleDownloadFavoritesPdf} disabled={favoritesData.length === 0}>View Favs PDF</Button>
-                {isShareSupported && <Button variant="ghost" onClick={handleShareFavoritesPdf} disabled={favoritesData.length === 0}>Share Favs</Button>}
-            </div>
-        </div>
-    );
+      <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+        <p className="text-xs text-slate-400 text-center">
+          LTV Desking Pro v2.0
+        </p>
+      </div>
+    </div>
+  );
 };
 
 export default ActionBar;

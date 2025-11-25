@@ -1,603 +1,527 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import type {
-  Vehicle,
-  DealData,
-  FilterData,
-  SortConfig,
-  LenderProfile,
-  Message,
-  ValidationErrors,
-  CalculatedVehicle,
-  SavedDeal,
-  Settings,
-} from "./types";
-import { useLocalStorage } from "./hooks/useLocalStorage";
-import { useSettings } from "./hooks/useSettings";
+import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "./hooks/useTheme";
-import { useSafeData } from "./hooks/useSafeData";
 import { parseFile } from "./services/fileParser";
-import { calculateFinancials } from "./services/calculator";
 import { decodeVin } from "./services/vinDecoder";
-import {
-  INITIAL_DEAL_DATA,
-  INITIAL_FILTER_DATA,
-  SAMPLE_INVENTORY,
-  DEFAULT_LENDER_PROFILES,
-} from "./constants";
-import Header from "./components/Header";
+import { DealProvider, useDealContext } from "./context/DealContext";
+import * as Icons from "./components/common/Icons";
+import Button from "./components/common/Button";
 import DealControls from "./components/DealControls";
-import ActionBar from "./components/ActionBar";
-import FavoritesTable from "./components/FavoritesTable";
 import InventoryTable from "./components/InventoryTable";
-import Pagination from "./components/Pagination";
 import LenderProfiles from "./components/LenderProfiles";
-import CalculationKey from "./components/CalculationKey";
-import DealStructuringModal from "./components/DealStructuringModal";
-import FloatingToolsPanel from "./components/FloatingToolsPanel";
-import AiLenderManagerModal from "./components/AiLenderManagerModal";
-import DealHistoryPanel from "./components/DealHistoryPanel";
+import SavedDeals from "./components/SavedDeals";
 import SettingsModal from "./components/SettingsModal";
+import ScratchPad from "./components/ScratchPad";
+import ActionBar from "./components/ActionBar";
+import { Toast } from "./components/common/Toast";
+import { TabButton } from "./components/common/TabButton";
+import { calculateFinancials } from "./services/calculator";
+import {
+  generateFavoritesPdf,
+  generateLenderCheatSheetPdf,
+} from "./services/pdfGenerator";
+import { checkBankEligibility } from "./services/lenderMatcher";
 
-export default function App() {
-  useTheme(); // Initialize theme management
-  const [settings, setSettings] = useSettings();
-  const [inventory, setInventory] = useLocalStorage<Vehicle[]>(
-    "ltvInventory",
-    SAMPLE_INVENTORY
-  );
-  const [dealData, setDealData] = useLocalStorage<DealData>("ltvDealData", {
-    ...INITIAL_DEAL_DATA,
-    loanTerm: settings.defaultTerm,
-    interestRate: settings.defaultApr,
-    stateFees: settings.defaultStateFees,
-  });
-  const [filters, setFilters] = useLocalStorage<FilterData>(
-    "ltvFilters",
-    INITIAL_FILTER_DATA
-  );
-  const [message, setMessage] = useState<Message | null>(null);
-  const [errors, setErrors] = useState<ValidationErrors>({});
+const MainLayout: React.FC = () => {
+  const {
+    settings,
+    setSettings,
+    inventory,
+    setInventory,
+    dealData,
+    setDealData,
+    filters,
+    setFilters,
+    message,
+    setMessage,
+    errors,
+    setErrors,
+    customerName,
+    setCustomerName,
+    salespersonName,
+    setSalespersonName,
+    activeVehicle,
+    setActiveVehicle,
+    favorites,
+    setFavorites,
+    lenderProfiles,
+    setLenderProfiles,
+    savedDeals,
+    setSavedDeals,
+    scratchPadNotes,
+    setScratchPadNotes,
+    inventorySort,
+    setInventorySort,
+    favSort,
+    setFavSort,
+    pagination,
+    setPagination,
+    fileName,
+    setFileName,
+    expandedInventoryRows,
+    setExpandedInventoryRows,
+    safeInventory,
+    safeFavorites,
+    safeLenderProfiles,
+    safeSavedDeals,
+    processedInventory,
+    filteredInventory,
+    sortedInventory,
+    paginatedInventory,
+    toggleFavorite,
+    toggleInventoryRowExpansion,
+    handleInventoryUpdate,
+    clearDealAndFilters,
+  } = useDealContext();
 
-  const [customerName, setCustomerName] = useState<string>("");
-  const [salespersonName, setSalespersonName] = useState<string>("");
-  const [activeVehicle, setActiveVehicle] = useState<CalculatedVehicle | null>(
-    null
-  );
-  const [isDealDirty, setIsDealDirty] = useState<boolean>(false);
-
-  const [favorites, setFavorites] = useLocalStorage<Vehicle[]>(
-    "ltvFavorites",
-    []
-  );
-  const [lenderProfiles, setLenderProfiles] = useLocalStorage<LenderProfile[]>(
-    "ltvBankProfiles",
-    DEFAULT_LENDER_PROFILES
-  );
-  const [savedDeals, setSavedDeals] = useLocalStorage<SavedDeal[]>(
-    "ltvSavedDeals",
-    []
-  );
-  const [scratchPadNotes, setScratchPadNotes] = useLocalStorage<string>(
-    "ltvScratchPad",
-    ""
-  );
-
-  const [inventorySort, setInventorySort] = useState<SortConfig>({
-    key: null,
-    direction: "asc",
-  });
-  const [favSort, setFavSort] = useState<SortConfig>({
-    key: null,
-    direction: "asc",
-  });
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    rowsPerPage: 15,
-  });
-  const [fileName, setFileName] = useState<string>("Sample Data Loaded");
-  const [expandedInventoryRows, setExpandedInventoryRows] = useState<
-    Set<string>
-  >(new Set());
-
-  const [dealVehicle, setDealVehicle] = useState<CalculatedVehicle | null>(
-    null
-  );
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-
+  const { theme, toggleTheme } = useTheme();
+  const [activeTab, setActiveTab] = useState<
+    "inventory" | "favorites" | "lenders" | "saved" | "scratchpad"
+  >("inventory");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [vinLookup, setVinLookup] = useState("");
   const [vinLookupResult, setVinLookupResult] = useState<string | null>(null);
   const [isVinLoading, setIsVinLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Ensure arrays are initialized to prevent crashes with extra defensive checks
-  const safeInventory = useSafeData(inventory);
-  const safeFavorites = useSafeData(favorites);
-  const safeLenderProfiles = useSafeData(lenderProfiles);
-  const safeSavedDeals = useSafeData(savedDeals);
-
-  useEffect(() => {
-    if (activeVehicle) {
-      setIsDealDirty(true);
-    }
-  }, [dealData, filters, customerName, salespersonName, activeVehicle]);
-
-  const handleVinLookup = useCallback(async () => {
-    if (
-      !filters ||
-      !filters.vin ||
-      typeof filters.vin !== "string" ||
-      filters.vin?.length < 17
-    ) {
-      setVinLookupResult(null);
-      return;
-    }
-    setIsVinLoading(true);
-    setVinLookupResult("Decoding VIN...");
-    setMessage({ text: `Looking up VIN: ${filters.vin}`, type: "info" });
-
-    try {
-      const vehicleInfo = await decodeVin(filters.vin);
-      const description = `${vehicleInfo.year} ${vehicleInfo.make} ${vehicleInfo.model}`;
-      setFilters((prev) => ({ ...prev, vehicle: description }));
-      setVinLookupResult(`Found: ${description}`);
-      setMessage({
-        text: `Successfully decoded VIN. Vehicle filter updated.`,
-        type: "info",
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "An unknown error occurred.";
-      setVinLookupResult(`Error: ${errorMessage}`);
-      setMessage({ text: `VIN Lookup Error: ${errorMessage}`, type: "error" });
-    } finally {
-      setIsVinLoading(false);
-    }
-  }, [filters, setFilters]);
-
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
+  // File Upload Handler
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    setMessage({ text: "Processing file...", type: "info" });
     setFileName(file.name);
-
     try {
       const data = await parseFile(file);
-      const safeData = Array.isArray(data) ? data : [];
-      setInventory(safeData);
-      setMessage({
-        text: `Successfully processed ${safeData.length} vehicles.`,
-        type: "info",
-      });
-      setPagination((prev) => ({ ...prev, currentPage: 1 }));
-      setFilters(INITIAL_FILTER_DATA);
-      setInventorySort({ key: null, direction: "asc" });
-      setErrors({});
-      setExpandedInventoryRows(new Set());
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "An unknown error occurred.";
-      setMessage({
-        text: `File processing error: ${errorMessage}. Please ensure the file is not corrupted and has the required columns (e.g., Vehicle, Stock #, VIN, Price, J.D. Power Trade In, Odometer/Mileage).`,
-        type: "error",
-      });
-      setInventory([]);
-    } finally {
-      if (event.target) {
-        event.target.value = "";
+      if (data.length === 0) {
+        setMessage({
+          type: "error",
+          text: "No valid vehicle data found in file.",
+        });
+        return;
       }
+      setInventory(data);
+      setPagination((prev) => ({ ...prev, currentPage: 1 }));
+      setMessage({
+        type: "success",
+        text: `Successfully loaded ${data.length} vehicles.`,
+      });
+    } catch (err) {
+      console.error(err);
+      setMessage({
+        type: "error",
+        text: "Error parsing file. Ensure it is a valid CSV or Excel file.",
+      });
     }
   };
 
-  const clearDealAndFilters = useCallback(() => {
-    setDealData({
-      ...INITIAL_DEAL_DATA,
-      loanTerm: settings.defaultTerm,
-      interestRate: settings.defaultApr,
-      stateFees: settings.defaultStateFees,
-    });
-    setFilters(INITIAL_FILTER_DATA);
-    setErrors({});
-    setCustomerName("");
-    setSalespersonName("");
+  // VIN Lookup Handler
+  const handleVinLookup = async () => {
+    if (!vinLookup || vinLookup.length < 11) {
+      // Basic length check
+      setVinLookupResult("Error: Invalid VIN length");
+      return;
+    }
+    setIsVinLoading(true);
     setVinLookupResult(null);
-    setScratchPadNotes("");
-  }, [setDealData, setFilters, setErrors, setScratchPadNotes, settings]);
+    try {
+      const vehicle = await decodeVin(vinLookup);
+      if (vehicle) {
+        setInventory((prev) => [vehicle, ...(prev || [])]);
+        setVinLookupResult("Success: Vehicle added to inventory");
+        setVinLookup("");
+        setMessage({ type: "success", text: "Vehicle decoded and added." });
+      } else {
+        setVinLookupResult("Error: Could not decode VIN");
+      }
+    } catch (err) {
+      setVinLookupResult("Error: Service unavailable");
+    } finally {
+      setIsVinLoading(false);
+    }
+  };
 
-  const handleSaveActiveDeal = useCallback(() => {
+  // Save Deal Handler
+  const handleSaveDeal = () => {
     if (!activeVehicle) {
-      setMessage({
-        text: "No active vehicle to save a deal for. Please structure a deal on a vehicle first.",
-        type: "error",
-      });
+      setMessage({ type: "error", text: "No vehicle selected to save." });
+      return;
+    }
+    if (!customerName) {
+      setErrors((prev) => ({
+        ...prev,
+        customerName: "Customer Name is required",
+      }));
+      setMessage({ type: "error", text: "Please enter a Customer Name." });
       return;
     }
 
-    const currentDeals = Array.isArray(safeSavedDeals) ? safeSavedDeals : [];
-    const dealNumber =
-      (currentDeals.length > 0
-        ? Math.max(
-            ...currentDeals.map((d) =>
-              d && typeof d.dealNumber === "number" ? d.dealNumber : 0
-            )
-          )
-        : 0) + 1;
-
-    const newDeal: SavedDeal = {
-      id: `deal_${Date.now()}`,
-      dealNumber,
-      vehicleVin: activeVehicle.vin,
-      vehicleSnapshot: { ...activeVehicle },
-      dealData: { ...dealData },
-      customerFilters: {
-        creditScore: filters?.creditScore ?? null,
-        monthlyIncome: filters?.monthlyIncome ?? null,
-      },
+    const newSavedDeal = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
       customerName,
       salespersonName,
-      createdAt: new Date().toISOString(),
+      vehicle: activeVehicle,
+      dealData: { ...dealData },
+      notes: scratchPadNotes,
     };
 
-    setSavedDeals((prev) => [newDeal, ...(Array.isArray(prev) ? prev : [])]);
-    setIsDealDirty(false);
-    setMessage({
-      text: `Deal #${newDeal.dealNumber} for the ${activeVehicle.vehicle} has been saved.`,
-      type: "info",
-    });
-  }, [
-    activeVehicle,
-    dealData,
-    filters,
-    customerName,
-    salespersonName,
-    safeSavedDeals,
-    setSavedDeals,
-  ]);
+    setSavedDeals([newSavedDeal, ...safeSavedDeals]);
+    setMessage({ type: "success", text: "Deal saved successfully." });
+  };
 
-  const handleClearDeal = useCallback(() => {
-    if (activeVehicle && isDealDirty) {
-      handleSaveActiveDeal();
-      setMessage((prev) => ({
-        text: `${prev?.text || ""} Previous deal auto-saved. Inputs cleared.`,
-        type: "info",
-      }));
-    }
-    clearDealAndFilters();
-    setActiveVehicle(null);
-    setIsDealDirty(false);
-    setDealVehicle(null);
-  }, [activeVehicle, isDealDirty, handleSaveActiveDeal, clearDealAndFilters]);
-
-  const processedInventory = useMemo(() => {
-    return safeInventory.map((item) =>
-      calculateFinancials(item, dealData, settings)
-    );
-  }, [safeInventory, dealData, settings]);
-
-  const handleLoadDeal = useCallback(
-    (deal: SavedDeal) => {
-      setDealData(deal.dealData);
-      setFilters((prev) => ({
-        ...INITIAL_FILTER_DATA,
-        creditScore: deal.customerFilters.creditScore,
-        monthlyIncome: deal.customerFilters.monthlyIncome,
-      }));
-      setCustomerName(deal.customerName);
-      setSalespersonName(deal.salespersonName);
-
-      const loadedVehicle =
-        processedInventory.find((v) => v.vin === deal.vehicleVin) ||
-        deal.vehicleSnapshot;
-      setActiveVehicle(loadedVehicle as CalculatedVehicle);
-      setIsDealDirty(false);
-
+  // PDF Download Handlers
+  const handleDownloadFavorites = async () => {
+    if (safeFavorites.length === 0) {
       setMessage({
-        text: `Loaded deal #${deal.dealNumber} for ${deal.customerName}.`,
-        type: "info",
+        type: "error",
+        text: "No favorites to generate a PDF for.",
       });
-    },
-    [processedInventory, setDealData, setFilters, setActiveVehicle]
-  );
+      return;
+    }
+    try {
+      const pdfData = safeFavorites.map((vehicle) => {
+        // Calculate financials for the favorite vehicle if not already done
+        const calculatedVehicle = calculateFinancials(
+          vehicle,
+          dealData,
+          settings
+        );
 
-  const handleDeleteDeal = useCallback(
-    (dealId: string) => {
-      if (
-        window.confirm(
-          "Are you sure you want to permanently delete this deal history?"
-        )
-      ) {
-        setSavedDeals((prev) => (prev || []).filter((d) => d.id !== dealId));
-        setMessage({ text: "Deal history deleted.", type: "info" });
-      }
-    },
-    [setSavedDeals]
-  );
+        const lenderEligibility = safeLenderProfiles.map((bank) => ({
+          name: bank.name,
+          ...checkBankEligibility(
+            calculatedVehicle,
+            { ...dealData, ...filters },
+            bank
+          ),
+        }));
 
-  const filteredInventory = useMemo(() => {
-    const safeFilters = filters || INITIAL_FILTER_DATA;
-    return processedInventory.filter((item) => {
-      const vehicleMatch =
-        !safeFilters.vehicle ||
-        (item.vehicle || "")
-          .toLowerCase()
-          .includes(safeFilters.vehicle.toLowerCase());
-      const maxPriceMatch =
-        !safeFilters.maxPrice ||
-        (typeof item.price === "number" && item.price <= safeFilters.maxPrice);
-      const maxPaymentMatch =
-        !safeFilters.maxPayment ||
-        (typeof item.monthlyPayment === "number" &&
-          item.monthlyPayment <= safeFilters.maxPayment);
-      const vinMatch =
-        !safeFilters.vin ||
-        (item.vin || "").toLowerCase().includes(safeFilters.vin.toLowerCase());
-      return vehicleMatch && maxPriceMatch && maxPaymentMatch && vinMatch;
-    });
-  }, [processedInventory, filters]);
-
-  const sortedInventory = useMemo(() => {
-    if (!inventorySort.key) return filteredInventory;
-    const sorted = [...filteredInventory];
-    sorted.sort((a, b) => {
-      const valA = a[inventorySort.key!];
-      const valB = b[inventorySort.key!];
-
-      const isAInvalid =
-        valA === null ||
-        valA === "Error" ||
-        valA === "N/A" ||
-        valA === undefined;
-      const isBInvalid =
-        valB === null ||
-        valB === "Error" ||
-        valB === "N/A" ||
-        valB === undefined;
-
-      if (isAInvalid && isBInvalid) return 0;
-      if (isAInvalid) return 1;
-      if (isBInvalid) return -1;
-
-      if (typeof valA === "number" && typeof valB === "number") {
-        return inventorySort.direction === "asc" ? valA - valB : valB - valA;
-      }
-      if (typeof valA === "string" && typeof valB === "string") {
-        return inventorySort.direction === "asc"
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA);
-      }
-      return 0;
-    });
-    return sorted;
-  }, [filteredInventory, inventorySort]);
-
-  const paginatedInventory = useMemo(() => {
-    const { currentPage, rowsPerPage } = pagination;
-    if (rowsPerPage === Infinity) return sortedInventory;
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    return sortedInventory.slice(start, end);
-  }, [sortedInventory, pagination]);
-
-  const toggleFavorite = useCallback(
-    (vin: string) => {
-      setFavorites((prev) => {
-        const safePrev = Array.isArray(prev) ? prev : [];
-        const isFav = safePrev.some((f) => f.vin === vin);
-        if (isFav) {
-          return safePrev.filter((f) => f.vin !== vin);
-        } else {
-          const vehicleToAdd = (inventory || []).find((v) => v.vin === vin);
-          return vehicleToAdd ? [...safePrev, vehicleToAdd] : safePrev;
-        }
+        return {
+          vehicle: calculatedVehicle,
+          dealData,
+          customerFilters: filters,
+          customerName,
+          salespersonName,
+          lenderEligibility,
+        };
       });
-    },
-    [inventory, setFavorites]
-  );
 
-  const toggleInventoryRowExpansion = useCallback((vin: string) => {
-    setExpandedInventoryRows((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(vin)) {
-        newSet.delete(vin);
-      } else {
-        newSet.add(vin);
-      }
-      return newSet;
-    });
-  }, []);
-
-  const handleStructureDeal = useCallback(
-    (vehicle: CalculatedVehicle) => {
-      if (activeVehicle && isDealDirty) {
-        handleSaveActiveDeal();
-      }
-      setActiveVehicle(vehicle);
-      setDealVehicle(vehicle);
-    },
-    [activeVehicle, isDealDirty, handleSaveActiveDeal]
-  );
-
-  const handleSaveAndClearModal = useCallback(() => {
-    handleSaveActiveDeal();
-    setDealVehicle(null);
-    clearDealAndFilters();
-    setActiveVehicle(null);
-    setIsDealDirty(false);
-  }, [handleSaveActiveDeal, clearDealAndFilters]);
-
-  const handleInventoryUpdate = useCallback(
-    (vin: string, updatedData: Partial<Vehicle>) => {
-      setInventory((prev) =>
-        (prev || []).map((v) => (v.vin === vin ? { ...v, ...updatedData } : v))
-      );
-      // Keep favorites in sync when editing from expanded rows so numbers match across tables/PDFs.
-      setFavorites((prev) => {
-        if (!Array.isArray(prev)) return prev;
-        return prev.map((f) => (f.vin === vin ? { ...f, ...updatedData } : f));
+      const blob = await generateFavoritesPdf(pdfData, settings);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      setMessage({ type: "success", text: "Favorites PDF generated." });
+    } catch (err) {
+      console.error("PDF generation failed", err);
+      setMessage({
+        type: "error",
+        text: "Unable to generate PDF. Please check your data.",
       });
-    },
-    [setInventory, setFavorites]
-  );
+    }
+  };
+
+  const handleDownloadCheatSheet = async () => {
+    if (safeLenderProfiles.length === 0) {
+      setMessage({ type: "error", text: "No lender profiles available." });
+      return;
+    }
+    try {
+      const blob = await generateLenderCheatSheetPdf(safeLenderProfiles);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      setMessage({ type: "success", text: "Lender Cheat Sheet generated." });
+    } catch (err) {
+      console.error("Cheat sheet generation failed", err);
+      setMessage({ type: "error", text: "Unable to generate Cheat Sheet." });
+    }
+  };
 
   return (
-    <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-gray-100 transition-colors">
-        <Header
-          onOpenAiModal={() => setIsAiModalOpen(true)}
-          onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
-        />
-
-        <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="border-x border-slate-200 dark:border-x-border min-h-screen">
-            <div className="px-4">
-              {message && (
-                <div
-                  className={`my-4 p-3 rounded-md text-sm ${
-                    message.type === "error"
-                      ? "bg-red-500/20 text-red-400"
-                      : "bg-x-blue/20 text-x-blue"
-                  }`}
-                >
-                  {message.text}
-                </div>
-              )}
-
-              <DealControls
-                filters={filters || INITIAL_FILTER_DATA}
-                setFilters={setFilters}
-                dealData={dealData}
-                setDealData={setDealData}
-                errors={errors}
-                setErrors={setErrors}
-                customerName={customerName}
-                setCustomerName={setCustomerName}
-                salespersonName={salespersonName}
-                setSalespersonName={setSalespersonName}
-                onVinLookup={handleVinLookup}
-                vinLookupResult={vinLookupResult}
-                isVinLoading={isVinLoading}
-              />
-              <ActionBar
-                onFileChange={handleFileChange}
-                fileName={fileName}
-                onSaveDeal={handleSaveActiveDeal}
-                onClearDeal={handleClearDeal}
-                activeVehicle={activeVehicle}
-                isDealDirty={isDealDirty}
-                visibleData={paginatedInventory}
-                favoritesData={safeFavorites.map((fav) =>
-                  calculateFinancials(fav, dealData, settings)
-                )}
-                dealData={dealData}
-                customerFilters={filters || INITIAL_FILTER_DATA}
-                lenderProfiles={safeLenderProfiles}
-                customerName={customerName}
-                salespersonName={salespersonName}
-                settings={settings}
-              />
-
-              <FavoritesTable
-                favorites={safeFavorites}
-                dealData={dealData}
-                setDealData={setDealData}
-                lenderProfiles={safeLenderProfiles}
-                customerFilters={filters || INITIAL_FILTER_DATA}
-                toggleFavorite={toggleFavorite}
-                sortConfig={favSort}
-                setSortConfig={setFavSort}
-                onStructureDeal={handleStructureDeal}
-                customerName={customerName}
-                salespersonName={salespersonName}
-                onInventoryUpdate={handleInventoryUpdate}
-                settings={settings}
-              />
-
-              <InventoryTable
-                vehicles={paginatedInventory}
-                favorites={safeFavorites}
-                toggleFavorite={toggleFavorite}
-                sortConfig={inventorySort}
-                setSortConfig={setInventorySort}
-                expandedRows={expandedInventoryRows}
-                onRowClick={toggleInventoryRowExpansion}
-                onStructureDeal={handleStructureDeal}
-                lenderProfiles={safeLenderProfiles}
-                dealData={dealData}
-                setDealData={setDealData}
-                onInventoryUpdate={handleInventoryUpdate}
-                customerFilters={filters || INITIAL_FILTER_DATA}
-                customerName={customerName}
-                salespersonName={salespersonName}
-                settings={settings}
-              />
-
-              <Pagination
-                totalItems={sortedInventory.length}
-                pagination={pagination}
-                setPagination={setPagination}
-              />
-
-              <LenderProfiles
-                profiles={safeLenderProfiles}
-                setProfiles={setLenderProfiles}
-              />
-
-              <CalculationKey />
+    <div
+      className={`min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-300 font-sans selection:bg-blue-500/30`}
+    >
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-blue-500/20">
+              <Icons.CalculatorIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 tracking-tight">
+                LTV Desking{" "}
+                <span className="font-light text-blue-500">PRO</span>
+              </h1>
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-500">
+                Professional Deal Structuring
+              </p>
             </div>
           </div>
-        </main>
 
-        <DealHistoryPanel
-          deals={safeSavedDeals}
-          onLoadDeal={handleLoadDeal}
-          onDeleteDeal={handleDeleteDeal}
-        />
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
+              <TabButton
+                active={activeTab === "inventory"}
+                onClick={() => setActiveTab("inventory")}
+                icon={<Icons.ListIcon className="w-4 h-4" />}
+                label="Inventory"
+                count={safeInventory.length}
+              />
+              <TabButton
+                active={activeTab === "favorites"}
+                onClick={() => setActiveTab("favorites")}
+                icon={<Icons.StarIcon className="w-4 h-4" />}
+                label="Favorites"
+                count={safeFavorites.length}
+              />
+              <TabButton
+                active={activeTab === "lenders"}
+                onClick={() => setActiveTab("lenders")}
+                icon={<Icons.BanknotesIcon className="w-4 h-4" />}
+                label="Lenders"
+                count={safeLenderProfiles.length}
+              />
+              <TabButton
+                active={activeTab === "saved"}
+                onClick={() => setActiveTab("saved")}
+                icon={<Icons.SaveIcon className="w-4 h-4" />}
+                label="Deals"
+                count={safeSavedDeals.length}
+              />
+              <TabButton
+                active={activeTab === "scratchpad"}
+                onClick={() => setActiveTab("scratchpad")}
+                icon={<Icons.PencilIcon className="w-4 h-4" />}
+                label="Notes"
+              />
+            </div>
 
-        <FloatingToolsPanel
-          activeVehicle={activeVehicle}
-          dealData={dealData}
-          onDealDataChange={setDealData}
-          customerFilters={filters || INITIAL_FILTER_DATA}
-          customerName={customerName}
-          salespersonName={salespersonName}
-          lenderProfiles={safeLenderProfiles}
-          scratchPadNotes={scratchPadNotes}
-          setScratchPadNotes={setScratchPadNotes}
-          settings={settings}
-          inventory={processedInventory}
-          favorites={safeFavorites}
-          toggleFavorite={toggleFavorite}
-        />
-      </div>
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block"></div>
 
-      {dealVehicle && (
-        <DealStructuringModal
-          vehicle={dealVehicle}
-          dealData={dealData}
-          setDealData={setDealData}
-          onClose={() => setDealVehicle(null)}
-          errors={errors}
-          setErrors={setErrors}
-          onSave={handleSaveActiveDeal}
-          onSaveAndClear={handleSaveAndClearModal}
-          settings={settings}
-        />
-      )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              title="Toggle Theme"
+            >
+              {theme === "dark" ? (
+                <Icons.SunIcon className="w-5 h-5 text-amber-400" />
+              ) : (
+                <Icons.MoonIcon className="w-5 h-5 text-slate-600" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSettingsOpen(true)}
+              title="Settings"
+            >
+              <Icons.CogIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+            </Button>
+          </div>
+        </div>
+      </header>
 
-      <AiLenderManagerModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
-        currentProfiles={safeLenderProfiles}
-        onUpdateProfiles={setLenderProfiles}
-      />
+      <main className="max-w-[1920px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* Top Controls: File Upload & VIN */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-9 space-y-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
+              <div className="flex items-center gap-4 flex-1 min-w-[300px]">
+                <div className="relative group">
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    ref={fileInputRef}
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    variant="secondary"
+                  >
+                    <Icons.UploadIcon className="w-4 h-4 mr-2" />
+                    Import Inventory
+                  </Button>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-slate-900 dark:text-white truncate max-w-[200px]">
+                    {fileName}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {safeInventory.length} vehicles loaded
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-1 min-w-[300px] justify-end">
+                <div className="relative flex-1 max-w-md">
+                  <input
+                    type="text"
+                    placeholder="Enter VIN to Decode..."
+                    value={vinLookup}
+                    onChange={(e) => setVinLookup(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && handleVinLookup()}
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
+                    maxLength={17}
+                  />
+                  <Icons.SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                </div>
+                <Button
+                  onClick={handleVinLookup}
+                  disabled={isVinLoading || vinLookup.length < 11}
+                >
+                  {isVinLoading ? (
+                    <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Decode"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden min-h-[600px]">
+              {activeTab === "inventory" && (
+                <InventoryTable
+                  inventory={paginatedInventory}
+                  lenderProfiles={safeLenderProfiles}
+                  dealData={dealData}
+                  setDealData={setDealData}
+                  onInventoryUpdate={handleInventoryUpdate}
+                  customerFilters={filters}
+                  settings={settings}
+                  sortConfig={inventorySort}
+                  onSort={(key) =>
+                    setInventorySort((prev) => ({
+                      key,
+                      direction:
+                        prev.key === key && prev.direction === "asc"
+                          ? "desc"
+                          : "asc",
+                    }))
+                  }
+                  expandedRows={expandedInventoryRows}
+                  toggleRowExpansion={toggleInventoryRowExpansion}
+                  favorites={safeFavorites}
+                  toggleFavorite={toggleFavorite}
+                  pagination={pagination}
+                  setPagination={setPagination}
+                  totalRows={sortedInventory.length}
+                />
+              )}
+              {activeTab === "favorites" && (
+                <InventoryTable
+                  inventory={safeFavorites.map((item) =>
+                    calculateFinancials(item, dealData, settings)
+                  )}
+                  lenderProfiles={safeLenderProfiles}
+                  dealData={dealData}
+                  setDealData={setDealData}
+                  onInventoryUpdate={handleInventoryUpdate}
+                  customerFilters={filters}
+                  settings={settings}
+                  sortConfig={favSort}
+                  onSort={(key) =>
+                    setFavSort((prev) => ({
+                      key,
+                      direction:
+                        prev.key === key && prev.direction === "asc"
+                          ? "desc"
+                          : "asc",
+                    }))
+                  }
+                  expandedRows={expandedInventoryRows}
+                  toggleRowExpansion={toggleInventoryRowExpansion}
+                  favorites={safeFavorites}
+                  toggleFavorite={toggleFavorite}
+                  pagination={{ currentPage: 1, rowsPerPage: Infinity }}
+                  setPagination={() => {}}
+                  totalRows={safeFavorites.length}
+                  isFavoritesView
+                />
+              )}
+              {activeTab === "lenders" && (
+                <LenderProfiles
+                  profiles={safeLenderProfiles}
+                  onUpdate={setLenderProfiles}
+                />
+              )}
+              {activeTab === "saved" && (
+                <SavedDeals
+                  deals={safeSavedDeals}
+                  onLoad={(deal) => {
+                    setCustomerName(deal.customerName);
+                    setSalespersonName(deal.salespersonName || "");
+                    setDealData(deal.dealData);
+                    setScratchPadNotes(deal.notes || "");
+                    setMessage({ type: "success", text: "Deal loaded." });
+                  }}
+                  onDelete={(id) =>
+                    setSavedDeals(safeSavedDeals.filter((d) => d.id !== id))
+                  }
+                />
+              )}
+              {activeTab === "scratchpad" && (
+                <ScratchPad
+                  notes={scratchPadNotes}
+                  onChange={setScratchPadNotes}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Right Sidebar: Deal Controls */}
+          <div className="xl:col-span-3 space-y-6">
+            <DealControls
+              dealData={dealData}
+              setDealData={setDealData}
+              filters={filters}
+              setFilters={setFilters}
+              errors={errors}
+              setErrors={setErrors}
+              customerName={customerName}
+              setCustomerName={setCustomerName}
+              salespersonName={salespersonName}
+              setSalespersonName={setSalespersonName}
+              onClear={clearDealAndFilters}
+              onSave={handleSaveDeal}
+            />
+
+            <ActionBar
+              activeTab={activeTab}
+              favoritesCount={safeFavorites.length}
+              onDownloadFavorites={handleDownloadFavorites}
+              onDownloadCheatSheet={handleDownloadCheatSheet}
+            />
+          </div>
+        </div>
+      </main>
 
       <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSave={setSettings}
       />
-    </>
+
+      {message && (
+        <Toast
+          type={message.type}
+          message={message.text}
+          onClose={() => setMessage(null)}
+        />
+      )}
+    </div>
   );
-}
+};
+
+const App: React.FC = () => {
+  return (
+    <DealProvider>
+      <MainLayout />
+    </DealProvider>
+  );
+};
+
+export default App;
