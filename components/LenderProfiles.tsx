@@ -119,9 +119,9 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, setProfiles }
   const safeProfiles = (Array.isArray(profiles) ? profiles : []).filter(p => p && typeof p === 'object');
 
   return (
-    <div className="my-8">
-      <div className="flex justify-between items-center mb-4 pb-2 border-b-2 border-x-border">
-        <h2 className="text-xl font-bold text-x-text-primary">Manage Lender Profiles</h2>
+    <div className="my-8 bg-slate-950 border border-slate-800 rounded-2xl shadow-xl p-5">
+      <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+        <h2 className="text-xl font-bold text-white">Manage Lender Profiles</h2>
         <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={handleDownloadCheatSheet}>
                 <Icons.PdfIcon />
@@ -131,11 +131,11 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, setProfiles }
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm text-slate-200">
           <thead>
-            <tr className="border-b border-x-border">
+            <tr className="border-b border-slate-800 bg-slate-900">
               {['Name', 'FICO Range', 'Max LTV Range', 'Book Source', 'Tiers', 'Action'].map(header => (
-                <th key={header} className="p-3 font-bold text-x-text-secondary text-left">
+                <th key={header} className="p-3 font-semibold text-slate-400 text-left">
                   {header}
                 </th>
               ))}
@@ -145,18 +145,17 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, setProfiles }
             {safeProfiles.map(profile => (
              <React.Fragment key={profile.id}>
               <tr 
-                className="border-b border-x-border last:border-b-0 hover:bg-x-hover-dark cursor-pointer"
+                className="border-b border-slate-800 last:border-b-0 hover:bg-slate-900 cursor-pointer"
                 onClick={() => toggleRowExpansion(profile.id)}
               >
-                <td className="p-3 font-medium text-x-text-primary">{profile.name}</td>
+                <td className="p-3 font-medium text-white">{profile.name}</td>
                 <td className="p-3">{getRange(profile.tiers, 'minFico')}</td>
                 <td className="p-3">{getRange(profile.tiers, 'maxLtv')}%</td>
                 <td className="p-3">
-                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${profile.bookValueSource === 'Retail' ? 'bg-blue-900/50 text-blue-300' : 'bg-x-border text-x-text-secondary'}`}>
+                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${profile.bookValueSource === 'Retail' ? 'bg-blue-900/60 text-blue-200' : 'bg-slate-800 text-slate-300'}`}>
                     {profile.bookValueSource || 'Trade'}
                   </span>
                 </td>
-                {/* Defensive check for tiers existence */}
                 <td className="p-3">{profile.tiers && Array.isArray(profile.tiers) ? profile.tiers.length : 0}</td>
                 <td className="p-3">
                   <div className="flex gap-2">
@@ -165,7 +164,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, setProfiles }
                   </div>
                 </td>
               </tr>
-              {expandedRows.has(profile.id) && <tr className="border-b border-x-border"><ExpandedRow profile={profile} /></tr>}
+              {expandedRows.has(profile.id) && <tr className="border-b border-slate-800"><ExpandedRow profile={profile} /></tr>}
              </React.Fragment>
             ))}
           </tbody>

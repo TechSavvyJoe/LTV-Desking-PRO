@@ -1,5 +1,5 @@
-import React from 'react';
-import type { LenderProfile, LenderTier } from '../../types';
+import React from "react";
+import type { LenderProfile, LenderTier } from "../../types";
 
 const el = React.createElement;
 
@@ -16,7 +16,7 @@ const styles = `
     }
     .page {
         width: 297mm; /* A4 Landscape */
-        height: 210mm;
+        min-height: 210mm;
         padding: 1cm;
         box-sizing: border-box;
         background-color: white;
@@ -43,7 +43,6 @@ const styles = `
     }
     .content {
         flex-grow: 1;
-        overflow: hidden; /* Prevent content from breaking page layout */
     }
     .cheat-sheet-table {
         width: 100%;
@@ -95,132 +94,225 @@ const styles = `
 `;
 
 // Helper functions for data aggregation
-const getTierValueRange = (tiers: LenderTier[] | undefined, key: keyof LenderTier, formatter: (val: number) => string = v => v.toString()): string => {
-    if (!tiers || !Array.isArray(tiers)) return 'N/A';
-    const values = tiers
-        .map(t => t[key] as number)
-        .filter(v => Number.isFinite(v));
-    if (values.length === 0) return 'N/A';
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    if (min === max) return formatter(min);
-    return `${formatter(min)} - ${formatter(max)}`;
+const getTierValueRange = (
+  tiers: LenderTier[] | undefined,
+  key: keyof LenderTier,
+  formatter: (val: number) => string = (v) => v.toString()
+): string => {
+  if (!tiers || !Array.isArray(tiers)) return "N/A";
+  const values = tiers
+    .map((t) => t[key] as number)
+    .filter((v) => Number.isFinite(v));
+  if (values.length === 0) return "N/A";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) return formatter(min);
+  return `${formatter(min)} - ${formatter(max)}`;
 };
 
-const getTierMinMaxRange = (tiers: LenderTier[] | undefined, minKey: keyof LenderTier, maxKey: keyof LenderTier, prefix = '', suffix = ''): string => {
-    if (!tiers || !Array.isArray(tiers)) return 'N/A';
-    const minValues = tiers.map(t => t[minKey] as number).filter(v => Number.isFinite(v));
-    const maxValues = tiers.map(t => t[maxKey] as number).filter(v => Number.isFinite(v));
-    
-    if (minValues.length === 0 && maxValues.length === 0) return 'N/A';
+const getTierMinMaxRange = (
+  tiers: LenderTier[] | undefined,
+  minKey: keyof LenderTier,
+  maxKey: keyof LenderTier,
+  prefix = "",
+  suffix = ""
+): string => {
+  if (!tiers || !Array.isArray(tiers)) return "N/A";
+  const minValues = tiers
+    .map((t) => t[minKey] as number)
+    .filter((v) => Number.isFinite(v));
+  const maxValues = tiers
+    .map((t) => t[maxKey] as number)
+    .filter((v) => Number.isFinite(v));
 
-    const overallMin = minValues.length > 0 ? Math.min(...minValues) : null;
-    const overallMax = maxValues.length > 0 ? Math.max(...maxValues) : null;
+  if (minValues.length === 0 && maxValues.length === 0) return "N/A";
 
-    const format = (v: number | null) => v !== null ? v.toLocaleString() : '';
+  const overallMin = minValues.length > 0 ? Math.min(...minValues) : null;
+  const overallMax = maxValues.length > 0 ? Math.max(...maxValues) : null;
 
-    if (overallMin !== null && overallMax === null) return `${prefix}${format(overallMin)}${suffix}+`;
-    if (overallMin === null && overallMax !== null) return `Up to ${prefix}${format(overallMax)}${suffix}`;
-    if (overallMin !== null && overallMax !== null) {
-        if (overallMin === overallMax) return `${prefix}${format(overallMin)}${suffix}`;
-        return `${prefix}${format(overallMin)} - ${prefix}${format(overallMax)}${suffix}`;
-    }
-    return 'N/A';
+  const format = (v: number | null) => (v !== null ? v.toLocaleString() : "");
+
+  if (overallMin !== null && overallMax === null)
+    return `${prefix}${format(overallMin)}${suffix}+`;
+  if (overallMin === null && overallMax !== null)
+    return `Up to ${prefix}${format(overallMax)}${suffix}`;
+  if (overallMin !== null && overallMax !== null) {
+    if (overallMin === overallMax)
+      return `${prefix}${format(overallMin)}${suffix}`;
+    return `${prefix}${format(overallMin)} - ${prefix}${format(
+      overallMax
+    )}${suffix}`;
+  }
+  return "N/A";
 };
 
 interface LenderCheatSheetTemplateProps {
-    profiles: LenderProfile[];
+  profiles: LenderProfile[];
 }
 
 const summarizeTiers = (tiers: LenderTier[] | undefined): string[] => {
-    if (!tiers || !Array.isArray(tiers) || tiers.length === 0) return ['No tiers defined'];
-    return tiers.slice(0, 5).map(t => {
-        const parts: string[] = [];
-        if (Number.isFinite(t.minFico) || Number.isFinite(t.maxFico)) {
-            if (Number.isFinite(t.minFico) && Number.isFinite(t.maxFico)) parts.push(`FICO ${t.minFico}-${t.maxFico}`);
-            else if (Number.isFinite(t.minFico)) parts.push(`FICO ≥ ${t.minFico}`);
-            else if (Number.isFinite(t.maxFico)) parts.push(`FICO ≤ ${t.maxFico}`);
-        }
-        if (Number.isFinite(t.minYear) || Number.isFinite(t.maxYear)) {
-            const minY = Number.isFinite(t.minYear) ? t.minYear : 'any';
-            const maxY = Number.isFinite(t.maxYear) ? t.maxYear : 'newer';
-            parts.push(`Years ${minY}-${maxY}`);
-        }
-        if (Number.isFinite(t.maxMileage)) parts.push(`≤${Number(t.maxMileage).toLocaleString()} mi`);
-        if (Number.isFinite(t.maxLtv)) parts.push(`LTV ${t.maxLtv}%`);
-        if (Number.isFinite(t.maxTerm)) parts.push(`Term ≤${t.maxTerm}`);
-        if (Number.isFinite(t.minAmountFinanced) || Number.isFinite(t.maxAmountFinanced)) {
-            const minA = Number.isFinite(t.minAmountFinanced) ? `$${Number(t.minAmountFinanced).toLocaleString()}` : '';
-            const maxA = Number.isFinite(t.maxAmountFinanced) ? `$${Number(t.maxAmountFinanced).toLocaleString()}` : '';
-            const label = minA && maxA ? `${minA}-${maxA}` : (minA || (maxA ? `Up to ${maxA}` : ''));
-            if (label) parts.push(`Fin ${label}`);
-        }
-        return `${t.name || 'Tier'}: ${parts.join(' • ') || 'See sheet'}`;
-    });
+  if (!tiers || !Array.isArray(tiers) || tiers.length === 0)
+    return ["No tiers defined"];
+  return tiers.map((t) => {
+    const parts: string[] = [];
+    if (Number.isFinite(t.minFico) || Number.isFinite(t.maxFico)) {
+      if (Number.isFinite(t.minFico) && Number.isFinite(t.maxFico))
+        parts.push(`FICO ${t.minFico}-${t.maxFico}`);
+      else if (Number.isFinite(t.minFico)) parts.push(`FICO ≥ ${t.minFico}`);
+      else if (Number.isFinite(t.maxFico)) parts.push(`FICO ≤ ${t.maxFico}`);
+    }
+    if (Number.isFinite(t.minYear) || Number.isFinite(t.maxYear)) {
+      const minY = Number.isFinite(t.minYear) ? t.minYear : "any";
+      const maxY = Number.isFinite(t.maxYear) ? t.maxYear : "newer";
+      parts.push(`Years ${minY}-${maxY}`);
+    }
+    if (Number.isFinite(t.maxMileage))
+      parts.push(`≤${Number(t.maxMileage).toLocaleString()} mi`);
+    if (Number.isFinite(t.maxLtv)) parts.push(`LTV ${t.maxLtv}%`);
+    if (Number.isFinite(t.maxTerm)) parts.push(`Term ≤${t.maxTerm}`);
+    if (
+      Number.isFinite(t.minAmountFinanced) ||
+      Number.isFinite(t.maxAmountFinanced)
+    ) {
+      const minA = Number.isFinite(t.minAmountFinanced)
+        ? `$${Number(t.minAmountFinanced).toLocaleString()}`
+        : "";
+      const maxA = Number.isFinite(t.maxAmountFinanced)
+        ? `$${Number(t.maxAmountFinanced).toLocaleString()}`
+        : "";
+      const label =
+        minA && maxA
+          ? `${minA}-${maxA}`
+          : minA || (maxA ? `Up to ${maxA}` : "");
+      if (label) parts.push(`Fin ${label}`);
+    }
+    return `${t.name || "Tier"}: ${parts.join(" • ") || "See sheet"}`;
+  });
 };
 
-export const LenderCheatSheetTemplate: React.FC<LenderCheatSheetTemplateProps> = ({ profiles }) => {
-    const safeProfiles = Array.isArray(profiles) ? profiles.filter(p => p && typeof p === 'object') : [];
+export const LenderCheatSheetTemplate: React.FC<
+  LenderCheatSheetTemplateProps
+> = ({ profiles }) => {
+  const safeProfiles = Array.isArray(profiles)
+    ? profiles.filter((p) => p && typeof p === "object")
+    : [];
 
-    const aggregatedData = safeProfiles.map(profile => ({
-        ...profile,
-        ficoRange: getTierMinMaxRange(profile.tiers, 'minFico', 'maxFico'),
-        yearRange: getTierMinMaxRange(profile.tiers, 'minYear', 'maxYear'),
-        mileageRange: getTierMinMaxRange(profile.tiers, 'minMileage', 'maxMileage'),
-        ltvRange: getTierValueRange(profile.tiers, 'maxLtv', v => `${v}%`),
-        termRange: getTierValueRange(profile.tiers, 'maxTerm', v => `${v}mo`),
-        amountRange: getTierMinMaxRange(profile.tiers, 'minAmountFinanced', 'maxAmountFinanced', '$'),
-        tierSummary: summarizeTiers(profile.tiers)
-    }));
+  const aggregatedData = safeProfiles.map((profile) => ({
+    ...profile,
+    ficoRange: getTierMinMaxRange(profile.tiers, "minFico", "maxFico"),
+    yearRange: getTierMinMaxRange(profile.tiers, "minYear", "maxYear"),
+    mileageRange: getTierMinMaxRange(profile.tiers, "minMileage", "maxMileage"),
+    ltvRange: getTierValueRange(profile.tiers, "maxLtv", (v) => `${v}%`),
+    termRange: getTierValueRange(profile.tiers, "maxTerm", (v) => `${v}mo`),
+    amountRange: getTierMinMaxRange(
+      profile.tiers,
+      "minAmountFinanced",
+      "maxAmountFinanced",
+      "$"
+    ),
+    tierSummary: summarizeTiers(profile.tiers),
+  }));
 
-    return el('div', { className: 'page' },
-        el('style', null, styles),
-        el('header', { className: 'header' },
-            el('h1', null, 'Lender Program Cheat Sheet'),
-            el('p', null, `Generated on: ${new Date().toLocaleDateString()}`)
+  return el(
+    "div",
+    { className: "page" },
+    el("style", null, styles),
+    el(
+      "header",
+      { className: "header" },
+      el("h1", null, "Lender Program Cheat Sheet"),
+      el("p", null, `Generated on: ${new Date().toLocaleDateString()}`)
+    ),
+    el(
+      "div",
+      { className: "content" },
+      el(
+        "table",
+        { className: "cheat-sheet-table" },
+        el(
+          "thead",
+          null,
+          el(
+            "tr",
+            null,
+            el("th", { style: { width: "18%" } }, "Lender"),
+            el("th", { style: { width: "10%" } }, "FICO Range"),
+            el("th", { style: { width: "10%" } }, "Year Range"),
+            el("th", { style: { width: "12%" } }, "Mileage"),
+            el("th", { style: { width: "10%" } }, "Max LTV"),
+            el("th", { style: { width: "10%" } }, "Max Term"),
+            el("th", { style: { width: "12%" } }, "Fin. Amount"),
+            el("th", null, "Key Requirements")
+          )
         ),
-        el('div', { className: 'content' },
-            el('table', { className: 'cheat-sheet-table' },
-                el('thead', null,
-                    el('tr', null,
-                        el('th', { style: { width: '18%' } }, 'Lender'),
-                        el('th', { style: { width: '10%' } }, 'FICO Range'),
-                        el('th', { style: { width: '10%' } }, 'Year Range'),
-                        el('th', { style: { width: '12%' } }, 'Mileage'),
-                        el('th', { style: { width: '10%' } }, 'Max LTV'),
-                        el('th', { style: { width: '10%' } }, 'Max Term'),
-                        el('th', { style: { width: '12%' } }, 'Fin. Amount'),
-                        el('th', null, 'Key Requirements')
-                    )
-                ),
-                el('tbody', null,
-                    aggregatedData.length === 0
-                        ? el('tr', null,
-                            el('td', { colSpan: 8, style: { textAlign: 'center', padding: '12px', color: '#6b7280' } }, 'No lender profiles available.'))
-                        : aggregatedData.map(p => el('tr', { key: p.id || p.name },
-                            el('td', null,
-                                el('div', { className: 'lender-name' }, p.name),
-                                el('div', { className: 'book-source' }, `Book: ${p.bookValueSource || 'Trade'}`)
-                            ),
-                            el('td', null, p.ficoRange),
-                            el('td', null, p.yearRange),
-                            el('td', null, p.mileageRange),
-                            el('td', null, p.ltvRange),
-                            el('td', null, p.termRange),
-                            el('td', null, p.amountRange),
-                            el('td', null,
-                                el('ul', { className: 'notes-list' },
-                                    p.minIncome ? el('li', null, `Min Income: $${p.minIncome.toLocaleString()}`) : null,
-                                    p.maxPti ? el('li', null, `Max PTI: ${p.maxPti}%`) : null,
-                                    ...p.tierSummary.map((note, idx) => el('li', { key: `${p.id || p.name}-tier-${idx}` }, note))
-                                )
-                            )
-                        ))
+        el(
+          "tbody",
+          null,
+          aggregatedData.length === 0
+            ? el(
+                "tr",
+                null,
+                el(
+                  "td",
+                  {
+                    colSpan: 8,
+                    style: {
+                      textAlign: "center",
+                      padding: "12px",
+                      color: "#6b7280",
+                    },
+                  },
+                  "No lender profiles available."
                 )
-            )
-        ),
-        el('footer', { className: 'footer' },
-             'This is a summary for quick reference only. Please refer to the official lender rate sheets for complete and current guidelines.'
+              )
+            : aggregatedData.map((p) =>
+                el(
+                  "tr",
+                  { key: p.id || p.name },
+                  el(
+                    "td",
+                    null,
+                    el("div", { className: "lender-name" }, p.name),
+                    el(
+                      "div",
+                      { className: "book-source" },
+                      `Book: ${p.bookValueSource || "Trade"}`
+                    )
+                  ),
+                  el("td", null, p.ficoRange),
+                  el("td", null, p.yearRange),
+                  el("td", null, p.mileageRange),
+                  el("td", null, p.ltvRange),
+                  el("td", null, p.termRange),
+                  el("td", null, p.amountRange),
+                  el(
+                    "td",
+                    null,
+                    el(
+                      "ul",
+                      { className: "notes-list" },
+                      p.minIncome
+                        ? el(
+                            "li",
+                            null,
+                            `Min Income: $${p.minIncome.toLocaleString()}`
+                          )
+                        : null,
+                      p.maxPti ? el("li", null, `Max PTI: ${p.maxPti}%`) : null,
+                      ...p.tierSummary.map((note, idx) =>
+                        el("li", { key: `${p.id || p.name}-tier-${idx}` }, note)
+                      )
+                    )
+                  )
+                )
+              )
         )
-    );
+      )
+    ),
+    el(
+      "footer",
+      { className: "footer" },
+      "This is a summary for quick reference only. Please refer to the official lender rate sheets for complete and current guidelines."
+    )
+  );
 };
