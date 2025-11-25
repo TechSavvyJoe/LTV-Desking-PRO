@@ -13,25 +13,25 @@ interface InputGroupProps {
 
 const InputGroup: React.FC<InputGroupProps> = ({ label, children, htmlFor, className, error, labelClassName }) => (
   <div className={`flex flex-col ${className}`}>
-    <label htmlFor={htmlFor} className={`mb-1.5 text-sm font-medium ${labelClassName || 'text-x-text-primary'}`}>{label}</label>
+    <label htmlFor={htmlFor} className={`mb-1.5 text-sm font-medium ${labelClassName || 'text-slate-700 dark:text-gray-300'}`}>{label}</label>
     {children}
     {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
   </div>
 );
 
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) => {
-    const errorClasses = props.error ? 'border-red-500/50 focus:border-red-500' : 'border-x-text-secondary/40 focus:border-x-blue';
+    const errorClasses = props.error ? 'border-red-500/50 focus:border-red-500' : 'border-slate-300 dark:border-gray-700 focus:border-blue-500';
     return (
-        <input {...props} className={`w-full px-3 py-2 text-base bg-transparent border ${errorClasses} rounded-lg placeholder-x-text-secondary focus:outline-none focus:ring-0 transition-colors duration-200 ease-in-out`} />
+        <input {...props} className={`w-full px-3 py-2 text-base bg-white dark:bg-transparent border ${errorClasses} rounded-lg placeholder-slate-400 dark:placeholder-gray-500 text-slate-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 ease-in-out`} />
     );
 };
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select {...props} className="w-full px-3 py-2 text-base bg-x-black border border-x-text-secondary/40 rounded-lg placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0 transition-colors duration-200 ease-in-out" />
+  <select {...props} className="w-full px-3 py-2 text-base bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded-lg placeholder-slate-400 dark:placeholder-gray-500 text-slate-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all duration-200 ease-in-out" />
 );
 
 const SpinnerIcon = () => (
-    <svg className="animate-spin h-5 w-5 text-x-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
@@ -60,24 +60,56 @@ const DealControls: React.FC<DealControlsProps> = ({
   onVinLookup, vinLookupResult, isVinLoading
 }) => {
 
+    // Helper to handle empty string input cleanly
+    const handleNumberInput = (
+        e: React.ChangeEvent<HTMLInputElement>, 
+        setter: (val: any) => void, 
+        obj: any,
+        key: string
+    ) => {
+        const val = e.target.value;
+        if (val === '') {
+            setter({ ...obj, [key]: '' }); // Allow clearing the input
+            setErrors(prev => { const { [key]: _, ...rest } = prev; return rest; }); // Clear error on empty
+            return;
+        }
+        
+        const numVal = parseFloat(val);
+        if (!isNaN(numVal)) {
+             // Update state with the raw string first to allow typing "1.0"
+             // But we need to store the number for calculations.
+             // Compromise: Store number, but input type='number' handles some of this.
+             setter({ ...obj, [key]: numVal });
+             
+             const errorMsg = validateInput(key, numVal);
+             setErrors(prev => errorMsg ? { ...prev, [key]: errorMsg } : (({ [key]: _, ...rest }) => rest)(prev));
+        }
+    };
+
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type } = e.target;
-        const isNumber = type === 'number';
-        let processedValue: string | number | null = isNumber ? (value ? Number(value) : null) : value;
-
-        if (id === 'vin') {
-            processedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (type === 'number') {
+             // Use the helper logic manually for filters since they are nullable
+             const val = value === '' ? null : Number(value);
+             setFilters(prev => ({ ...prev, [id]: val }));
+             // Validation
+             const error = validateInput(id, val);
+             setErrors(prev => error ? { ...prev, [id]: error } : (({ [id]: _, ...rest }) => rest)(prev));
+        } else {
+            // Text inputs (VIN, vehicle name)
+            let processedValue = value;
+            if (id === 'vin') {
+                processedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            }
+            setFilters(prev => ({ ...prev, [id]: processedValue }));
         }
-
-        const errorMessage = isNumber ? validateInput(id, processedValue as number | null) : null;
-        setErrors(prev => errorMessage ? { ...prev, [id]: errorMessage } : (({ [id]: _, ...rest }) => rest)(prev));
-
-        setFilters(prev => ({ ...prev, [id]: processedValue }));
     };
     
     const handleDealChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { id, value } = e.target;
-        const numValue = Number(value) || 0;
+        // Special handling to allow empty string in UI but 0 in logic is tricky.
+        // Here we stick to standard behavior but ensure validation is robust.
+        const numValue = value === '' ? 0 : Number(value);
         
         const errorMessage = validateInput(id, numValue);
         setErrors(prev => errorMessage ? { ...prev, [id]: errorMessage } : (({ [id]: _, ...rest }) => rest)(prev));
@@ -90,14 +122,14 @@ const DealControls: React.FC<DealControlsProps> = ({
     : 'text-green-500';
 
   return (
-    <div className="border-b border-x-border space-y-4 py-4">
-      <div className="border-2 border-x-border rounded-lg p-4 space-y-2">
-        <h3 className="font-bold text-lg mb-2">Customer & Deal Info</h3>
+    <div className="border-b border-slate-200 dark:border-gray-700 space-y-4 py-4">
+      <div className="border-2 border-slate-200 dark:border-gray-700 rounded-lg p-4 space-y-2 bg-white/50 dark:bg-white/5">
+        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white">Customer & Deal Info</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            <InputGroup label="Customer Name" htmlFor="customerName" className="lg:col-span-1" labelClassName="text-white">
+            <InputGroup label="Customer Name" htmlFor="customerName" className="lg:col-span-1">
                 <StyledInput type="text" id="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g., John Doe" />
             </InputGroup>
-             <InputGroup label="Salesperson Name" htmlFor="salespersonName" className="lg:col-span-1" labelClassName="text-white">
+             <InputGroup label="Salesperson Name" htmlFor="salespersonName" className="lg:col-span-1">
                 <StyledInput type="text" id="salespersonName" value={salespersonName} onChange={(e) => setSalespersonName(e.target.value)} placeholder="e.g., Jane Smith" />
             </InputGroup>
             <InputGroup label="Credit Score" htmlFor="creditScore" error={errors.creditScore}>
@@ -139,31 +171,31 @@ const DealControls: React.FC<DealControlsProps> = ({
         </div>
       </div>
       
-      <div className="border-2 border-x-border rounded-lg p-4 space-y-2">
-        <h3 className="font-bold text-lg mb-2">Global Deal Structure</h3>
+      <div className="border-2 border-slate-200 dark:border-gray-700 rounded-lg p-4 space-y-2 bg-white/50 dark:bg-white/5">
+        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white">Global Deal Structure</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             <InputGroup label="Down Pmt ($)" htmlFor="downPayment" error={errors.downPayment}>
-                <StyledInput type="number" id="downPayment" value={dealData.downPayment || ''} onChange={handleDealChange} min="0" step="100" error={!!errors.downPayment} />
+                <StyledInput type="number" id="downPayment" value={dealData.downPayment === 0 ? '' : dealData.downPayment} onChange={handleDealChange} min="0" step="100" error={!!errors.downPayment} placeholder="0" />
             </InputGroup>
             <InputGroup label="Trade Value ($)" htmlFor="tradeInValue" error={errors.tradeInValue}>
-                <StyledInput type="number" id="tradeInValue" value={dealData.tradeInValue || ''} onChange={handleDealChange} min="0" step="100" error={!!errors.tradeInValue} />
+                <StyledInput type="number" id="tradeInValue" value={dealData.tradeInValue === 0 ? '' : dealData.tradeInValue} onChange={handleDealChange} min="0" step="100" error={!!errors.tradeInValue} placeholder="0" />
             </InputGroup>
             <InputGroup label="Trade Payoff ($)" htmlFor="tradeInPayoff" error={errors.tradeInPayoff}>
-                <StyledInput type="number" id="tradeInPayoff" value={dealData.tradeInPayoff || ''} onChange={handleDealChange} min="0" step="100" error={!!errors.tradeInPayoff} />
+                <StyledInput type="number" id="tradeInPayoff" value={dealData.tradeInPayoff === 0 ? '' : dealData.tradeInPayoff} onChange={handleDealChange} min="0" step="100" error={!!errors.tradeInPayoff} placeholder="0" />
             </InputGroup>
             <InputGroup label="Backend ($)" htmlFor="backendProducts" error={errors.backendProducts}>
-                <StyledInput type="number" id="backendProducts" value={dealData.backendProducts || ''} onChange={handleDealChange} min="0" step="50" error={!!errors.backendProducts} />
+                <StyledInput type="number" id="backendProducts" value={dealData.backendProducts === 0 ? '' : dealData.backendProducts} onChange={handleDealChange} min="0" step="50" error={!!errors.backendProducts} placeholder="0" />
             </InputGroup>
              <InputGroup label="State Fees ($)" htmlFor="stateFees" error={errors.stateFees}>
-                <StyledInput type="number" id="stateFees" value={dealData.stateFees || ''} onChange={handleDealChange} min="0" step="1" error={!!errors.stateFees} />
+                <StyledInput type="number" id="stateFees" value={dealData.stateFees === 0 ? '' : dealData.stateFees} onChange={handleDealChange} min="0" step="1" error={!!errors.stateFees} placeholder="0" />
             </InputGroup>
             <InputGroup label="Term (Mo)" htmlFor="loanTerm">
                 <StyledSelect id="loanTerm" value={dealData.loanTerm} onChange={handleDealChange}>
-                    <option value="36">36</option><option value="48">48</option><option value="60">60</option><option value="72">72</option><option value="84">84</option>
+                    <option value="36">36</option><option value="48">48</option><option value="60">60</option><option value="72">72</option><option value="75">75</option><option value="84">84</option>
                 </StyledSelect>
             </InputGroup>
             <InputGroup label="APR (%)" htmlFor="interestRate" error={errors.interestRate}>
-                <StyledInput type="number" id="interestRate" value={dealData.interestRate || ''} onChange={handleDealChange} min="0" max="50" step="0.1" error={!!errors.interestRate}/>
+                <StyledInput type="number" id="interestRate" value={dealData.interestRate} onChange={handleDealChange} min="0" max="50" step="0.1" error={!!errors.interestRate} placeholder="8.5" />
             </InputGroup>
         </div>
       </div>

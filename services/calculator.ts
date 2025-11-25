@@ -2,12 +2,16 @@
 import type { Vehicle, DealData, CalculatedVehicle, Settings, AppState } from '../types';
 
 export const calculateMonthlyPayment = (principal: number, annualRate: number, termMonths: number): number | 'Error' => {
-  if (principal < 0 || termMonths <= 0 || annualRate < 0) return 'Error';
-  if (principal === 0) return 0;
+  if (termMonths <= 0) return 'Error'; // Term cannot be zero or negative
+  if (principal <= 0) return 0; // No loan, no payment
+  if (annualRate < 0) return 'Error'; // Rate cannot be negative
+
   if (annualRate === 0) return principal / termMonths;
 
   const monthlyRate = (annualRate / 100) / 12;
   const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / (Math.pow(1 + monthlyRate, termMonths) - 1);
+  
+  if (!isFinite(payment) || isNaN(payment)) return 'Error';
   return payment;
 };
 
@@ -26,27 +30,22 @@ export const calculateLoanAmount = (monthlyPayment: number, annualRate: number, 
 const calculateSalesTax = (price: number, tradeInValue: number, settings: Settings): { tax: number, extraFees: number } => {
     const { docFee, cvrFee, defaultState, outOfStateTransitFee } = settings;
     
-    // Define tax rates for relevant states.
-    const TAX_RATES = {
+    const TAX_RATES: Record<string, number> = {
         MI: 0.06,
         OH: 0.0575, 
         IN: 0.07,
     };
 
-    let taxRate = TAX_RATES[defaultState];
+    // Default to MI rate if state is unknown, to be safe
+    let taxRate = TAX_RATES[defaultState] ?? 0.06;
     let extraFees = 0;
 
-    // This logic assumes the dealership is in Michigan (MI), which has reciprocal tax agreements with some states.
-    // For an out-of-state deal (e.g., OH or IN), a MI-based dealership is only required to collect tax up to its own state's rate (6%).
-    // If the customer's home state has a higher tax rate, they are responsible for paying the difference when they register the vehicle.
-    // A transit permit fee is also added for out-of-state deals to allow the customer to drive the vehicle home legally.
     if (defaultState !== 'MI') {
-        // We cap the collected tax at Michigan's rate.
-        taxRate = Math.min(TAX_RATES.MI, TAX_RATES[defaultState]);
+        // Cap tax at Michigan's rate for reciprocity
+        taxRate = Math.min(TAX_RATES.MI || 0.06, taxRate);
         extraFees += outOfStateTransitFee; 
     }
     
-    // Tax is calculated on the price of the vehicle MINUS the trade-in value (if any), plus any taxable fees like the Doc Fee and CVR Fee.
     const taxableAmount = Math.max(0, price - tradeInValue) + docFee + cvrFee;
     const tax = taxableAmount * taxRate;
 
@@ -55,8 +54,20 @@ const calculateSalesTax = (price: number, tradeInValue: number, settings: Settin
 
 
 export const calculateFinancials = (vehicle: Vehicle, dealData: DealData, settings: Settings): CalculatedVehicle => {
-  const { downPayment, backendProducts, loanTerm, interestRate, tradeInValue, tradeInPayoff, stateFees } = dealData;
-  const { price, jdPower, jdPowerRetail, unitCost } = vehicle;
+  // Defensive defaults
+  const downPayment = Number(dealData.downPayment) || 0;
+  const backendProducts = Number(dealData.backendProducts) || 0;
+  const loanTerm = Number(dealData.loanTerm) || 0;
+  const interestRate = Number(dealData.interestRate) || 0;
+  const tradeInValue = Number(dealData.tradeInValue) || 0;
+  const tradeInPayoff = Number(dealData.tradeInPayoff) || 0;
+  const stateFees = Number(dealData.stateFees) || 0;
+
+  const price = typeof vehicle.price === 'number' ? vehicle.price : 0;
+  const jdPower = typeof vehicle.jdPower === 'number' ? vehicle.jdPower : 0;
+  const jdPowerRetail = typeof vehicle.jdPowerRetail === 'number' ? vehicle.jdPowerRetail : 0;
+  const unitCost = typeof vehicle.unitCost === 'number' ? vehicle.unitCost : 0;
+
   const { docFee, cvrFee } = settings;
   
   let baseOutTheDoorPrice: number | 'Error' | 'N/A' = 'N/A';
@@ -67,7 +78,8 @@ export const calculateFinancials = (vehicle: Vehicle, dealData: DealData, settin
   let otdLtv: number | 'Error' | 'N/A' = 'N/A';
   let monthlyPayment: number | 'Error' | 'N/A' = 'N/A';
 
-  if (typeof price === 'number') {
+  // Only calculate if we have a valid price
+  if (typeof vehicle.price === 'number') {
     const netTradeIn = tradeInValue - tradeInPayoff;
     
     const { tax, extraFees } = calculateSalesTax(price, tradeInValue, settings);
@@ -75,7 +87,7 @@ export const calculateFinancials = (vehicle: Vehicle, dealData: DealData, settin
     
     baseOutTheDoorPrice = price + docFee + cvrFee + stateFees + salesTax + extraFees;
 
-    if (typeof unitCost === 'number') {
+    if (typeof vehicle.unitCost === 'number') {
       frontEndGross = price - unitCost;
     }
 
@@ -83,28 +95,27 @@ export const calculateFinancials = (vehicle: Vehicle, dealData: DealData, settin
     
     monthlyPayment = calculateMonthlyPayment(amountToFinance, interestRate, loanTerm);
 
-    if (typeof jdPower === 'number' && jdPower > 0) {
+    // LTV Logic: Prefer Trade Book, fallback to Retail Book
+    const bookValue = jdPower > 0 ? jdPower : (jdPowerRetail > 0 ? jdPowerRetail : 0);
+
+    if (bookValue > 0) {
       const frontEndAmountToFinance = baseOutTheDoorPrice - downPayment - netTradeIn;
-      frontEndLtv = frontEndAmountToFinance >= 0 ? (frontEndAmountToFinance / jdPower) * 100 : 0;
-      otdLtv = amountToFinance >= 0 ? (amountToFinance / jdPower) * 100 : 0;
-    } else if(typeof jdPowerRetail === 'number' && jdPowerRetail > 0) {
-        // Fallback to retail book value if trade value is missing
-        const frontEndAmountToFinance = baseOutTheDoorPrice - downPayment - netTradeIn;
-        frontEndLtv = frontEndAmountToFinance >= 0 ? (frontEndAmountToFinance / jdPowerRetail) * 100 : 0;
-        otdLtv = amountToFinance >= 0 ? (amountToFinance / jdPowerRetail) * 100 : 0;
+      frontEndLtv = frontEndAmountToFinance >= 0 ? (frontEndAmountToFinance / bookValue) * 100 : 0;
+      otdLtv = amountToFinance >= 0 ? (amountToFinance / bookValue) * 100 : 0;
     } else {
       frontEndLtv = 'Error';
       otdLtv = 'Error';
     }
 
   } else {
-    baseOutTheDoorPrice = 'Error';
-    salesTax = 'Error';
-    frontEndGross = 'Error';
-    amountToFinance = 'Error';
-    monthlyPayment = 'Error';
-    frontEndLtv = 'Error';
-    otdLtv = 'Error';
+    // Return defaults if price is missing
+    baseOutTheDoorPrice = 'N/A';
+    salesTax = 'N/A';
+    frontEndGross = 'N/A';
+    amountToFinance = 'N/A';
+    monthlyPayment = 'N/A';
+    frontEndLtv = 'N/A';
+    otdLtv = 'N/A';
   }
 
   return {
