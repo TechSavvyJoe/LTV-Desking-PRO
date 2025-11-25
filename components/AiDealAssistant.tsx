@@ -182,31 +182,33 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
                                     ) : (
                                         <div className="p-4 bg-white dark:bg-black text-sm">
                                             <div className="grid grid-cols-2 gap-4">
-                                                {suggestion.proposedChanges && Object.entries(suggestion.proposedChanges).map(([key, val]) => {
-                                                    if(val === undefined) return null;
+                                                {suggestion.proposedChanges && typeof suggestion.proposedChanges === 'object'
+                                                    ? Object.entries(suggestion.proposedChanges).map(([key, val]) => {
+                                                        if(val === undefined || val === null) return null;
 
-                                                    let displayVal = val;
-                                                    if(key === 'downPayment' || key === 'tradeInValue' || key === 'backendProducts') displayVal = formatCurrency(val);
-                                                    if(key === 'interestRate') displayVal = val + '%';
-                                                    if(key === 'loanTerm') displayVal = val + ' mo';
+                                                        let displayVal = val;
+                                                        if(key === 'downPayment' || key === 'tradeInValue' || key === 'backendProducts') displayVal = formatCurrency(val);
+                                                        if(key === 'interestRate') displayVal = val + '%';
+                                                        if(key === 'loanTerm') displayVal = val + ' mo';
 
-                                                    const labels: Record<string, string> = {
-                                                        downPayment: 'Down Payment',
-                                                        tradeInValue: 'Trade Value',
-                                                        backendProducts: 'Backend Products',
-                                                        interestRate: 'Interest Rate',
-                                                        loanTerm: 'Loan Term'
-                                                    };
+                                                        const labels: Record<string, string> = {
+                                                            downPayment: 'Down Payment',
+                                                            tradeInValue: 'Trade Value',
+                                                            backendProducts: 'Backend Products',
+                                                            interestRate: 'Interest Rate',
+                                                            loanTerm: 'Loan Term'
+                                                        };
 
-                                                    const label = labels[key] || key;
+                                                        const label = labels[key] || key;
 
-                                                    return (
-                                                        <div key={key} className="flex justify-between items-center border-b border-slate-100 dark:border-gray-800 pb-2 last:border-0">
-                                                            <span className="text-slate-500 dark:text-gray-400">{label}</span>
-                                                            <span className="font-bold text-purple-600 dark:text-purple-400">{displayVal}</span>
-                                                        </div>
-                                                    )
-                                                })}
+                                                        return (
+                                                            <div key={key} className="flex justify-between items-center border-b border-slate-100 dark:border-gray-800 pb-2 last:border-0">
+                                                                <span className="text-slate-500 dark:text-gray-400">{label}</span>
+                                                                <span className="font-bold text-purple-600 dark:text-purple-400">{displayVal}</span>
+                                                            </div>
+                                                        )
+                                                    })
+                                                    : <span className="text-slate-500 dark:text-gray-400">No structured changes provided.</span>}
                                             </div>
                                         </div>
                                     )}

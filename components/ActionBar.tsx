@@ -29,7 +29,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
     customerName, salespersonName, settings
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const isShareSupported = !!navigator.share;
+    const isShareSupported = typeof navigator !== 'undefined' && !!navigator.share;
 
     const handleUploadClick = () => {
         fileInputRef.current?.click();

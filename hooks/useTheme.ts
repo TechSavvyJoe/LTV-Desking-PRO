@@ -1,18 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
-// A single instance of this hook should be used at the root of the app.
-let isInitialized = false;
-
 export function useTheme() {
-    // This hook is designed to be a singleton. It sets up global listeners
-    // and modifies the root element. It should only run once.
-    if (isInitialized) {
-        return;
-    }
-    isInitialized = true;
-
+    // Keep theme in state so React’s hook order remains stable under StrictMode.
     const getInitialTheme = (): Theme => {
         if (typeof window !== 'undefined') {
             return (localStorage.getItem('theme') as Theme | null) || 'system';
@@ -21,39 +12,45 @@ export function useTheme() {
     };
 
     const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+    const hasSyncedRef = useRef(false);
 
     const applyTheme = useCallback((selectedTheme: Theme) => {
-        const isDark = selectedTheme === 'dark' || (selectedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = selectedTheme === 'dark' || (selectedTheme === 'system' && prefersDark);
         document.documentElement.classList.toggle('dark', isDark);
     }, []);
 
+    // Apply and persist whenever the theme state changes.
     useEffect(() => {
         applyTheme(theme);
+        localStorage.setItem('theme', theme);
+        hasSyncedRef.current = true;
     }, [theme, applyTheme]);
 
+    // React to OS theme changes only when using system theme.
     useEffect(() => {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         const handleChange = () => {
-            if (theme === 'system') {
-                applyTheme('system');
+            if ((localStorage.getItem('theme') as Theme | null) === 'system') {
+                setThemeState('system'); // triggers applyTheme via effect
             }
         };
         mediaQuery.addEventListener('change', handleChange);
         return () => mediaQuery.removeEventListener('change', handleChange);
-    }, [theme, applyTheme]);
+    }, []);
 
+    // Listen for custom themechange events dispatched by the toggle control.
     useEffect(() => {
-        // Custom event listener to allow ThemeToggle to update the hook's state
         const handleThemeChange = (event: Event) => {
             const customEvent = event as CustomEvent<Theme>;
-            const newTheme = customEvent.detail;
-            localStorage.setItem('theme', newTheme);
-            setThemeState(newTheme);
+            if (!customEvent?.detail) return;
+            setThemeState(customEvent.detail);
         };
-
         window.addEventListener('themechange', handleThemeChange);
         return () => window.removeEventListener('themechange', handleThemeChange);
     }, []);
+
+    return hasSyncedRef.current ? theme : undefined;
 }
 
 // Separate hook for components to read and update the theme

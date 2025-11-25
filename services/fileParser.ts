@@ -83,6 +83,9 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
                 const isExcel = file.name.endsWith('.xls') || file.name.endsWith('.xlsx');
 
                 if (isExcel) {
+                    if (typeof XLSX === 'undefined') {
+                        throw new Error("Excel parsing is unavailable. Please ensure the XLSX library is loaded or upload a CSV instead.");
+                    }
                     const workbook = XLSX.read(data, { type: 'array', cellNF: false, cellText: true });
                     if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
                         throw new Error("The uploaded Excel file contains no sheets.");

@@ -26,6 +26,12 @@ const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ children, valueToCopy
     const textToCopy = String(valueToCopy).replace(/[^0-9.-]/g, '');
     if(textToCopy === '') return;
 
+    // Gracefully skip if Clipboard API is unavailable (prevents crashes in unsupported browsers/iframes).
+    if (!navigator?.clipboard?.writeText) {
+      console.warn('Clipboard API unavailable in this environment.');
+      return;
+    }
+
     navigator.clipboard.writeText(textToCopy).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);

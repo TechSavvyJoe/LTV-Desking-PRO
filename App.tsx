@@ -298,7 +298,12 @@ export default function App() {
   
   const handleInventoryUpdate = useCallback((vin: string, updatedData: Partial<Vehicle>) => {
       setInventory(prev => (prev || []).map(v => v.vin === vin ? { ...v, ...updatedData } : v));
-  }, [setInventory]);
+      // Keep favorites in sync when editing from expanded rows so numbers match across tables/PDFs.
+      setFavorites(prev => {
+          if (!Array.isArray(prev)) return prev;
+          return prev.map(f => f.vin === vin ? { ...f, ...updatedData } : f);
+      });
+  }, [setInventory, setFavorites]);
 
   return (
     <>

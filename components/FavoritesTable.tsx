@@ -85,7 +85,7 @@ const EditableField = ({ label, value, onUpdate, type = 'number', step = '1' }: 
 
 const FavoritesTable: React.FC<FavoritesTableProps> = ({ favorites, dealData, setDealData, lenderProfiles, customerFilters, toggleFavorite, sortConfig, setSortConfig, onStructureDeal, customerName, salespersonName, onInventoryUpdate, settings }) => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const isShareSupported = !!navigator.share;
+  const isShareSupported = typeof navigator !== 'undefined' && !!navigator.share;
   
   const processedFavorites = useMemo(() => {
     const safeFavorites = Array.isArray(favorites) ? favorites : [];
