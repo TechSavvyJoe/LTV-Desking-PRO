@@ -113,11 +113,11 @@ const ActionBar: React.FC<ActionBarProps> = ({
     };
 
     return (
-        <div className="flex flex-wrap justify-between items-center mb-4 gap-4 py-4 border-b border-x-border">
+        <div className="flex flex-wrap justify-between items-center mb-4 gap-4 py-4 border-b border-slate-800 text-slate-100">
             <div className="flex items-center gap-4">
                 <input type="file" ref={fileInputRef} onChange={onFileChange} className="hidden" accept=".csv,.txt,.xls,.xlsx" />
                 <Button variant="secondary" onClick={handleUploadClick}><Icons.UploadIcon /> Upload</Button>
-                <span className="text-sm text-x-text-secondary">{fileName}</span>
+                <span className="text-sm text-slate-400">{fileName}</span>
             </div>
             <div className="flex flex-wrap gap-2">
                 <Button onClick={onSaveDeal} disabled={!activeVehicle} title={!activeVehicle ? "Select a vehicle and structure a deal first" : (isDealDirty ? "Save current changes" : "Deal is saved")}>

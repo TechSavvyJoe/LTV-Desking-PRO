@@ -335,7 +335,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({ favorites, dealData, se
 
   return (
     <div className="my-8">
-      <h2 className="text-xl font-bold text-x-text-primary mb-4 pb-2 border-b-2 border-x-border">My Favorites</h2>
+      <h2 className="text-xl font-bold text-white mb-4 pb-2 border-b border-slate-800">My Favorites</h2>
       <Table 
         columns={columns} 
         data={sortedFavorites} 

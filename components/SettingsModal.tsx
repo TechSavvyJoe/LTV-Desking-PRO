@@ -78,10 +78,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
-            <div className="bg-slate-50 dark:bg-x-black border border-x-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col text-slate-900 dark:text-x-text-primary" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col text-slate-100" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-x-border">
-                    <h2 className="text-xl font-bold">Application Settings</h2>
+                    <h2 className="text-xl font-bold text-white">Application Settings</h2>
                 </div>
                 <div className="p-6 overflow-y-auto space-y-6">
                     <div className="p-4 border rounded-lg border-x-border">

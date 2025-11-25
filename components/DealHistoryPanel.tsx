@@ -151,26 +151,26 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
             <div
                 className={`fixed top-0 left-0 h-full transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} pointer-events-auto`}
             >
-                <div className="h-full w-full max-w-md bg-slate-50 dark:bg-x-black shadow-2xl flex flex-col border-r border-slate-200 dark:border-x-border">
-                    <div className="p-4 flex justify-between items-center border-b border-slate-200 dark:border-x-border flex-shrink-0">
-                        <h3 className="text-xl font-semibold text-slate-900 dark:text-x-text-primary">Deal History</h3>
-                        <button onClick={() => setIsOpen(false)} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:text-x-text-secondary dark:hover:bg-x-hover-light">
+                <div className="h-full w-full max-w-md bg-slate-950 shadow-2xl flex flex-col border-r border-slate-800">
+                    <div className="p-4 flex justify-between items-center border-b border-slate-800 flex-shrink-0">
+                        <h3 className="text-xl font-semibold text-white">Deal History</h3>
+                        <button onClick={() => setIsOpen(false)} className="p-2 rounded-full text-slate-300 hover:bg-slate-800">
                             <Icons.ChevronLeftIcon />
                         </button>
                     </div>
-                    <div className="p-4 border-b border-slate-200 dark:border-x-border space-y-3 flex-shrink-0">
+                    <div className="p-4 border-b border-slate-800 space-y-3 flex-shrink-0">
                         <input
                             type="text"
                             placeholder="Search by deal #, customer, vehicle..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full px-3 py-2 text-sm bg-transparent border border-slate-300 dark:border-x-border rounded-lg placeholder-slate-400 dark:placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0"
+                            className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg placeholder-slate-500 text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0"
                         />
                         <div className="grid grid-cols-2 gap-3">
-                            <select value={salespersonFilter} onChange={e => setSalespersonFilter(e.target.value)} className="w-full px-3 py-2 text-sm bg-transparent border border-slate-300 dark:border-x-border rounded-lg focus:outline-none focus:border-x-blue focus:ring-0">
+                            <select value={salespersonFilter} onChange={e => setSalespersonFilter(e.target.value)} className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0">
                                 {salespersons.map(name => <option key={name} value={name}>{name === 'all' ? 'All Salespeople' : name}</option>)}
                             </select>
-                             <select value={`${sortConfig.key}:${sortConfig.direction}`} onChange={handleSortChange} className="w-full px-3 py-2 text-sm bg-transparent border border-slate-300 dark:border-x-border rounded-lg focus:outline-none focus:border-x-blue focus:ring-0">
+                             <select value={`${sortConfig.key}:${sortConfig.direction}`} onChange={handleSortChange} className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0">
                                 {sortOptions.flatMap(opt => [
                                     <option key={`${opt.value}:desc`} value={`${opt.value}:desc`}>{opt.label} (Newest/High)</option>,
                                     <option key={`${opt.value}:asc`} value={`${opt.value}:asc`}>{opt.label} (Oldest/Low)</option>
@@ -178,8 +178,8 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
                             </select>
                         </div>
                          <div className="grid grid-cols-2 gap-3 items-center">
-                            <input type="date" value={dateFilter.start} onChange={e => setDateFilter(p => ({...p, start: e.target.value}))} className="w-full px-3 py-2 text-sm bg-transparent border border-slate-300 dark:border-x-border rounded-lg focus:outline-none focus:border-x-blue focus:ring-0" />
-                            <input type="date" value={dateFilter.end} onChange={e => setDateFilter(p => ({...p, end: e.target.value}))} className="w-full px-3 py-2 text-sm bg-transparent border border-slate-300 dark:border-x-border rounded-lg focus:outline-none focus:border-x-blue focus:ring-0" />
+                            <input type="date" value={dateFilter.start} onChange={e => setDateFilter(p => ({...p, start: e.target.value}))} className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0" />
+                            <input type="date" value={dateFilter.end} onChange={e => setDateFilter(p => ({...p, end: e.target.value}))} className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0" />
                          </div>
                          <Button size="sm" variant="ghost" className="w-full" onClick={clearFilters}>Clear All Filters</Button>
                     </div>

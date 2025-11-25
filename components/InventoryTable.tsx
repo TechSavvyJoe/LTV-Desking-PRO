@@ -224,10 +224,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         const hasCustomerData = customerFilters.creditScore || customerFilters.monthlyIncome;
 
         return (
-          <div className="p-6 bg-slate-50 dark:bg-white/5 border-t border-slate-200 dark:border-gray-700 shadow-inner cursor-default" onClick={e => e.stopPropagation()}>
+          <div className="p-6 bg-slate-900/70 border-t border-slate-800 shadow-inner cursor-default rounded-2xl" onClick={e => e.stopPropagation()}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Financial Breakdown */}
-              <div className="bg-white dark:bg-black p-5 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-md lg:col-span-4">
+              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 shadow-md lg:col-span-4">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-bold text-base text-slate-900 dark:text-gray-100 flex items-center gap-2">
                       <Icons.ChartIcon className="w-5 h-5 text-blue-500"/> Financials
@@ -260,7 +260,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
               </div>
 
               {/* Global Deal Structure */}
-              <div className="bg-white dark:bg-black p-5 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-md lg:col-span-4">
+              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 shadow-md lg:col-span-4">
                 <h4 className="font-bold text-base mb-4 text-slate-900 dark:text-gray-100 flex items-center gap-2">
                     <Icons.CogIcon className="w-5 h-5 text-slate-500"/> Deal Structure
                 </h4>
@@ -284,7 +284,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
               </div>
 
               {/* Lender Eligibility */}
-              <div className="bg-white dark:bg-black p-5 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-md lg:col-span-4">
+              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 shadow-md lg:col-span-4">
                 <h4 className="font-bold text-base mb-4 text-slate-900 dark:text-gray-100 flex items-center gap-2">
                     <Icons.BanknotesIcon className="w-5 h-5 text-green-500"/> Lender Eligibility
                 </h4>

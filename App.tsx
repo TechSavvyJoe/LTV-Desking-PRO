@@ -307,7 +307,7 @@ export default function App() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-black text-slate-900 dark:text-gray-100 transition-colors">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-gray-100 transition-colors">
           <Header onOpenAiModal={() => setIsAiModalOpen(true)} onOpenSettingsModal={() => setIsSettingsModalOpen(true)} />
 
           <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">

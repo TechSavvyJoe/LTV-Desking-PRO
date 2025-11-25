@@ -10,7 +10,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onOpenAiModal, onOpenSettingsModal }) => (
-  <header className="sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 text-white shadow-lg px-4">
+  <header className="sticky top-0 z-30 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-900 text-white shadow-lg px-4">
     <div className="flex flex-wrap justify-between items-center gap-4 py-4">
         <div>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight">LTV & Desking Pro</h1>

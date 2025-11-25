@@ -600,14 +600,14 @@ const FloatingToolsPanel: React.FC<ToolProps> = (props) => {
             <div 
                 className={`fixed top-0 right-0 h-full transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} pointer-events-auto`}
             >
-                <div className="h-full w-full max-w-xl bg-slate-50 dark:bg-x-black shadow-2xl flex flex-row-reverse border-l border-slate-200 dark:border-x-border">
-                    <div className="w-24 bg-slate-50 dark:bg-x-black border-l border-slate-200 dark:border-x-border flex flex-col items-center flex-shrink-0 pt-4 space-y-1">
-                        <button onClick={() => setIsOpen(false)} className="w-20 h-20 p-2 rounded-md flex flex-col items-center justify-center text-center text-slate-500 hover:bg-slate-200 dark:text-x-text-secondary dark:hover:bg-x-hover-dark">
+                <div className="h-full w-full max-w-xl bg-slate-950 shadow-2xl flex flex-row-reverse border-l border-slate-800">
+                    <div className="w-24 bg-slate-950 border-l border-slate-800 flex flex-col items-center flex-shrink-0 pt-4 space-y-1">
+                        <button onClick={() => setIsOpen(false)} className="w-20 h-20 p-2 rounded-md flex flex-col items-center justify-center text-center text-slate-300 hover:bg-slate-800">
                             <Icons.ChevronRightIcon />
                             <span className="text-[11px] mt-1 font-semibold leading-tight">Close</span>
                         </button>
                         {tools.map(tool => (
-                            <button key={tool.id} onClick={() => setActiveToolId(tool.id)} title={tool.name} className={`w-20 h-20 p-2 rounded-md flex flex-col items-center justify-center text-center transition-colors ${activeToolId === tool.id ? 'bg-slate-200 text-x-blue dark:bg-x-hover-dark' : 'text-slate-500 hover:bg-slate-200 dark:text-x-text-secondary dark:hover:bg-x-hover-dark'}`}>
+                            <button key={tool.id} onClick={() => setActiveToolId(tool.id)} title={tool.name} className={`w-20 h-20 p-2 rounded-md flex flex-col items-center justify-center text-center transition-colors ${activeToolId === tool.id ? 'bg-slate-800 text-sky-400' : 'text-slate-400 hover:bg-slate-800'}`}>
                                 {tool.icon}
                                 <span className="text-[11px] mt-1 font-semibold leading-tight">{tool.name}</span>
                             </button>

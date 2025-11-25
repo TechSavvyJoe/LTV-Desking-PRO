@@ -97,7 +97,9 @@ const styles = `
 // Helper functions for data aggregation
 const getTierValueRange = (tiers: LenderTier[] | undefined, key: keyof LenderTier, formatter: (val: number) => string = v => v.toString()): string => {
     if (!tiers || !Array.isArray(tiers)) return 'N/A';
-    const values = tiers.map(t => t[key] as number).filter(v => typeof v === 'number' && v > 0);
+    const values = tiers
+        .map(t => t[key] as number)
+        .filter(v => Number.isFinite(v));
     if (values.length === 0) return 'N/A';
     const min = Math.min(...values);
     const max = Math.max(...values);
@@ -107,8 +109,8 @@ const getTierValueRange = (tiers: LenderTier[] | undefined, key: keyof LenderTie
 
 const getTierMinMaxRange = (tiers: LenderTier[] | undefined, minKey: keyof LenderTier, maxKey: keyof LenderTier, prefix = '', suffix = ''): string => {
     if (!tiers || !Array.isArray(tiers)) return 'N/A';
-    const minValues = tiers.map(t => t[minKey] as number).filter(v => typeof v === 'number' && v >= 0);
-    const maxValues = tiers.map(t => t[maxKey] as number).filter(v => typeof v === 'number' && v > 0);
+    const minValues = tiers.map(t => t[minKey] as number).filter(v => Number.isFinite(v));
+    const maxValues = tiers.map(t => t[maxKey] as number).filter(v => Number.isFinite(v));
     
     if (minValues.length === 0 && maxValues.length === 0) return 'N/A';
 
@@ -117,9 +119,9 @@ const getTierMinMaxRange = (tiers: LenderTier[] | undefined, minKey: keyof Lende
 
     const format = (v: number | null) => v !== null ? v.toLocaleString() : '';
 
-    if (overallMin !== null && !overallMax) return `${prefix}${format(overallMin)}${suffix}+`;
-    if (overallMin === null && overallMax) return `Up to ${prefix}${format(overallMax)}${suffix}`;
-    if (overallMin !== null && overallMax) {
+    if (overallMin !== null && overallMax === null) return `${prefix}${format(overallMin)}${suffix}+`;
+    if (overallMin === null && overallMax !== null) return `Up to ${prefix}${format(overallMax)}${suffix}`;
+    if (overallMin !== null && overallMax !== null) {
         if (overallMin === overallMax) return `${prefix}${format(overallMin)}${suffix}`;
         return `${prefix}${format(overallMin)} - ${prefix}${format(overallMax)}${suffix}`;
     }
@@ -132,14 +134,27 @@ interface LenderCheatSheetTemplateProps {
 
 const summarizeTiers = (tiers: LenderTier[] | undefined): string[] => {
     if (!tiers || !Array.isArray(tiers) || tiers.length === 0) return ['No tiers defined'];
-    return tiers.slice(0, 3).map(t => {
+    return tiers.slice(0, 5).map(t => {
         const parts: string[] = [];
-        if (t.minFico !== undefined) parts.push(`FICO ${t.minFico}${t.maxFico ? `-${t.maxFico}` : '+'}`);
-        else if (t.maxFico !== undefined) parts.push(`FICO ≤ ${t.maxFico}`);
-        if (t.minYear || t.maxYear) parts.push(`Yrs ${t.minYear || 'any'}-${t.maxYear || 'newer'}`);
-        if (t.maxMileage) parts.push(`≤${t.maxMileage.toLocaleString()} mi`);
-        if (t.maxLtv) parts.push(`LTV ${t.maxLtv}%`);
-        if (t.maxTerm) parts.push(`Term ≤${t.maxTerm}`);
+        if (Number.isFinite(t.minFico) || Number.isFinite(t.maxFico)) {
+            if (Number.isFinite(t.minFico) && Number.isFinite(t.maxFico)) parts.push(`FICO ${t.minFico}-${t.maxFico}`);
+            else if (Number.isFinite(t.minFico)) parts.push(`FICO ≥ ${t.minFico}`);
+            else if (Number.isFinite(t.maxFico)) parts.push(`FICO ≤ ${t.maxFico}`);
+        }
+        if (Number.isFinite(t.minYear) || Number.isFinite(t.maxYear)) {
+            const minY = Number.isFinite(t.minYear) ? t.minYear : 'any';
+            const maxY = Number.isFinite(t.maxYear) ? t.maxYear : 'newer';
+            parts.push(`Years ${minY}-${maxY}`);
+        }
+        if (Number.isFinite(t.maxMileage)) parts.push(`≤${Number(t.maxMileage).toLocaleString()} mi`);
+        if (Number.isFinite(t.maxLtv)) parts.push(`LTV ${t.maxLtv}%`);
+        if (Number.isFinite(t.maxTerm)) parts.push(`Term ≤${t.maxTerm}`);
+        if (Number.isFinite(t.minAmountFinanced) || Number.isFinite(t.maxAmountFinanced)) {
+            const minA = Number.isFinite(t.minAmountFinanced) ? `$${Number(t.minAmountFinanced).toLocaleString()}` : '';
+            const maxA = Number.isFinite(t.maxAmountFinanced) ? `$${Number(t.maxAmountFinanced).toLocaleString()}` : '';
+            const label = minA && maxA ? `${minA}-${maxA}` : (minA || (maxA ? `Up to ${maxA}` : ''));
+            if (label) parts.push(`Fin ${label}`);
+        }
         return `${t.name || 'Tier'}: ${parts.join(' • ') || 'See sheet'}`;
     });
 };
