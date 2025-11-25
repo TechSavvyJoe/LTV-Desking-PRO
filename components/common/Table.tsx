@@ -38,11 +38,11 @@ export const Table = <T extends { [key: string]: any }>({ columns, data, sortCon
         <div className="table-container overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
-                    <tr className="border-b border-x-border">
+                    <tr className="border-b border-slate-200 dark:border-gray-700">
                         {safeColumns.map((col, index) => (
                             <th
                                 key={index}
-                                className={`p-3 font-bold text-x-text-secondary text-left ${col.className || ''}`}
+                                className={`p-3 font-bold text-slate-500 dark:text-gray-400 text-left ${col.className || ''}`}
                                 onClick={() => col.accessor && onSort(col.accessor as keyof T)}
                             >
                                 <div className="flex items-center gap-2 cursor-pointer select-none">
@@ -58,19 +58,22 @@ export const Table = <T extends { [key: string]: any }>({ columns, data, sortCon
                 <tbody>
                     {safeData.length === 0 ? (
                         <tr>
-                            <td colSpan={safeColumns.length > 0 ? safeColumns.length : 1} className="p-6 text-center text-x-text-secondary">{emptyMessage}</td>
+                            <td colSpan={safeColumns.length > 0 ? safeColumns.length : 1} className="p-6 text-center text-slate-500 dark:text-gray-400">{emptyMessage}</td>
                         </tr>
                     ) : (
                         safeData.map((item, rowIndex) => {
-                            // Extra safety check in case filter failed or array was mutated
                             if (!item) return null;
                             
-                            const key = item[rowKey] || rowIndex;
-                            const isExpanded = expandedRows?.has(key);
+                            // SAFE KEY GENERATION: If rowKey is missing, use rowIndex (less safe for React but prevents crash)
+                            const key = item[rowKey] !== undefined ? item[rowKey] : `row-${rowIndex}`;
+                            
+                            // Ensure expandedRows exists before checking
+                            const isExpanded = expandedRows ? expandedRows.has(key) : false;
+                            
                             return (
                                 <React.Fragment key={key}>
                                     <tr
-                                        className={`border-b border-x-border transition-colors ${onRowClick ? 'cursor-pointer hover:bg-x-hover-dark' : ''}`}
+                                        className={`border-b border-slate-200 dark:border-gray-700 transition-colors ${onRowClick ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5' : ''}`}
                                         onClick={() => onRowClick && onRowClick(key)}
                                     >
                                         {safeColumns.map((col, colIndex) => (
@@ -80,7 +83,7 @@ export const Table = <T extends { [key: string]: any }>({ columns, data, sortCon
                                         ))}
                                     </tr>
                                     {isExpanded && renderExpandedRow && (
-                                        <tr className="border-b border-x-border bg-x-hover-dark">
+                                        <tr className="border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-white/5">
                                             <td colSpan={safeColumns.length} className="p-0">
                                                 {renderExpandedRow(item)}
                                             </td>
