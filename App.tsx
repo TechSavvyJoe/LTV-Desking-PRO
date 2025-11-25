@@ -72,9 +72,6 @@ export default function App() {
   }, [dealData, filters, customerName, salespersonName, activeVehicle]);
 
   const handleVinLookup = useCallback(async () => {
-    // Defensive check for filters being undefined or null
-    // Also check that vin exists and is a string before accessing .length
-    // Added optional chaining ?.length to be extra safe
     if (!filters || !filters.vin || typeof filters.vin !== 'string' || filters.vin?.length < 17) {
         setVinLookupResult(null);
         return;
@@ -108,7 +105,6 @@ export default function App() {
 
     try {
       const data = await parseFile(file);
-      // Ensure data is an array before checking length
       const safeData = Array.isArray(data) ? data : [];
       setInventory(safeData);
       setMessage({ text: `Successfully processed ${safeData.length} vehicles.`, type: 'info' });
@@ -149,9 +145,7 @@ export default function App() {
       return;
     }
 
-    // Robust check for safeSavedDeals array
     const currentDeals = Array.isArray(safeSavedDeals) ? safeSavedDeals : [];
-    // Safely calculate max deal number
     const dealNumber = (currentDeals.length > 0 
         ? Math.max(...currentDeals.map(d => (d && typeof d.dealNumber === 'number' ? d.dealNumber : 0))) 
         : 0) + 1;
@@ -218,7 +212,6 @@ export default function App() {
 
 
   const filteredInventory = useMemo(() => {
-    // Guard against filters being null (though initialized, localStorage can be tricky)
     const safeFilters = filters || INITIAL_FILTER_DATA;
     return processedInventory.filter(item => {
       const vehicleMatch = !safeFilters.vehicle || (item.vehicle || '').toLowerCase().includes(safeFilters.vehicle.toLowerCase());
@@ -309,7 +302,7 @@ export default function App() {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-50 dark:bg-x-black text-slate-900 dark:text-x-text-primary transition-colors">
+      <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-gray-100 transition-colors">
           <Header onOpenAiModal={() => setIsAiModalOpen(true)} onOpenSettingsModal={() => setIsSettingsModalOpen(true)} />
 
           <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -391,7 +384,7 @@ export default function App() {
                       <Pagination
                           totalItems={sortedInventory.length}
                           pagination={pagination}
-                          setPagination={setPagination}
+                          setPagination={setPagination}                                
                       />
 
                       <LenderProfiles profiles={safeLenderProfiles} setProfiles={setLenderProfiles} />
