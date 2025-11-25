@@ -1,0 +1,156 @@
+
+import type { DealData, FilterData, LenderProfile, Vehicle, Settings } from './types';
+
+// Initial State
+export const INITIAL_SETTINGS: Settings = {
+    defaultTerm: 72,
+    defaultApr: 8.9,
+    defaultState: 'MI',
+    docFee: 280,
+    cvrFee: 24,
+    defaultStateFees: 31,
+    outOfStateTransitFee: 10,
+};
+
+export const INITIAL_DEAL_DATA: DealData = {
+  downPayment: 0,
+  tradeInValue: 0,
+  tradeInPayoff: 0,
+  backendProducts: 0,
+  loanTerm: INITIAL_SETTINGS.defaultTerm,
+  interestRate: INITIAL_SETTINGS.defaultApr,
+  stateFees: INITIAL_SETTINGS.defaultStateFees,
+  notes: '',
+};
+
+export const INITIAL_FILTER_DATA: FilterData = {
+  creditScore: null,
+  monthlyIncome: null,
+  vehicle: '',
+  maxPrice: null,
+  maxPayment: null,
+  vin: '',
+};
+
+// Default Lender Profiles
+export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
+    { id: "accu", name: "Alliance CCU", maxPti: 20, bookValueSource: 'Trade', tiers: [
+        { name: 'A Tier (2024+)', minFico: 720, minYear: 2024, maxTerm: 120, maxLtv: 125 },
+        { name: 'B Tier (2024+)', minFico: 680, maxFico: 719, minYear: 2024, maxTerm: 96, maxLtv: 125 },
+        { name: 'C Tier (2024+)', minFico: 640, maxFico: 679, minYear: 2024, maxTerm: 84, maxLtv: 125 },
+        { name: 'A Tier (2020-23)', minFico: 720, minYear: 2020, maxYear: 2023, maxTerm: 84, maxLtv: 125, maxMileage: 125000 },
+        { name: 'B Tier (2020-23)', minFico: 680, maxFico: 719, minYear: 2020, maxYear: 2023, maxTerm: 84, maxLtv: 125, maxMileage: 125000 },
+        { name: 'C Tier (2020-23)', minFico: 640, maxFico: 679, minYear: 2020, maxYear: 2023, maxTerm: 84, maxLtv: 125, maxMileage: 125000 },
+        { name: 'A Tier (2015-19)', minFico: 720, minYear: 2015, maxYear: 2019, maxTerm: 60, maxLtv: 125, maxMileage: 125000 },
+        { name: 'B Tier (2015-19)', minFico: 680, maxFico: 719, minYear: 2015, maxYear: 2019, maxTerm: 60, maxLtv: 125, maxMileage: 125000 },
+        { name: 'C Tier (2015-19)', minFico: 640, maxFico: 679, minYear: 2015, maxYear: 2019, maxTerm: 60, maxLtv: 125, maxMileage: 125000 },
+    ]},
+    { id: "cap1", name: "Capital One", minIncome: 1500, maxPti: 20, bookValueSource: 'Trade', tiers: [
+        { name: 'Prime (Book >= $25k)', minFico: 620, maxLtv: 120, maxTerm: 84, maxMileage: 150000, minAmountFinanced: 4000 },
+        { name: 'Non-Prime (Book >= $25k)', minFico: 500, maxFico: 619, maxLtv: 120, maxTerm: 84, maxMileage: 150000, minAmountFinanced: 4000 },
+        { name: 'Non-Prime (Book < $25k)', minFico: 500, maxFico: 619, maxLtv: 130, maxTerm: 84, maxMileage: 150000, minAmountFinanced: 4000 },
+        { name: 'All Tiers (Age <= 5yr, Amt > $20k)', minYear: 2020, minAmountFinanced: 20001, maxTerm: 84, maxMileage: 150000},
+        { name: 'All Tiers (General)', maxTerm: 75, maxMileage: 150000}
+    ]},
+    { id: "cres", name: "Crescent Bank", minIncome: 2000, minAmountFinanced: 7000, maxAmountFinanced: 45000, bookValueSource: 'Trade', tiers: [
+        { name: "General", minFico: 450, maxLtv: 140, maxTerm: 75, maxMileage: 120000, minYear: 2015 },
+        { name: "Diesel", minFico: 450, maxLtv: 140, maxTerm: 75, maxMileage: 135000, minYear: 2015 }
+    ]},
+    { id: "ford", name: "Ford Credit", bookValueSource: 'Trade', tiers: [
+        { name: 'New (Tier 0-2, FICO > 620)', minYear: 2023, minFico: 620, maxLtv: 135, maxTerm: 84, minAmountFinanced: 15000 },
+        { name: 'New (Tier 3-4, FICO < 620)', minYear: 2023, maxFico: 619, maxLtv: 110, maxTerm: 84, minAmountFinanced: 15000 },
+        { name: 'Used (FICO > 680)', minYear: 2022, maxYear: 2025, minFico: 680, maxLtv: 120, maxTerm: 84, minAmountFinanced: 15000 },
+        { name: 'Used (FICO 620-679)', minYear: 2022, maxYear: 2025, minFico: 620, maxFico: 679, maxLtv: 110, maxTerm: 84, minAmountFinanced: 15000 },
+        { name: 'Older Used', minYear: 2018, maxYear: 2021, maxTerm: 72, minAmountFinanced: 15000 }
+    ]},
+    { id: "ltcu", name: "Lake Trust CU", bookValueSource: 'Retail', tiers: [
+        { name: 'New - Tier 1-3', minYear: 2023, minFico: 660, maxLtv: 145, maxTerm: 84 },
+        { name: 'New - Tier 4-5', minYear: 2023, maxFico: 659, maxLtv: 135, maxTerm: 84 },
+        { name: 'Used (2017-22) - Tier 1-3', minYear: 2017, maxYear: 2022, minFico: 660, maxLtv: 145, maxTerm: 84, maxMileage: 175000 },
+        { name: 'Used (2017-22) - Tier 4-5', minYear: 2017, maxYear: 2022, maxFico: 659, maxLtv: 135, maxTerm: 84, maxMileage: 175000 },
+        { name: 'Older (2016+) - Tier 1-3', minYear: 2016, minFico: 660, maxLtv: 145, maxTerm: 84, maxMileage: 175000 },
+        { name: 'Older (2016+) - Tier 4-5', minYear: 2016, maxFico: 659, maxLtv: 135, maxTerm: 84, maxMileage: 175000 },
+    ]},
+    { id: "pnc", name: "PNC Bank", minAmountFinanced: 5000, bookValueSource: 'Retail', tiers: [
+        { name: 'New (<= 72mo)', minYear: 2024, maxTerm: 72, maxLtv: 125, minFico: 680 },
+        { name: 'New (> 72mo)', minYear: 2024, minTerm: 73, maxTerm: 84, maxLtv: 115, minFico: 680 },
+        { name: 'Used', maxYear: 2023, maxTerm: 84, maxLtv: 115, minFico: 680, maxMileage: 125000 }
+    ]},
+    { id: "sant", name: "Santander", minIncome: 1750, maxPti: 22, minAmountFinanced: 5000, bookValueSource: 'Trade', tiers: [
+        { name: 'Standard Program', minFico: 500, maxLtv: 145, maxTerm: 75, minYear: 2016, maxMileage: 120000 },
+        { name: '84mo Program', minFico: 500, maxLtv: 120, maxTerm: 84, minYear: 2022, maxMileage: 60000 }
+    ]},
+    { id: "tdaf", name: "TD Auto Finance", minAmountFinanced: 7500, bookValueSource: 'Trade', tiers: [
+        { name: 'Tier 1-2 (<= 75mo)', minFico: 680, maxTerm: 75, maxLtv: 140 },
+        { name: 'Tier 3 (<= 75mo)', minFico: 660, maxFico: 679, maxTerm: 75, maxLtv: 140 },
+        { name: 'Tier 4-5 (<= 75mo)', minFico: 620, maxFico: 659, maxTerm: 75, maxLtv: 120 },
+        { name: 'Tier 1-5 (> 75mo)', minFico: 620, minTerm: 76, maxTerm: 84, maxLtv: 120 }
+    ]},
+    { id: "prest", name: "Prestige Financial", minIncome: 3000, maxPti: 15, maxAmountFinanced: 40000, bookValueSource: 'Trade', tiers: [
+        { name: 'General', maxLtv: 140, maxTerm: 72, minYear: 2015, maxMileage: 125000 }
+    ]},
+    { id: "rac", name: "Regional Acceptance", minIncome: 1900, bookValueSource: 'Trade', tiers: [
+        { name: 'Tier 1-7', maxLtv: 125, maxTerm: 84, minYear: 2015, maxMileage: 130000 }
+    ]},
+    { id: "ca", name: "Credit Acceptance", maxPti: 25, bookValueSource: 'Trade', tiers: [
+        { name: 'Platinum', minFico: 660, maxTerm: 84 },
+        { name: 'Gold', minFico: 600, maxFico: 659, maxTerm: 84 },
+        { name: 'Silver', minFico: 550, maxFico: 599, maxTerm: 84 },
+        { name: 'Standard', maxFico: 549, maxTerm: 84 }
+    ]},
+    { id: "exeter", name: "Exeter", minIncome: 1700, maxPti: 21, minAmountFinanced: 6000, maxAmountFinanced: 50000, bookValueSource: 'Trade', tiers: [
+        { name: 'ExeterPLUS', minFico: 620, maxLtv: 150, maxTerm: 78, minYear: 2012, maxMileage: 200000 },
+        { name: 'Exeter', minFico: 400, maxFico: 619, maxLtv: 150, maxTerm: 78, minYear: 2012, maxMileage: 200000 }
+    ]},
+    { id: "gls", name: "Global Lending", minIncome: 1800, maxPti: 24, minAmountFinanced: 7000, maxAmountFinanced: 55000, bookValueSource: 'Trade', tiers: [
+        { name: 'T1-T4 (<= 80k miles)', minFico: 400, maxLtv: 135, maxTerm: 75, maxMileage: 80000 },
+        { name: 'T1-T4 (> 80k miles)', minFico: 400, maxLtv: 135, maxTerm: 72, minMileage: 80001, maxMileage: 180000 }
+    ]}
+];
+
+// Sample Inventory Data
+export const SAMPLE_INVENTORY: Vehicle[] = [
+  // ~$5k
+  { vehicle: '2012 Honda Civic LX', price: 5200, modelYear: 2012, mileage: 155000, jdPower: 4800, jdPowerRetail: 6200, unitCost: 4000 },
+  { vehicle: '2013 Nissan Sentra S', price: 5800, modelYear: 2013, mileage: 140000, jdPower: 5300, jdPowerRetail: 6800, unitCost: 4500 },
+  { vehicle: '2011 Ford Focus SE', price: 4900, modelYear: 2011, mileage: 160000, jdPower: 4500, jdPowerRetail: 5900, unitCost: 3800 },
+  // ~$10k
+  { vehicle: '2015 Toyota Corolla LE', price: 10500, modelYear: 2015, mileage: 110000, jdPower: 9800, jdPowerRetail: 11500, unitCost: 8800 },
+  { vehicle: '2016 Hyundai Elantra SE', price: 9800, modelYear: 2016, mileage: 95000, jdPower: 9100, jdPowerRetail: 10700, unitCost: 8200 },
+  { vehicle: '2014 Chevy Cruze LT', price: 8900, modelYear: 2014, mileage: 105000, jdPower: 8200, jdPowerRetail: 9800, unitCost: 7500 },
+  { vehicle: '2017 Kia Soul', price: 11200, modelYear: 2017, mileage: 88000, jdPower: 10500, jdPowerRetail: 12200, unitCost: 9500 },
+  // ~$15k
+  { vehicle: '2018 Honda Accord Sport', price: 15500, modelYear: 2018, mileage: 75000, jdPower: 14800, jdPowerRetail: 16800, unitCost: 13800 },
+  { vehicle: '2016 Jeep Renegade Latitude', price: 14800, modelYear: 2016, mileage: 82000, jdPower: 14000, jdPowerRetail: 15900, unitCost: 13000 },
+  { vehicle: '2017 Ford Escape SE', price: 16000, modelYear: 2017, mileage: 78000, jdPower: 15200, jdPowerRetail: 17200, unitCost: 14100 },
+  { vehicle: '2019 Nissan Rogue S', price: 16500, modelYear: 2019, mileage: 70000, jdPower: 15800, jdPowerRetail: 17900, unitCost: 14700 },
+  // ~$20k
+  { vehicle: '2020 Toyota Camry SE', price: 20500, modelYear: 2020, mileage: 55000, jdPower: 19500, jdPowerRetail: 21800, unitCost: 18200 },
+  { vehicle: '2018 Jeep Wrangler Sport', price: 21000, modelYear: 2018, mileage: 65000, jdPower: 20000, jdPowerRetail: 22500, unitCost: 18800 },
+  { vehicle: '2019 Subaru Outback 2.5i', price: 19800, modelYear: 2019, mileage: 68000, jdPower: 18900, jdPowerRetail: 21100, unitCost: 17700 },
+  { vehicle: '2021 Hyundai Kona SEL', price: 19200, modelYear: 2021, mileage: 40000, jdPower: 18400, jdPowerRetail: 20500, unitCost: 17300 },
+  // ~$25k
+  { vehicle: '2019 Ford F-150 XLT', price: 25500, modelYear: 2019, mileage: 72000, jdPower: 24500, jdPowerRetail: 27500, unitCost: 23000 },
+  { vehicle: '2020 Chevy Equinox LT', price: 24800, modelYear: 2020, mileage: 48000, jdPower: 23800, jdPowerRetail: 26500, unitCost: 22500 },
+  { vehicle: '2017 BMW 3 Series 330i', price: 24000, modelYear: 2017, mileage: 60000, jdPower: 23000, jdPowerRetail: 25800, unitCost: 21500 },
+  { vehicle: '2021 Mazda CX-5 Touring', price: 26000, modelYear: 2021, mileage: 35000, jdPower: 25000, jdPowerRetail: 27800, unitCost: 23800 },
+  // ~$30k
+  { vehicle: '2022 Honda CR-V EX', price: 30500, modelYear: 2022, mileage: 25000, jdPower: 29500, jdPowerRetail: 32000, unitCost: 28000 },
+  { vehicle: '2019 Toyota Highlander XLE', price: 29800, modelYear: 2019, mileage: 58000, jdPower: 28800, jdPowerRetail: 31500, unitCost: 27500 },
+  { vehicle: '2020 Ford Explorer XLT', price: 31000, modelYear: 2020, mileage: 52000, jdPower: 30000, jdPowerRetail: 32800, unitCost: 28500 },
+  { vehicle: '2018 Lexus RX 350', price: 32000, modelYear: 2018, mileage: 62000, jdPower: 30800, jdPowerRetail: 33500, unitCost: 29000 },
+  // ~$35k
+  { vehicle: '2021 Tesla Model 3 Standard Range', price: 34000, modelYear: 2021, mileage: 38000, jdPower: 32500, jdPowerRetail: 35500, unitCost: 31000 },
+  { vehicle: '2020 BMW X3 sDrive30i', price: 36000, modelYear: 2020, mileage: 45000, jdPower: 34500, jdPowerRetail: 37500, unitCost: 32800 },
+  { vehicle: '2019 Chevy Tahoe LT', price: 35500, modelYear: 2019, mileage: 70000, jdPower: 34000, jdPowerRetail: 37000, unitCost: 32000 },
+  // ~$40k
+  { vehicle: '2022 Ford F-150 Lariat', price: 40500, modelYear: 2022, mileage: 30000, jdPower: 39000, jdPowerRetail: 42500, unitCost: 37000 },
+  { vehicle: '2021 Mercedes-Benz GLC 300', price: 39000, modelYear: 2021, mileage: 33000, jdPower: 37500, jdPowerRetail: 41000, unitCost: 35800 },
+  { vehicle: '2020 Jeep Grand Cherokee Limited', price: 38000, modelYear: 2020, mileage: 48000, jdPower: 36500, jdPowerRetail: 39800, unitCost: 34800 },
+  { vehicle: '2023 Kia Telluride LX', price: 41000, modelYear: 2023, mileage: 15000, jdPower: 39500, jdPowerRetail: 43000, unitCost: 38000 },
+].map((v, i) => ({
+    ...v,
+    stock: `STK${1000 + i}`,
+    vin: `${Math.random().toString(36).substring(2, 11).toUpperCase()}${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+    baseOutTheDoorPrice: 'N/A',
+}));
