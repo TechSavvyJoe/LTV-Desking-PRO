@@ -42,7 +42,7 @@ export const Table = <T extends { [key: string]: any }>({ columns, data, sortCon
                         {safeColumns.map((col, index) => (
                             <th
                                 key={index}
-                                className={`p-3 font-bold text-slate-500 dark:text-gray-400 text-left ${col.className || ''}`}
+                                className={`p-2 font-semibold text-slate-400 dark:text-gray-400 text-left align-top ${col.className || ''}`}
                                 onClick={() => col.accessor && onSort(col.accessor as keyof T)}
                             >
                                 <div className="flex items-center gap-2 cursor-pointer select-none">
@@ -77,7 +77,7 @@ export const Table = <T extends { [key: string]: any }>({ columns, data, sortCon
                                         onClick={() => onRowClick && onRowClick(key)}
                                     >
                                         {safeColumns.map((col, colIndex) => (
-                                            <td key={colIndex} className={`p-3 whitespace-nowrap align-top ${col.className || ''}`}>
+                                        <td key={colIndex} className={`p-2 whitespace-normal break-words align-top ${col.className || ''}`}>
                                                 {col.render ? col.render(item) : item[col.accessor]}
                                             </td>
                                         ))}
