@@ -22,17 +22,17 @@ interface InputGroupProps {
 }
 const InputGroup: React.FC<InputGroupProps> = ({ label, children }) => (
     <div>
-        <label className="block text-sm font-medium text-x-text-secondary mb-1">{label}</label>
+        <label className="block text-sm font-semibold text-slate-200 mb-1">{label}</label>
         {children}
     </div>
 );
 
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input {...props} className="w-full px-3 py-2 text-base bg-transparent border border-x-border rounded-lg placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0 transition-colors duration-200 ease-in-out" />
+    <input {...props} className="w-full px-3 py-2.5 text-base bg-slate-900 border border-slate-700 rounded-xl placeholder-slate-500 text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 transition-colors duration-200 ease-in-out shadow-sm" />
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select {...props} className="w-full px-3 py-2 text-base bg-x-black border border-x-border rounded-lg placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0 transition-colors duration-200 ease-in-out" />
+  <select {...props} className="w-full px-3 py-2.5 text-base bg-slate-900 border border-slate-700 rounded-xl placeholder-slate-500 text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 transition-colors duration-200 ease-in-out shadow-sm" />
 );
 
 
@@ -104,10 +104,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({ profile, isOpen
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-x-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
-      <div className="bg-x-black border border-x-border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="p-4 border-b border-x-border">
-            <h2 className="text-xl font-bold text-x-text-primary">{profile ? `Edit ${formData.name}` : 'Add New Lender'}</h2>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
+      <div className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col text-slate-100" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-slate-800">
+            <h2 className="text-xl font-bold text-white">{profile ? `Edit ${formData.name}` : 'Add New Lender'}</h2>
         </div>
         <form onSubmit={handleSubmit} className="overflow-y-auto p-6 flex-grow">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-4 mb-6">
@@ -130,10 +130,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({ profile, isOpen
                  </InputGroup>
             </div>
 
-            <h3 className="text-lg font-semibold text-x-text-primary mb-4">Lending Tiers</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Lending Tiers</h3>
             <div className="space-y-4">
             {(formData.tiers || []).map((tier, index) => (
-                <div key={index} className="p-4 border rounded-lg border-x-border relative">
+                <div key={index} className="p-4 border rounded-lg border-slate-800 bg-slate-900 relative">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                        <div className="col-span-2 md:col-span-4 lg:col-span-2">
                           <InputGroup label="Tier Name">
@@ -180,7 +180,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({ profile, isOpen
             </div>
             <Button type="button" variant="secondary" size="sm" onClick={addTier} className="mt-4">Add Tier</Button>
         </form>
-        <div className="p-4 border-t border-x-border flex justify-end gap-3">
+        <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-950">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" onClick={handleSubmit}>Save Profile</Button>
         </div>

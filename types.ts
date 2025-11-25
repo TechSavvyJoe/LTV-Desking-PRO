@@ -2,23 +2,23 @@ export interface Vehicle {
   vehicle: string;
   stock: string;
   vin: string;
-  modelYear: number | 'N/A';
-  mileage: number | 'N/A';
-  price: number | 'N/A';
-  jdPower: number | 'N/A';
-  jdPowerRetail: number | 'N/A';
-  unitCost: number | 'N/A';
-  baseOutTheDoorPrice: number | 'Error' | 'N/A';
+  modelYear: number | "N/A";
+  mileage: number | "N/A";
+  price: number | "N/A";
+  jdPower: number | "N/A";
+  jdPowerRetail: number | "N/A";
+  unitCost: number | "N/A";
+  baseOutTheDoorPrice: number | "Error" | "N/A";
   // Calculated properties will be added to a different type
 }
 
 export interface CalculatedVehicle extends Vehicle {
-  salesTax: number | 'Error' | 'N/A';
-  frontEndLtv: number | 'Error' | 'N/A';
-  frontEndGross: number | 'Error' | 'N/A';
-  amountToFinance: number | 'Error' | 'N/A';
-  otdLtv: number | 'Error' | 'N/A';
-  monthlyPayment: number | 'Error' | 'N/A';
+  salesTax: number | "Error" | "N/A";
+  frontEndLtv: number | "Error" | "N/A";
+  frontEndGross: number | "Error" | "N/A";
+  amountToFinance: number | "Error" | "N/A";
+  otdLtv: number | "Error" | "N/A";
+  monthlyPayment: number | "Error" | "N/A";
   [key: string]: any; // For dynamic sorting key
 }
 
@@ -44,7 +44,7 @@ export interface FilterData {
 
 export interface SortConfig {
   key: keyof CalculatedVehicle | null;
-  direction: 'asc' | 'desc';
+  direction: "asc" | "desc";
 }
 
 export interface LenderTier {
@@ -67,24 +67,23 @@ export interface LenderTier {
 export interface LenderProfile {
   id: string;
   name: string;
-  bookValueSource?: 'Trade' | 'Retail';
+  bookValueSource?: "Trade" | "Retail";
   minIncome?: number;
   maxPti?: number;
   tiers: LenderTier[];
   [key: string]: any; // For dynamic keys
 }
 
-
 export interface Message {
   text: string;
-  type: 'info' | 'error';
+  type: "info" | "error";
 }
 
 export type ValidationErrors = Record<string, string>;
 
 export interface TierSortConfig {
   key: keyof LenderTier | null;
-  direction: 'asc' | 'desc';
+  direction: "asc" | "desc";
 }
 
 export interface SavedDeal {
@@ -103,33 +102,34 @@ export interface SavedDeal {
 }
 
 export interface LenderEligibilityStatus {
-    name: string;
-    eligible: boolean;
-    reasons: string[];
-    matchedTier: LenderTier | null;
+  name: string;
+  eligible: boolean;
+  reasons: string[];
+  matchedTier: LenderTier | null;
 }
 
 export interface DealPdfData {
-    vehicle: CalculatedVehicle;
-    dealData: DealData;
-    customerFilters: {
-        creditScore: number | null;
-        monthlyIncome: number | null;
-    };
-    customerName: string;
-    salespersonName: string;
-    lenderEligibility: LenderEligibilityStatus[];
-    dealNumber?: number;
+  vehicle: CalculatedVehicle;
+  dealData: DealData;
+  customerFilters: {
+    creditScore: number | null;
+    monthlyIncome: number | null;
+  };
+  customerName: string;
+  salespersonName: string;
+  lenderEligibility: LenderEligibilityStatus[];
+  dealNumber?: number;
 }
 
-export type AppState = 'MI' | 'OH' | 'IN';
+export type AppState = "MI" | "OH" | "IN";
 
 export interface Settings {
-    defaultTerm: number;
-    defaultApr: number;
-    defaultState: AppState;
-    docFee: number;
-    cvrFee: number;
-    defaultStateFees: number;
-    outOfStateTransitFee: number;
+  defaultTerm: number;
+  defaultApr: number;
+  defaultState: AppState;
+  docFee: number;
+  cvrFee: number;
+  defaultStateFees: number;
+  outOfStateTransitFee: number;
+  customTaxRate: number | null;
 }
