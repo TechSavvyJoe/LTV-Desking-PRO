@@ -180,7 +180,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const filteredInventory = useMemo(() => {
     const safeFilters = filters || INITIAL_FILTER_DATA;
-    return processedInventory.filter((item) => {
+    const result = processedInventory.filter((item) => {
       const vehicleMatch =
         !safeFilters.vehicle ||
         (item.vehicle || "")
@@ -196,8 +196,10 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
       const vinMatch =
         !safeFilters.vin ||
         (item.vin || "").toLowerCase().includes(safeFilters.vin.toLowerCase());
+
       return vehicleMatch && maxPriceMatch && maxPaymentMatch && vinMatch;
     });
+    return result;
   }, [processedInventory, filters]);
 
   const sortedInventory = useMemo(() => {
@@ -236,7 +238,11 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [filteredInventory, inventorySort]);
 
   const paginatedInventory = useMemo(() => {
-    const { currentPage, rowsPerPage } = pagination;
+    if (!sortedInventory) return [];
+    const { currentPage, rowsPerPage } = pagination || {
+      currentPage: 1,
+      rowsPerPage: 15,
+    };
     if (rowsPerPage === Infinity) return sortedInventory;
     const start = (currentPage - 1) * rowsPerPage;
     const end = start + rowsPerPage;
@@ -260,18 +266,20 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     [inventory, setFavorites]
   );
 
-  const toggleInventoryRowExpansion = useCallback((vin: string) => {
-    setExpandedInventoryRows((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(vin)) {
-        newSet.delete(vin);
-      } else {
-        newSet.add(vin);
-      }
-      return newSet;
-    });
-  }, []);
-
+  const toggleInventoryRowExpansion = useCallback(
+    (vin: string) => {
+      setExpandedInventoryRows((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(vin)) {
+          newSet.delete(vin);
+        } else {
+          newSet.add(vin);
+        }
+        return newSet;
+      });
+    },
+    [setExpandedInventoryRows]
+  );
   const handleInventoryUpdate = useCallback(
     (vin: string, updatedData: Partial<Vehicle>) => {
       setInventory((prev) =>
@@ -297,8 +305,19 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     setCustomerName("");
     setSalespersonName("");
     setScratchPadNotes("");
-    setScratchPadNotes("");
-  }, [setDealData, setFilters, setErrors, setScratchPadNotes, settings]);
+    setInventorySort({ key: null, direction: "asc" });
+    setFavSort({ key: null, direction: "asc" });
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  }, [
+    setDealData,
+    setFilters,
+    setErrors,
+    setScratchPadNotes,
+    settings,
+    setInventorySort,
+    setFavSort,
+    setPagination,
+  ]);
 
   const loadSampleData = useCallback(() => {
     // Reset all filters and deal data to ensure the new inventory is visible
@@ -314,10 +333,10 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     setSalespersonName("");
     setScratchPadNotes("");
     setActiveVehicle(null);
+    setInventorySort({ key: null, direction: "asc" });
+    setFavSort({ key: null, direction: "asc" });
 
     // Load the inventory
-    console.log("loadSampleData called");
-    console.log("SAMPLE_INVENTORY length:", SAMPLE_INVENTORY.length);
     setInventory(SAMPLE_INVENTORY);
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
     setMessage({
@@ -335,6 +354,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     setScratchPadNotes,
     setActiveVehicle,
     settings,
+    setInventorySort,
+    setFavSort,
   ]);
 
   const value = {

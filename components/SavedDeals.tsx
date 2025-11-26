@@ -39,13 +39,14 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
               className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
             >
               <td className="px-6 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
-                {new Date(deal.date).toLocaleDateString()}
+                {new Date(deal.date || deal.createdAt || Date.now()).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                 {deal.customerName}
               </td>
               <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
+                {deal.vehicle?.modelYear || deal.vehicleSnapshot?.modelYear || "N/A"}{" "}
+                {deal.vehicle?.vehicle || deal.vehicleSnapshot?.vehicle || ""}
               </td>
               <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
                 {deal.salespersonName || "-"}

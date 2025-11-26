@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useTheme } from "./hooks/useTheme";
 import { parseFile } from "./services/fileParser";
 import { decodeVin } from "./services/vinDecoder";
@@ -17,6 +17,8 @@ import { TabButton } from "./components/common/TabButton";
 import { calculateFinancials } from "./services/calculator";
 import { generateFavoritesPdf } from "./services/pdfGenerator";
 import { checkBankEligibility } from "./services/lenderMatcher";
+import { CalculatedVehicle } from "./types";
+import DealStructuringModal from "./components/DealStructuringModal";
 
 const MainLayout: React.FC = () => {
   const {
@@ -71,14 +73,12 @@ const MainLayout: React.FC = () => {
     loadSampleData,
   } = useDealContext();
 
-  console.log("App Render - safeInventory:", safeInventory.length);
-  console.log("App Render - paginatedInventory:", paginatedInventory.length);
-
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<
     "inventory" | "lenders" | "saved" | "scratchpad"
   >("inventory");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [vinLookup, setVinLookup] = useState("");
   const [vinLookupResult, setVinLookupResult] = useState<string | null>(null);
   const [isVinLoading, setIsVinLoading] = useState(false);
@@ -124,9 +124,22 @@ const MainLayout: React.FC = () => {
     setIsVinLoading(true);
     setVinLookupResult(null);
     try {
-      const vehicle = await decodeVin(vinLookup);
-      if (vehicle) {
-        setInventory((prev) => [vehicle, ...(prev || [])]);
+      const decoded = await decodeVin(vinLookup);
+      if (decoded) {
+        const newVehicle = {
+          vehicle: `${decoded.year} ${decoded.make} ${decoded.model}`,
+          stock: `VIN-${Date.now()}`,
+          vin: vinLookup,
+          modelYear: decoded.year,
+          mileage: "N/A" as const,
+          price: "N/A" as const,
+          jdPower: "N/A" as const,
+          jdPowerRetail: "N/A" as const,
+          unitCost: "N/A" as const,
+          baseOutTheDoorPrice: "N/A" as const,
+        };
+        setInventory((prev) => [newVehicle, ...(prev || [])]);
+        setActiveVehicle(calculateFinancials(newVehicle, dealData, settings));
         setVinLookupResult("Success: Vehicle added to inventory");
         setVinLookup("");
         setMessage({ type: "success", text: "Vehicle decoded and added." });
@@ -140,10 +153,31 @@ const MainLayout: React.FC = () => {
     }
   };
 
+  const handleSelectVehicle = (vehicle: CalculatedVehicle) => {
+    if (typeof vehicle.price !== "number") {
+      setMessage({
+        type: "error",
+        text: "Enter a valid price/mileage before structuring this vehicle.",
+      });
+      return;
+    }
+    setActiveVehicle(vehicle);
+    setIsDealModalOpen(true);
+    setMessage({ type: "success", text: "Vehicle staged for structuring." });
+  };
+
   // Save Deal Handler
-  const handleSaveDeal = () => {
-    if (!activeVehicle) {
+  const handleSaveDeal = (vehicleOverride?: CalculatedVehicle) => {
+    const vehicleToSave = vehicleOverride || activeVehicle;
+    if (!vehicleToSave) {
       setMessage({ type: "error", text: "No vehicle selected to save." });
+      return;
+    }
+    if (typeof vehicleToSave.price !== "number") {
+      setMessage({
+        type: "error",
+        text: "Add a numeric price before saving this deal.",
+      });
       return;
     }
     if (!customerName) {
@@ -155,18 +189,39 @@ const MainLayout: React.FC = () => {
       return;
     }
 
+    const now = new Date().toISOString();
     const newSavedDeal = {
       id: Date.now().toString(),
-      date: new Date().toISOString(),
+      date: now,
+      createdAt: now,
       customerName,
       salespersonName,
-      vehicle: activeVehicle,
+      vehicle: vehicleToSave,
       dealData: { ...dealData },
+      customerFilters: {
+        creditScore: filters.creditScore,
+        monthlyIncome: filters.monthlyIncome,
+      },
       notes: scratchPadNotes,
     };
 
     setSavedDeals([newSavedDeal, ...safeSavedDeals]);
     setMessage({ type: "success", text: "Deal saved successfully." });
+    setIsDealModalOpen(false);
+  };
+
+  const handleRowSelect = (vin: string, fallbackVehicles: CalculatedVehicle[]) => {
+    const candidate =
+      processedInventory.find(
+        (v) => v.vin === vin || (!v.vin && vin.startsWith("VIN-")) || (v.vin === "N/A" && vin.startsWith("VIN-"))
+      ) ||
+      fallbackVehicles.find(
+        (v) => v.vin === vin || (!v.vin && vin.startsWith("VIN-")) || (v.vin === "N/A" && vin.startsWith("VIN-"))
+      );
+    if (candidate) {
+      setActiveVehicle(candidate);
+    }
+    toggleInventoryRowExpansion(vin);
   };
 
   // PDF Download Handlers
@@ -380,6 +435,12 @@ const MainLayout: React.FC = () => {
               activeTab={activeTab}
               favoritesCount={safeFavorites.length}
               onDownloadFavorites={handleDownloadFavorites}
+              onSaveDeal={() => handleSaveDeal()}
+              canSave={
+                !!activeVehicle &&
+                typeof activeVehicle.price === "number" &&
+                !!customerName
+              }
             />
           </div>
 
@@ -393,7 +454,7 @@ const MainLayout: React.FC = () => {
                     icon={
                       <Icons.StarIcon className="w-6 h-6 text-yellow-500" />
                     }
-                    inventory={safeFavorites.map((item) =>
+                    vehicles={safeFavorites.map((item) =>
                       calculateFinancials(item, dealData, settings)
                     )}
                     lenderProfiles={safeLenderProfiles}
@@ -413,7 +474,16 @@ const MainLayout: React.FC = () => {
                       }))
                     }
                     expandedRows={expandedInventoryRows}
-                    toggleRowExpansion={toggleInventoryRowExpansion}
+                    onRowClick={(vin) =>
+                      handleRowSelect(
+                        vin,
+                        safeFavorites.map((item) =>
+                          calculateFinancials(item, dealData, settings)
+                        )
+                      )
+                    }
+                    onStructureDeal={handleSelectVehicle}
+                    onStructureDeal={handleSelectVehicle}
                     favorites={safeFavorites}
                     toggleFavorite={toggleFavorite}
                     pagination={{ currentPage: 1, rowsPerPage: Infinity }}
@@ -425,7 +495,7 @@ const MainLayout: React.FC = () => {
 
                 <InventoryTable
                   title="All Inventory"
-                  inventory={paginatedInventory}
+                  vehicles={paginatedInventory}
                   lenderProfiles={safeLenderProfiles}
                   dealData={dealData}
                   setDealData={setDealData}
@@ -443,7 +513,8 @@ const MainLayout: React.FC = () => {
                     }))
                   }
                   expandedRows={expandedInventoryRows}
-                  toggleRowExpansion={toggleInventoryRowExpansion}
+                  onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
+                  onStructureDeal={handleSelectVehicle}
                   favorites={safeFavorites}
                   toggleFavorite={toggleFavorite}
                   pagination={pagination}
@@ -492,7 +563,15 @@ const MainLayout: React.FC = () => {
                   setCustomerName(deal.customerName);
                   setSalespersonName(deal.salespersonName || "");
                   setDealData(deal.dealData);
+                  setFilters((prev) => ({
+                    ...prev,
+                    creditScore: deal.customerFilters?.creditScore ?? null,
+                    monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
+                  }));
                   setScratchPadNotes(deal.notes || "");
+                  if (deal.vehicle) {
+                    setActiveVehicle(deal.vehicle);
+                  }
                   setMessage({ type: "success", text: "Deal loaded." });
                 }}
                 onDelete={(id) =>
@@ -516,6 +595,24 @@ const MainLayout: React.FC = () => {
         settings={settings}
         onSave={setSettings}
       />
+
+      {isDealModalOpen && activeVehicle && (
+        <DealStructuringModal
+          vehicle={activeVehicle}
+          dealData={dealData}
+          setDealData={setDealData}
+          onClose={() => setIsDealModalOpen(false)}
+          errors={errors}
+          setErrors={setErrors}
+          onSave={() => handleSaveDeal(activeVehicle)}
+          onSaveAndClear={() => {
+            handleSaveDeal(activeVehicle);
+            clearDealAndFilters();
+            setActiveVehicle(null);
+          }}
+          settings={settings}
+        />
+      )}
 
       {message && (
         <Toast

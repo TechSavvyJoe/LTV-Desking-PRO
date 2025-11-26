@@ -9,6 +9,7 @@ import type {
   DealPdfData,
   Settings,
 } from "../types";
+import { useSafeData } from "../hooks/useSafeData";
 import { Table } from "./common/Table";
 import {
   LtvCell,
@@ -24,6 +25,7 @@ import Button from "./common/Button";
 import CopyToClipboard from "./common/CopyToClipboard";
 import * as Icons from "./common/Icons";
 import { InventoryExpandedRow } from "./InventoryExpandedRow";
+import Pagination from "./Pagination";
 
 const DetailItem = ({
   label,
@@ -108,10 +110,10 @@ interface InventoryTableProps {
   favorites: Vehicle[];
   toggleFavorite: (vin: string) => void;
   sortConfig: SortConfig;
-  setSortConfig: React.Dispatch<React.SetStateAction<SortConfig>>;
+  onSort: (key: keyof CalculatedVehicle) => void;
   expandedRows: Set<string>;
   onRowClick: (vin: string) => void;
-  onStructureDeal: (vehicle: CalculatedVehicle) => void;
+  onStructureDeal?: (vehicle: CalculatedVehicle) => void;
   lenderProfiles: LenderProfile[];
   dealData: DealData;
   setDealData: React.Dispatch<React.SetStateAction<DealData>>;
@@ -124,6 +126,12 @@ interface InventoryTableProps {
   icon?: React.ReactNode;
   onLoadSampleData?: () => void;
   emptyMessage?: React.ReactNode;
+  pagination?: { currentPage: number; rowsPerPage: number };
+  setPagination?: React.Dispatch<
+    React.SetStateAction<{ currentPage: number; rowsPerPage: number }>
+  >;
+  totalRows?: number;
+  isFavoritesView?: boolean;
 }
 
 const InventoryTable: React.FC<InventoryTableProps> = ({
@@ -131,7 +139,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   favorites,
   toggleFavorite,
   sortConfig,
-  setSortConfig,
+  onSort,
   expandedRows,
   onRowClick,
   onStructureDeal,
@@ -147,6 +155,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   icon,
   onLoadSampleData,
   emptyMessage,
+  pagination,
+  setPagination,
+  totalRows,
+  isFavoritesView,
 }) => {
   // Defensive: Ensure favorites is an array and items are valid objects
   const favoriteVins = useMemo(() => {
@@ -162,12 +174,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     typeof navigator !== "undefined" && !!navigator.share;
 
   const handleSort = (key: keyof CalculatedVehicle) => {
-    setSortConfig((prev) => {
-      if (prev.key === key) {
-        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
-      }
-      return { key, direction: "asc" };
-    });
+    onSort(key);
   };
 
   // Memoize columns to prevent re-renders
@@ -223,7 +230,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onStructureDeal(item);
+                  onStructureDeal?.(item);
                 }}
                 className="!py-1.5 !px-3 !text-xs shadow-sm hover:shadow-md transition-all"
               >
@@ -444,9 +451,12 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     );
   };
 
-  const safeVehicles = Array.isArray(vehicles)
-    ? vehicles.filter((v) => v && typeof v === "object")
-    : [];
+  const safeVehicles = useSafeData(vehicles);
+  const normalizedVehicles = safeVehicles.map((v, idx) => {
+    const vin =
+      v.vin && v.vin !== "N/A" ? v.vin : `VIN-${v.stock || idx}-${idx}`;
+    return { ...v, vin };
+  });
 
   return (
     <div className="my-8">
@@ -455,7 +465,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       </h2>
       <Table
         columns={columns}
-        data={safeVehicles}
+        data={normalizedVehicles}
         sortConfig={sortConfig}
         onSort={handleSort}
         emptyMessage={
@@ -478,6 +488,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         onRowClick={onRowClick}
         renderExpandedRow={renderExpandedRow}
       />
+      {pagination && setPagination && !isFavoritesView && (
+        <Pagination
+          totalItems={totalRows ?? safeVehicles.length}
+          pagination={pagination}
+          setPagination={setPagination}
+        />
+      )}
     </div>
   );
 };

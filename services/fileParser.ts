@@ -145,7 +145,7 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
                     throw new Error(`${missingMessage}\n${foundMessage}\n${suggestion}`);
                 }
                 
-                const vehicles: Vehicle[] = lines.slice(1).map((rowString): Vehicle | null => {
+                const vehicles: Vehicle[] = lines.slice(1).map((rowString, rowIndex): Vehicle | null => {
                     if (!rowString) return null;
                     const vals = parseCsvRow(rowString, delimiter);
                     if (vals.length < headers.length) return null;
@@ -160,7 +160,7 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
                     return {
                         vehicle: vehicleDescription,
                         stock: vals[idx.stock] || 'N/A',
-                        vin: vals[idx.vin] || 'N/A',
+                        vin: vals[idx.vin] && vals[idx.vin].trim() !== '' ? vals[idx.vin] : `VIN-${Date.now()}-${rowIndex}`,
                         modelYear: modelYear,
                         mileage: parseNumber(vals[idx.mileage]),
                         price: parseNumber(vals[idx.price]),

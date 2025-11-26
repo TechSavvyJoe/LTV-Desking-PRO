@@ -23,7 +23,12 @@ const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ children, valueToCopy
         Number.isNaN(valueToCopy)
     ) return;
 
-    const textToCopy = String(valueToCopy).replace(/[^0-9.-]/g, '');
+    const textToCopy =
+      typeof valueToCopy === 'number'
+        ? String(valueToCopy)
+        : typeof valueToCopy === 'string'
+        ? valueToCopy
+        : String(valueToCopy);
     if(textToCopy === '') return;
 
     // Gracefully skip if Clipboard API is unavailable (prevents crashes in unsupported browsers/iframes).

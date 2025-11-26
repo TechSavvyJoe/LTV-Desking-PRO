@@ -5,14 +5,19 @@ import Button from './common/Button';
 import * as Icons from './common/Icons';
 import { formatCurrency } from './common/TableCell';
 
-type SortKey = 'createdAt' | 'dealNumber' | 'customerName' | 'vehicleSnapshot.vehicle' | 'vehicleSnapshot.monthlyPayment';
+type SortKey =
+  | 'date'
+  | 'customerName'
+  | 'vehicle.vehicle'
+  | 'vehicle.monthlyPayment'
+  | 'createdAt';
 
 const sortOptions: { label: string, value: SortKey }[] = [
-    { label: 'Date', value: 'createdAt' },
-    { label: 'Deal #', value: 'dealNumber' },
+    { label: 'Date', value: 'date' },
     { label: 'Customer', value: 'customerName' },
-    { label: 'Vehicle', value: 'vehicleSnapshot.vehicle' },
-    { label: 'Payment', value: 'vehicleSnapshot.monthlyPayment' },
+    { label: 'Vehicle', value: 'vehicle.vehicle' },
+    { label: 'Payment', value: 'vehicle.monthlyPayment' },
+    { label: 'Created', value: 'createdAt' },
 ];
 
 interface DealHistoryPanelProps {
@@ -78,12 +83,11 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
 
             // General Search
             const query = (searchQuery || '').toLowerCase().trim();
-            const dealNum = deal.dealNumber ? String(deal.dealNumber) : '';
             const custName = deal.customerName ? String(deal.customerName).toLowerCase() : '';
-            const vehName = deal.vehicleSnapshot?.vehicle ? String(deal.vehicleSnapshot.vehicle).toLowerCase() : '';
+            const vehicleLabel = deal.vehicle?.vehicle || deal.vehicleSnapshot?.vehicle || '';
+            const vehName = vehicleLabel.toLowerCase();
 
             const searchMatch = !query || (
-                dealNum.includes(query) ||
                 custName.includes(query) ||
                 vehName.includes(query)
             );
@@ -94,7 +98,7 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
             // Date Filter
             let dateMatch = true;
             if (dateFilter.start || dateFilter.end) {
-                const dealDate = new Date(deal.createdAt);
+                const dealDate = new Date(deal.date || deal.createdAt || 0);
                 if (dateFilter.start) {
                     const startDate = new Date(dateFilter.start);
                     startDate.setHours(0,0,0,0);
@@ -111,17 +115,21 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
         });
 
         filtered.sort((a, b) => {
-            const valA = getNestedValue(a, sortConfig.key);
-            const valB = getNestedValue(b, sortConfig.key);
-            
-            if (valA === undefined || valA === null) return 1;
-            if (valB === undefined || valB === null) return -1;
-            
+            const valA = getNestedValue(a, sortConfig.key) ?? getNestedValue(a, sortConfig.key.replace('vehicle.', 'vehicleSnapshot.'));
+            const valB = getNestedValue(b, sortConfig.key) ?? getNestedValue(b, sortConfig.key.replace('vehicle.', 'vehicleSnapshot.'));
+
+            const isDateKey = sortConfig.key === 'date' || sortConfig.key === 'createdAt';
+            const resolvedA = isDateKey ? new Date(valA || a.date || a.createdAt || 0).getTime() : valA;
+            const resolvedB = isDateKey ? new Date(valB || b.date || b.createdAt || 0).getTime() : valB;
+
+            if (resolvedA === undefined || resolvedA === null) return 1;
+            if (resolvedB === undefined || resolvedB === null) return -1;
+
             let comparison = 0;
-            if (typeof valA === 'number' && typeof valB === 'number') {
-                comparison = valA - valB;
-            } else if (typeof valA === 'string' && typeof valB === 'string') {
-                comparison = valA.localeCompare(valB, undefined, { sensitivity: 'base' });
+            if (typeof resolvedA === 'number' && typeof resolvedB === 'number') {
+                comparison = resolvedA - resolvedB;
+            } else {
+                comparison = String(resolvedA).localeCompare(String(resolvedB), undefined, { sensitivity: 'base' });
             }
 
             return sortConfig.direction === 'asc' ? comparison : -comparison;
@@ -193,8 +201,12 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
                                     <div key={deal.id} className="p-3 bg-slate-100 dark:bg-x-hover-dark rounded-lg border border-slate-200 dark:border-x-border text-sm">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-bold text-base text-slate-900 dark:text-x-text-primary">Deal #{deal.dealNumber}</p>
-                                                <p className="font-medium text-x-blue">{deal.vehicleSnapshot?.vehicle || 'Unknown Vehicle'}</p>
+                                                <p className="font-bold text-base text-slate-900 dark:text-x-text-primary">
+                                                  Deal {deal.id}
+                                                </p>
+                                                <p className="font-medium text-x-blue">
+                                                  {deal.vehicle?.vehicle || deal.vehicleSnapshot?.vehicle || 'Unknown Vehicle'}
+                                                </p>
                                             </div>
                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                  <Button size="sm" className="!px-4 !py-1.5" onClick={() => { onLoadDeal(deal); setIsOpen(false); }}>Load</Button>

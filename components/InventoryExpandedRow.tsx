@@ -326,7 +326,9 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
                     </span>
                   ) : (
                     <span className="text-red-500 text-right text-xs">
-                      {detail.reasons[0]}
+                      {detail.reasons && detail.reasons.length > 0
+                        ? detail.reasons.join("; ")
+                        : "Not eligible for current structure"}
                     </span>
                   )}
                 </div>

@@ -235,15 +235,14 @@ const DealControls: React.FC<DealControlsProps> = ({
           <div className="lg:col-span-2 xl:col-span-1">
             <InputGroup label="VIN Lookup" htmlFor="vin">
               <div className="relative">
-                <StyledInput
-                  type="text"
-                  id="vin"
-                  value={filters.vin}
-                  onChange={handleFilterChange}
-                  onBlur={onVinLookup}
-                  placeholder="Enter 17-digit VIN"
-                  maxLength={17}
-                />
+            <StyledInput
+              type="text"
+              id="vin"
+              value={filters.vin}
+              onChange={handleFilterChange}
+              placeholder="Enter 17-digit VIN"
+              maxLength={17}
+            />
                 {isVinLoading && (
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                     <Icons.SpinnerIcon className="animate-spin h-5 w-5 text-blue-500" />

@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
-import type { LenderProfile, LenderTier, TierSortConfig } from '../types';
+import React, { useState, useCallback } from 'react';
+import type { LenderProfile, LenderTier } from '../types';
 import Button from './common/Button';
 import LenderProfileModal from './LenderProfileModal';
 import { generateLenderCheatSheetPdf } from '../services/pdfGenerator';
@@ -8,7 +8,7 @@ import * as Icons from './common/Icons';
 
 interface LenderProfilesProps {
   profiles: LenderProfile[];
-  setProfiles: React.Dispatch<React.SetStateAction<LenderProfile[]>>;
+  onUpdate: React.Dispatch<React.SetStateAction<LenderProfile[]>>;
 }
 
 const getRange = (tiers: LenderTier[], key: keyof LenderTier): string => {
@@ -29,7 +29,7 @@ const TierDetail = ({ label, value }: { label: string, value: string | number | 
     return <div className="text-xs"><span className="text-x-text-secondary">{label}: </span><span className="font-medium text-x-text-primary">{value}</span></div>;
 };
 
-const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, setProfiles }) => {
+const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<LenderProfile | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -45,7 +45,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, setProfiles }
   };
 
   const handleSave = (profileToSave: LenderProfile) => {
-    setProfiles(prev => {
+    onUpdate(prev => {
       const exists = prev.some(p => p.id === profileToSave.id);
       if (exists) {
         return prev.map(p => p.id === profileToSave.id ? profileToSave : p);
@@ -57,7 +57,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, setProfiles }
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this lender profile?')) {
-        setProfiles(prev => prev.filter(p => p.id !== id));
+        onUpdate(prev => prev.filter(p => p.id !== id));
     }
   };
   

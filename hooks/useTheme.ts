@@ -1,27 +1,40 @@
 import { useEffect, useState } from "react";
 
-type Theme = "dark";
+type Theme = "light" | "dark";
 
-// Enforce persistent dark mode.
+const getInitialTheme = (): Theme => {
+  if (typeof window === "undefined") return "dark";
+  const stored = window.localStorage.getItem("theme");
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
+    ? "dark"
+    : "light";
+};
+
 export function useTheme() {
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.add("dark");
-    }
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("theme", "dark");
-    }
-  }, []);
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
-  return {
-    theme: "dark" as const,
-    toggleTheme: () => {}, // No-op since we enforce dark mode
-  };
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    window.localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+
+  return { theme, toggleTheme };
 }
 
-// Hook retained for API compatibility, but always returns/sets dark.
+// Hook retained for API compatibility.
 export function useThemeControl(): [Theme, (theme: Theme) => void] {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const setAndDispatchTheme = () => setTheme("dark");
-  return [theme, setAndDispatchTheme];
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  useEffect(() => {
+    window.localStorage.setItem("theme", theme);
+  }, [theme]);
+  return [theme, setTheme];
 }

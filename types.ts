@@ -76,7 +76,7 @@ export interface LenderProfile {
 
 export interface Message {
   text: string;
-  type: "info" | "error";
+  type: "success" | "error";
 }
 
 export type ValidationErrors = Record<string, string>;
@@ -88,17 +88,21 @@ export interface TierSortConfig {
 
 export interface SavedDeal {
   id: string;
-  dealNumber: number;
-  vehicleVin: string;
-  vehicleSnapshot: CalculatedVehicle;
+  date: string;
+  customerName: string;
+  salespersonName: string;
+  vehicle: CalculatedVehicle;
   dealData: DealData;
   customerFilters: {
     creditScore: number | null;
     monthlyIncome: number | null;
   };
-  customerName: string;
-  salespersonName: string;
-  createdAt: string;
+  notes?: string;
+  // Legacy/compat fields so older saves don't crash the UI
+  vehicleSnapshot?: CalculatedVehicle;
+  dealNumber?: number;
+  vehicleVin?: string;
+  createdAt?: string;
 }
 
 export interface LenderEligibilityStatus {
