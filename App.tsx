@@ -68,6 +68,7 @@ const MainLayout: React.FC = () => {
     toggleInventoryRowExpansion,
     handleInventoryUpdate,
     clearDealAndFilters,
+    loadSampleData,
   } = useDealContext();
 
   const { theme, toggleTheme } = useTheme();
@@ -445,6 +446,7 @@ const MainLayout: React.FC = () => {
                   pagination={pagination}
                   setPagination={setPagination}
                   totalRows={sortedInventory.length}
+                  onLoadSampleData={loadSampleData}
                 />
               </div>
             )}

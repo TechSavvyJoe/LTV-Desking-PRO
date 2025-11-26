@@ -91,6 +91,7 @@ interface DealContextType {
   toggleInventoryRowExpansion: (vin: string) => void;
   handleInventoryUpdate: (vin: string, updatedData: Partial<Vehicle>) => void;
   clearDealAndFilters: () => void;
+  loadSampleData: () => void;
 }
 
 const DealContext = createContext<DealContextType | undefined>(undefined);
@@ -296,7 +297,14 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     setCustomerName("");
     setSalespersonName("");
     setScratchPadNotes("");
+    setScratchPadNotes("");
   }, [setDealData, setFilters, setErrors, setScratchPadNotes, settings]);
+
+  const loadSampleData = useCallback(() => {
+    setInventory(SAMPLE_INVENTORY);
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+    setMessage({ type: "success", text: "Sample inventory loaded." });
+  }, [setInventory, setPagination]);
 
   const value = {
     settings,
@@ -349,6 +357,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     toggleInventoryRowExpansion,
     handleInventoryUpdate,
     clearDealAndFilters,
+    loadSampleData,
   };
 
   return <DealContext.Provider value={value}>{children}</DealContext.Provider>;
