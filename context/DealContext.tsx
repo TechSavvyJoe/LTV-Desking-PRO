@@ -316,6 +316,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     setActiveVehicle(null);
 
     // Load the inventory
+    console.log("loadSampleData called");
+    console.log("SAMPLE_INVENTORY length:", SAMPLE_INVENTORY.length);
     setInventory(SAMPLE_INVENTORY);
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
     setMessage({

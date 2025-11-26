@@ -71,6 +71,9 @@ const MainLayout: React.FC = () => {
     loadSampleData,
   } = useDealContext();
 
+  console.log("App Render - safeInventory:", safeInventory.length);
+  console.log("App Render - paginatedInventory:", paginatedInventory.length);
+
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<
     "inventory" | "lenders" | "saved" | "scratchpad"
