@@ -455,7 +455,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   const safeVehicles = useSafeData(vehicles);
   const normalizedVehicles = safeVehicles.map((v, idx) => {
     const vin =
-      v.vin && v.vin !== "N/A"
+      v.vin && v.vin !== "N/A" && v.vin.length >= 11
         ? v.vin
         : `VIN-${v.stock || "ROW"}-${v.vehicle || "VEH"}-${idx}`;
     return { ...v, vin };

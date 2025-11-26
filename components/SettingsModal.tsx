@@ -18,13 +18,13 @@ const InputGroup: React.FC<{
   <div className="flex flex-col">
     <label
       htmlFor={htmlFor}
-      className="mb-1.5 text-base font-medium text-slate-700 dark:text-x-text-secondary"
+      className="mb-1.5 text-base font-medium text-slate-700 dark:text-slate-200"
     >
       {label}
     </label>
     {children}
     {description && (
-      <p className="mt-1 text-xs text-slate-500 dark:text-x-text-secondary">
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
         {description}
       </p>
     )}
@@ -34,14 +34,14 @@ const InputGroup: React.FC<{
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl placeholder-x-text-secondary focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 shadow-sm"
+    className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 shadow-sm"
   />
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
     {...props}
-    className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl placeholder-x-text-secondary focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 shadow-sm"
+    className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 shadow-sm"
   />
 );
 
@@ -116,11 +116,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-x-border">
+        <div className="p-4 border-b border-slate-800">
           <h2 className="text-xl font-bold text-white">Application Settings</h2>
         </div>
         <div className="p-6 overflow-y-auto space-y-6">
-          <div className="p-4 border rounded-lg border-x-border">
+          <div className="p-4 border rounded-lg border-slate-800">
             <h3 className="text-lg font-bold mb-4">Deal Defaults</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup
@@ -151,7 +151,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          <div className="p-4 border rounded-lg border-x-border">
+          <div className="p-4 border rounded-lg border-slate-800">
             <h3 className="text-lg font-bold mb-4">Fees & State Tax</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup
@@ -235,7 +235,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
         </div>
-        <div className="p-4 border-t border-x-border flex justify-between items-center gap-3 bg-slate-50 dark:bg-x-black sticky bottom-0 flex-wrap">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3 bg-slate-50 dark:bg-slate-900 sticky bottom-0 flex-wrap">
           <Button
             type="button"
             variant="danger"

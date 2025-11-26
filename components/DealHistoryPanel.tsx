@@ -194,14 +194,14 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
 
                     <div className="p-4 flex-grow overflow-y-auto">
                         {filteredAndSortedDeals.length === 0 ? (
-                            <p className="text-center text-slate-500 dark:text-x-text-secondary mt-8">{safeDeals.length > 0 ? 'No deals match your search.' : 'No deals saved yet.'}</p>
+            <p className="text-center text-slate-500 dark:text-slate-400 mt-8">{safeDeals.length > 0 ? 'No deals match your search.' : 'No deals saved yet.'}</p>
                         ) : (
                             <div className="space-y-3">
                                 {filteredAndSortedDeals.map(deal => (
-                                    <div key={deal.id} className="p-3 bg-slate-100 dark:bg-x-hover-dark rounded-lg border border-slate-200 dark:border-x-border text-sm">
+                                    <div key={deal.id} className="p-3 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 text-sm">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-bold text-base text-slate-900 dark:text-x-text-primary">
+                                                <p className="font-bold text-base text-slate-900 dark:text-slate-100">
                                                   Deal {deal.id}
                                                 </p>
                                                 <p className="font-medium text-x-blue">
@@ -213,13 +213,13 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
                                                  <Button variant="danger" size="sm" className="!p-2" onClick={() => onDeleteDeal(deal.id)} aria-label={`Delete deal #${deal.dealNumber}`}><Icons.TrashIcon /></Button>
                                             </div>
                                         </div>
-                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-x-border grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                            <div><span className="text-slate-500 dark:text-x-text-secondary">Customer:</span> <span className="font-medium text-slate-700 dark:text-x-text-primary">{deal.customerName || 'N/A'}</span></div>
-                                            <div><span className="text-slate-500 dark:text-x-text-secondary">Salesperson:</span> <span className="font-medium text-slate-700 dark:text-x-text-primary">{deal.salespersonName || 'N/A'}</span></div>
-                                            <div><span className="text-slate-500 dark:text-x-text-secondary">Payment:</span> <span className="font-medium text-green-600 dark:text-green-400">{formatCurrency(deal.vehicleSnapshot?.monthlyPayment)}</span></div>
-                                            <div><span className="text-slate-500 dark:text-x-text-secondary">Amt Financed:</span> <span className="font-medium text-slate-700 dark:text-x-text-primary">{formatCurrency(deal.vehicleSnapshot?.amountToFinance)}</span></div>
+                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                            <div><span className="text-slate-500 dark:text-slate-400">Customer:</span> <span className="font-medium text-slate-700 dark:text-slate-100">{deal.customerName || 'N/A'}</span></div>
+                                            <div><span className="text-slate-500 dark:text-slate-400">Salesperson:</span> <span className="font-medium text-slate-700 dark:text-slate-100">{deal.salespersonName || 'N/A'}</span></div>
+                                            <div><span className="text-slate-500 dark:text-slate-400">Payment:</span> <span className="font-medium text-green-600 dark:text-green-400">{formatCurrency(deal.vehicleSnapshot?.monthlyPayment)}</span></div>
+                                            <div><span className="text-slate-500 dark:text-slate-400">Amt Financed:</span> <span className="font-medium text-slate-700 dark:text-slate-100">{formatCurrency(deal.vehicleSnapshot?.amountToFinance)}</span></div>
                                         </div>
-                                        <p className="text-xs text-slate-400 dark:text-x-text-secondary/70 mt-2 text-right">{formatDate(deal.createdAt)}</p>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-right">{formatDate(deal.createdAt)}</p>
                                     </div>
                                 ))}
                             </div>
@@ -228,7 +228,7 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
                 </div>
             </div>
             <div
-                className="absolute top-0 left-0 bg-slate-200 dark:bg-x-border text-slate-800 dark:text-x-text-primary px-3 py-4 rounded-r-lg shadow-lg cursor-pointer pointer-events-auto"
+                className="absolute top-0 left-0 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-4 rounded-r-lg shadow-lg cursor-pointer pointer-events-auto"
                 aria-hidden="true"
             >
                 <div className="flex flex-col items-center gap-2">

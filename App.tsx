@@ -157,10 +157,19 @@ const MainLayout: React.FC = () => {
   };
 
   const handleSelectVehicle = (vehicle: CalculatedVehicle) => {
-    if (typeof vehicle.price !== "number") {
+    const isValid =
+      typeof vehicle.price === "number" &&
+      vehicle.price > 0 &&
+      typeof vehicle.mileage === "number" &&
+      vehicle.mileage >= 0 &&
+      vehicle.vin &&
+      vehicle.vin !== "N/A" &&
+      vehicle.vin.length >= 11;
+
+    if (!isValid) {
       setMessage({
         type: "error",
-        text: "Enter a valid price/mileage before structuring this vehicle.",
+        text: "Please enter a numeric price, mileage, and valid VIN before structuring.",
       });
       return;
     }
@@ -176,10 +185,17 @@ const MainLayout: React.FC = () => {
       setMessage({ type: "error", text: "No vehicle selected to save." });
       return;
     }
-    if (typeof vehicleToSave.price !== "number") {
+    if (
+      typeof vehicleToSave.price !== "number" ||
+      vehicleToSave.price <= 0 ||
+      typeof vehicleToSave.mileage !== "number" ||
+      vehicleToSave.mileage < 0 ||
+      !vehicleToSave.vin ||
+      vehicleToSave.vin.length < 11
+    ) {
       setMessage({
         type: "error",
-        text: "Add a numeric price before saving this deal.",
+        text: "Complete vehicle details (price, mileage, VIN) before saving.",
       });
       return;
     }

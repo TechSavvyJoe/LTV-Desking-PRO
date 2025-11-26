@@ -58,13 +58,13 @@ const StyledTextarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>
 
 const SummaryRow = ({ label, value, valueToCopy, isBold = false }: { label: string; value: React.ReactNode; valueToCopy?: string | number | 'N/A' | 'Error'; isBold?: boolean; }) => (
     <div className="flex justify-between items-center py-1.5 text-sm">
-        <span className={`${isBold ? 'font-semibold text-slate-800 dark:text-x-text-primary' : 'text-slate-500 dark:text-x-text-secondary'}`}>{label}</span>
+        <span className={`${isBold ? 'font-semibold text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>{label}</span>
         {valueToCopy !== undefined ? (
             <CopyToClipboard valueToCopy={valueToCopy}>
-                <span className={`font-medium ${isBold ? 'text-slate-800 dark:text-x-text-primary' : 'text-slate-600 dark:text-x-text-secondary'}`}>{value}</span>
+                <span className={`font-medium ${isBold ? 'text-slate-800 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'}`}>{value}</span>
             </CopyToClipboard>
         ) : (
-            <span className={`font-medium ${isBold ? 'text-slate-800 dark:text-x-text-primary' : 'text-slate-600 dark:text-x-text-secondary'}`}>{value}</span>
+            <span className={`font-medium ${isBold ? 'text-slate-800 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'}`}>{value}</span>
         )}
     </div>
 );
@@ -216,7 +216,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({ vehicle, de
                         </div>
                     </div>
                 </div>
-                 <div className="p-4 border-t border-slate-200 dark:border-x-border flex justify-end gap-3 bg-slate-50 dark:bg-x-black sticky bottom-0">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900 sticky bottom-0">
                     <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
                     <Button type="button" variant="secondary" onClick={onSave}>Save Changes</Button>
                     <Button type="button" onClick={onSaveAndClear}>Save & Start New</Button>

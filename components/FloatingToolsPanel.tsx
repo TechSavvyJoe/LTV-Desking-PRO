@@ -10,23 +10,23 @@ import AiDealAssistant from './AiDealAssistant';
 
 // --- SHARED COMPONENTS ---
 const InputGroup: React.FC<{ label: string; children: React.ReactNode; htmlFor?: string; }> = ({ label, children, htmlFor }) => (
-  <div className="flex flex-col"><label htmlFor={htmlFor} className="mb-1.5 text-sm font-medium text-slate-500 dark:text-x-text-secondary">{label}</label>{children}</div>
+  <div className="flex flex-col"><label htmlFor={htmlFor} className="mb-1.5 text-sm font-medium text-slate-500 dark:text-slate-300">{label}</label>{children}</div>
 );
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input {...props} className="w-full px-3 py-2 text-base bg-transparent border border-slate-300 dark:border-x-border rounded-lg placeholder-slate-400 dark:placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0 transition-colors duration-200 ease-in-out" />
+    <input {...props} className="w-full px-3 py-2 text-base bg-transparent border border-slate-300 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-0 transition-colors duration-200 ease-in-out" />
 );
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select {...props} className="w-full px-3 py-2 text-base bg-slate-50 dark:bg-x-black border border-slate-300 dark:border-x-border rounded-lg placeholder-slate-400 dark:placeholder-x-text-secondary focus:outline-none focus:border-x-blue focus:ring-0 transition-colors duration-200 ease-in-out" />
+  <select {...props} className="w-full px-3 py-2 text-base bg-slate-50 dark:bg-black border border-slate-300 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-0 transition-colors duration-200 ease-in-out" />
 );
-const ResultDisplay = ({ label, value, valueColorClass = 'text-x-blue' }: { label: string, value: string | React.ReactNode, valueColorClass?: string }) => (
-    <div className="flex justify-between items-center p-4 bg-x-blue/10 rounded-md">
+const ResultDisplay = ({ label, value, valueColorClass = 'text-blue-500' }: { label: string, value: string | React.ReactNode, valueColorClass?: string }) => (
+    <div className="flex justify-between items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
         <span className={`font-bold text-lg ${valueColorClass}`}>{label}</span>
         <span className={`font-bold text-lg ${valueColorClass}`}>{value}</span>
     </div>
 );
 const ToolContentWrapper: React.FC<{title: string, children: React.ReactNode}> = ({ title, children }) => (
     <div>
-        <h3 className="text-xl font-bold text-slate-900 dark:text-x-text-primary mb-6">{title}</h3>
+        <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-6">{title}</h3>
         {children}
     </div>
 );
@@ -61,19 +61,19 @@ const ToolInventorySearch = ({ inventory, onSelect, favorites, toggleFavorite }:
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><Icons.MagnifyingGlassIcon /></div>
             </div>
             {query && filteredInventory.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-slate-50 dark:bg-x-black border border-slate-200 dark:border-x-border rounded-lg shadow-lg">
+                <div className="absolute z-10 w-full mt-1 bg-slate-50 dark:bg-black border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
                     <ul className="py-1">
                         {filteredInventory.map(v => (
-                            <li key={v.vin} className="flex items-center justify-between px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-x-hover-dark cursor-pointer" onClick={() => { onSelect(v); setQuery(''); }}>
+                            <li key={v.vin} className="flex items-center justify-between px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onClick={() => { onSelect(v); setQuery(''); }}>
                                 <div>
                                     <p className="font-semibold">{v.vehicle}</p>
-                                    <p className="text-xs text-slate-500 dark:text-x-text-secondary">{v.stock} - {formatCurrency(v.price)}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">{v.stock} - {formatCurrency(v.price)}</p>
                                 </div>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); toggleFavorite(v.vin); }}
                                     className={`p-2 rounded-lg group`}
                                 >
-                                    <Icons.StarIcon className={`transition-colors ${favoriteVins.has(v.vin) ? 'text-yellow-500 fill-yellow-500' : 'text-slate-400 dark:text-x-text-secondary group-hover:text-yellow-500'}`}/>
+                                    <Icons.StarIcon className={`transition-colors ${favoriteVins.has(v.vin) ? 'text-yellow-500 fill-yellow-500' : 'text-slate-400 dark:text-slate-300 group-hover:text-yellow-500'}`}/>
                                 </button>
                             </li>
                         ))}
@@ -102,7 +102,7 @@ const LenderEligibility = ({ activeVehicle, dealData, customerFilters, lenderPro
     if (!activeVehicle) {
         return (
             <ToolContentWrapper title="Lender Eligibility">
-                <div className="text-center text-slate-500 dark:text-x-text-secondary p-8 border-2 border-dashed border-slate-300 dark:border-x-border rounded-lg">
+                <div className="text-center text-slate-500 dark:text-slate-400 p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg">
                     <p>Select a vehicle from the inventory by clicking "Structure" to check lender eligibility.</p>
                 </div>
             </ToolContentWrapper>
@@ -112,7 +112,7 @@ const LenderEligibility = ({ activeVehicle, dealData, customerFilters, lenderPro
     if (!customerFilters.creditScore) {
          return (
             <ToolContentWrapper title={`Lender Eligibility for ${activeVehicle.vehicle}`}>
-                <div className="text-center text-slate-500 dark:text-x-text-secondary p-8 border-2 border-dashed border-slate-300 dark:border-x-border rounded-lg">
+                <div className="text-center text-slate-500 dark:text-slate-400 p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg">
                     <p>Enter a customer credit score in the main controls to see results.</p>
                 </div>
             </ToolContentWrapper>
@@ -125,7 +125,7 @@ const LenderEligibility = ({ activeVehicle, dealData, customerFilters, lenderPro
                 {eligibilityResults.map(result => (
                     <div key={result.name} className={`p-4 rounded-lg border-l-4 ${result.eligible ? 'bg-green-500/10 border-green-500' : 'bg-red-500/10 border-red-500'}`}>
                         <div className="flex justify-between items-center">
-                            <h4 className="font-bold text-lg text-slate-900 dark:text-x-text-primary">{result.name}</h4>
+                            <h4 className="font-bold text-lg text-slate-900 dark:text-slate-100">{result.name}</h4>
                             <span className={`px-3 py-1 text-xs font-bold rounded-full ${result.eligible ? 'bg-green-500/20 text-green-700 dark:text-green-300' : 'bg-red-500/20 text-red-700 dark:text-red-300'}`}>
                                 {result.eligible ? 'ELIGIBLE' : 'INELIGIBLE'}
                             </span>
@@ -172,7 +172,7 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
     return (<ToolContentWrapper title="Gross Profit Breakdown"><div className="space-y-6">
         <ToolInventorySearch inventory={inventory} onSelect={handleVehicleSelect} favorites={favorites} toggleFavorite={toggleFavorite} />
         <div>
-            <h4 className="font-semibold mb-2 text-slate-800 dark:text-x-text-primary">Front-End</h4>
+            <h4 className="font-semibold mb-2 text-slate-800 dark:text-slate-100">Front-End</h4>
             <div className="grid grid-cols-2 gap-4">
                 <InputGroup label="Sale Price ($)"><StyledInput type="number" value={salePrice} onChange={e => setSalePrice(e.target.value === '' ? '' : Number(e.target.value))} /></InputGroup>
                 <InputGroup label="Unit Cost ($)"><StyledInput type="number" value={unitCost} onChange={e => setUnitCost(e.target.value === '' ? '' : Number(e.target.value))} /></InputGroup>
@@ -180,7 +180,7 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
         </div>
         <div>
             <div className="flex justify-between items-center mb-2">
-                <h4 className="font-semibold text-slate-800 dark:text-x-text-primary">Back-End (F&I)</h4>
+                <h4 className="font-semibold text-slate-800 dark:text-slate-100">Back-End (F&I)</h4>
                 <Button size="sm" variant="secondary" onClick={addProduct}><Icons.PlusIcon/> Add Product</Button>
             </div>
             <div className="space-y-2">
@@ -198,8 +198,8 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
             </div>
         </div>
         <div className="pt-4 mt-4 border-t border-slate-200 dark:border-x-border space-y-2">
-            <ResultDisplay label="Front-End Gross" value={formatCurrency(frontEndGross)} valueColorClass={frontEndGross > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-x-text-secondary'} />
-            <ResultDisplay label="Back-End Gross" value={formatCurrency(backEndGross)} valueColorClass={backEndGross > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-x-text-secondary'} />
+            <ResultDisplay label="Front-End Gross" value={formatCurrency(frontEndGross)} valueColorClass={frontEndGross > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'} />
+            <ResultDisplay label="Back-End Gross" value={formatCurrency(backEndGross)} valueColorClass={backEndGross > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'} />
             <ResultDisplay label="Total Gross" value={formatCurrency(frontEndGross + backEndGross)} valueColorClass={(frontEndGross + backEndGross) > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'} />
         </div>
     </div></ToolContentWrapper>);
@@ -237,10 +237,10 @@ const DealComparison = ({ activeVehicle, dealData, onDealDataChange }: ToolProps
     
     const copyToGlobal = (deal: DealData) => onDealDataChange(deal);
 
-    if (!activeVehicle) return <ToolContentWrapper title="Deal Comparison"><p className="text-center text-slate-500 dark:text-x-text-secondary">Select a vehicle from the inventory to start comparing deals.</p></ToolContentWrapper>
+    if (!activeVehicle) return <ToolContentWrapper title="Deal Comparison"><p className="text-center text-slate-500 dark:text-slate-400">Select a vehicle from the inventory to start comparing deals.</p></ToolContentWrapper>
 
     const DealColumn = ({ title, deal, handler, calculated, onCopy }: { title: string, deal: DealData, handler: any, calculated: { monthlyPayment: number | "Error" } | null, onCopy: () => void }) => (
-        <div className="space-y-2 p-3 bg-slate-100 dark:bg-x-hover-dark rounded-lg">
+        <div className="space-y-2 p-3 bg-slate-100 dark:bg-slate-900 rounded-lg">
             <h4 className="font-bold text-center text-lg">{title}</h4>
             <InputGroup label="Down"><StyledInput name="downPayment" type="number" value={deal.downPayment} onChange={handler} /></InputGroup>
             <InputGroup label="Term"><StyledSelect name="loanTerm" value={deal.loanTerm} onChange={handler}><option value="60">60</option><option value="72">72</option><option value="84">84</option></StyledSelect></InputGroup>
@@ -341,7 +341,7 @@ const TermComparator = () => {
         </div>
         <div className="pt-4 mt-4 border-t border-slate-200 dark:border-x-border">
             <table className="w-full text-left">
-                <thead><tr className="border-b border-slate-200 dark:border-x-border"><th className="p-2 font-semibold text-slate-500 dark:text-x-text-secondary">Term</th><th className="p-2 font-semibold text-right text-slate-500 dark:text-x-text-secondary">Monthly Payment</th></tr></thead>
+                <thead><tr className="border-b border-slate-200 dark:border-slate-700"><th className="p-2 font-semibold text-slate-500 dark:text-slate-300">Term</th><th className="p-2 font-semibold text-right text-slate-500 dark:text-slate-300">Monthly Payment</th></tr></thead>
                 <tbody>{payments.map(p => (<tr key={p.term} className="border-b border-slate-200 dark:border-x-border last:border-0"><td className="p-2">{p.term} mo</td><td className="p-2 text-right font-semibold text-x-blue">{formatCurrency(p.payment)}</td></tr>))}</tbody>
             </table>
         </div>
@@ -503,9 +503,9 @@ const LenderReference = ({ lenderProfiles }: ToolProps) => {
                                 tier.minYear !== undefined && `Year: ${tier.minYear}${tier.maxYear ? `-${tier.maxYear}` : '+'}`
                             ].filter(Boolean).join(' | ');
 
-                            return (<div key={i} className="p-1.5 bg-slate-100 dark:bg-x-hover-dark rounded-md">
+                            return (<div key={i} className="p-1.5 bg-slate-100 dark:bg-slate-900 rounded-md">
                                 <p className="font-bold">{tier.name}</p>
-                                <p className="text-slate-500 dark:text-x-text-secondary">{tierDetails}</p>
+                                <p className="text-slate-500 dark:text-slate-400">{tierDetails}</p>
                             </div>);
                         })}
                     </div>}

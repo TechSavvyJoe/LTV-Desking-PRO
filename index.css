@@ -2,3 +2,16 @@
   This file is linked in index.html. 
   Tailwind CSS is loaded via CDN, so this file can be used for custom overrides.
 */
+
+/* Fallback styles for legacy x-* utility tokens used across components */
+.text-x-text-primary { color: #e7e9ea; }
+.text-x-text-secondary { color: #8899a6; }
+.bg-x-black { background-color: #0b0b0d; }
+.text-x-blue { color: #1d9bf0; }
+.border-x-border { border-color: #2f3336; }
+.bg-x-hover-dark { background-color: #181818; }
+.bg-x-hover-light { background-color: #1d1f23; }
+.focus\:border-x-blue:focus { border-color: #1d9bf0; }
+.focus\:ring-x-blue:focus { box-shadow: 0 0 0 1px #1d9bf0; }
+.placeholder-x-text-secondary::placeholder { color: #8899a6; }
+.dark .placeholder-x-text-secondary::placeholder { color: #94a3b8; }

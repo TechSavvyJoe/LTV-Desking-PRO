@@ -25,6 +25,21 @@ export function useTheme() {
     window.localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // Sync with OS preference changes
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => {
+      setTheme((prev) => {
+        const stored = window.localStorage.getItem("theme");
+        if (stored === "light" || stored === "dark") return stored as Theme;
+        return e.matches ? "dark" : "light";
+      });
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
   return { theme, toggleTheme };

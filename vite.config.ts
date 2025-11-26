@@ -8,7 +8,8 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     
     // Prioritize process.env (CI/CD) over .env files
-    const apiKey = process.env.GEMINI_API_KEY || env.GEMINI_API_KEY;
+    // Do NOT embed API keys in client bundle; require runtime/proxy usage.
+    const apiKey = "";
 
     return {
       base: '/LTV-Desking-PRO/',
@@ -18,7 +19,7 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        // Pass the API key to the client-side code
+        // Keep empty to avoid leaking secrets into the client bundle
         'process.env.API_KEY': JSON.stringify(apiKey),
         'process.env.GEMINI_API_KEY': JSON.stringify(apiKey)
       },

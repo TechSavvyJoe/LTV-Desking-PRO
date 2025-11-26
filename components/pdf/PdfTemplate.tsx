@@ -4,6 +4,7 @@ import type { DealPdfData, Settings } from '../../types';
 import { formatCurrency, formatNumber, formatPercentage } from '../common/TableCell';
 
 const el = React.createElement;
+const logoSvg = encodeURIComponent(`<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="18" fill="url(#g)"/><path d="M26 49c0-10.5 8.5-19 19-19h6c10.5 0 19 8.5 19 19s-8.5 19-19 19h-6c-10.5 0-19-8.5-19-19Z" stroke="white" stroke-width="6"/><path d="M32 49c0-7.2 5.8-13 13-13h6c7.2 0 13 5.8 13 13s-5.8 13-13 13h-6c-7.2 0-13-5.8-13-13Z" stroke="white" stroke-width="6" opacity="0.6"/><defs><linearGradient id="g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs></svg>`);
 
 const styles = `
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -122,6 +123,7 @@ const styles = `
         border-left: 4px solid #10b981;
         border-radius: 4px;
         padding: 0.4cm;
+        page-break-inside: avoid;
     }
     .lender-item .name { font-weight: 600; font-size: 9pt; }
     .lender-item .tier { font-size: 8pt; color: #6b7280; }
@@ -149,6 +151,7 @@ const styles = `
         display: flex;
         justify-content: space-between;
         gap: 2cm;
+        page-break-inside: avoid;
     }
     .signature-box {
         flex-grow: 1;
@@ -185,7 +188,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({ ve
             el('div', { className: 'watermark' }, 'OSHIP'),
             el('header', { className: 'header' },
                 el('div', { className: 'brand' },
-                    el('div', { className: 'logo' }, 'O'),
+                    el('img', { className: 'logo', src: `data:image/svg+xml,${logoSvg}`, alt: 'OSHIP' }),
                     el('div', null,
                         el('h1', null, 'OSHIP Deal Sheet'),
                         el('p', { style: { fontSize: '10pt', color: '#374151', margin: 0 } }, 'Vehicle Purchase Proposal')

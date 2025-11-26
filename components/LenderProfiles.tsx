@@ -26,7 +26,7 @@ const getRange = (tiers: LenderTier[], key: keyof LenderTier): string => {
 
 const TierDetail = ({ label, value }: { label: string, value: string | number | undefined | null }) => {
     if (value === undefined || value === null || value === '') return null;
-    return <div className="text-xs"><span className="text-x-text-secondary">{label}: </span><span className="font-medium text-x-text-primary">{value}</span></div>;
+    return <div className="text-xs"><span className="text-slate-400">{label}: </span><span className="font-medium text-slate-100">{value}</span></div>;
 };
 
 const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate }) => {
@@ -108,7 +108,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate }) =
                             <TierDetail label="LTV" value={tier.maxLtv ? `Up to ${tier.maxLtv}%` : null} />
                             <TierDetail label="Fin. Amt" value={tier.minAmountFinanced ? `$${tier.minAmountFinanced.toLocaleString()}${tier.maxAmountFinanced ? ` - $${tier.maxAmountFinanced.toLocaleString()}`: '+'}` : (tier.maxAmountFinanced ? `Up to $${tier.maxAmountFinanced.toLocaleString()}`: null)} />
                         </div>
-                    )}) : <p className="text-x-text-secondary text-sm italic">No tiers defined.</p>}
+                        )}) : <p className="text-slate-400 text-sm italic">No tiers defined.</p>}
                 </div>
             </div>
         </td>

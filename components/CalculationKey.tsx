@@ -13,12 +13,12 @@ const CalculationKey: React.FC = () => {
   ];
 
   return (
-    <div className="mt-10 p-4 border border-x-border rounded-lg">
-      <h3 className="text-xl font-semibold text-x-text-primary mb-3">Calculation Key</h3>
-      <ul className="list-disc list-inside space-y-2 text-sm text-x-text-secondary">
+    <div className="mt-10 p-4 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+      <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">Calculation Key</h3>
+      <ul className="list-disc list-inside space-y-2 text-sm text-slate-600 dark:text-slate-300">
         {calculations.map(calc => (
           <li key={calc.title}>
-            <strong className="text-x-text-primary">{calc.title}:</strong> {calc.formula}
+            <strong className="text-slate-900 dark:text-slate-100">{calc.title}:</strong> {calc.formula}
           </li>
         ))}
       </ul>

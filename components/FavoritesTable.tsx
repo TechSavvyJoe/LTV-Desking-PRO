@@ -11,7 +11,7 @@ import CopyToClipboard from './common/CopyToClipboard';
 import * as Icons from './common/Icons';
 
 const ChevronIcon = ({ className = '' }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 text-x-text-secondary ${className}`}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-5 h-5 text-slate-400 ${className}`}>
         <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
     </svg>
 );
@@ -35,19 +35,19 @@ interface FavoritesTableProps {
 
 const DetailItem = ({ label, value, valueToCopy }: { label: string; value: React.ReactNode; valueToCopy?: string | number | 'N/A' | 'Error' }) => (
   <div className="flex justify-between items-center text-sm">
-    <span className="text-x-text-secondary">{label}</span>
+    <span className="text-slate-500 dark:text-slate-400">{label}</span>
     {valueToCopy !== undefined ? (
         <CopyToClipboard valueToCopy={valueToCopy}>
-            <span className="font-medium text-x-text-primary">{value}</span>
+            <span className="font-medium text-slate-900 dark:text-slate-100">{value}</span>
         </CopyToClipboard>
     ) : (
-        <span className="font-medium text-x-text-primary">{value}</span>
+        <span className="font-medium text-slate-900 dark:text-slate-100">{value}</span>
     )}
   </div>
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-    <select {...props} className="w-28 p-1 text-sm text-right border border-x-border rounded-md focus:ring-1 focus:ring-x-blue focus:border-x-blue bg-transparent" />
+    <select {...props} className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-slate-100" />
 );
 
 const EditableField = ({ label, value, onUpdate, type = 'number', step = '1' }: { label: string; value: number | 'N/A'; onUpdate: (newValue: number) => void; type?: string; step?: string; }) => {
@@ -68,7 +68,7 @@ const EditableField = ({ label, value, onUpdate, type = 'number', step = '1' }: 
     
     return (
         <div className="flex justify-between items-center text-sm">
-            <label className="text-x-text-secondary">{label}</label>
+            <label className="text-slate-500 dark:text-slate-400">{label}</label>
             <input
                 type={type}
                 step={step}
@@ -76,7 +76,7 @@ const EditableField = ({ label, value, onUpdate, type = 'number', step = '1' }: 
                 onChange={(e) => setCurrentValue(e.target.value)}
                 onBlur={handleBlur}
                 onClick={(e) => e.stopPropagation()}
-                className="w-28 p-1 text-sm text-right border border-x-border rounded-md focus:ring-1 focus:ring-x-blue focus:border-x-blue bg-transparent"
+                className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-slate-100"
             />
         </div>
     );
@@ -219,7 +219,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({ favorites, dealData, se
       <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4">
         <div>
           <div className="flex justify-between items-center mb-3">
-             <h4 className="font-bold text-base text-x-text-primary">Financial Breakdown</h4>
+             <h4 className="font-bold text-base text-slate-900 dark:text-slate-100">Financial Breakdown</h4>
              <div className="flex gap-2">
                 <Button size="sm" variant="ghost" onClick={(e) => handleDownloadPdf(e, item)}><Icons.PdfIcon /> PDF</Button>
                 {isShareSupported && <Button size="sm" variant="ghost" onClick={(e) => handleSharePdf(e, item)}><Icons.ShareIcon /> Share</Button>}
@@ -231,23 +231,23 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({ favorites, dealData, se
              <DetailItem label="CVR Fee (Taxed)" value={formatCurrency(settings.cvrFee)} valueToCopy={settings.cvrFee} />
              <DetailItem label="Sales Tax" value={formatCurrency(item.salesTax)} valueToCopy={item.salesTax} />
              <EditableField label="State/Title Fees ($)" value={dealData.stateFees} onUpdate={(newFees) => setDealData(prev => ({ ...prev, stateFees: newFees }))} />
-             <hr className="my-2 border-x-border"/>
+             <hr className="my-2 border-slate-200 dark:border-slate-800"/>
              <div className="flex justify-between items-center font-bold text-base">
-                <span className="text-x-text-primary">Total OTD Price</span>
+                <span className="text-slate-900 dark:text-slate-100">Total OTD Price</span>
                 <CopyToClipboard valueToCopy={item.baseOutTheDoorPrice}>
-                    <span className="text-x-text-primary">{formatCurrency(item.baseOutTheDoorPrice)}</span>
+                    <span className="text-slate-900 dark:text-slate-100">{formatCurrency(item.baseOutTheDoorPrice)}</span>
                 </CopyToClipboard>
             </div>
-             <hr className="my-2 border-x-border"/>
+             <hr className="my-2 border-slate-200 dark:border-slate-800"/>
             <DetailItem label="Amount to Finance" value={formatCurrency(item.amountToFinance)} valueToCopy={item.amountToFinance} />
             <DetailItem label="Front-End Gross" value={<GrossCell value={item.frontEndGross} />} />
-             <hr className="my-2 border-x-border"/>
+             <hr className="my-2 border-slate-200 dark:border-slate-800"/>
             <DetailItem label="JD Power (Trade)" value={formatCurrency(item.jdPower)} valueToCopy={item.jdPower} />
             <DetailItem label="JD Power (Retail)" value={formatCurrency(item.jdPowerRetail)} valueToCopy={item.jdPowerRetail} />
           </div>
         </div>
         <div>
-           <h4 className="font-bold text-base mb-3 text-x-text-primary">Global Deal Structure</h4>
+           <h4 className="font-bold text-base mb-3 text-slate-900 dark:text-slate-100">Global Deal Structure</h4>
            <div className="space-y-1">
                 <EditableField label="Down Payment ($)" value={dealData.downPayment} onUpdate={(newValue) => setDealData(prev => ({ ...prev, downPayment: newValue }))} />
                 <EditableField label="Trade-In Value ($)" value={dealData.tradeInValue} onUpdate={(newValue) => setDealData(prev => ({ ...prev, tradeInValue: newValue }))} />
@@ -255,7 +255,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({ favorites, dealData, se
                 <EditableField label="Backend Products ($)" value={dealData.backendProducts} onUpdate={(newValue) => setDealData(prev => ({ ...prev, backendProducts: newValue }))} />
                 <EditableField label="Interest Rate (APR %)" value={dealData.interestRate} onUpdate={(newValue) => setDealData(prev => ({ ...prev, interestRate: newValue }))} type="number" step="0.1" />
                 <div className="flex justify-between items-center text-sm">
-                    <label className="text-x-text-secondary">Loan Term (Months)</label>
+                    <label className="text-slate-500 dark:text-slate-400">Loan Term (Months)</label>
                     <StyledSelect
                         value={dealData.loanTerm}
                         onChange={(e) => { e.stopPropagation(); setDealData(prev => ({ ...prev, loanTerm: Number(e.target.value) })); }}
@@ -267,15 +267,15 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({ favorites, dealData, se
             </div>
         </div>
         <div>
-          <h4 className="font-bold text-base mb-3 text-x-text-primary">Lender Eligibility</h4>
+          <h4 className="font-bold text-base mb-3 text-slate-900 dark:text-slate-100">Lender Eligibility</h4>
           {hasCustomerData ? (
             <div className="text-sm space-y-1.5 max-h-48 overflow-y-auto pr-2">
               {eligibilityDetails.map(detail => (
                 <div key={detail.name} className="flex justify-between items-start text-sm gap-4">
-                  <span className="font-medium text-x-text-secondary">{detail.name}</span>
+                  <span className="font-medium text-slate-600 dark:text-slate-300">{detail.name}</span>
                   {detail.eligible ? (
                      <span className="font-semibold text-green-500 text-right">
-                        Eligible <span className="text-xs font-normal text-x-text-secondary">({detail.matchedTier?.name})</span>
+                        Eligible <span className="text-xs font-normal text-slate-500 dark:text-slate-400">({detail.matchedTier?.name})</span>
                     </span>
                   ) : (
                     <span className="text-red-500 text-right">{detail.reasons.join(', ')}</span>
@@ -284,7 +284,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({ favorites, dealData, se
               ))}
             </div>
           ) : (
-            <p className="text-sm text-x-text-secondary">Enter customer credit score and/or income to see lender eligibility.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Enter customer credit score and/or income to see lender eligibility.</p>
           )}
         </div>
       </div>

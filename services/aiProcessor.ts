@@ -129,7 +129,7 @@ export const processLenderSheet = async (file: File): Promise<Partial<LenderProf
         throw new Error("AI processing is only available in the browser.");
     }
     const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key is missing. Please check your .env.local file. Do not ship this key to clients.");
+    if (!apiKey) throw new Error("AI is disabled. Call this via a server-side proxy with an API key.");
 
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToBase64(file);
@@ -185,7 +185,7 @@ export const analyzeDealWithAi = async (
         throw new Error("AI analysis is only available in the browser.");
     }
     const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key is missing. Please check your .env.local file. Do not ship this key to clients.");
+    if (!apiKey) throw new Error("AI is disabled. Call this via a server-side proxy with an API key.");
 
     const ai = new GoogleGenAI({ apiKey });
 
