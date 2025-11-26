@@ -301,10 +301,39 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [setDealData, setFilters, setErrors, setScratchPadNotes, settings]);
 
   const loadSampleData = useCallback(() => {
+    // Reset all filters and deal data to ensure the new inventory is visible
+    setDealData({
+      ...INITIAL_DEAL_DATA,
+      loanTerm: settings.defaultTerm,
+      interestRate: settings.defaultApr,
+      stateFees: settings.defaultStateFees,
+    });
+    setFilters(INITIAL_FILTER_DATA);
+    setErrors({});
+    setCustomerName("");
+    setSalespersonName("");
+    setScratchPadNotes("");
+    setActiveVehicle(null);
+
+    // Load the inventory
     setInventory(SAMPLE_INVENTORY);
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
-    setMessage({ type: "success", text: "Sample inventory loaded." });
-  }, [setInventory, setPagination]);
+    setMessage({
+      type: "success",
+      text: "Sample inventory loaded and filters reset.",
+    });
+  }, [
+    setInventory,
+    setPagination,
+    setDealData,
+    setFilters,
+    setErrors,
+    setCustomerName,
+    setSalespersonName,
+    setScratchPadNotes,
+    setActiveVehicle,
+    settings,
+  ]);
 
   const value = {
     settings,

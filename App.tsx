@@ -447,6 +447,32 @@ const MainLayout: React.FC = () => {
                   setPagination={setPagination}
                   totalRows={sortedInventory.length}
                   onLoadSampleData={loadSampleData}
+                  emptyMessage={
+                    safeInventory.length > 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                        <p className="text-slate-500 dark:text-slate-400 text-lg">
+                          No vehicles match your filters.
+                        </p>
+                        <Button
+                          onClick={clearDealAndFilters}
+                          variant="secondary"
+                        >
+                          <Icons.XMarkIcon className="w-5 h-5 mr-2" />
+                          Clear Filters
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                        <p className="text-slate-500 dark:text-slate-400 text-lg">
+                          No vehicles found.
+                        </p>
+                        <Button onClick={loadSampleData} variant="primary">
+                          <Icons.CloudArrowDownIcon className="w-5 h-5 mr-2" />
+                          Load Sample Inventory
+                        </Button>
+                      </div>
+                    )
+                  }
                 />
               </div>
             )}

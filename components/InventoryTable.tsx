@@ -123,6 +123,7 @@ interface InventoryTableProps {
   title?: string;
   icon?: React.ReactNode;
   onLoadSampleData?: () => void;
+  emptyMessage?: React.ReactNode;
 }
 
 const InventoryTable: React.FC<InventoryTableProps> = ({
@@ -145,6 +146,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   title = "Inventory",
   icon,
   onLoadSampleData,
+  emptyMessage,
 }) => {
   // Defensive: Ensure favorites is an array and items are valid objects
   const favoriteVins = useMemo(() => {
@@ -457,17 +459,19 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         sortConfig={sortConfig}
         onSort={handleSort}
         emptyMessage={
-          <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <p className="text-slate-500 dark:text-slate-400 text-lg">
-              No vehicles found.
-            </p>
-            {onLoadSampleData && (
-              <Button onClick={onLoadSampleData} variant="primary">
-                <Icons.CloudArrowDownIcon className="w-5 h-5 mr-2" />
-                Load Sample Inventory
-              </Button>
-            )}
-          </div>
+          emptyMessage || (
+            <div className="flex flex-col items-center justify-center py-8 space-y-4">
+              <p className="text-slate-500 dark:text-slate-400 text-lg">
+                No vehicles found.
+              </p>
+              {onLoadSampleData && (
+                <Button onClick={onLoadSampleData} variant="primary">
+                  <Icons.CloudArrowDownIcon className="w-5 h-5 mr-2" />
+                  Load Sample Inventory
+                </Button>
+              )}
+            </div>
+          )
         }
         rowKey="vin"
         expandedRows={expandedRows}
