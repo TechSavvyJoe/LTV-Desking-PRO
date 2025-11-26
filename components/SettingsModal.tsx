@@ -85,14 +85,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     );
     if (!confirmed) return;
     const keys = [
-      "ltvInventory",
-      "ltvDealData",
-      "ltvFilters",
-      "ltvFavorites",
-      "ltvBankProfiles",
-      "ltvSavedDeals",
-      "ltvScratchPad",
-      "ltvAppSettings",
+      "ltvInventory_v2",
+      "ltvDealData_v2",
+      "ltvFilters_v2",
+      "ltvFavorites_v2",
+      "ltvBankProfiles_v2",
+      "ltvSavedDeals_v2",
+      "ltvScratchPad_v2",
+      "ltvAppSettings_v2",
     ];
     try {
       keys.forEach((k) => window.localStorage.removeItem(k));

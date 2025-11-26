@@ -15,10 +15,7 @@ import ActionBar from "./components/ActionBar";
 import { Toast } from "./components/common/Toast";
 import { TabButton } from "./components/common/TabButton";
 import { calculateFinancials } from "./services/calculator";
-import {
-  generateFavoritesPdf,
-  generateLenderCheatSheetPdf,
-} from "./services/pdfGenerator";
+import { generateFavoritesPdf } from "./services/pdfGenerator";
 import { checkBankEligibility } from "./services/lenderMatcher";
 
 const MainLayout: React.FC = () => {
@@ -219,23 +216,6 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  const handleDownloadCheatSheet = async () => {
-    if (safeLenderProfiles.length === 0) {
-      setMessage({ type: "error", text: "No lender profiles available." });
-      return;
-    }
-    try {
-      const blob = await generateLenderCheatSheetPdf(safeLenderProfiles);
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      setMessage({ type: "success", text: "Lender Cheat Sheet generated." });
-    } catch (err) {
-      console.error("Cheat sheet generation failed", err);
-      setMessage({ type: "error", text: "Unable to generate Cheat Sheet." });
-    }
-  };
-
   return (
     <div
       className={`min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-300 font-sans selection:bg-blue-500/30`}
@@ -402,7 +382,6 @@ const MainLayout: React.FC = () => {
               activeTab={activeTab}
               favoritesCount={safeFavorites.length}
               onDownloadFavorites={handleDownloadFavorites}
-              onDownloadCheatSheet={handleDownloadCheatSheet}
             />
           </div>
 

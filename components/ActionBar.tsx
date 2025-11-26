@@ -6,14 +6,12 @@ interface ActionBarProps {
   activeTab: "inventory" | "favorites" | "lenders" | "saved" | "scratchpad";
   favoritesCount: number;
   onDownloadFavorites: () => void;
-  onDownloadCheatSheet: () => void;
 }
 
 const ActionBar: React.FC<ActionBarProps> = ({
   activeTab,
   favoritesCount,
   onDownloadFavorites,
-  onDownloadCheatSheet,
 }) => {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-4">
@@ -33,15 +31,6 @@ const ActionBar: React.FC<ActionBarProps> = ({
           <span className="ml-auto text-xs bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-400">
             {favoritesCount}
           </span>
-        </Button>
-
-        <Button
-          variant="secondary"
-          className="w-full justify-start"
-          onClick={onDownloadCheatSheet}
-        >
-          <Icons.BanknotesIcon className="w-5 h-5 mr-2 text-emerald-500" />
-          Lender Cheat Sheet
         </Button>
       </div>
 
