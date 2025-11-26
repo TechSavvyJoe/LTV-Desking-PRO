@@ -125,8 +125,11 @@ const normalizeProfile = (profile: any): Partial<LenderProfile> => {
 };
 
 export const processLenderSheet = async (file: File): Promise<Partial<LenderProfile>> => {
+    if (typeof window === "undefined") {
+        throw new Error("AI processing is only available in the browser.");
+    }
     const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key is missing. Please check your .env.local file.");
+    if (!apiKey) throw new Error("API Key is missing. Please check your .env.local file. Do not ship this key to clients.");
 
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToBase64(file);
@@ -178,8 +181,11 @@ export const analyzeDealWithAi = async (
     lenderProfiles: LenderProfile[],
     inventory: Vehicle[]
 ): Promise<DealSuggestion> => {
+    if (typeof window === "undefined") {
+        throw new Error("AI analysis is only available in the browser.");
+    }
     const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key is missing. Please check your .env.local file.");
+    if (!apiKey) throw new Error("API Key is missing. Please check your .env.local file. Do not ship this key to clients.");
 
     const ai = new GoogleGenAI({ apiKey });
 

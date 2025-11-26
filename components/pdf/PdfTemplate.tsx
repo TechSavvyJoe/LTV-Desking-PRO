@@ -24,6 +24,19 @@ const styles = `
         background-color: white;
         display: flex;
         flex-direction: column;
+        position: relative;
+    }
+    .watermark {
+        position: absolute;
+        inset: 1cm;
+        opacity: 0.04;
+        font-size: 72pt;
+        font-weight: 800;
+        color: #0ea5e9;
+        letter-spacing: 4px;
+        transform: rotate(-18deg);
+        pointer-events: none;
+        user-select: none;
     }
     .header {
         display: flex;
@@ -31,6 +44,24 @@ const styles = `
         align-items: flex-start;
         padding-bottom: 0.5cm;
         border-bottom: 2px solid #374151;
+    }
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        color: white;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: -0.5px;
+        box-shadow: 0 6px 14px rgba(14,165,233,0.25);
     }
     .header h1 {
         font-size: 18pt;
@@ -98,9 +129,10 @@ const styles = `
     .payment-summary {
         margin: 0.75cm 0;
         padding: 0.5cm;
-        background-color: #dbeafe;
-        border-radius: 6px;
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        border-radius: 10px;
         text-align: center;
+        box-shadow: 0 6px 12px rgba(59,130,246,0.18);
     }
     .payment-summary .label { font-size: 10pt; color: #1e40af; }
     .payment-summary .value { font-size: 20pt; font-weight: 700; color: #1e3a8a; }
@@ -150,10 +182,14 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({ ve
     return el(React.Fragment, null,
         el('style', null, styles),
         el('div', { className: 'page' },
+            el('div', { className: 'watermark' }, 'OSHIP'),
             el('header', { className: 'header' },
-                el('div', null,
-                    el('h1', null, 'Vehicle Purchase Proposal'),
-                    el('p', { style: { fontSize: '10pt', color: '#374151' } }, 'Your Dealership Name Here')
+                el('div', { className: 'brand' },
+                    el('div', { className: 'logo' }, 'O'),
+                    el('div', null,
+                        el('h1', null, 'OSHIP Deal Sheet'),
+                        el('p', { style: { fontSize: '10pt', color: '#374151', margin: 0 } }, 'Vehicle Purchase Proposal')
+                    )
                 ),
                 el('div', { style: { textAlign: 'right', fontSize: '9pt', color: '#4b5563' } },
                     el('p', null, `Date: ${new Date().toLocaleDateString()}`),

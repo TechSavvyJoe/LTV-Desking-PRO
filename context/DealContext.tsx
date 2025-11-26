@@ -164,6 +164,46 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   const safeLenderProfiles = useSafeData(lenderProfiles);
   const safeSavedDeals = useSafeData(savedDeals);
 
+  const normalizeSavedDeal = (deal: any): SavedDeal | null => {
+    if (!deal || typeof deal !== "object") return null;
+    const baseVehicle =
+      (deal.vehicle as CalculatedVehicle) ||
+      (deal.vehicleSnapshot as CalculatedVehicle);
+    const normalizedVehicle = baseVehicle
+      ? ({
+          ...baseVehicle,
+          vehicle: baseVehicle.vehicle || `${baseVehicle.modelYear || ""}`,
+          vin:
+            baseVehicle.vin ||
+            `VIN-${baseVehicle.stock || ""}-${baseVehicle.modelYear || ""}`,
+        } as CalculatedVehicle)
+      : null;
+
+    return {
+      id: String(deal.id || Date.now().toString()),
+      date: deal.date || deal.createdAt || new Date().toISOString(),
+      createdAt: deal.createdAt || deal.date || new Date().toISOString(),
+      customerName: deal.customerName || "",
+      salespersonName: deal.salespersonName || "",
+      vehicle: normalizedVehicle as CalculatedVehicle,
+      dealData: deal.dealData,
+      customerFilters: {
+        creditScore: deal.customerFilters?.creditScore ?? null,
+        monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
+      },
+      notes: deal.notes || "",
+      vehicleSnapshot: deal.vehicleSnapshot,
+      dealNumber: deal.dealNumber,
+      vehicleVin: deal.vehicleVin,
+    };
+  };
+
+  const normalizedSavedDeals = useMemo(() => {
+    return safeSavedDeals
+      .map((d) => normalizeSavedDeal(d))
+      .filter((d): d is SavedDeal => !!d);
+  }, [safeSavedDeals]);
+
   // Effects
   useEffect(() => {
     if (activeVehicle) {
@@ -400,7 +440,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     safeInventory,
     safeFavorites,
     safeLenderProfiles,
-    safeSavedDeals,
+    safeSavedDeals: normalizedSavedDeals,
     processedInventory,
     filteredInventory,
     sortedInventory,

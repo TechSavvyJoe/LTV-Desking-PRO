@@ -131,8 +131,8 @@ const MainLayout: React.FC = () => {
           stock: `VIN-${Date.now()}`,
           vin: vinLookup,
           modelYear: decoded.year,
-          mileage: "N/A" as const,
-          price: "N/A" as const,
+          mileage: 0,
+          price: 0,
           jdPower: "N/A" as const,
           jdPowerRetail: "N/A" as const,
           unitCost: "N/A" as const,
@@ -142,7 +142,10 @@ const MainLayout: React.FC = () => {
         setActiveVehicle(calculateFinancials(newVehicle, dealData, settings));
         setVinLookupResult("Success: Vehicle added to inventory");
         setVinLookup("");
-        setMessage({ type: "success", text: "Vehicle decoded and added." });
+        setMessage({
+          type: "success",
+          text: "Vehicle decoded. Please enter price/mileage before structuring.",
+        });
       } else {
         setVinLookupResult("Error: Could not decode VIN");
       }

@@ -84,13 +84,20 @@ const renderComponentAsPdfBlob = async (
     return pdf.output("blob");
   } catch (error) {
     console.error("PDF Generation Error:", error);
+    // Clean up even on error
+    try {
+      root.unmount();
+      document.body.removeChild(container);
+    } catch {}
     throw new Error(
       "Failed to create the PDF. Please check the console for details."
     );
   } finally {
     // CRITICAL: Always clean up the DOM element and unmount the React component.
-    root.unmount();
-    document.body.removeChild(container);
+    try {
+      root.unmount();
+      document.body.removeChild(container);
+    } catch {}
   }
 };
 

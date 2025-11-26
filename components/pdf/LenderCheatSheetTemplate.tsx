@@ -16,20 +16,53 @@ const styles = `
     }
     .page {
         width: 297mm; /* A4 Landscape */
-        min-height: 210mm;
-        padding: 1cm;
+        height: 210mm;
+        padding: 0.8cm;
         box-sizing: border-box;
         background-color: white;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+        position: relative;
+    }
+    .watermark {
+        position: absolute;
+        inset: 1cm;
+        opacity: 0.04;
+        font-size: 82pt;
+        font-weight: 800;
+        color: #0ea5e9;
+        letter-spacing: 4px;
+        transform: rotate(-16deg);
+        pointer-events: none;
+        user-select: none;
     }
     .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.5cm;
-        padding-bottom: 0.5cm;
+        margin-bottom: 0.35cm;
+        padding-bottom: 0.35cm;
         border-bottom: 2px solid #374151;
+    }
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .logo {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        color: white;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: -0.5px;
+        box-shadow: 0 6px 14px rgba(14,165,233,0.25);
+        font-size: 11pt;
     }
     .header h1 {
         font-size: 16pt;
@@ -43,51 +76,63 @@ const styles = `
     }
     .content {
         flex-grow: 1;
+        column-count: 3;
+        column-gap: 8px;
+        padding-top: 6px;
     }
-    .cheat-sheet-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .cheat-sheet-table th, .cheat-sheet-table td {
+    .card {
+        break-inside: avoid;
         border: 1px solid #e5e7eb;
-        padding: 6px 8px;
-        text-align: left;
-        vertical-align: top;
+        border-radius: 6px;
+        padding: 6px 7px;
+        margin-bottom: 8px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
-    .cheat-sheet-table th {
-        background-color: #f9fafb;
-        font-weight: 600;
-        color: #374151;
-        font-size: 8pt;
-    }
-    .cheat-sheet-table tr:nth-child(even) {
-        background-color: #f9fafb;
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 4px;
     }
     .lender-name {
         font-weight: 700;
-        font-size: 10pt;
+        font-size: 9pt;
         color: #111827;
+        margin: 0;
+        padding: 0;
     }
-    .book-source {
-        font-size: 7pt;
-        font-weight: 500;
-        padding: 2px 6px;
+    .badge {
+        font-size: 6.5pt;
+        font-weight: 600;
+        padding: 2px 5px;
         border-radius: 4px;
         background-color: #e5e7eb;
-        display: inline-block;
+    }
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        margin-bottom: 4px;
+        line-height: 1.35;
+    }
+    .label {
+        font-weight: 600;
+        color: #374151;
+    }
+    .value {
+        color: #111827;
+    }
+    .programs {
+        font-size: 6.5pt;
+        color: #1f2937;
+        line-height: 1.25;
         margin-top: 4px;
     }
-    .notes-list {
-        margin: 0;
-        padding-left: 14px;
-        list-style: disc;
-        line-height: 1.4;
-    }
     .footer {
-        margin-top: auto;
-        padding-top: 0.5cm;
+        margin-top: 4px;
+        padding-top: 4px;
         border-top: 1px solid #e5e7eb;
-        font-size: 8pt;
+        font-size: 7pt;
         color: #6b7280;
         text-align: center;
     }
@@ -211,103 +256,91 @@ export const LenderCheatSheetTemplate: React.FC<
       "$"
     ),
     tierSummary: summarizeTiers(profile.tiers),
+    tierSummaryText: summarizeTiers(profile.tiers).join(" | "),
   }));
 
   return el(
     "div",
     { className: "page" },
+    el("div", { className: "watermark" }, "OSHIP"),
     el("style", null, styles),
     el(
       "header",
       { className: "header" },
-      el("h1", null, "Lender Program Cheat Sheet"),
+      el(
+        "div",
+        { className: "brand" },
+        el("div", { className: "logo" }, "O"),
+        el("div", null, el("h1", null, "OSHIP Lender Cheat Sheet"))
+      ),
       el("p", null, `Generated on: ${new Date().toLocaleDateString()}`)
     ),
     el(
       "div",
       { className: "content" },
-      el(
-        "table",
-        { className: "cheat-sheet-table" },
-        el(
-          "thead",
-          null,
-          el(
-            "tr",
-            null,
-            el("th", { style: { width: "18%" } }, "Lender"),
-            el("th", { style: { width: "10%" } }, "FICO Range"),
-            el("th", { style: { width: "10%" } }, "Year Range"),
-            el("th", { style: { width: "12%" } }, "Mileage"),
-            el("th", { style: { width: "10%" } }, "Max LTV"),
-            el("th", { style: { width: "10%" } }, "Max Term"),
-            el("th", { style: { width: "12%" } }, "Fin. Amount"),
-            el("th", null, "Key Requirements")
+      aggregatedData.length === 0
+        ? el("div", { className: "card" }, "No lender profiles available.")
+        : aggregatedData.map((p) =>
+            el(
+              "div",
+              { key: p.id || p.name, className: "card" },
+              el(
+                "div",
+                { className: "card-header" },
+                el("div", { className: "lender-name" }, p.name),
+                el(
+                  "span",
+                  { className: "badge" },
+                  `Book: ${p.bookValueSource || "Trade"}`
+                )
+              ),
+              el(
+                "div",
+                { className: "row" },
+                el("span", { className: "label" }, "Income:"),
+                el(
+                  "span",
+                  { className: "value" },
+                  p.minIncome ? `$${p.minIncome.toLocaleString()}` : "N/A"
+                ),
+                el("span", { className: "label" }, "PTI:"),
+                el(
+                  "span",
+                  { className: "value" },
+                  p.maxPti ? `${p.maxPti}%` : "N/A"
+                )
+              ),
+              el(
+                "div",
+                { className: "row" },
+                el("span", { className: "label" }, "FICO:"),
+                el("span", { className: "value" }, p.ficoRange),
+                el("span", { className: "label" }, "Years:"),
+                el("span", { className: "value" }, p.yearRange)
+              ),
+              el(
+                "div",
+                { className: "row" },
+                el("span", { className: "label" }, "Mileage:"),
+                el("span", { className: "value" }, p.mileageRange),
+                el("span", { className: "label" }, "LTV:"),
+                el("span", { className: "value" }, p.ltvRange),
+                el("span", { className: "label" }, "Term:"),
+                el("span", { className: "value" }, p.termRange)
+              ),
+              el(
+                "div",
+                { className: "row" },
+                el("span", { className: "label" }, "Fin Amt:"),
+                el("span", { className: "value" }, p.amountRange)
+              ),
+              el(
+                "div",
+                { className: "programs" },
+                p.tierSummaryText || "No tiers defined"
+              )
+            )
           )
-        ),
-        el(
-          "tbody",
-          null,
-          aggregatedData.length === 0
-            ? el(
-                "tr",
-                null,
-                el(
-                  "td",
-                  {
-                    colSpan: 8,
-                    style: {
-                      textAlign: "center",
-                      padding: "12px",
-                      color: "#6b7280",
-                    },
-                  },
-                  "No lender profiles available."
-                )
-              )
-            : aggregatedData.map((p) =>
-                el(
-                  "tr",
-                  { key: p.id || p.name },
-                  el(
-                    "td",
-                    null,
-                    el("div", { className: "lender-name" }, p.name),
-                    el(
-                      "div",
-                      { className: "book-source" },
-                      `Book: ${p.bookValueSource || "Trade"}`
-                    )
-                  ),
-                  el("td", null, p.ficoRange),
-                  el("td", null, p.yearRange),
-                  el("td", null, p.mileageRange),
-                  el("td", null, p.ltvRange),
-                  el("td", null, p.termRange),
-                  el("td", null, p.amountRange),
-                  el(
-                    "td",
-                    null,
-                    el(
-                      "ul",
-                      { className: "notes-list" },
-                      p.minIncome
-                        ? el(
-                            "li",
-                            null,
-                            `Min Income: $${p.minIncome.toLocaleString()}`
-                          )
-                        : null,
-                      p.maxPti ? el("li", null, `Max PTI: ${p.maxPti}%`) : null,
-                      ...p.tierSummary.map((note, idx) =>
-                        el("li", { key: `${p.id || p.name}-tier-${idx}` }, note)
-                      )
-                    )
-                  )
-                )
-              )
-        )
-      )
     ),
     el(
       "footer",

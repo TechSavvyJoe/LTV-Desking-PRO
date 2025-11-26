@@ -230,9 +230,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onStructureDeal?.(item);
+                  onStructureDeal && onStructureDeal(item);
                 }}
                 className="!py-1.5 !px-3 !text-xs shadow-sm hover:shadow-md transition-all"
+                disabled={!onStructureDeal}
               >
                 <Icons.WrenchIcon className="w-4 h-4 mr-1.5" />
                 Structure
@@ -454,7 +455,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   const safeVehicles = useSafeData(vehicles);
   const normalizedVehicles = safeVehicles.map((v, idx) => {
     const vin =
-      v.vin && v.vin !== "N/A" ? v.vin : `VIN-${v.stock || idx}-${idx}`;
+      v.vin && v.vin !== "N/A"
+        ? v.vin
+        : `VIN-${v.stock || "ROW"}-${v.vehicle || "VEH"}-${idx}`;
     return { ...v, vin };
   });
 

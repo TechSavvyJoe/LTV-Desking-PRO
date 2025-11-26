@@ -122,10 +122,21 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
     Array.isArray(lenderProfiles) ? lenderProfiles : []
   ).filter((p) => p && typeof p === "object");
 
-  const eligibilityDetails = safeProfiles.map((bank) => ({
-    name: bank.name,
-    ...checkBankEligibility(item, { ...dealData, ...customerFilters }, bank),
-  }));
+  const eligibilityDetails = safeProfiles.map((bank) => {
+    try {
+      return {
+        name: bank.name,
+        ...checkBankEligibility(item, { ...dealData, ...customerFilters }, bank),
+      };
+    } catch (err) {
+      return {
+        name: bank.name || "Unknown",
+        eligible: false,
+        reasons: ["Eligibility check failed"],
+        matchedTier: null,
+      };
+    }
+  });
 
   const hasCustomerData =
     customerFilters.creditScore || customerFilters.monthlyIncome;

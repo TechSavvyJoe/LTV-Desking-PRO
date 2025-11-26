@@ -157,19 +157,30 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
                       if (yearMatch) modelYear = parseInt(yearMatch[0], 10);
                     }
                     
+                    const mileage = parseNumber(vals[idx.mileage]);
+                    const price = parseNumber(vals[idx.price]);
+                    if (price === 'N/A' || mileage === 'N/A') {
+                      return null; // drop rows missing critical numeric fields
+                    }
+                    
                     return {
                         vehicle: vehicleDescription,
                         stock: vals[idx.stock] || 'N/A',
-                        vin: vals[idx.vin] && vals[idx.vin].trim() !== '' ? vals[idx.vin] : `VIN-${Date.now()}-${rowIndex}`,
+                        vin: vals[idx.vin] && vals[idx.vin].trim() !== '' ? vals[idx.vin] : `VIN-${vals[idx.stock] || 'ROW'}-${rowIndex}`,
                         modelYear: modelYear,
-                        mileage: parseNumber(vals[idx.mileage]),
-                        price: parseNumber(vals[idx.price]),
+                        mileage,
+                        price,
                         jdPower: parseNumber(vals[idx.jdPower]),
                         jdPowerRetail: idx.jdPowerRetail !== -1 ? parseNumber(vals[idx.jdPowerRetail]) : 'N/A',
                         unitCost: idx.unitCost !== -1 ? parseNumber(vals[idx.unitCost]) : 'N/A',
                         baseOutTheDoorPrice: 'N/A', // will be calculated later
                     };
                 }).filter((v): v is Vehicle => v !== null);
+
+                if (vehicles.length === 0) {
+                  reject(new Error("No valid rows found. Ensure Price and Mileage are populated and numeric."));
+                  return;
+                }
 
                 resolve(vehicles);
 

@@ -22,6 +22,19 @@ const styles = `
         padding: 1cm;
         box-sizing: border-box;
         background-color: white;
+        position: relative;
+    }
+    .watermark {
+        position: absolute;
+        inset: 1cm;
+        opacity: 0.04;
+        font-size: 70pt;
+        font-weight: 800;
+        color: #0ea5e9;
+        letter-spacing: 3px;
+        transform: rotate(-18deg);
+        pointer-events: none;
+        user-select: none;
     }
     .header {
         text-align: center;
@@ -97,8 +110,9 @@ export const FavoritesPdfTemplate: React.FC<{ deals: DealPdfData[], settings: Se
 
     return el('div', { className: 'page' },
         el('style', null, styles),
+        el('div', { className: 'watermark' }, 'OSHIP'),
         el('header', { className: 'header' },
-            el('h1', null, 'Vehicle Comparison Report'),
+            el('h1', null, 'OSHIP Vehicle Comparison Report'),
             mainDealInfo && el('p', null, 
                 `Customer: `, el('strong', null, mainDealInfo.customerName || 'N/A'), ` | `,
                 `Salesperson: `, el('strong', null, mainDealInfo.salespersonName || 'N/A'), ` | `,
