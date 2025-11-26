@@ -120,6 +120,8 @@ interface InventoryTableProps {
   customerName: string;
   salespersonName: string;
   settings: Settings;
+  title?: string;
+  icon?: React.ReactNode;
 }
 
 const InventoryTable: React.FC<InventoryTableProps> = ({
@@ -139,6 +141,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   customerName,
   salespersonName,
   settings,
+  title = "Inventory",
+  icon,
 }) => {
   // Defensive: Ensure favorites is an array and items are valid objects
   const favoriteVins = useMemo(() => {
@@ -443,7 +447,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   return (
     <div className="my-8">
       <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 pb-2 border-b border-slate-200 dark:border-gray-700 flex items-center gap-2">
-        <Icons.CarIcon className="w-6 h-6 text-blue-500" /> Inventory
+        {icon || <Icons.CarIcon className="w-6 h-6 text-blue-500" />} {title}
       </h2>
       <Table
         columns={columns}

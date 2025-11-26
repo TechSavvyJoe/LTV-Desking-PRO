@@ -3,7 +3,7 @@ import Button from "./common/Button";
 import * as Icons from "./common/Icons";
 
 interface ActionBarProps {
-  activeTab: "inventory" | "favorites" | "lenders" | "saved" | "scratchpad";
+  activeTab: "inventory" | "lenders" | "saved" | "scratchpad";
   favoritesCount: number;
   onDownloadFavorites: () => void;
 }

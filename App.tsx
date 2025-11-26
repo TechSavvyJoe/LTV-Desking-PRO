@@ -72,7 +72,7 @@ const MainLayout: React.FC = () => {
 
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "favorites" | "lenders" | "saved" | "scratchpad"
+    "inventory" | "lenders" | "saved" | "scratchpad"
   >("inventory");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [vinLookup, setVinLookup] = useState("");
@@ -247,13 +247,7 @@ const MainLayout: React.FC = () => {
                 label="Inventory"
                 count={safeInventory.length}
               />
-              <TabButton
-                active={activeTab === "favorites"}
-                onClick={() => setActiveTab("favorites")}
-                icon={<Icons.StarIcon className="w-4 h-4" />}
-                label="Favorites"
-                count={safeFavorites.length}
-              />
+
               <TabButton
                 active={activeTab === "lenders"}
                 onClick={() => setActiveTab("lenders")}
@@ -388,63 +382,71 @@ const MainLayout: React.FC = () => {
           {/* Main Content Area */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden min-h-[600px]">
             {activeTab === "inventory" && (
-              <InventoryTable
-                inventory={paginatedInventory}
-                lenderProfiles={safeLenderProfiles}
-                dealData={dealData}
-                setDealData={setDealData}
-                onInventoryUpdate={handleInventoryUpdate}
-                customerFilters={filters}
-                settings={settings}
-                sortConfig={inventorySort}
-                onSort={(key) =>
-                  setInventorySort((prev) => ({
-                    key,
-                    direction:
-                      prev.key === key && prev.direction === "asc"
-                        ? "desc"
-                        : "asc",
-                  }))
-                }
-                expandedRows={expandedInventoryRows}
-                toggleRowExpansion={toggleInventoryRowExpansion}
-                favorites={safeFavorites}
-                toggleFavorite={toggleFavorite}
-                pagination={pagination}
-                setPagination={setPagination}
-                totalRows={sortedInventory.length}
-              />
-            )}
-            {activeTab === "favorites" && (
-              <InventoryTable
-                inventory={safeFavorites.map((item) =>
-                  calculateFinancials(item, dealData, settings)
+              <div className="space-y-8">
+                {safeFavorites.length > 0 && (
+                  <InventoryTable
+                    title="Favorites"
+                    icon={
+                      <Icons.StarIcon className="w-6 h-6 text-yellow-500" />
+                    }
+                    inventory={safeFavorites.map((item) =>
+                      calculateFinancials(item, dealData, settings)
+                    )}
+                    lenderProfiles={safeLenderProfiles}
+                    dealData={dealData}
+                    setDealData={setDealData}
+                    onInventoryUpdate={handleInventoryUpdate}
+                    customerFilters={filters}
+                    settings={settings}
+                    sortConfig={favSort}
+                    onSort={(key) =>
+                      setFavSort((prev) => ({
+                        key,
+                        direction:
+                          prev.key === key && prev.direction === "asc"
+                            ? "desc"
+                            : "asc",
+                      }))
+                    }
+                    expandedRows={expandedInventoryRows}
+                    toggleRowExpansion={toggleInventoryRowExpansion}
+                    favorites={safeFavorites}
+                    toggleFavorite={toggleFavorite}
+                    pagination={{ currentPage: 1, rowsPerPage: Infinity }}
+                    setPagination={() => {}}
+                    totalRows={safeFavorites.length}
+                    isFavoritesView
+                  />
                 )}
-                lenderProfiles={safeLenderProfiles}
-                dealData={dealData}
-                setDealData={setDealData}
-                onInventoryUpdate={handleInventoryUpdate}
-                customerFilters={filters}
-                settings={settings}
-                sortConfig={favSort}
-                onSort={(key) =>
-                  setFavSort((prev) => ({
-                    key,
-                    direction:
-                      prev.key === key && prev.direction === "asc"
-                        ? "desc"
-                        : "asc",
-                  }))
-                }
-                expandedRows={expandedInventoryRows}
-                toggleRowExpansion={toggleInventoryRowExpansion}
-                favorites={safeFavorites}
-                toggleFavorite={toggleFavorite}
-                pagination={{ currentPage: 1, rowsPerPage: Infinity }}
-                setPagination={() => {}}
-                totalRows={safeFavorites.length}
-                isFavoritesView
-              />
+
+                <InventoryTable
+                  title="All Inventory"
+                  inventory={paginatedInventory}
+                  lenderProfiles={safeLenderProfiles}
+                  dealData={dealData}
+                  setDealData={setDealData}
+                  onInventoryUpdate={handleInventoryUpdate}
+                  customerFilters={filters}
+                  settings={settings}
+                  sortConfig={inventorySort}
+                  onSort={(key) =>
+                    setInventorySort((prev) => ({
+                      key,
+                      direction:
+                        prev.key === key && prev.direction === "asc"
+                          ? "desc"
+                          : "asc",
+                    }))
+                  }
+                  expandedRows={expandedInventoryRows}
+                  toggleRowExpansion={toggleInventoryRowExpansion}
+                  favorites={safeFavorites}
+                  toggleFavorite={toggleFavorite}
+                  pagination={pagination}
+                  setPagination={setPagination}
+                  totalRows={sortedInventory.length}
+                />
+              </div>
             )}
             {activeTab === "lenders" && (
               <LenderProfiles
