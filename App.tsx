@@ -404,6 +404,9 @@ const MainLayout: React.FC = () => {
                       "Mileage",
                       "Price",
                       "Cost",
+                      "J.D. Power Trade In",
+                      "J.D. Power Retail",
+                      "Unit Cost",
                     ];
                     const sampleData = [
                       [
@@ -416,6 +419,9 @@ const MainLayout: React.FC = () => {
                         "15000",
                         "28500",
                         "25000",
+                        "24000",
+                        "29000",
+                        "25000",
                       ],
                       [
                         "STK1002",
@@ -427,6 +433,9 @@ const MainLayout: React.FC = () => {
                         "32000",
                         "24900",
                         "21500",
+                        "20000",
+                        "25500",
+                        "21500",
                       ],
                       [
                         "STK1003",
@@ -437,6 +446,9 @@ const MainLayout: React.FC = () => {
                         "1G1...SAMPLE3",
                         "28000",
                         "42000",
+                        "38000",
+                        "36000",
+                        "43000",
                         "38000",
                       ],
                     ];

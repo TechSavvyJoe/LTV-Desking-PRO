@@ -499,7 +499,10 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   // ~$5k
   {
     vehicle: "2012 Honda Civic LX",
-    price: 5200,
+    make: "Honda",
+    model: "Civic",
+    trim: "LX",
+    price: 5500,
     modelYear: 2012,
     mileage: 155000,
     jdPower: 4800,
@@ -507,26 +510,35 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
     unitCost: 4000,
   },
   {
-    vehicle: "2013 Nissan Sentra S",
+    vehicle: "2013 Ford Focus SE",
+    make: "Ford",
+    model: "Focus",
+    trim: "SE",
     price: 5800,
     modelYear: 2013,
     mileage: 140000,
-    jdPower: 5300,
-    jdPowerRetail: 6800,
-    unitCost: 4500,
+    jdPower: 5100,
+    jdPowerRetail: 6500,
+    unitCost: 4200,
   },
   {
-    vehicle: "2011 Ford Focus SE",
+    vehicle: "2011 Toyota Corolla LE",
+    make: "Toyota",
+    model: "Corolla",
+    trim: "LE",
     price: 4900,
     modelYear: 2011,
     mileage: 160000,
-    jdPower: 4500,
-    jdPowerRetail: 5900,
-    unitCost: 3800,
+    jdPower: 4200,
+    jdPowerRetail: 5800,
+    unitCost: 3500,
   },
   // ~$10k
   {
-    vehicle: "2015 Toyota Corolla LE",
+    vehicle: "2015 Nissan Altima S",
+    make: "Nissan",
+    model: "Altima",
+    trim: "S",
     price: 10500,
     modelYear: 2015,
     mileage: 110000,
@@ -536,6 +548,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2016 Hyundai Elantra SE",
+    make: "Hyundai",
+    model: "Elantra",
+    trim: "SE",
     price: 9800,
     modelYear: 2016,
     mileage: 95000,
@@ -545,6 +560,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2014 Chevy Cruze LT",
+    make: "Chevy",
+    model: "Cruze",
+    trim: "LT",
     price: 8900,
     modelYear: 2014,
     mileage: 105000,
@@ -554,6 +572,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2017 Kia Soul",
+    make: "Kia",
+    model: "Soul",
+    trim: "Base",
     price: 11200,
     modelYear: 2017,
     mileage: 88000,
@@ -564,6 +585,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   // ~$15k
   {
     vehicle: "2018 Honda Accord Sport",
+    make: "Honda",
+    model: "Accord",
+    trim: "Sport",
     price: 15500,
     modelYear: 2018,
     mileage: 75000,
@@ -573,6 +597,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2016 Jeep Renegade Latitude",
+    make: "Jeep",
+    model: "Renegade",
+    trim: "Latitude",
     price: 14800,
     modelYear: 2016,
     mileage: 82000,
@@ -582,6 +609,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2017 Ford Escape SE",
+    make: "Ford",
+    model: "Escape",
+    trim: "SE",
     price: 16000,
     modelYear: 2017,
     mileage: 78000,
@@ -591,6 +621,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2019 Nissan Rogue S",
+    make: "Nissan",
+    model: "Rogue",
+    trim: "S",
     price: 16500,
     modelYear: 2019,
     mileage: 70000,
@@ -601,6 +634,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   // ~$20k
   {
     vehicle: "2020 Toyota Camry SE",
+    make: "Toyota",
+    model: "Camry",
+    trim: "SE",
     price: 20500,
     modelYear: 2020,
     mileage: 55000,
@@ -610,6 +646,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2018 Jeep Wrangler Sport",
+    make: "Jeep",
+    model: "Wrangler",
+    trim: "Sport",
     price: 21000,
     modelYear: 2018,
     mileage: 65000,
@@ -619,6 +658,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2019 Subaru Outback 2.5i",
+    make: "Subaru",
+    model: "Outback",
+    trim: "2.5i",
     price: 19800,
     modelYear: 2019,
     mileage: 68000,
@@ -628,6 +670,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2021 Hyundai Kona SEL",
+    make: "Hyundai",
+    model: "Kona",
+    trim: "SEL",
     price: 19200,
     modelYear: 2021,
     mileage: 40000,
@@ -638,6 +683,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   // ~$25k
   {
     vehicle: "2019 Ford F-150 XLT",
+    make: "Ford",
+    model: "F-150",
+    trim: "XLT",
     price: 25500,
     modelYear: 2019,
     mileage: 72000,
@@ -647,6 +695,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2020 Chevy Equinox LT",
+    make: "Chevy",
+    model: "Equinox",
+    trim: "LT",
     price: 24800,
     modelYear: 2020,
     mileage: 48000,
@@ -692,6 +743,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2017 BMW 3 Series 330i",
+    make: "BMW",
+    model: "3 Series",
+    trim: "330i",
     price: 24000,
     modelYear: 2017,
     mileage: 60000,
@@ -701,6 +755,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2021 Mazda CX-5 Touring",
+    make: "Mazda",
+    model: "CX-5",
+    trim: "Touring",
     price: 26000,
     modelYear: 2021,
     mileage: 35000,
@@ -735,6 +792,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2022 Honda CR-V EX",
+    make: "Honda",
+    model: "CR-V",
+    trim: "EX",
     price: 30500,
     modelYear: 2022,
     mileage: 25000,
@@ -744,6 +804,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2019 Toyota Highlander XLE",
+    make: "Toyota",
+    model: "Highlander",
+    trim: "XLE",
     price: 29800,
     modelYear: 2019,
     mileage: 58000,
@@ -753,6 +816,9 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
   },
   {
     vehicle: "2020 Ford Explorer XLT",
+    make: "Ford",
+    model: "Explorer",
+    trim: "XLT",
     price: 31000,
     modelYear: 2020,
     mileage: 52000,

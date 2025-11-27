@@ -101,7 +101,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [settings, setSettings] = useSettings();
   const [inventory, setInventory] = useLocalStorage<Vehicle[]>(
-    "ltvInventory_v2",
+    "ltvInventory_v3",
     SAMPLE_INVENTORY
   );
   const [dealData, setDealData] = useLocalStorage<DealData>("ltvDealData_v2", {

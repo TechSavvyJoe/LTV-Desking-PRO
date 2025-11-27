@@ -126,7 +126,11 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
     try {
       return {
         name: bank.name,
-        ...checkBankEligibility(item, { ...dealData, ...customerFilters }, bank),
+        ...checkBankEligibility(
+          item,
+          { ...dealData, ...customerFilters },
+          bank
+        ),
       };
     } catch (err) {
       return {
@@ -318,15 +322,16 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
           </h4>
           {hasCustomerData ? (
             <div className="text-sm space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-grow max-h-[300px]">
-              {eligibilityDetails.map((detail) => (
-                <div
-                  key={detail.name}
-                  className="flex justify-between items-start text-sm gap-4 border-b border-slate-100 dark:border-slate-800 pb-2 last:border-0"
-                >
-                  <span className="font-medium text-slate-600 dark:text-gray-400 whitespace-nowrap">
-                    {detail.name}
-                  </span>
-                  {detail.eligible ? (
+              {eligibilityDetails
+                .filter((detail) => detail.eligible)
+                .map((detail) => (
+                  <div
+                    key={detail.name}
+                    className="flex justify-between items-start text-sm gap-4 border-b border-slate-100 dark:border-slate-800 pb-2 last:border-0"
+                  >
+                    <span className="font-medium text-slate-600 dark:text-gray-400 whitespace-nowrap">
+                      {detail.name}
+                    </span>
                     <span className="font-semibold text-green-600 dark:text-green-400 text-right flex flex-col items-end">
                       <span className="flex items-center gap-1">
                         <Icons.CheckIcon className="w-3 h-3" /> Eligible
@@ -335,15 +340,14 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
                         {detail.matchedTier?.name}
                       </span>
                     </span>
-                  ) : (
-                    <span className="text-red-500 text-right text-xs">
-                      {detail.reasons && detail.reasons.length > 0
-                        ? detail.reasons.join("; ")
-                        : "Not eligible for current structure"}
-                    </span>
-                  )}
+                  </div>
+                ))}
+              {eligibilityDetails.filter((detail) => detail.eligible).length ===
+                0 && (
+                <div className="text-center text-slate-500 dark:text-slate-400 py-4 italic">
+                  No eligible lenders found for this structure.
                 </div>
-              ))}
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 py-8">
