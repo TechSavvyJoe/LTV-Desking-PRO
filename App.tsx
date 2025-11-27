@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useTheme } from "./hooks/useTheme";
 import { parseFile } from "./services/fileParser";
 import { decodeVin } from "./services/vinDecoder";
@@ -83,6 +83,11 @@ const MainLayout: React.FC = () => {
   const [vinLookupResult, setVinLookupResult] = useState<string | null>(null);
   const [isVinLoading, setIsVinLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Create a Set of favorite VINs for efficient lookups in InventoryTable
+  const favoriteVins = useMemo(() => {
+    return new Set(safeFavorites.map((v) => v.vin));
+  }, [safeFavorites]);
 
   // File Upload Handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -576,7 +581,7 @@ const MainLayout: React.FC = () => {
                       )
                     }
                     onStructureDeal={handleSelectVehicle}
-                    favorites={safeFavorites}
+                    favoriteVins={favoriteVins}
                     toggleFavorite={toggleFavorite}
                     pagination={{ currentPage: 1, itemsPerPage: Infinity }}
                     setPagination={() => {}}
@@ -606,7 +611,7 @@ const MainLayout: React.FC = () => {
                   expandedRows={expandedInventoryRows}
                   onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
                   onStructureDeal={handleSelectVehicle}
-                  favorites={safeFavorites}
+                  favoriteVins={favoriteVins}
                   toggleFavorite={toggleFavorite}
                   pagination={pagination}
                   setPagination={setPagination}
