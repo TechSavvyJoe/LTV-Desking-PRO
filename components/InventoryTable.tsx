@@ -208,47 +208,44 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       },
       {
         header: "Actions",
-        accessor: "action" as const,
-        className: "min-w-[200px]",
-        render: (item: CalculatedVehicle) => {
-          if (!item) return null;
-          return (
-            <div
-              className="flex items-center gap-2"
-              onClick={(e) => e.stopPropagation()}
+        className: "text-center w-24",
+        render: (item: CalculatedVehicle) => (
+          <div className="flex justify-center items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFavorite(item.vin);
+              }}
+              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              title={
+                favoriteVins.has(item.vin)
+                  ? "Remove from favorites"
+                  : "Add to favorites"
+              }
             >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFavorite(item.vin);
-                }}
-                className={`p-2 rounded-full transition-colors group focus:outline-none hover:bg-slate-100 dark:hover:bg-white/10`}
-                aria-label="Toggle Favorite"
-              >
-                <Icons.StarIcon
-                  className={`transition-colors w-5 h-5 ${
-                    favoriteVins.has(item.vin)
-                      ? "text-yellow-500 fill-yellow-500"
-                      : "text-slate-400 group-hover:text-yellow-500"
-                  }`}
-                />
-              </button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStructureDeal && onStructureDeal(item);
-                }}
-                className="!py-1.5 !px-3 !text-xs shadow-sm hover:shadow-md transition-all"
-                disabled={!onStructureDeal}
-              >
-                <Icons.WrenchIcon className="w-4 h-4 mr-1.5" />
-                Structure
-              </Button>
-            </div>
-          );
-        },
+              {favoriteVins.has(item.vin) ? (
+                <Icons.StarIcon className="w-5 h-5 text-yellow-500 fill-current" />
+              ) : (
+                <Icons.StarIcon className="w-5 h-5 text-slate-400" />
+              )}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onStructureDeal &&
+                  onStructureDeal({
+                    ...item,
+                    stock: item.stock || "",
+                    vehicle: `${item.modelYear} ${item.make} ${item.model} ${item.trim}`,
+                  });
+              }}
+              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              title="Structure Deal"
+            >
+              <Icons.CalculatorIcon className="w-5 h-5 text-blue-500" />
+            </button>
+          </div>
+        ),
       },
       {
         header: "Vehicle",
@@ -266,7 +263,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         isNumeric: true,
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.modelYear}>
-            {item.modelYear}
+            <span className="tabular-nums">{item.modelYear}</span>
           </CopyToClipboard>
         ),
       },
@@ -276,7 +273,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         isNumeric: true,
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.mileage}>
-            {formatNumber(item.mileage)}
+            <span className="tabular-nums">{formatNumber(item.mileage)}</span>
           </CopyToClipboard>
         ),
       },
@@ -287,7 +284,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         className: "text-right font-medium",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.price}>
-            {formatCurrency(item.price)}
+            <span className="tabular-nums">{formatCurrency(item.price)}</span>
           </CopyToClipboard>
         ),
       },
@@ -298,7 +295,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         className: "text-right",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.jdPower}>
-            {formatCurrency(item.jdPower)}
+            <span className="tabular-nums">{formatCurrency(item.jdPower)}</span>
           </CopyToClipboard>
         ),
       },
@@ -327,7 +324,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         className: "text-right font-semibold text-blue-600 dark:text-blue-400",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.amountToFinance}>
-            {formatCurrency(item.amountToFinance)}
+            <span className="tabular-nums">
+              {formatCurrency(item.amountToFinance)}
+            </span>
           </CopyToClipboard>
         ),
       },

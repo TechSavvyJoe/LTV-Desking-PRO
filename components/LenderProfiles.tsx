@@ -126,7 +126,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                 return (
                   <div
                     key={index}
-                    className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 space-y-1"
+                    className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 rounded-lg p-3 space-y-1 shadow-sm hover:shadow-md transition-shadow duration-200"
                   >
                     <p className="font-bold text-blue-600 dark:text-blue-400">
                       {tier.name}

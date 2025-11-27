@@ -362,18 +362,6 @@ const MainLayout: React.FC = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggleTheme}
-              title="Toggle Theme"
-            >
-              {theme === "dark" ? (
-                <Icons.SunIcon className="w-5 h-5 text-amber-400" />
-              ) : (
-                <Icons.MoonIcon className="w-5 h-5 text-slate-600" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
               onClick={() => setIsSettingsOpen(true)}
               title="Settings"
             >

@@ -12,35 +12,20 @@ const getInitialTheme = (): Theme => {
 };
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  // Always return 'dark'
+  const theme: Theme = "dark";
 
   useEffect(() => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    window.localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  // Sync with OS preference changes
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => {
-      setTheme((prev) => {
-        const stored = window.localStorage.getItem("theme");
-        if (stored === "light" || stored === "dark") return stored as Theme;
-        return e.matches ? "dark" : "light";
-      });
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    // Force dark class
+    root.classList.add("dark");
+    // Ensure local storage is consistent (optional, but good for other tabs)
+    window.localStorage.setItem("theme", "dark");
   }, []);
 
-  const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  // No-op toggle
+  const toggleTheme = () => {};
 
   return { theme, toggleTheme };
 }
