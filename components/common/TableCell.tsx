@@ -20,7 +20,8 @@ export const formatCurrency = (value: number | string | undefined): string => {
 };
 
 export const formatPercentage = (
-  value: number | string | undefined
+  value: number | string | undefined,
+  decimals: number = 2
 ): string => {
   if (
     value === undefined ||
@@ -30,7 +31,7 @@ export const formatPercentage = (
   )
     return "N/A";
   const num = typeof value === "string" ? parseFloat(value) : value;
-  return isNaN(num) ? "N/A" : `${num.toFixed(2)}%`;
+  return isNaN(num) ? "N/A" : `${num.toFixed(decimals)}%`;
 };
 
 export const formatNumber = (value: number | string | undefined): string => {
@@ -60,7 +61,7 @@ export const LtvCell: React.FC<LtvCellProps> = ({ value }) => {
   return (
     <CopyToClipboard valueToCopy={value}>
       <span className={`font-bold ${colorClass}`}>
-        {formatPercentage(value)}
+        {formatPercentage(value, 0)}
       </span>
     </CopyToClipboard>
   );
@@ -78,7 +79,7 @@ export const OtdLtvCell: React.FC<LtvCellProps> = ({ value }) => {
   return (
     <CopyToClipboard valueToCopy={value}>
       <span className={`font-bold ${colorClass}`}>
-        {formatPercentage(value)}
+        {formatPercentage(value, 0)}
       </span>
     </CopyToClipboard>
   );
