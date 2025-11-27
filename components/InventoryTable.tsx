@@ -65,6 +65,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   setPagination,
   totalRows,
   isFavoritesView,
+  customHeight,
 }) => {
   const safeVehicles = useSafeData(data);
   const normalizedVehicles = safeVehicles;
