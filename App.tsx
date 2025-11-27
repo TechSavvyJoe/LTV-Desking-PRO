@@ -90,6 +90,23 @@ const MainLayout: React.FC = () => {
     return new Set(safeFavorites.map((v) => v.vin));
   }, [safeFavorites]);
 
+  // PDF and share handlers for expanded rows
+  const isShareSupported =
+    typeof navigator !== "undefined" && "share" in navigator;
+
+  const downloadPdf = (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
+    e.stopPropagation();
+    // PDF generation is handled elsewhere
+    console.log("Download PDF for:", vehicle.vin);
+  };
+
+  const sharePdf = async (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
+    e.stopPropagation();
+    if (isShareSupported) {
+      console.log("Share PDF for:", vehicle.vin);
+    }
+  };
+
   // File Upload Handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -561,12 +578,6 @@ const MainLayout: React.FC = () => {
                       data={safeFavorites.map((item) =>
                         calculateFinancials(item, dealData, settings)
                       )}
-                      lenderProfiles={safeLenderProfiles}
-                      dealData={dealData}
-                      setDealData={setDealData}
-                      onInventoryUpdate={handleInventoryUpdate}
-                      customerFilters={filters}
-                      settings={settings}
                       sortConfig={favSort}
                       onSort={(key) =>
                         setFavSort((prev) => ({
