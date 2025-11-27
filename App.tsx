@@ -10,7 +10,7 @@ import InventoryTable from "./components/InventoryTable";
 import LenderProfiles from "./components/LenderProfiles";
 import SavedDeals from "./components/SavedDeals";
 import SettingsModal from "./components/SettingsModal";
-import ScratchPad from "./components/ScratchPad";
+import FinanceTools from "./components/FinanceTools";
 import ActionBar from "./components/ActionBar";
 import { Toast } from "./components/common/Toast";
 import { TabButton } from "./components/common/TabButton";
@@ -352,8 +352,8 @@ const MainLayout: React.FC = () => {
               <TabButton
                 active={activeTab === "scratchpad"}
                 onClick={() => setActiveTab("scratchpad")}
-                icon={<Icons.PencilIcon className="w-4 h-4" />}
-                label="Notes"
+                icon={<Icons.WrenchToolIcon className="w-4 h-4" />}
+                label="Tools"
               />
             </div>
 
@@ -595,9 +595,9 @@ const MainLayout: React.FC = () => {
               />
             )}
             {activeTab === "scratchpad" && (
-              <ScratchPad
-                notes={scratchPadNotes}
-                onChange={setScratchPadNotes}
+              <FinanceTools
+                scratchPadNotes={scratchPadNotes}
+                setScratchPadNotes={setScratchPadNotes}
               />
             )}
           </div>
