@@ -46,6 +46,7 @@ interface InventoryTableProps {
   }) => void;
   totalRows?: number;
   isFavoritesView?: boolean;
+  customHeight?: string;
 }
 
 const InventoryTable: React.FC<InventoryTableProps> = ({
@@ -68,6 +69,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   const safeVehicles = useSafeData(data);
   const normalizedVehicles = safeVehicles;
   const handleSort = onSort;
+
+  // Calculate dynamic height for favorites view
+  const tableHeight =
+    customHeight ||
+    (isFavoritesView
+      ? `${Math.min(Math.max(safeVehicles.length * 60 + 60, 120), 400)}px`
+      : "calc(100vh - 250px)");
 
   // Memoize columns to prevent re-renders
   const columns = useMemo<VirtualizedColumn<CalculatedVehicle>[]>(
@@ -306,7 +314,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         expandedRows={expandedRows}
         onRowClick={(key) => onRowClick(String(key))}
         renderExpandedRow={renderExpandedRow}
-        height="calc(100vh - 250px)"
+        height={tableHeight}
       />
       {/* Pagination temporarily disabled - component needs to be created */}
     </div>

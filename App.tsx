@@ -669,6 +669,20 @@ const MainLayout: React.FC = () => {
                       </div>
                     )
                   }
+                  renderExpandedRow={(vehicle) => (
+                    <InventoryExpandedRow
+                      item={vehicle}
+                      lenderProfiles={safeLenderProfiles}
+                      dealData={dealData}
+                      setDealData={setDealData}
+                      onInventoryUpdate={handleInventoryUpdate}
+                      customerFilters={filters}
+                      settings={settings}
+                      onDownloadPdf={downloadPdf}
+                      onSharePdf={sharePdf}
+                      isShareSupported={isShareSupported}
+                    />
+                  )}
                 />
               </div>
             )}
