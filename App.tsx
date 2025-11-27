@@ -598,6 +598,8 @@ const MainLayout: React.FC = () => {
               <FinanceTools
                 scratchPadNotes={scratchPadNotes}
                 setScratchPadNotes={setScratchPadNotes}
+                dealData={dealData}
+                activeVehicle={activeVehicle}
               />
             )}
           </div>
