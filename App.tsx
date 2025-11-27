@@ -547,11 +547,7 @@ const MainLayout: React.FC = () => {
               <div className="space-y-8">
                 {safeFavorites.length > 0 && (
                   <InventoryTable
-                    title="Favorites"
-                    icon={
-                      <Icons.StarIcon className="w-6 h-6 text-yellow-500" />
-                    }
-                    vehicles={safeFavorites.map((item) =>
+                    data={safeFavorites.map((item) =>
                       calculateFinancials(item, dealData, settings)
                     )}
                     lenderProfiles={safeLenderProfiles}
@@ -582,7 +578,7 @@ const MainLayout: React.FC = () => {
                     onStructureDeal={handleSelectVehicle}
                     favorites={safeFavorites}
                     toggleFavorite={toggleFavorite}
-                    pagination={{ currentPage: 1, rowsPerPage: Infinity }}
+                    pagination={{ currentPage: 1, itemsPerPage: Infinity }}
                     setPagination={() => {}}
                     totalRows={safeFavorites.length}
                     isFavoritesView
@@ -590,8 +586,7 @@ const MainLayout: React.FC = () => {
                 )}
 
                 <InventoryTable
-                  title="All Inventory"
-                  vehicles={paginatedInventory}
+                  data={paginatedInventory}
                   lenderProfiles={safeLenderProfiles}
                   dealData={dealData}
                   setDealData={setDealData}

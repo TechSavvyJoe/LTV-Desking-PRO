@@ -5,9 +5,73 @@ import {
 } from "../services/calculator";
 import { formatCurrency } from "./common/TableCell";
 import * as Icons from "./common/Icons";
+import { PaymentBreakdownChart, LenderComparisonChart } from "./DealCharts";
 import { DealData, CalculatedVehicle } from "../types";
+import { DocumentScanner } from "./DocumentScanner";
 
-// --- Shared UI Components ---
+// ... existing imports
+
+type ToolTab =
+  | "reserve"
+  | "payment"
+  | "budget"
+  | "compare"
+  | "qualify"
+  | "max"
+  | "warranty"
+  | "notes"
+  | "analytics";
+
+// ... inside FinanceTools component
+
+// --- Sidebar Navigation Items ---
+const navItems: { id: ToolTab; label: string; icon: React.ReactNode }[] = [
+  {
+    id: "reserve",
+    label: "Reserve",
+    icon: <Icons.ReceiptPercentIcon className="w-5 h-5" />,
+  },
+  {
+    id: "payment",
+    label: "Payment",
+    icon: <Icons.CalculatorIcon className="w-5 h-5" />,
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    icon: <Icons.ChartPieIcon className="w-5 h-5" />,
+  },
+  {
+    id: "budget",
+    label: "Budget",
+    icon: <Icons.BanknotesIcon className="w-5 h-5" />,
+  },
+  {
+    id: "compare",
+    label: "Compare",
+    icon: <Icons.DocumentDuplicateIcon className="w-5 h-5" />,
+  },
+  {
+    id: "qualify",
+    label: "Qualify",
+    icon: <Icons.ShieldCheckIcon className="w-5 h-5" />,
+  },
+  {
+    id: "max",
+    label: "Max App",
+    icon: <Icons.ChartIcon className="w-5 h-5" />,
+  },
+  {
+    id: "warranty",
+    label: "Warranty",
+    icon: <Icons.WrenchToolIcon className="w-5 h-5" />,
+  },
+  {
+    id: "notes",
+    label: "Notes",
+    icon: <Icons.PencilIcon className="w-5 h-5" />,
+  },
+];
 const InputGroup: React.FC<{
   label: string;
   children: React.ReactNode;
@@ -27,14 +91,14 @@ const InputGroup: React.FC<{
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
+    className="w-full px-3 py-2 text-sm bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-sm"
   />
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
     {...props}
-    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
+    className="w-full px-3 py-2 text-sm bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-sm"
   />
 );
 
@@ -49,7 +113,7 @@ const ResultDisplay = ({
   valueColorClass?: string;
   subLabel?: string;
 }) => (
-  <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+  <div className="flex justify-between items-center p-4 bg-white/50 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
     <div className="flex flex-col">
       <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
         {label}
@@ -70,16 +134,6 @@ interface FinanceToolsProps {
   dealData?: DealData;
   activeVehicle?: CalculatedVehicle | null;
 }
-
-type ToolTab =
-  | "reserve"
-  | "payment"
-  | "budget"
-  | "compare"
-  | "qualify"
-  | "max"
-  | "warranty"
-  | "notes";
 
 const FinanceTools: React.FC<FinanceToolsProps> = ({
   scratchPadNotes,
@@ -134,6 +188,9 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const [warrCostMo, setWarrCostMo] = useState<number | "">(40);
   const [warrTerm, setWarrTerm] = useState<number>(60);
   const [warrRepairCost, setWarrRepairCost] = useState<number | "">(4000);
+
+  // --- Document Scanner State ---
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // --- Sync with Deal Data Effect ---
   useEffect(() => {
@@ -310,10 +367,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   ];
 
   return (
-    <div className="flex h-full bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+    <div className="glass-panel flex h-full rounded-2xl overflow-hidden shadow-sm">
       {/* Sidebar */}
-      <div className="w-64 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 flex flex-col">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="w-64 bg-slate-50/50 dark:bg-slate-950/50 border-r border-slate-200/50 dark:border-slate-800/50 flex flex-col backdrop-blur-sm">
+        <div className="p-4 border-b border-slate-200/50 dark:border-slate-800/50">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
             Finance Tools
           </h3>
@@ -328,8 +385,8 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               onClick={() => setActiveTab(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 activeTab === item.id
-                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200"
+                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
               {item.icon}
@@ -338,10 +395,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
           ))}
         </nav>
         {dealData && (
-          <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="p-4 border-t border-slate-200/50 dark:border-slate-800/50">
             <button
               onClick={handleSyncToDeal}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50/80 dark:hover:bg-slate-700/80 transition-colors shadow-sm backdrop-blur-sm"
             >
               <Icons.ArrowPathIcon className="w-3.5 h-3.5" />
               Reset to Active Deal
@@ -351,7 +408,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-slate-900">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
@@ -368,9 +425,31 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 {activeTab === "max" && "Calculate max approval amount."}
                 {activeTab === "warranty" && "Analyze warranty value."}
                 {activeTab === "notes" && "Deal specific notes."}
+                {activeTab === "analytics" && "Visual deal analysis."}
               </p>
             </div>
-
+            {activeTab === "analytics" && dealData && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="p-4 bg-white/50 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
+                  <h4 className="font-semibold text-slate-900 dark:text-white mb-4">
+                    Payment Breakdown
+                  </h4>
+                  <PaymentBreakdownChart
+                    dealData={dealData}
+                    activeVehicle={activeVehicle || null}
+                  />
+                </div>
+                <div className="p-4 bg-white/50 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
+                  <h4 className="font-semibold text-slate-900 dark:text-white mb-4">
+                    Lender Comparison (Est.)
+                  </h4>
+                  <LenderComparisonChart
+                    dealData={dealData}
+                    activeVehicle={activeVehicle || null}
+                  />
+                </div>
+              </div>
+            )}
             {activeTab === "reserve" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -497,7 +576,6 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 </div>
               </div>
             )}
-
             {activeTab === "payment" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-1 gap-6">
@@ -548,7 +626,6 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 </div>
               </div>
             )}
-
             {activeTab === "budget" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <InputGroup label="Max Monthly Payment ($)">
@@ -614,7 +691,6 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 </div>
               </div>
             )}
-
             {activeTab === "compare" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -659,7 +735,6 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 </div>
               </div>
             )}
-
             {activeTab === "qualify" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <InputGroup label="Monthly Payment ($)">
@@ -674,16 +749,34 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   />
                 </InputGroup>
                 <InputGroup label="Monthly Income ($)">
-                  <StyledInput
-                    type="number"
-                    value={qualIncome}
-                    onChange={(e) =>
-                      setQualIncome(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
-                    }
-                  />
+                  <div className="flex gap-2">
+                    <StyledInput
+                      type="number"
+                      value={qualIncome}
+                      onChange={(e) =>
+                        setQualIncome(
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    />
+                    <button
+                      onClick={() => setIsScannerOpen(true)}
+                      className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                      title="Scan Pay Stub"
+                    >
+                      <Icons.CameraIcon className="w-5 h-5" />
+                    </button>
+                  </div>
                 </InputGroup>
+                {isScannerOpen && (
+                  <DocumentScanner
+                    onIncomeExtracted={(income) => {
+                      setQualIncome(income);
+                      setIsScannerOpen(false);
+                    }}
+                    onClose={() => setIsScannerOpen(false)}
+                  />
+                )}
                 <InputGroup label="Max PTI Limit (%)">
                   <StyledInput
                     type="number"
@@ -709,7 +802,6 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 </div>
               </div>
             )}
-
             {activeTab === "max" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <InputGroup label="Bank Approval Amount ($)">
@@ -782,7 +874,6 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 </div>
               </div>
             )}
-
             {activeTab === "warranty" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-2 gap-6">
@@ -902,7 +993,6 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 </div>
               </div>
             )}
-
             {activeTab === "notes" && (
               <div className="h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <textarea

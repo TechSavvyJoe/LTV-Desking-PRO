@@ -11,6 +11,7 @@ import * as Icons from "./common/Icons";
 import { checkBankEligibility } from "../services/lenderMatcher";
 import { formatCurrency } from "./common/TableCell";
 import CopyToClipboard from "./common/CopyToClipboard";
+import { useDealContext } from "../context/DealContext";
 
 interface InventoryExpandedRowProps {
   item: CalculatedVehicle;
@@ -145,108 +146,116 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
   const hasCustomerData =
     customerFilters.creditScore || customerFilters.monthlyIncome;
 
+  const { isShowroomMode } = useDealContext();
+
   return (
     <div
       className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-800 shadow-inner cursor-default"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Financial Breakdown */}
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm lg:col-span-4 flex flex-col">
-          <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <h4 className="font-bold text-base text-slate-900 dark:text-gray-100 flex items-center gap-2">
-              <Icons.ChartIcon className="w-5 h-5 text-blue-500" /> Financials
-            </h4>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => onDownloadPdf(e, item)}
-                className="!text-xs !px-2.5 !py-1.5"
-              >
-                <Icons.PdfIcon className="w-4 h-4 mr-1" /> PDF
-              </Button>
-              {isShareSupported && (
+        {/* Financial Breakdown - Hidden in Showroom Mode */}
+        {!isShowroomMode && (
+          <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm lg:col-span-4 flex flex-col">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h4 className="font-bold text-base text-slate-900 dark:text-gray-100 flex items-center gap-2">
+                <Icons.ChartIcon className="w-5 h-5 text-blue-500" /> Financials
+              </h4>
+              <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={(e) => onSharePdf(e, item)}
+                  onClick={(e) => onDownloadPdf(e, item)}
                   className="!text-xs !px-2.5 !py-1.5"
                 >
-                  <Icons.ShareIcon className="w-4 h-4 mr-1" /> Share
+                  <Icons.PdfIcon className="w-4 h-4 mr-1" /> PDF
                 </Button>
-              )}
+                {isShareSupported && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => onSharePdf(e, item)}
+                    className="!text-xs !px-2.5 !py-1.5"
+                  >
+                    <Icons.ShareIcon className="w-4 h-4 mr-1" /> Share
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="space-y-1 flex-grow">
-            <EditableField
-              label="Selling Price ($)"
-              value={item.price}
-              onUpdate={(newPrice) =>
-                onInventoryUpdate(item.vin, { price: newPrice })
-              }
-            />
-            <DetailItem
-              label="Doc Fee (Taxed)"
-              value={formatCurrency(settings.docFee)}
-              valueToCopy={settings.docFee}
-            />
-            <DetailItem
-              label="CVR Fee (Taxed)"
-              value={formatCurrency(settings.cvrFee)}
-              valueToCopy={settings.cvrFee}
-            />
-            <DetailItem
-              label="Sales Tax"
-              value={formatCurrency(item.salesTax)}
-              valueToCopy={item.salesTax}
-            />
-            <EditableField
-              label="State/Title Fees ($)"
-              value={dealData.stateFees}
-              onUpdate={(newFees) =>
-                setDealData((prev) => ({ ...prev, stateFees: newFees }))
-              }
-            />
+            <div className="space-y-1 flex-grow">
+              <EditableField
+                label="Selling Price ($)"
+                value={item.price}
+                onUpdate={(newPrice) =>
+                  onInventoryUpdate(item.vin, { price: newPrice })
+                }
+              />
+              <DetailItem
+                label="Doc Fee (Taxed)"
+                value={formatCurrency(settings.docFee)}
+                valueToCopy={settings.docFee}
+              />
+              <DetailItem
+                label="CVR Fee (Taxed)"
+                value={formatCurrency(settings.cvrFee)}
+                valueToCopy={settings.cvrFee}
+              />
+              <DetailItem
+                label="Sales Tax"
+                value={formatCurrency(item.salesTax)}
+                valueToCopy={item.salesTax}
+              />
+              <EditableField
+                label="State/Title Fees ($)"
+                value={dealData.stateFees}
+                onUpdate={(newFees) =>
+                  setDealData((prev) => ({ ...prev, stateFees: newFees }))
+                }
+              />
 
-            <div className="flex justify-between items-center font-bold text-base py-2 mt-2 border-t border-slate-200 dark:border-slate-700">
-              <span className="text-slate-900 dark:text-gray-100">
-                Total OTD Price
-              </span>
-              <CopyToClipboard valueToCopy={item.baseOutTheDoorPrice}>
-                <span className="text-blue-600 dark:text-blue-400 cursor-pointer">
-                  {formatCurrency(item.baseOutTheDoorPrice)}
+              <div className="flex justify-between items-center font-bold text-base py-2 mt-2 border-t border-slate-200 dark:border-slate-700">
+                <span className="text-slate-900 dark:text-gray-100">
+                  Total OTD Price
                 </span>
-              </CopyToClipboard>
-            </div>
+                <CopyToClipboard valueToCopy={item.baseOutTheDoorPrice}>
+                  <span className="text-blue-600 dark:text-blue-400 cursor-pointer">
+                    {formatCurrency(item.baseOutTheDoorPrice)}
+                  </span>
+                </CopyToClipboard>
+              </div>
 
-            <DetailItem
-              label="Amount to Finance"
-              value={formatCurrency(item.amountToFinance)}
-              valueToCopy={item.amountToFinance}
-            />
-            <DetailItem
-              label="Front-End Gross"
-              value={formatCurrency(item.frontEndGross)}
-              valueToCopy={item.frontEndGross}
-            />
-            <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800">
               <DetailItem
-                label="JD Power (Trade)"
-                value={formatCurrency(item.jdPower)}
-                valueToCopy={item.jdPower}
+                label="Amount to Finance"
+                value={formatCurrency(item.amountToFinance)}
+                valueToCopy={item.amountToFinance}
               />
               <DetailItem
-                label="JD Power (Retail)"
-                value={formatCurrency(item.jdPowerRetail)}
-                valueToCopy={item.jdPowerRetail}
+                label="Front-End Gross"
+                value={formatCurrency(item.frontEndGross)}
+                valueToCopy={item.frontEndGross}
               />
+              <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800">
+                <DetailItem
+                  label="JD Power (Trade)"
+                  value={formatCurrency(item.jdPower)}
+                  valueToCopy={item.jdPower}
+                />
+                <DetailItem
+                  label="JD Power (Retail)"
+                  value={formatCurrency(item.jdPowerRetail)}
+                  valueToCopy={item.jdPowerRetail}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Global Deal Structure */}
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm lg:col-span-4 flex flex-col">
+        <div
+          className={`bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm ${
+            isShowroomMode ? "lg:col-span-6" : "lg:col-span-4"
+          } flex flex-col`}
+        >
           <h4 className="font-bold text-base mb-4 pb-2 border-b border-slate-100 dark:border-slate-800 text-slate-900 dark:text-gray-100 flex items-center gap-2">
             <Icons.CogIcon className="w-5 h-5 text-slate-500" /> Deal Structure
           </h4>
@@ -315,7 +324,11 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
         </div>
 
         {/* Lender Eligibility */}
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm lg:col-span-4 flex flex-col">
+        <div
+          className={`bg-white dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm ${
+            isShowroomMode ? "lg:col-span-6" : "lg:col-span-4"
+          } flex flex-col`}
+        >
           <h4 className="font-bold text-base mb-4 pb-2 border-b border-slate-100 dark:border-slate-800 text-slate-900 dark:text-gray-100 flex items-center gap-2">
             <Icons.BanknotesIcon className="w-5 h-5 text-green-500" /> Lender
             Eligibility

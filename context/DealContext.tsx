@@ -32,9 +32,9 @@ import { calculateFinancials } from "../services/calculator";
 interface DealContextType {
   // State
   settings: Settings;
-  setSettings: (settings: Settings) => void;
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
   inventory: Vehicle[];
-  setInventory: (inventory: Vehicle[]) => void;
+  setInventory: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   dealData: DealData;
   setDealData: React.Dispatch<React.SetStateAction<DealData>>;
   filters: FilterData;
@@ -54,22 +54,22 @@ interface DealContextType {
   isDealDirty: boolean;
   setIsDealDirty: React.Dispatch<React.SetStateAction<boolean>>;
   favorites: Vehicle[];
-  setFavorites: (favorites: Vehicle[]) => void;
+  setFavorites: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   lenderProfiles: LenderProfile[];
-  setLenderProfiles: (profiles: LenderProfile[]) => void;
+  setLenderProfiles: React.Dispatch<React.SetStateAction<LenderProfile[]>>;
   savedDeals: SavedDeal[];
-  setSavedDeals: (deals: SavedDeal[]) => void;
+  setSavedDeals: React.Dispatch<React.SetStateAction<SavedDeal[]>>;
   scratchPadNotes: string;
-  setScratchPadNotes: (notes: string) => void;
+  setScratchPadNotes: React.Dispatch<React.SetStateAction<string>>;
 
   // UI State
   inventorySort: SortConfig;
   setInventorySort: React.Dispatch<React.SetStateAction<SortConfig>>;
   favSort: SortConfig;
   setFavSort: React.Dispatch<React.SetStateAction<SortConfig>>;
-  pagination: { currentPage: number; rowsPerPage: number };
+  pagination: { currentPage: number; itemsPerPage: number };
   setPagination: React.Dispatch<
-    React.SetStateAction<{ currentPage: number; rowsPerPage: number }>
+    React.SetStateAction<{ currentPage: number; itemsPerPage: number }>
   >;
   fileName: string;
   setFileName: React.Dispatch<React.SetStateAction<string>>;
@@ -92,6 +92,8 @@ interface DealContextType {
   handleInventoryUpdate: (vin: string, updatedData: Partial<Vehicle>) => void;
   clearDealAndFilters: () => void;
   loadSampleData: () => void;
+  isShowroomMode: boolean;
+  setIsShowroomMode: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const DealContext = createContext<DealContextType | undefined>(undefined);
@@ -151,12 +153,13 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [pagination, setPagination] = useState({
     currentPage: 1,
-    rowsPerPage: 15,
+    itemsPerPage: 15,
   });
   const [fileName, setFileName] = useState<string>("Sample Data Loaded");
   const [expandedInventoryRows, setExpandedInventoryRows] = useState<
     Set<string>
   >(new Set());
+  const [isShowroomMode, setIsShowroomMode] = useState<boolean>(false);
 
   // Safe Data Hooks
   const safeInventory = useSafeData(inventory);
@@ -279,13 +282,13 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const paginatedInventory = useMemo(() => {
     if (!sortedInventory) return [];
-    const { currentPage, rowsPerPage } = pagination || {
+    const { currentPage, itemsPerPage } = pagination || {
       currentPage: 1,
-      rowsPerPage: 15,
+      itemsPerPage: 15,
     };
-    if (rowsPerPage === Infinity) return sortedInventory;
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
+    if (itemsPerPage === Infinity) return sortedInventory;
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
     return sortedInventory.slice(start, end);
   }, [sortedInventory, pagination]);
 
@@ -450,6 +453,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     handleInventoryUpdate,
     clearDealAndFilters,
     loadSampleData,
+    isShowroomMode,
+    setIsShowroomMode,
   };
 
   return <DealContext.Provider value={value}>{children}</DealContext.Provider>;

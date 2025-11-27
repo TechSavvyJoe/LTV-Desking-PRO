@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from "react";
 import type { SavedDeal } from "../types";
 import Button from "./common/Button";
 import * as Icons from "./common/Icons";
-import { formatCurrency } from "./common/TableCell";
+import { formatCurrency, formatDateTime } from "./common/TableCell";
 
 type SortKey =
   | "date"
@@ -24,21 +24,6 @@ interface DealHistoryPanelProps {
   onLoadDeal: (deal: SavedDeal) => void;
   onDeleteDeal: (id: string) => void;
 }
-
-const formatDate = (isoString: string) => {
-  if (!isoString) return "N/A";
-  try {
-    return new Date(isoString).toLocaleString(undefined, {
-      year: "2-digit",
-      month: "numeric",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return "Invalid Date";
-  }
-};
 
 const getNestedValue = (obj: any, path: string) => {
   if (!obj || !path) return undefined;
@@ -351,7 +336,7 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
                       </div>
                     </div>
                     <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-right">
-                      {formatDate(deal.createdAt)}
+                      {formatDateTime(deal.createdAt)}
                     </p>
                   </div>
                 ))}

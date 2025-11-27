@@ -9,181 +9,73 @@ import type {
   DealPdfData,
   Settings,
 } from "../types";
+import { useDealContext } from "../context/DealContext";
 import { useSafeData } from "../hooks/useSafeData";
-import { Table } from "./common/Table";
+import { VirtualizedTable, VirtualizedColumn } from "./common/VirtualizedTable";
+import * as Icons from "./common/Icons";
+import CopyToClipboard from "./common/CopyToClipboard";
 import {
-  LtvCell,
-  OtdLtvCell,
-  GrossCell,
-  PaymentCell,
   formatCurrency,
   formatNumber,
+  LtvCell,
+  GrossCell,
+  OtdLtvCell,
+  PaymentCell,
 } from "./common/TableCell";
-import { checkBankEligibility } from "../services/lenderMatcher";
-import { generateDealPdf } from "../services/pdfGenerator";
 import Button from "./common/Button";
-import CopyToClipboard from "./common/CopyToClipboard";
-import * as Icons from "./common/Icons";
-import { InventoryExpandedRow } from "./InventoryExpandedRow";
-import Pagination from "./Pagination";
-
-const DetailItem = ({
-  label,
-  value,
-  valueToCopy,
-}: {
-  label: string;
-  value: React.ReactNode;
-  valueToCopy?: string | number | "N/A" | "Error";
-}) => (
-  <div className="flex justify-between items-center text-sm py-0.5">
-    <span className="text-slate-500 dark:text-gray-400">{label}</span>
-    {valueToCopy !== undefined ? (
-      <CopyToClipboard valueToCopy={valueToCopy}>
-        <span className="font-medium text-slate-900 dark:text-gray-100 hover:text-blue-500 transition-colors">
-          {value}
-        </span>
-      </CopyToClipboard>
-    ) : (
-      <span className="font-medium text-slate-900 dark:text-gray-100">
-        {value}
-      </span>
-    )}
-  </div>
-);
-
-const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select
-    {...props}
-    className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-gray-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-gray-100 cursor-pointer"
-  />
-);
-
-const EditableField = ({
-  label,
-  value,
-  onUpdate,
-  type = "number",
-  step = "1",
-}: {
-  label: string;
-  value: number | "N/A";
-  onUpdate: (newValue: number) => void;
-  type?: string;
-  step?: string;
-}) => {
-  const [currentValue, setCurrentValue] = useState(
-    value === "N/A" ? "" : value.toString()
-  );
-
-  useEffect(() => {
-    setCurrentValue(value === "N/A" ? "" : value.toString());
-  }, [value]);
-
-  const handleBlur = () => {
-    const newValue = parseFloat(currentValue);
-    if (!isNaN(newValue) && newValue >= 0) {
-      onUpdate(newValue);
-    } else {
-      setCurrentValue(value === "N/A" ? "" : value.toString()); // Revert if invalid
-    }
-  };
-
-  return (
-    <div className="flex justify-between items-center text-sm py-0.5">
-      <label className="text-slate-500 dark:text-gray-400">{label}</label>
-      <input
-        type={type}
-        step={step}
-        value={currentValue}
-        onChange={(e) => setCurrentValue(e.target.value)}
-        onBlur={handleBlur}
-        onClick={(e) => e.stopPropagation()} // Stop click from collapsing row
-        className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-gray-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-gray-100"
-      />
-    </div>
-  );
-};
 
 interface InventoryTableProps {
-  vehicles: CalculatedVehicle[];
-  favorites: Vehicle[];
-  toggleFavorite: (vin: string) => void;
+  data: CalculatedVehicle[];
   sortConfig: SortConfig;
   onSort: (key: keyof CalculatedVehicle) => void;
-  expandedRows: Set<string>;
   onRowClick: (vin: string) => void;
+  expandedRows: Set<string>;
+  toggleFavorite: (vin: string) => void;
+  favoriteVins: Set<string>;
   onStructureDeal?: (vehicle: CalculatedVehicle) => void;
-  lenderProfiles: LenderProfile[];
-  dealData: DealData;
-  setDealData: React.Dispatch<React.SetStateAction<DealData>>;
-  onInventoryUpdate: (vin: string, updatedData: Partial<Vehicle>) => void;
-  customerFilters: FilterData;
-  customerName: string;
-  salespersonName: string;
-  settings: Settings;
-  title?: string;
-  icon?: React.ReactNode;
-  onLoadSampleData?: () => void;
   emptyMessage?: React.ReactNode;
-  pagination?: { currentPage: number; rowsPerPage: number };
-  setPagination?: React.Dispatch<
-    React.SetStateAction<{ currentPage: number; rowsPerPage: number }>
-  >;
+  onLoadSampleData?: () => void;
+  renderExpandedRow?: (vehicle: CalculatedVehicle) => React.ReactNode;
+  pagination?: {
+    currentPage: number;
+    itemsPerPage: number;
+  };
+  setPagination?: (pagination: {
+    currentPage: number;
+    itemsPerPage: number;
+  }) => void;
   totalRows?: number;
   isFavoritesView?: boolean;
 }
 
 const InventoryTable: React.FC<InventoryTableProps> = ({
-  vehicles,
-  favorites,
-  toggleFavorite,
+  data,
   sortConfig,
   onSort,
-  expandedRows,
   onRowClick,
+  expandedRows,
+  toggleFavorite,
+  favoriteVins,
   onStructureDeal,
-  lenderProfiles,
-  dealData,
-  setDealData,
-  onInventoryUpdate,
-  customerFilters,
-  customerName,
-  salespersonName,
-  settings,
-  title = "Inventory",
-  icon,
-  onLoadSampleData,
   emptyMessage,
+  onLoadSampleData,
+  renderExpandedRow,
   pagination,
   setPagination,
   totalRows,
   isFavoritesView,
 }) => {
-  // Defensive: Ensure favorites is an array and items are valid objects
-  const favoriteVins = useMemo(() => {
-    if (!Array.isArray(favorites)) return new Set<string>();
-    return new Set(
-      favorites
-        .filter((f) => f && typeof f === "object" && f.vin)
-        .map((f) => f.vin)
-    );
-  }, [favorites]);
-
-  const isShareSupported =
-    typeof navigator !== "undefined" && !!navigator.share;
-
-  const handleSort = (key: keyof CalculatedVehicle) => {
-    onSort(key);
-  };
+  const safeVehicles = useSafeData(data);
+  const normalizedVehicles = safeVehicles;
+  const handleSort = onSort;
 
   // Memoize columns to prevent re-renders
-  const columns = useMemo(
+  const columns = useMemo<VirtualizedColumn<CalculatedVehicle>[]>(
     () => [
       {
         header: "",
-        accessor: "expand" as const,
-        className: "w-10 text-center",
+        className: "text-center",
+        width: "50px",
         render: (item: CalculatedVehicle) => {
           if (!item || !item.vin) return null;
           const isExpanded = expandedRows?.has(item.vin) || false;
@@ -208,7 +100,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       },
       {
         header: "Actions",
-        className: "text-center w-24",
+        className: "text-center",
+        width: "100px",
         render: (item: CalculatedVehicle) => (
           <div className="flex justify-center items-center gap-2">
             <button
@@ -251,6 +144,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "Year",
         accessor: "modelYear" as const,
         isNumeric: true,
+        width: "60px",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.modelYear}>
             <span className="tabular-nums">{item.modelYear}</span>
@@ -261,11 +155,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "Make",
         accessor: "make" as const,
         className: "font-medium text-slate-900 dark:text-gray-100",
+        width: "100px",
       },
       {
         header: "Model",
         accessor: "model" as const,
         className: "text-slate-500 dark:text-gray-400",
+        width: "150px",
         render: (item: CalculatedVehicle) => (
           <span>
             {item.model} {item.trim}
@@ -276,11 +172,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "Stock #",
         accessor: "stock" as const,
         className: "text-slate-500 dark:text-gray-400",
+        width: "80px",
       },
       {
         header: "Miles",
         accessor: "mileage" as const,
         isNumeric: true,
+        width: "80px",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.mileage}>
             <span className="tabular-nums">{formatNumber(item.mileage)}</span>
@@ -292,6 +190,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "price" as const,
         isNumeric: true,
         className: "text-right font-medium",
+        width: "100px",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.price}>
             <span className="tabular-nums">{formatCurrency(item.price)}</span>
@@ -303,6 +202,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "jdPower" as const,
         isNumeric: true,
         className: "text-right",
+        width: "100px",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.jdPower}>
             <span className="tabular-nums">{formatCurrency(item.jdPower)}</span>
@@ -314,6 +214,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "frontEndLtv" as const,
         isNumeric: true,
         className: "text-right",
+        width: "80px",
         render: (item: CalculatedVehicle) => (
           <LtvCell value={item.frontEndLtv} />
         ),
@@ -323,6 +224,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "frontEndGross" as const,
         isNumeric: true,
         className: "text-right",
+        width: "100px",
         render: (item: CalculatedVehicle) => (
           <GrossCell value={item.frontEndGross} />
         ),
@@ -332,6 +234,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "amountToFinance" as const,
         isNumeric: true,
         className: "text-right font-semibold text-blue-600 dark:text-blue-400",
+        width: "120px",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.amountToFinance}>
             <span className="tabular-nums">
@@ -345,6 +248,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "otdLtv" as const,
         isNumeric: true,
         className: "text-right",
+        width: "80px",
         render: (item: CalculatedVehicle) => <OtdLtvCell value={item.otdLtv} />,
       },
       {
@@ -352,6 +256,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "monthlyPayment" as const,
         isNumeric: true,
         className: "text-right",
+        width: "100px",
         render: (item: CalculatedVehicle) => (
           <PaymentCell value={item.monthlyPayment} />
         ),
@@ -360,6 +265,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "VIN",
         accessor: "vin" as const,
         className: "max-w-[220px]",
+        width: "220px",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.vin}>
             <span className="font-mono text-xs break-all">{item.vin}</span>
@@ -368,125 +274,16 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       },
     ],
     [expandedRows, favoriteVins, toggleFavorite, onStructureDeal]
-  ); // Dependencies
-
-  const preparePdfData = (vehicle: CalculatedVehicle): DealPdfData => {
-    const safeProfiles = (
-      Array.isArray(lenderProfiles) ? lenderProfiles : []
-    ).filter((p) => p && typeof p === "object");
-
-    const eligibilityDetails = safeProfiles.map((bank) => {
-      try {
-        return {
-          name: bank.name,
-          ...checkBankEligibility(
-            vehicle,
-            { ...dealData, ...customerFilters },
-            bank
-          ),
-        };
-      } catch (e) {
-        return {
-          name: bank.name || "Unknown",
-          eligible: false,
-          reasons: ["Error checking eligibility"],
-          matchedTier: null,
-        };
-      }
-    });
-
-    return {
-      vehicle,
-      dealData,
-      customerFilters: {
-        creditScore: customerFilters.creditScore,
-        monthlyIncome: customerFilters.monthlyIncome,
-      },
-      customerName,
-      salespersonName,
-      lenderEligibility: eligibilityDetails,
-    };
-  };
-
-  const handleDownloadPdf = async (
-    e: React.MouseEvent,
-    vehicle: CalculatedVehicle
-  ) => {
-    e.stopPropagation();
-    try {
-      const pdfData = preparePdfData(vehicle);
-      const blob = await generateDealPdf(pdfData, settings);
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Failed to generate PDF. Please check deal data.");
-    }
-  };
-
-  const handleSharePdf = async (
-    e: React.MouseEvent,
-    vehicle: CalculatedVehicle
-  ) => {
-    e.stopPropagation();
-    try {
-      const pdfData = preparePdfData(vehicle);
-      const blob = await generateDealPdf(pdfData, settings);
-      const file = new File([blob], `Deal_Sheet_${vehicle.vehicle}.pdf`, {
-        type: "application/pdf",
-      });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `Deal Sheet for ${vehicle.vehicle}`,
-          text: `Here are the numbers for the ${vehicle.vehicle}.`,
-          files: [file],
-        });
-      } else {
-        alert("Sharing is not supported on this device.");
-      }
-    } catch (error) {
-      console.error("Error sharing:", error);
-    }
-  };
-
-  const renderExpandedRow = (item: CalculatedVehicle) => {
-    if (!item) return null;
-    return (
-      <InventoryExpandedRow
-        item={item}
-        lenderProfiles={lenderProfiles}
-        dealData={dealData}
-        setDealData={setDealData}
-        onInventoryUpdate={onInventoryUpdate}
-        customerFilters={customerFilters}
-        settings={settings}
-        onDownloadPdf={handleDownloadPdf}
-        onSharePdf={handleSharePdf}
-        isShareSupported={isShareSupported}
-      />
-    );
-  };
-
-  const safeVehicles = useSafeData(vehicles);
-  const normalizedVehicles = safeVehicles.map(
-    (v: CalculatedVehicle, idx: number) => {
-      const vin =
-        v.vin && v.vin !== "N/A" && v.vin.length >= 11
-          ? v.vin
-          : `VIN-${v.stock || "ROW"}-${v.vehicle || "VEH"}-${idx}`;
-      return { ...v, vin };
-    }
   );
 
+  const visibleColumns = useMemo(() => {
+    return columns;
+  }, [columns]);
+
   return (
-    <div className="my-8">
-      <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 pb-2 border-b border-slate-200 dark:border-gray-700 flex items-center gap-2">
-        {icon || <Icons.CarIcon className="w-6 h-6 text-blue-500" />} {title}
-      </h2>
-      <Table
-        columns={columns}
+    <div className="h-full flex flex-col">
+      <VirtualizedTable
+        columns={visibleColumns}
         data={normalizedVehicles}
         sortConfig={sortConfig}
         onSort={handleSort}
@@ -507,16 +304,11 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         }
         rowKey="vin"
         expandedRows={expandedRows}
-        onRowClick={onRowClick}
+        onRowClick={(key) => onRowClick(String(key))}
         renderExpandedRow={renderExpandedRow}
+        height="calc(100vh - 250px)"
       />
-      {pagination && setPagination && !isFavoritesView && (
-        <Pagination
-          totalItems={totalRows ?? safeVehicles.length}
-          pagination={pagination}
-          setPagination={setPagination}
-        />
-      )}
+      {/* Pagination temporarily disabled - component needs to be created */}
     </div>
   );
 };

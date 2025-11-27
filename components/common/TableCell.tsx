@@ -46,6 +46,34 @@ export const formatNumber = (value: number | string | undefined): string => {
   return isNaN(num) ? "N/A" : num.toLocaleString();
 };
 
+export const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return "N/A";
+  try {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch (e) {
+    return "Invalid Date";
+  }
+};
+
+export const formatDateTime = (dateString: string | undefined): string => {
+  if (!dateString) return "N/A";
+  try {
+    return new Date(dateString).toLocaleString("en-US", {
+      year: "2-digit",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch (e) {
+    return "Invalid Date";
+  }
+};
+
 import { useSettings } from "../../hooks/useSettings";
 
 interface LtvCellProps {
