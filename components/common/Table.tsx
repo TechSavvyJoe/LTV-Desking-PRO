@@ -3,7 +3,7 @@ import type { SortConfig } from "../../types";
 
 interface Column<T> {
   header: string;
-  accessor: keyof T;
+  accessor?: keyof T;
   className?: string;
   isNumeric?: boolean;
   render?: (item: T) => React.ReactNode;
@@ -135,7 +135,11 @@ export const Table = <T extends { [key: string]: any }>({
                           col.isNumeric ? "text-right" : "text-left"
                         } ${col.className || ""}`}
                       >
-                        {col.render ? col.render(item) : item[col.accessor]}
+                        {col.render
+                          ? col.render(item)
+                          : col.accessor
+                          ? item[col.accessor]
+                          : null}
                       </td>
                     ))}
                   </tr>
