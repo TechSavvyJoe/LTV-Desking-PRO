@@ -229,13 +229,22 @@ const MainLayout: React.FC = () => {
     setIsDealModalOpen(false);
   };
 
-  const handleRowSelect = (vin: string, fallbackVehicles: CalculatedVehicle[]) => {
+  const handleRowSelect = (
+    vin: string,
+    fallbackVehicles: CalculatedVehicle[]
+  ) => {
     const candidate =
       processedInventory.find(
-        (v) => v.vin === vin || (!v.vin && vin.startsWith("VIN-")) || (v.vin === "N/A" && vin.startsWith("VIN-"))
+        (v) =>
+          v.vin === vin ||
+          (!v.vin && vin.startsWith("VIN-")) ||
+          (v.vin === "N/A" && vin.startsWith("VIN-"))
       ) ||
       fallbackVehicles.find(
-        (v) => v.vin === vin || (!v.vin && vin.startsWith("VIN-")) || (v.vin === "N/A" && vin.startsWith("VIN-"))
+        (v) =>
+          v.vin === vin ||
+          (!v.vin && vin.startsWith("VIN-")) ||
+          (v.vin === "N/A" && vin.startsWith("VIN-"))
       );
     if (candidate) {
       setActiveVehicle(candidate);
@@ -501,7 +510,6 @@ const MainLayout: React.FC = () => {
                         )
                       )
                     }
-                    onStructureDeal={handleSelectVehicle}
                     onStructureDeal={handleSelectVehicle}
                     favorites={safeFavorites}
                     toggleFavorite={toggleFavorite}

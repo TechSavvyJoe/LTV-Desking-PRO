@@ -188,13 +188,21 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
           if (!item || !item.vin) return null;
           const isExpanded = expandedRows?.has(item.vin) || false;
           return (
-            <div className="flex justify-center items-center h-full w-full cursor-pointer">
+            <button
+              className="flex justify-center items-center h-full w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-md"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRowClick(item.vin);
+              }}
+              aria-label={isExpanded ? "Collapse row" : "Expand row"}
+              aria-expanded={isExpanded}
+            >
               <Icons.ChevronDownIcon
                 className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${
                   isExpanded ? "rotate-180" : "-rotate-90"
                 }`}
               />
-            </div>
+            </button>
           );
         },
       },
