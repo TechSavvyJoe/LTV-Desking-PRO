@@ -111,12 +111,12 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
               }}
               className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
               title={
-                favoriteVins.has(item.vin)
+                favoriteVins?.has(item.vin)
                   ? "Remove from favorites"
                   : "Add to favorites"
               }
             >
-              {favoriteVins.has(item.vin) ? (
+              {favoriteVins?.has(item.vin) ? (
                 <Icons.StarIcon className="w-5 h-5 text-yellow-500 fill-current" />
               ) : (
                 <Icons.StarIcon className="w-5 h-5 text-slate-400" />
