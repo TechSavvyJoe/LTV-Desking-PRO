@@ -23,6 +23,7 @@ import {
   PaymentCell,
 } from "./common/TableCell";
 import Button from "./common/Button";
+import Pagination from "./common/Pagination";
 
 interface InventoryTableProps {
   data: CalculatedVehicle[];
@@ -317,7 +318,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         renderExpandedRow={renderExpandedRow}
         height={tableHeight}
       />
-      {/* Pagination temporarily disabled - component needs to be created */}
+      {pagination && setPagination && !isFavoritesView && (
+        <Pagination
+          totalItems={totalRows ?? safeVehicles.length}
+          pagination={pagination}
+          setPagination={setPagination}
+        />
+      )}
     </div>
   );
 };
