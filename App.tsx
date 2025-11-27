@@ -624,12 +624,6 @@ const MainLayout: React.FC = () => {
 
                 <InventoryTable
                   data={paginatedInventory}
-                  lenderProfiles={safeLenderProfiles}
-                  dealData={dealData}
-                  setDealData={setDealData}
-                  onInventoryUpdate={handleInventoryUpdate}
-                  customerFilters={filters}
-                  settings={settings}
                   sortConfig={inventorySort}
                   onSort={(key) =>
                     setInventorySort((prev) => ({
