@@ -19,6 +19,7 @@ import { generateFavoritesPdf } from "./services/pdfGenerator";
 import { checkBankEligibility } from "./services/lenderMatcher";
 import { CalculatedVehicle } from "./types";
 import DealStructuringModal from "./components/DealStructuringModal";
+import { InventoryExpandedRow } from "./components/InventoryExpandedRow";
 
 const MainLayout: React.FC = () => {
   const {
@@ -551,43 +552,63 @@ const MainLayout: React.FC = () => {
             {activeTab === "inventory" && (
               <div className="space-y-8">
                 {safeFavorites.length > 0 && (
-                  <InventoryTable
-                    data={safeFavorites.map((item) =>
-                      calculateFinancials(item, dealData, settings)
-                    )}
-                    lenderProfiles={safeLenderProfiles}
-                    dealData={dealData}
-                    setDealData={setDealData}
-                    onInventoryUpdate={handleInventoryUpdate}
-                    customerFilters={filters}
-                    settings={settings}
-                    sortConfig={favSort}
-                    onSort={(key) =>
-                      setFavSort((prev) => ({
-                        key,
-                        direction:
-                          prev.key === key && prev.direction === "asc"
-                            ? "desc"
-                            : "asc",
-                      }))
-                    }
-                    expandedRows={expandedInventoryRows}
-                    onRowClick={(vin) =>
-                      handleRowSelect(
-                        vin,
-                        safeFavorites.map((item) =>
-                          calculateFinancials(item, dealData, settings)
+                  <section className="mb-6">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Icons.StarIcon className="w-6 h-6 text-yellow-500 fill-current" />
+                      My Favorites ({safeFavorites.length})
+                    </h2>
+                    <InventoryTable
+                      data={safeFavorites.map((item) =>
+                        calculateFinancials(item, dealData, settings)
+                      )}
+                      lenderProfiles={safeLenderProfiles}
+                      dealData={dealData}
+                      setDealData={setDealData}
+                      onInventoryUpdate={handleInventoryUpdate}
+                      customerFilters={filters}
+                      settings={settings}
+                      sortConfig={favSort}
+                      onSort={(key) =>
+                        setFavSort((prev) => ({
+                          key,
+                          direction:
+                            prev.key === key && prev.direction === "asc"
+                              ? "desc"
+                              : "asc",
+                        }))
+                      }
+                      expandedRows={expandedInventoryRows}
+                      onRowClick={(vin) =>
+                        handleRowSelect(
+                          vin,
+                          safeFavorites.map((item) =>
+                            calculateFinancials(item, dealData, settings)
+                          )
                         )
-                      )
-                    }
-                    onStructureDeal={handleSelectVehicle}
-                    favoriteVins={favoriteVins}
-                    toggleFavorite={toggleFavorite}
-                    pagination={{ currentPage: 1, itemsPerPage: Infinity }}
-                    setPagination={() => {}}
-                    totalRows={safeFavorites.length}
-                    isFavoritesView
-                  />
+                      }
+                      onStructureDeal={handleSelectVehicle}
+                      favoriteVins={favoriteVins}
+                      toggleFavorite={toggleFavorite}
+                      pagination={{ currentPage: 1, itemsPerPage: Infinity }}
+                      setPagination={() => {}}
+                      totalRows={safeFavorites.length}
+                      isFavoritesView
+                      renderExpandedRow={(vehicle) => (
+                        <InventoryExpandedRow
+                          item={vehicle}
+                          lenderProfiles={safeLenderProfiles}
+                          dealData={dealData}
+                          setDealData={setDealData}
+                          onInventoryUpdate={handleInventoryUpdate}
+                          customerFilters={filters}
+                          settings={settings}
+                          onDownloadPdf={downloadPdf}
+                          onSharePdf={sharePdf}
+                          isShareSupported={isShareSupported}
+                        />
+                      )}
+                    />
+                  </section>
                 )}
 
                 <InventoryTable
