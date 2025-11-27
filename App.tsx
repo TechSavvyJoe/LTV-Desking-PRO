@@ -338,7 +338,7 @@ const MainLayout: React.FC = () => {
               <TabButton
                 active={activeTab === "lenders"}
                 onClick={() => setActiveTab("lenders")}
-                icon={<Icons.BanknotesIcon className="w-4 h-4" />}
+                icon={<Icons.BuildingLibraryIcon className="w-4 h-4" />}
                 label="Lenders"
                 count={safeLenderProfiles.length}
               />
@@ -352,7 +352,7 @@ const MainLayout: React.FC = () => {
               <TabButton
                 active={activeTab === "scratchpad"}
                 onClick={() => setActiveTab("scratchpad")}
-                icon={<Icons.WrenchToolIcon className="w-4 h-4" />}
+                icon={<Icons.BriefcaseIcon className="w-4 h-4" />}
                 label="Tools"
               />
             </div>
@@ -365,7 +365,7 @@ const MainLayout: React.FC = () => {
               onClick={() => setIsSettingsOpen(true)}
               title="Settings"
             >
-              <Icons.CogIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+              <Icons.Cog6ToothIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
             </Button>
           </div>
         </div>
@@ -377,7 +377,7 @@ const MainLayout: React.FC = () => {
         <div className="space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
             <div className="flex items-center gap-4 flex-1 min-w-[300px]">
-              <div className="relative group">
+              <div className="relative group flex gap-2">
                 <input
                   type="file"
                   accept=".csv,.xlsx,.xls"
@@ -391,6 +391,75 @@ const MainLayout: React.FC = () => {
                 >
                   <Icons.UploadIcon className="w-4 h-4 mr-2" />
                   Import Inventory
+                </Button>
+                <Button
+                  onClick={() => {
+                    const headers = [
+                      "Stock #",
+                      "Year",
+                      "Make",
+                      "Model",
+                      "Trim",
+                      "VIN",
+                      "Mileage",
+                      "Price",
+                      "Cost",
+                    ];
+                    const sampleData = [
+                      [
+                        "STK1001",
+                        "2023",
+                        "Toyota",
+                        "Camry",
+                        "SE",
+                        "1G1...SAMPLE1",
+                        "15000",
+                        "28500",
+                        "25000",
+                      ],
+                      [
+                        "STK1002",
+                        "2021",
+                        "Honda",
+                        "Accord",
+                        "Sport",
+                        "1G1...SAMPLE2",
+                        "32000",
+                        "24900",
+                        "21500",
+                      ],
+                      [
+                        "STK1003",
+                        "2022",
+                        "Ford",
+                        "F-150",
+                        "XLT",
+                        "1G1...SAMPLE3",
+                        "28000",
+                        "42000",
+                        "38000",
+                      ],
+                    ];
+                    const csvContent = [
+                      headers.join(","),
+                      ...sampleData.map((row) => row.join(",")),
+                    ].join("\n");
+
+                    const blob = new Blob([csvContent], {
+                      type: "text/csv;charset=utf-8;",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", "inventory_sample.csv");
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  variant="ghost"
+                  title="Download Sample CSV"
+                >
+                  <Icons.DocumentArrowDownIcon className="w-5 h-5 text-slate-500 hover:text-blue-500" />
                 </Button>
               </div>
               <div className="flex-1">

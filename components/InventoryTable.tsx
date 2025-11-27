@@ -239,18 +239,28 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     vehicle: `${item.modelYear} ${item.make} ${item.model} ${item.trim}`,
                   });
               }}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              className="p-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 rounded-lg transition-colors group"
               title="Structure Deal"
             >
-              <Icons.CalculatorIcon className="w-5 h-5 text-blue-500" />
+              <Icons.CurrencyDollarIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
             </button>
           </div>
         ),
       },
       {
-        header: "Vehicle",
-        accessor: "vehicle" as const,
+        header: "Make",
+        accessor: "make" as const,
         className: "font-medium text-slate-900 dark:text-gray-100",
+      },
+      {
+        header: "Model",
+        accessor: "model" as const,
+        className: "text-slate-500 dark:text-gray-400",
+        render: (item: CalculatedVehicle) => (
+          <span>
+            {item.model} {item.trim}
+          </span>
+        ),
       },
       {
         header: "Stock #",
@@ -460,13 +470,15 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   };
 
   const safeVehicles = useSafeData(vehicles);
-  const normalizedVehicles = safeVehicles.map((v, idx) => {
-    const vin =
-      v.vin && v.vin !== "N/A" && v.vin.length >= 11
-        ? v.vin
-        : `VIN-${v.stock || "ROW"}-${v.vehicle || "VEH"}-${idx}`;
-    return { ...v, vin };
-  });
+  const normalizedVehicles = safeVehicles.map(
+    (v: CalculatedVehicle, idx: number) => {
+      const vin =
+        v.vin && v.vin !== "N/A" && v.vin.length >= 11
+          ? v.vin
+          : `VIN-${v.stock || "ROW"}-${v.vehicle || "VEH"}-${idx}`;
+      return { ...v, vin };
+    }
+  );
 
   return (
     <div className="my-8">

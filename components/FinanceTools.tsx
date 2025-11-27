@@ -130,10 +130,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const [maxAppDown, setMaxAppDown] = useState<number | "">(1000);
   const [maxAppTradeEq, setMaxAppTradeEq] = useState<number | "">(0);
 
-  // --- Warranty Breakeven State ---
-  const [warrRepairCost, setWarrRepairCost] = useState<number | "">(2500);
+  // --- Warranty Analysis State ---
   const [warrCostMo, setWarrCostMo] = useState<number | "">(40);
-  const [warrTerm, setWarrTerm] = useState<number>(60); // Not used in calc but good for reference
+  const [warrTerm, setWarrTerm] = useState<number>(60);
+  const [warrRepairCost, setWarrRepairCost] = useState<number | "">(4000);
 
   // --- Sync with Deal Data Effect ---
   useEffect(() => {
@@ -222,11 +222,11 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const compareResults = useMemo(() => {
     const p = Number(compAmount) || 0;
     const r = Number(compRate) || 0;
-    return {
-      term72: calculateMonthlyPayment(p, r, 72),
-      term75: calculateMonthlyPayment(p, r, 75),
-      term84: calculateMonthlyPayment(p, r, 84),
-    };
+    const terms = [24, 36, 48, 54, 60, 66, 72, 75, 84];
+    return terms.map((t) => ({
+      term: t,
+      payment: calculateMonthlyPayment(p, r, t),
+    }));
   }, [compAmount, compRate]);
 
   const qualifyResult = useMemo(() => {
@@ -253,12 +253,17 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     return maxPrice > 0 ? maxPrice : 0;
   }, [maxAppAmount, maxAppTax, maxAppFees, maxAppDown, maxAppTradeEq]);
 
-  const warrantyResult = useMemo(() => {
-    const repair = Number(warrRepairCost) || 0;
-    const cost = Number(warrCostMo) || 0;
-    if (cost <= 0) return 0;
-    return repair / cost;
-  }, [warrRepairCost, warrCostMo]);
+  const warrantyAnalysis = useMemo(() => {
+    const costMo = Number(warrCostMo) || 0;
+    const term = Number(warrTerm) || 0;
+    const repairCost = Number(warrRepairCost) || 0;
+
+    const totalWarrantyCost = costMo * term;
+    const potentialSavings = repairCost - totalWarrantyCost;
+    const isPositive = potentialSavings > 0;
+
+    return { totalWarrantyCost, potentialSavings, isPositive };
+  }, [warrCostMo, warrTerm, warrRepairCost]);
 
   // --- Sidebar Navigation Items ---
   const navItems: { id: ToolTab; label: string; icon: React.ReactNode }[] = [
@@ -637,31 +642,20 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     />
                   </InputGroup>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                      72 Months
-                    </p>
-                    <p className="text-xl font-bold text-slate-900 dark:text-white">
-                      {formatCurrency(compareResults.term72)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                      75 Months
-                    </p>
-                    <p className="text-xl font-bold text-slate-900 dark:text-white">
-                      {formatCurrency(compareResults.term75)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                      84 Months
-                    </p>
-                    <p className="text-xl font-bold text-slate-900 dark:text-white">
-                      {formatCurrency(compareResults.term84)}
-                    </p>
-                  </div>
+                <div className="grid grid-cols-3 gap-3 pt-4">
+                  {compareResults.map((res) => (
+                    <div
+                      key={res.term}
+                      className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-center"
+                    >
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                        {res.term} Months
+                      </p>
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">
+                        {formatCurrency(res.payment)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -791,7 +785,32 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
 
             {activeTab === "warranty" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <InputGroup label="Est. Repair Cost ($)">
+                <div className="grid grid-cols-2 gap-6">
+                  <InputGroup label="Warranty Cost / Month ($)">
+                    <StyledInput
+                      type="number"
+                      value={warrCostMo}
+                      onChange={(e) =>
+                        setWarrCostMo(
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    />
+                  </InputGroup>
+                  <InputGroup label="Loan Term (Mo)">
+                    <StyledSelect
+                      value={warrTerm}
+                      onChange={(e) => setWarrTerm(Number(e.target.value))}
+                    >
+                      {[36, 48, 60, 72, 84].map((t) => (
+                        <option key={t} value={t}>
+                          {t} Months
+                        </option>
+                      ))}
+                    </StyledSelect>
+                  </InputGroup>
+                </div>
+                <InputGroup label="Est. Total Repair Cost ($)">
                   <StyledInput
                     type="number"
                     value={warrRepairCost}
@@ -800,26 +819,86 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                         e.target.value === "" ? "" : Number(e.target.value)
                       )
                     }
+                    placeholder="e.g. 4000 (Engine/Trans)"
                   />
                 </InputGroup>
-                <InputGroup label="Warranty Cost / Month ($)">
-                  <StyledInput
-                    type="number"
-                    value={warrCostMo}
-                    onChange={(e) =>
-                      setWarrCostMo(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
-                    }
-                  />
-                </InputGroup>
-                <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
-                  <ResultDisplay
-                    label="Breakeven Point"
-                    value={`${warrantyResult.toFixed(1)} Months`}
-                    valueColorClass="text-blue-600 dark:text-blue-400"
-                    subLabel="Time to recover cost"
-                  />
+
+                <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Total Warranty Cost
+                      </span>
+                      <span className="text-slate-900 dark:text-white">
+                        {formatCurrency(warrantyAnalysis.totalWarrantyCost)}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (warrantyAnalysis.totalWarrantyCost /
+                              (warrantyAnalysis.totalWarrantyCost +
+                                Number(warrRepairCost))) *
+                              100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Est. Repair Risk
+                      </span>
+                      <span className="text-slate-900 dark:text-white">
+                        {formatCurrency(Number(warrRepairCost))}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-red-500 rounded-full"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (Number(warrRepairCost) /
+                              (warrantyAnalysis.totalWarrantyCost +
+                                Number(warrRepairCost))) *
+                              100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className={`p-4 rounded-xl border ${
+                      warrantyAnalysis.isPositive
+                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                        : "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+                    }`}
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                      Potential Savings
+                    </p>
+                    <p
+                      className={`text-2xl font-bold ${
+                        warrantyAnalysis.isPositive
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-orange-600 dark:text-orange-400"
+                      }`}
+                    >
+                      {formatCurrency(warrantyAnalysis.potentialSavings)}
+                    </p>
+                    <p className="text-xs mt-1 opacity-80">
+                      {warrantyAnalysis.isPositive
+                        ? "It's cheaper to protect the vehicle."
+                        : "Warranty cost exceeds estimated repairs."}
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
