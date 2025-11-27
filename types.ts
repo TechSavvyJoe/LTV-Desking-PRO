@@ -9,6 +9,9 @@ export interface Vehicle {
   jdPowerRetail: number | "N/A";
   unitCost: number | "N/A";
   baseOutTheDoorPrice: number | "Error" | "N/A";
+  make?: string;
+  model?: string;
+  trim?: string;
   // Calculated properties will be added to a different type
 }
 

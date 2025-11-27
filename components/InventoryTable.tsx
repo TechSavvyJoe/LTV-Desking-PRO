@@ -248,6 +248,16 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         ),
       },
       {
+        header: "Year",
+        accessor: "modelYear" as const,
+        isNumeric: true,
+        render: (item: CalculatedVehicle) => (
+          <CopyToClipboard valueToCopy={item.modelYear}>
+            <span className="tabular-nums">{item.modelYear}</span>
+          </CopyToClipboard>
+        ),
+      },
+      {
         header: "Make",
         accessor: "make" as const,
         className: "font-medium text-slate-900 dark:text-gray-100",
@@ -266,16 +276,6 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "Stock #",
         accessor: "stock" as const,
         className: "text-slate-500 dark:text-gray-400",
-      },
-      {
-        header: "Year",
-        accessor: "modelYear" as const,
-        isNumeric: true,
-        render: (item: CalculatedVehicle) => (
-          <CopyToClipboard valueToCopy={item.modelYear}>
-            <span className="tabular-nums">{item.modelYear}</span>
-          </CopyToClipboard>
-        ),
       },
       {
         header: "Miles",
