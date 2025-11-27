@@ -20,7 +20,7 @@ import {
 import { checkBankEligibility } from "../services/lenderMatcher";
 import { formatCurrency, formatNumber } from "./common/TableCell";
 import Button from "./common/Button";
-import Button from "./common/Button";
+
 import * as Icons from "./common/Icons";
 import AiDealAssistant from "./AiDealAssistant";
 import FinanceTools from "./FinanceTools";
@@ -1292,58 +1292,16 @@ const tools: {
     component: GrossProfit,
   },
   {
-    id: "compare",
-    name: "Compare",
-    icon: <Icons.DocumentDuplicateIcon />,
-    component: DealComparison,
-  },
-  {
-    id: "reserve",
-    name: "Reserve",
-    icon: <Icons.ReceiptPercentIcon />,
-    component: ReserveCalculator,
-  },
-  {
-    id: "flat",
-    name: "Flat Fee",
-    icon: <Icons.CurrencyDollarIcon />,
-    component: FlatCalculator,
-  },
-  {
     id: "quote",
     name: "Quote Builder",
     icon: <Icons.PencilSquareIcon />,
     component: QuoteBuilder,
   },
   {
-    id: "term",
-    name: "Term Comp",
-    icon: <Icons.CalendarDaysIcon />,
-    component: TermComparator,
-  },
-  {
     id: "trade",
     name: "Trade Equity",
     icon: <Icons.SwapIcon />,
     component: TradeEquityCalculator,
-  },
-  {
-    id: "payment",
-    name: "Payment",
-    icon: <Icons.CalculatorIcon />,
-    component: PaymentCalculator,
-  },
-  {
-    id: "affordability",
-    name: "Affordability",
-    icon: <Icons.PriceTagIcon />,
-    component: AffordabilityCalculator,
-  },
-  {
-    id: "lenders",
-    name: "Lenders",
-    icon: <Icons.BuildingLibraryIcon />,
-    component: LenderReference,
   },
   {
     id: "lenders",
