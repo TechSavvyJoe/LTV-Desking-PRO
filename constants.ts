@@ -16,6 +16,11 @@ export const INITIAL_SETTINGS: Settings = {
   defaultStateFees: 31,
   outOfStateTransitFee: 10,
   customTaxRate: null,
+  ltvThresholds: {
+    warn: 115,
+    danger: 125,
+    critical: 135,
+  },
 };
 
 export const INITIAL_DEAL_DATA: DealData = {

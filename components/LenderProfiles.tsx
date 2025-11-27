@@ -3,6 +3,7 @@ import type { LenderProfile, LenderTier } from "../types";
 import Button from "./common/Button";
 import LenderProfileModal from "./LenderProfileModal";
 import { generateLenderCheatSheetPdf } from "../services/pdfGenerator";
+import { processLenderSheet } from "../services/aiProcessor";
 import * as Icons from "./common/Icons";
 
 interface LenderProfilesProps {
@@ -50,6 +51,9 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
     null
   );
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [isUploading, setIsUploading] = useState(false);
+  const [targetLenderId, setTargetLenderId] = useState<string>("auto");
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleAddNew = () => {
     setEditingProfile(null);
@@ -107,6 +111,97 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
       alert(
         "Sorry, there was an error creating the cheat sheet. Please try again."
       );
+    }
+  };
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    let updatedCount = 0;
+    let createdCount = 0;
+    let errors: string[] = [];
+
+    try {
+      const newProfiles: LenderProfile[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const extractedData = await processLenderSheet(file);
+          if (!extractedData || !extractedData.name) {
+            errors.push(`Could not extract data from ${file.name}`);
+            continue;
+          }
+
+          // Determine target profile to update
+          let targetId = targetLenderId;
+
+          // If auto-detect, try to find a match by name
+          if (targetId === "auto") {
+            const match = profiles.find(
+              (p) =>
+                p.name
+                  .toLowerCase()
+                  .includes(extractedData.name!.toLowerCase()) ||
+                extractedData.name!.toLowerCase().includes(p.name.toLowerCase())
+            );
+            if (match) {
+              targetId = match.id;
+            }
+          }
+
+          if (targetId !== "auto") {
+            // Update existing
+            onUpdate((prev) =>
+              prev.map((p) => {
+                if (p.id === targetId) {
+                  updatedCount++;
+                  return {
+                    ...p,
+                    ...extractedData, // Overwrite fields
+                    id: p.id, // Keep ID
+                    tiers: extractedData.tiers || p.tiers, // Replace tiers if present
+                  } as LenderProfile;
+                }
+                return p;
+              })
+            );
+          } else {
+            // Create new
+            createdCount++;
+            onUpdate((prev) => [
+              ...prev,
+              {
+                ...extractedData,
+                id: `ai_${Date.now()}_${i}`,
+                tiers: extractedData.tiers || [],
+              } as LenderProfile,
+            ]);
+          }
+        } catch (err: any) {
+          errors.push(`${file.name}: ${err.message}`);
+        }
+      }
+
+      let message = `Processed ${files.length} file(s).\n`;
+      if (updatedCount > 0) message += `Updated ${updatedCount} lender(s).\n`;
+      if (createdCount > 0)
+        message += `Created ${createdCount} new lender(s).\n`;
+      if (errors.length > 0) message += `\nErrors:\n${errors.join("\n")}`;
+
+      alert(message);
+    } catch (error: any) {
+      console.error("Upload failed:", error);
+      alert(error.message || "Failed to process files.");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -215,6 +310,40 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
       <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
         <h2 className="text-xl font-bold text-white">Manage Lender Profiles</h2>
         <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".pdf"
+            multiple
+            className="hidden"
+          />
+          <select
+            value={targetLenderId}
+            onChange={(e) => setTargetLenderId(e.target.value)}
+            className="bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+          >
+            <option value="auto">Auto-Detect Lender</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                Update: {p.name}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <Icons.SpinnerIcon className="animate-spin w-5 h-5 text-blue-500" />
+            ) : (
+              <Icons.CloudArrowDownIcon className="w-5 h-5 text-blue-400" />
+            )}
+            <span className="ml-2">
+              {isUploading ? "Analyzing..." : "Upload Rate Sheet(s)"}
+            </span>
+          </Button>
           <Button variant="ghost" onClick={handleDownloadCheatSheet}>
             <Icons.PdfIcon />
             <span className="ml-2">Download Cheat Sheet</span>

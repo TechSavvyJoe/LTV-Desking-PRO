@@ -234,6 +234,78 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           </div>
+
+          <div className="p-4 border rounded-lg border-slate-800">
+            <h3 className="text-lg font-bold mb-4">LTV Color Thresholds (%)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <InputGroup
+                label="Warning (Yellow)"
+                htmlFor="ltvWarn"
+                description="LTV above this turns yellow."
+              >
+                <StyledInput
+                  type="number"
+                  name="ltvThresholds.warn"
+                  id="ltvWarn"
+                  value={localSettings.ltvThresholds?.warn ?? 115}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      ltvThresholds: {
+                        ...prev.ltvThresholds,
+                        warn: val,
+                      },
+                    }));
+                  }}
+                />
+              </InputGroup>
+              <InputGroup
+                label="Danger (Orange)"
+                htmlFor="ltvDanger"
+                description="LTV above this turns orange."
+              >
+                <StyledInput
+                  type="number"
+                  name="ltvThresholds.danger"
+                  id="ltvDanger"
+                  value={localSettings.ltvThresholds?.danger ?? 125}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      ltvThresholds: {
+                        ...prev.ltvThresholds,
+                        danger: val,
+                      },
+                    }));
+                  }}
+                />
+              </InputGroup>
+              <InputGroup
+                label="Critical (Red)"
+                htmlFor="ltvCritical"
+                description="LTV above this turns red."
+              >
+                <StyledInput
+                  type="number"
+                  name="ltvThresholds.critical"
+                  id="ltvCritical"
+                  value={localSettings.ltvThresholds?.critical ?? 135}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      ltvThresholds: {
+                        ...prev.ltvThresholds,
+                        critical: val,
+                      },
+                    }));
+                  }}
+                />
+              </InputGroup>
+            </div>
+          </div>
         </div>
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3 bg-slate-50 dark:bg-slate-900 sticky bottom-0 flex-wrap">
           <Button

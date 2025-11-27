@@ -72,12 +72,16 @@ export const Table = <T extends { [key: string]: any }>({
             {safeColumns.map((col, index) => (
               <th
                 key={index}
-                className={`p-2 font-semibold text-slate-400 dark:text-gray-400 text-left align-top ${
-                  col.className || ""
-                }`}
+                className={`p-2 font-semibold text-slate-400 dark:text-gray-400 align-top ${
+                  col.isNumeric ? "text-right" : "text-left"
+                } ${col.className || ""}`}
                 onClick={() => col.accessor && onSort(col.accessor as keyof T)}
               >
-                <div className="flex items-center gap-2 cursor-pointer select-none">
+                <div
+                  className={`flex items-center gap-2 cursor-pointer select-none ${
+                    col.isNumeric ? "justify-end" : ""
+                  }`}
+                >
                   {col.header}
                   {col.accessor && (
                     <SortIcon
@@ -128,8 +132,8 @@ export const Table = <T extends { [key: string]: any }>({
                       <td
                         key={colIndex}
                         className={`p-2 whitespace-normal break-words align-top ${
-                          col.className || ""
-                        }`}
+                          col.isNumeric ? "text-right" : "text-left"
+                        } ${col.className || ""}`}
                       >
                         {col.render ? col.render(item) : item[col.accessor]}
                       </td>

@@ -136,4 +136,9 @@ export interface Settings {
   defaultStateFees: number;
   outOfStateTransitFee: number;
   customTaxRate: number | null;
+  ltvThresholds: {
+    warn: number;
+    danger: number;
+    critical: number;
+  };
 }

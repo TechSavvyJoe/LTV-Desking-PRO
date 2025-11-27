@@ -400,7 +400,9 @@ const DealControls: React.FC<DealControlsProps> = ({
             >
               <option value="36">36</option>
               <option value="48">48</option>
+              <option value="54">54</option>
               <option value="60">60</option>
+              <option value="66">66</option>
               <option value="72">72</option>
               <option value="75">75</option>
               <option value="84">84</option>

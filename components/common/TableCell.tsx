@@ -46,17 +46,26 @@ export const formatNumber = (value: number | string | undefined): string => {
   return isNaN(num) ? "N/A" : num.toLocaleString();
 };
 
+import { useSettings } from "../../hooks/useSettings";
+
 interface LtvCellProps {
   value: number | "Error" | "N/A";
 }
 export const LtvCell: React.FC<LtvCellProps> = ({ value }) => {
+  const [settings] = useSettings();
+  const { warn, danger, critical } = settings.ltvThresholds || {
+    warn: 115,
+    danger: 125,
+    critical: 135,
+  };
+
   if (typeof value !== "number") {
     return <span className="text-red-500 font-semibold">{value}</span>;
   }
-  let colorClass = "text-orange-400";
-  if (value < 80) colorClass = "text-green-400";
-  else if (value <= 100) colorClass = "text-blue-400";
-  else if (value <= 120) colorClass = "text-yellow-400";
+  let colorClass = "text-green-400";
+  if (value >= critical) colorClass = "text-red-500";
+  else if (value >= danger) colorClass = "text-orange-400";
+  else if (value >= warn) colorClass = "text-yellow-400";
 
   return (
     <CopyToClipboard valueToCopy={value}>
@@ -68,13 +77,20 @@ export const LtvCell: React.FC<LtvCellProps> = ({ value }) => {
 };
 
 export const OtdLtvCell: React.FC<LtvCellProps> = ({ value }) => {
+  const [settings] = useSettings();
+  const { warn, danger, critical } = settings.ltvThresholds || {
+    warn: 115,
+    danger: 125,
+    critical: 135,
+  };
+
   if (typeof value !== "number") {
     return <span className="text-red-500 font-semibold">{value}</span>;
   }
-  let colorClass = "text-red-500";
-  if (value < 90) colorClass = "text-green-500";
-  else if (value <= 110) colorClass = "text-blue-500";
-  else if (value <= 130) colorClass = "text-yellow-500";
+  let colorClass = "text-green-500";
+  if (value >= critical) colorClass = "text-red-500";
+  else if (value >= danger) colorClass = "text-orange-500";
+  else if (value >= warn) colorClass = "text-yellow-500";
 
   return (
     <CopyToClipboard valueToCopy={value}>
