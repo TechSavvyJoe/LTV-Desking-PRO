@@ -136,3 +136,13 @@ export const onAuthStateChange = (
 
   return unsubscribe;
 };
+
+// Helper to get current user
+export const getCurrentUser = (): User | null => {
+  return asType<User>(pb.authStore.model);
+};
+
+// Check if user is authenticated
+export const isAuthenticated = (): boolean => {
+  return pb.authStore.isValid;
+};

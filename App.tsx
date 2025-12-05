@@ -1,4 +1,14 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
+import {
+  isAuthenticated,
+  onAuthStateChange,
+  logout,
+  getCurrentUser,
+} from "./lib/auth";
+import { saveDeal, deleteDeal, updateInventoryItem } from "./lib/api";
+import { Login } from "./components/auth/Login";
+import { Register } from "./components/auth/Register";
+import { AuthLayout } from "./components/auth/AuthLayout";
 import { useTheme } from "./hooks/useTheme";
 import { parseFile } from "./services/fileParser";
 import { decodeVin } from "./services/vinDecoder";
@@ -17,7 +27,7 @@ import { TabButton } from "./components/common/TabButton";
 import { calculateFinancials } from "./services/calculator";
 import { generateFavoritesPdf } from "./services/pdfGenerator";
 import { checkBankEligibility } from "./services/lenderMatcher";
-import { CalculatedVehicle } from "./types";
+import { CalculatedVehicle, SavedDeal } from "./types";
 import DealStructuringModal from "./components/DealStructuringModal";
 import { InventoryExpandedRow } from "./components/InventoryExpandedRow";
 import Header from "./components/Header";
@@ -236,24 +246,45 @@ const MainLayout: React.FC = () => {
     }
 
     const now = new Date().toISOString();
-    const newSavedDeal = {
-      id: Date.now().toString(),
-      date: now,
-      createdAt: now,
+    const newDealData = {
+      name: `${now.split("T")[0]} - ${customerName}`, // Or ask for name
       customerName,
       salespersonName,
-      vehicle: vehicleToSave,
+      vehicle: vehicleToSave.id, // Assuming calculated vehicle has ID matching inventory
+      vehicleData: vehicleToSave, // Store snapshot
       dealData: { ...dealData },
       customerFilters: {
         creditScore: filters.creditScore,
         monthlyIncome: filters.monthlyIncome,
       },
       notes: scratchPadNotes,
+      status: "draft" as const,
     };
 
-    setSavedDeals([newSavedDeal, ...safeSavedDeals]);
-    setMessage({ type: "success", text: "Deal saved successfully." });
-    setIsDealModalOpen(false);
+    // Optimistic Update or Wait?
+    // Let's call API and update state with result
+    saveDeal(newDealData).then((saved) => {
+      if (saved) {
+        // Map DB SavedDeal to App SavedDeal
+        const mappedSaved: SavedDeal = {
+          id: saved.id,
+          date: saved.created,
+          customerName: saved.customerName || "Unknown",
+          salespersonName: saved.salespersonName || "Unknown",
+          vehicle: saved.vehicleData as any,
+          dealData: saved.dealData as any,
+          customerFilters: {
+            creditScore: (saved.dealData as any)?.creditScore || null,
+            monthlyIncome: (saved.dealData as any)?.monthlyIncome || null,
+          },
+        };
+        setSavedDeals((prev) => [mappedSaved, ...prev]);
+        setMessage({ type: "success", text: "Deal saved successfully." });
+        setIsDealModalOpen(false);
+      } else {
+        setMessage({ type: "error", text: "Failed to save deal to backend." });
+      }
+    });
   };
 
   const handleRowSelect = (
@@ -732,9 +763,30 @@ const MainLayout: React.FC = () => {
                       text: "Deal loaded successfully.",
                     });
                   }}
-                  onDelete={(id) =>
-                    setSavedDeals(safeSavedDeals.filter((d) => d.id !== id))
-                  }
+                  onDelete={(id) => {
+                    if (
+                      window.confirm(
+                        "Are you sure you want to delete this deal?"
+                      )
+                    ) {
+                      deleteDeal(id).then((success) => {
+                        if (success) {
+                          setSavedDeals(
+                            safeSavedDeals.filter((d) => d.id !== id)
+                          );
+                          setMessage({
+                            type: "success",
+                            text: "Deal deleted.",
+                          });
+                        } else {
+                          setMessage({
+                            type: "error",
+                            text: "Failed to delete deal.",
+                          });
+                        }
+                      });
+                    }
+                  }}
                 />
               )}
 
@@ -776,21 +828,73 @@ const MainLayout: React.FC = () => {
         />
       )}
 
-      {message && (
-        <Toast
-          type={message.type}
-          message={message.text}
-          onClose={() => setMessage(null)}
-        />
-      )}
+      {/* Global Toast */}
+      <Toast />
     </div>
   );
 };
 
 const App: React.FC = () => {
+  const [isAuth, setIsAuth] = useState(isAuthenticated());
+  const [view, setView] = useState<"login" | "register">("login");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Check initial auth state
+    setIsAuth(isAuthenticated());
+    setIsLoading(false);
+
+    // Subscribe to auth changes
+    const unsubscribe = onAuthStateChange((user) => {
+      setIsAuth(!!user);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+        <Icons.SpinnerIcon className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuth) {
+    return (
+      <AuthLayout>
+        {view === "login" ? (
+          <Login
+            onSuccess={() => setIsAuth(true)}
+            onRegisterClick={() => setView("register")}
+          />
+        ) : (
+          <Register
+            onSuccess={() => setView("login")}
+            onLoginClick={() => setView("login")}
+          />
+        )}
+      </AuthLayout>
+    );
+  }
+
   return (
     <DealProvider>
       <MainLayout />
+      {/* Logout Button (Temporary placement, ideally in Header/Sidebar) */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={logout}
+          className="shadow-lg border-red-200 text-red-600 hover:bg-red-50 dark:bg-slate-800 dark:border-red-900 dark:text-red-400"
+        >
+          <Icons.ArrowRightStartOnRectangleIcon className="w-4 h-4 mr-2" />
+          Logout ({getCurrentUser()?.email})
+        </Button>
+      </div>
     </DealProvider>
   );
 };

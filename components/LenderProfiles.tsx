@@ -5,6 +5,11 @@ import LenderProfileModal from "./LenderProfileModal";
 import { generateLenderCheatSheetPdf } from "../services/pdfGenerator";
 import { processLenderSheet } from "../services/aiProcessor";
 import * as Icons from "./common/Icons";
+import {
+  saveLenderProfile,
+  updateLenderProfile,
+  deleteLenderProfile,
+} from "../lib/api";
 
 interface LenderProfilesProps {
   profiles: LenderProfile[];
@@ -69,22 +74,59 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
     setIsModalOpen(true);
   };
 
-  const handleSave = (profileToSave: LenderProfile) => {
-    onUpdate((prev) => {
-      const exists = prev.some((p) => p.id === profileToSave.id);
-      if (exists) {
-        return prev.map((p) => (p.id === profileToSave.id ? profileToSave : p));
+  const handleSave = async (profileToSave: LenderProfile) => {
+    // Determine if new or update
+    const isNew =
+      !profileToSave.id ||
+      profileToSave.id.startsWith("new_") ||
+      profileToSave.id.startsWith("ai_");
+
+    const apiProfile = {
+      ...profileToSave,
+      active: profileToSave.active ?? true, // Default to true if undefined
+      tiers: profileToSave.tiers as any[], // Explicit cast for API
+    };
+
+    try {
+      if (isNew) {
+        // Create
+        // Omit id for creation
+        const { id, ...createData } = apiProfile;
+        const saved = await saveLenderProfile(createData as any);
+        if (saved) {
+          onUpdate((prev) => [...prev, saved as unknown as LenderProfile]);
+        }
+      } else {
+        // Update
+        const updated = await updateLenderProfile(
+          profileToSave.id,
+          apiProfile as any
+        );
+        if (updated) {
+          onUpdate((prev) =>
+            prev.map((p) =>
+              p.id === updated.id ? (updated as unknown as LenderProfile) : p
+            )
+          );
+        }
       }
-      return [...prev, { ...profileToSave, id: `new_${Date.now()}` }];
-    });
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Failed to save lender profile", error);
+      alert("Failed to save profile.");
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (
       window.confirm("Are you sure you want to delete this lender profile?")
     ) {
-      onUpdate((prev) => prev.filter((p) => p.id !== id));
+      const success = await deleteLenderProfile(id);
+      if (success) {
+        onUpdate((prev) => prev.filter((p) => p.id !== id));
+      } else {
+        alert("Failed to delete profile.");
+      }
     }
   };
 

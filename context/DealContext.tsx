@@ -6,6 +6,17 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import {
+  getInventory,
+  getLenderProfiles,
+  getSavedDeals,
+  getDealerSettings,
+  updateDealerSettings,
+  updateInventoryItem,
+  subscribeToInventory,
+  subscribeToSavedDeals,
+} from "../lib/api";
+import { isAuthenticated } from "../lib/auth";
 import type {
   Vehicle,
   DealData,
@@ -27,6 +38,7 @@ import {
   SAMPLE_INVENTORY,
   DEFAULT_LENDER_PROFILES,
   STORAGE_KEYS,
+  INITIAL_SETTINGS,
 } from "../constants";
 import { calculateFinancials } from "../services/calculator";
 
@@ -102,17 +114,19 @@ const DealContext = createContext<DealContextType | undefined>(undefined);
 export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [settings, setSettings] = useSettings();
-  const [inventory, setInventory] = useLocalStorage<Vehicle[]>(
-    STORAGE_KEYS.INVENTORY,
-    SAMPLE_INVENTORY
+  const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
+
+  // Data State with PB sync
+  const [inventory, setInventory] = useState<Vehicle[]>([]);
+  const [dealData, setDealData] = useLocalStorage<DealData>(
+    STORAGE_KEYS.DEAL_DATA,
+    {
+      ...INITIAL_DEAL_DATA,
+      loanTerm: settings.defaultTerm,
+      interestRate: settings.defaultApr,
+      stateFees: settings.defaultStateFees,
+    }
   );
-  const [dealData, setDealData] = useLocalStorage<DealData>(STORAGE_KEYS.DEAL_DATA, {
-    ...INITIAL_DEAL_DATA,
-    loanTerm: settings.defaultTerm,
-    interestRate: settings.defaultApr,
-    stateFees: settings.defaultStateFees,
-  });
   const [filters, setFilters] = useLocalStorage<FilterData>(
     STORAGE_KEYS.FILTERS,
     INITIAL_FILTER_DATA
@@ -131,14 +145,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     STORAGE_KEYS.FAVORITES,
     []
   );
-  const [lenderProfiles, setLenderProfiles] = useLocalStorage<LenderProfile[]>(
-    STORAGE_KEYS.LENDER_PROFILES,
-    DEFAULT_LENDER_PROFILES
-  );
-  const [savedDeals, setSavedDeals] = useLocalStorage<SavedDeal[]>(
-    STORAGE_KEYS.SAVED_DEALS,
-    []
-  );
+  const [lenderProfiles, setLenderProfiles] = useState<LenderProfile[]>([]);
+  const [savedDeals, setSavedDeals] = useState<SavedDeal[]>([]);
   const [scratchPadNotes, setScratchPadNotes] = useLocalStorage<string>(
     STORAGE_KEYS.SCRATCH_PAD,
     ""
@@ -209,6 +217,150 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [safeSavedDeals]);
 
   // Effects
+  // Load initial data from PocketBase
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+
+    const loadData = async () => {
+      try {
+        const [inv, lenders, deals, dealerSettings] = await Promise.all([
+          getInventory(), // Returns InventoryItem[]
+          getLenderProfiles(), // Returns LenderProfile[] (PB)
+          getSavedDeals(), // Returns SavedDeal[] (PB)
+          getDealerSettings(),
+        ]);
+
+        // Map InventoryItem -> Vehicle
+        const mappedInventory: Vehicle[] = inv.map((i) => ({
+          id: i.id,
+          vehicle: `${i.year} ${i.make} ${i.model} ${i.trim || ""}`.trim(),
+          stock: i.stockNumber || "N/A",
+          vin: i.vin,
+          modelYear: i.year,
+          mileage: i.mileage || "N/A",
+          price: i.price,
+          jdPower: i.jdPower || "N/A",
+          jdPowerRetail: i.jdPowerRetail || "N/A",
+          unitCost: i.unitCost || "N/A",
+          baseOutTheDoorPrice: "N/A", // Calculate or pull
+          make: i.make,
+          model: i.model,
+          trim: i.trim,
+        }));
+        setInventory(mappedInventory);
+
+        // Map LenderProfile (PB) -> LenderProfile (App)
+        // They are now compatible mostly, assuming `tiers` is `any[]`
+        if (lenders.length > 0)
+          setLenderProfiles(
+            lenders as unknown as import("../types").LenderProfile[]
+          );
+
+        // Map SavedDeal (PB) -> SavedDeal (App)
+        const mappedDeals: SavedDeal[] = deals.map((d) => ({
+          id: d.id,
+          date: d.created, // Use created date as date
+          customerName: d.customerName || "Unknown",
+          salespersonName: d.salespersonName || "Unknown",
+          vehicle: d.vehicleData as any, // Cast from Record
+          dealData: d.dealData as any,
+          customerFilters: {
+            creditScore: (d.dealData as any)?.creditScore || null,
+            monthlyIncome: (d.dealData as any)?.monthlyIncome || null,
+          },
+        }));
+        setSavedDeals(mappedDeals);
+
+        if (dealerSettings) {
+          setSettings((prev) => ({
+            ...prev,
+            defaultTerm: dealerSettings.defaultLoanTerm || prev.defaultTerm,
+            defaultApr: dealerSettings.defaultInterestRate || prev.defaultApr,
+            defaultStateFees:
+              dealerSettings.defaultStateFees || prev.defaultStateFees,
+            docFee: dealerSettings.docFee,
+            cvrFee: dealerSettings.cvrFee,
+            defaultState: dealerSettings.defaultState as any,
+            outOfStateTransitFee: dealerSettings.outOfStateTransitFee,
+            customTaxRate: dealerSettings.customTaxRate ?? null,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load data from PocketBase", error);
+      }
+    };
+
+    loadData();
+
+    // subscriptions
+    const unsubInv = subscribeToInventory((data) => {
+      // Map data again
+      const mapped: Vehicle[] = data.map((i) => ({
+        id: i.id,
+        vehicle: `${i.year} ${i.make} ${i.model} ${i.trim || ""}`.trim(),
+        stock: i.stockNumber || "N/A",
+        vin: i.vin,
+        modelYear: i.year,
+        mileage: i.mileage || "N/A",
+        price: i.price,
+        jdPower: i.jdPower || "N/A",
+        jdPowerRetail: i.jdPowerRetail || "N/A",
+        unitCost: i.unitCost || "N/A",
+        baseOutTheDoorPrice: "N/A",
+        make: i.make,
+        model: i.model,
+        trim: i.trim,
+      }));
+      setInventory(mapped);
+    });
+    const unsubDeals = subscribeToSavedDeals((data) => {
+      // Map deals
+      const mapped: SavedDeal[] = data.map((d) => ({
+        id: d.id,
+        date: d.created,
+        customerName: d.customerName || "Unknown",
+        salespersonName: d.salespersonName || "Unknown",
+        vehicle: d.vehicleData as any,
+        dealData: d.dealData as any,
+        customerFilters: {
+          creditScore: (d.dealData as any)?.creditScore || null,
+          monthlyIncome: (d.dealData as any)?.monthlyIncome || null,
+        },
+      }));
+      setSavedDeals(mapped);
+    });
+
+    return () => {
+      unsubInv();
+      unsubDeals();
+    };
+  }, []);
+
+  // Sync settings changes to PocketBase
+  const updateSettings: React.Dispatch<React.SetStateAction<Settings>> =
+    useCallback((action) => {
+      setSettings((prev) => {
+        const newSettings =
+          typeof action === "function"
+            ? (action as (prev: Settings) => Settings)(prev)
+            : action;
+
+        // Fire and forget update
+        updateDealerSettings({
+          defaultLoanTerm: newSettings.defaultTerm,
+          defaultInterestRate: newSettings.defaultApr,
+          defaultStateFees: newSettings.defaultStateFees,
+          docFee: newSettings.docFee,
+          cvrFee: newSettings.cvrFee,
+          defaultState: newSettings.defaultState,
+          outOfStateTransitFee: newSettings.outOfStateTransitFee,
+          customTaxRate: newSettings.customTaxRate ?? undefined,
+        }).catch((err) => console.error("Failed to persist settings", err));
+
+        return newSettings;
+      });
+    }, []);
+
   useEffect(() => {
     if (activeVehicle) {
       setIsDealDirty(true);
@@ -325,7 +477,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     [setExpandedInventoryRows]
   );
   const handleInventoryUpdate = useCallback(
-    (vin: string, updatedData: Partial<Vehicle>) => {
+    async (vin: string, updatedData: Partial<Vehicle>) => {
       setInventory((prev) =>
         (prev || []).map((v) => (v.vin === vin ? { ...v, ...updatedData } : v))
       );
@@ -333,8 +485,24 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!Array.isArray(prev)) return prev;
         return prev.map((f) => (f.vin === vin ? { ...f, ...updatedData } : f));
       });
+
+      // API Call
+      const item = inventory.find((v) => v.vin === vin);
+      if (item && item.id) {
+        try {
+          const apiData: any = { ...updatedData };
+          // Handle mileage if present and "N/A"
+          if (apiData.mileage === "N/A") {
+            delete apiData.mileage;
+          }
+          await updateInventoryItem(item.id, apiData);
+        } catch (e) {
+          console.error("Failed to update inventory item in backend", e);
+          // Revert? For now just log.
+        }
+      }
     },
-    [setInventory, setFavorites]
+    [inventory, setInventory, setFavorites]
   );
 
   const clearDealAndFilters = useCallback(() => {
@@ -404,7 +572,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const value = {
     settings,
-    setSettings,
+    setSettings: updateSettings, // Use wrapped setter for persistence
     inventory,
     setInventory,
     dealData,

@@ -308,14 +308,34 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3 bg-slate-50 dark:bg-slate-900 sticky bottom-0 flex-wrap">
-          <Button
-            type="button"
-            variant="danger"
-            size="sm"
-            onClick={handleResetAllData}
-          >
-            Reset All Data
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={handleResetAllData}
+            >
+              Reset All Data
+            </Button>
+            {/* Temporary Seed Button */}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={async () => {
+                if (
+                  window.confirm(
+                    "Seed database with default inventory and lenders?"
+                  )
+                ) {
+                  const { seedDatabase } = await import("../lib/seeder");
+                  await seedDatabase();
+                }
+              }}
+            >
+              Seed DB
+            </Button>
+          </div>
           <div className="flex gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel

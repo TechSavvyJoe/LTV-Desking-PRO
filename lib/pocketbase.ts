@@ -1,10 +1,10 @@
 import PocketBase from "pocketbase";
 
 // PocketBase client singleton
-const PB_URL =
+const POCKETBASE_URL =
   import.meta.env.VITE_POCKETBASE_URL || "https://ltv-desking-pro-api.fly.dev";
 
-export const pb = new PocketBase(PB_URL);
+export const pb = new PocketBase(POCKETBASE_URL);
 
 // Enable auto-cancellation of pending requests on new ones
 pb.autoCancellation(false);
@@ -59,6 +59,11 @@ export interface InventoryItem {
   status: "available" | "pending" | "sold" | "hold";
   images?: string[];
   notes?: string;
+  // Mapped fields
+  vehicle?: string; // name
+  stock?: string;
+  modelYear?: number;
+  baseOutTheDoorPrice?: number;
   created: string;
   updated: string;
 }
@@ -68,13 +73,10 @@ export interface LenderProfile {
   dealer: string;
   name: string;
   active: boolean;
-  tiers: Array<{
-    name: string;
-    maxLtv: number;
-    minRate: number;
-    maxRate: number;
-    maxTerm: number;
-  }>;
+  tiers: any[]; // Allow complex tier objects from app
+  bookValueSource?: "Trade" | "Retail";
+  minIncome?: number;
+  maxPti?: number;
   notes?: string;
   contactName?: string;
   contactPhone?: string;
@@ -115,6 +117,7 @@ export interface DealerSettings {
   dealer: string;
   docFee: number;
   cvrFee: number;
+  defaultStateFees: number;
   defaultState: string;
   outOfStateTransitFee: number;
   customTaxRate?: number;

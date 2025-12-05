@@ -1,0 +1,135 @@
+[
+  {
+    "name": "dealers",
+    "type": "base",
+    "schema": [
+      { "name": "name", "type": "text", "required": true },
+      { "name": "code", "type": "text", "required": true },
+      { "name": "address", "type": "text" },
+      { "name": "city", "type": "text" },
+      { "name": "state", "type": "text" },
+      { "name": "phone", "type": "text" },
+      { "name": "email", "type": "email" },
+      { "name": "logo", "type": "file" },
+      { "name": "active", "type": "bool" },
+      { "name": "settings", "type": "json" }
+    ]
+  },
+  {
+    "name": "inventory",
+    "type": "base",
+    "schema": [
+      {
+        "name": "dealer",
+        "type": "relation",
+        "options": { "collectionId": "dealers" }
+      },
+      { "name": "vin", "type": "text", "required": true },
+      { "name": "stockNumber", "type": "text" },
+      { "name": "year", "type": "number", "required": true },
+      { "name": "make", "type": "text", "required": true },
+      { "name": "model", "type": "text", "required": true },
+      { "name": "trim", "type": "text" },
+      { "name": "mileage", "type": "number" },
+      { "name": "price", "type": "number", "required": true },
+      { "name": "unitCost", "type": "number" },
+      { "name": "jdPower", "type": "number" },
+      { "name": "jdPowerRetail", "type": "number" },
+      {
+        "name": "status",
+        "type": "select",
+        "options": { "values": ["available", "pending", "sold", "hold"] }
+      },
+      { "name": "images", "type": "file" },
+      { "name": "notes", "type": "text" }
+    ]
+  },
+  {
+    "name": "lender_profiles",
+    "type": "base",
+    "schema": [
+      {
+        "name": "dealer",
+        "type": "relation",
+        "options": { "collectionId": "dealers" }
+      },
+      { "name": "name", "type": "text", "required": true },
+      { "name": "active", "type": "bool" },
+      { "name": "tiers", "type": "json", "required": true },
+      {
+        "name": "bookValueSource",
+        "type": "select",
+        "options": { "values": ["Trade", "Retail"] }
+      },
+      { "name": "minIncome", "type": "number" },
+      { "name": "maxPti", "type": "number" },
+      { "name": "notes", "type": "text" },
+      { "name": "contactName", "type": "text" },
+      { "name": "contactPhone", "type": "text" },
+      { "name": "contactEmail", "type": "email" }
+    ]
+  },
+  {
+    "name": "saved_deals",
+    "type": "base",
+    "schema": [
+      {
+        "name": "dealer",
+        "type": "relation",
+        "options": { "collectionId": "dealers" }
+      },
+      {
+        "name": "user",
+        "type": "relation",
+        "options": { "collectionId": "users" }
+      },
+      {
+        "name": "vehicle",
+        "type": "relation",
+        "options": { "collectionId": "inventory" }
+      },
+      { "name": "name", "type": "text", "required": true },
+      { "name": "customerName", "type": "text" },
+      { "name": "salespersonName", "type": "text" },
+      { "name": "vehicleData", "type": "json", "required": true },
+      { "name": "dealData", "type": "json", "required": true },
+      { "name": "customerFilters", "type": "json" },
+      { "name": "calculatedData", "type": "json" },
+      {
+        "name": "status",
+        "type": "select",
+        "options": {
+          "values": [
+            "draft",
+            "pending",
+            "submitted",
+            "approved",
+            "funded",
+            "cancelled"
+          ]
+        }
+      },
+      { "name": "notes", "type": "text" }
+    ]
+  },
+  {
+    "name": "dealer_settings",
+    "type": "base",
+    "schema": [
+      {
+        "name": "dealer",
+        "type": "relation",
+        "options": { "collectionId": "dealers" }
+      },
+      { "name": "defaultTerm", "type": "number" },
+      { "name": "defaultApr", "type": "number" },
+      { "name": "defaultState", "type": "text" },
+      { "name": "docFee", "type": "number" },
+      { "name": "cvrFee", "type": "number" },
+      { "name": "defaultStateFees", "type": "number" },
+      { "name": "outOfStateTransitFee", "type": "number" },
+      { "name": "customTaxRate", "type": "number" },
+      { "name": "ltvThresholds", "type": "json" }
+    ]
+  }
+]

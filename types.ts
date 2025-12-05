@@ -1,4 +1,5 @@
 export interface Vehicle {
+  id?: string;
   vehicle: string;
   stock: string;
   vin: string;
@@ -70,6 +71,7 @@ export interface LenderTier {
 export interface LenderProfile {
   id: string;
   name: string;
+  active?: boolean;
   bookValueSource?: "Trade" | "Retail";
   minIncome?: number;
   maxPti?: number;

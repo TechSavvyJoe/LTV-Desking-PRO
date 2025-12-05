@@ -1,42 +1,47 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircleIcon, ExclamationCircleIcon, XMarkIcon } from "./Icons";
+import { subscribe } from "../../lib/toast";
 
-interface ToastProps {
-  type?: "success" | "error" | "warning" | "info"; // Added 'info' type and made optional
-  message: string;
-  onClose: () => void;
-  duration?: number; // Still present in interface, but not used in new logic
-}
-
-export const Toast: React.FC<ToastProps> = ({
-  message,
-  type = "info", // Default type changed to "info"
-  onClose,
-  duration = 3000, // Default duration used for auto-close, but progress bar is fixed
-}) => {
+export const Toast: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [message, setMessage] = useState("");
+  const [type, setType] = useState<"success" | "error" | "warning" | "info">(
+    "info"
+  );
   const [progress, setProgress] = useState(100);
 
   useEffect(() => {
-    // Entrance animation
-    setIsVisible(true);
+    return subscribe((msg, t) => {
+      setMessage(msg);
+      setType(t);
+      setIsVisible(true);
+      setProgress(100);
+    });
+  }, []);
 
-    // Progress bar animation
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const duration = 3000;
+    const interval = 60;
+    const steps = duration / interval;
+    const decrement = 100 / steps;
+
     const progressInterval = setInterval(() => {
-      setProgress((prev) => Math.max(0, prev - 100 / (duration / 60))); // Calculate decrement based on duration
-    }, 60);
+      setProgress((prev) => Math.max(0, prev - decrement));
+    }, interval);
 
-    // Auto-close after 'duration' milliseconds
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onClose, 300); // Wait for exit animation
     }, duration);
 
     return () => {
-      clearTimeout(timer);
       clearInterval(progressInterval);
+      clearTimeout(timer);
     };
-  }, [onClose, duration]); // Added duration to dependency array
+  }, [isVisible, message]); // Reset timer when message changes
+
+  if (!isVisible) return null;
 
   const variantStyles = {
     success:
@@ -45,7 +50,7 @@ export const Toast: React.FC<ToastProps> = ({
       "bg-red-500/20 text-red-800 border-red-500 dark:bg-red-500/30 dark:text-red-200",
     warning:
       "bg-amber-500/20 text-amber-800 border-amber-500 dark:bg-amber-500/30 dark:text-amber-200",
-    info: "bg-blue-500/20 text-blue-800 border-blue-500 dark:bg-blue-500/30 dark:text-blue-200", // Added info style
+    info: "bg-blue-500/20 text-blue-800 border-blue-500 dark:bg-blue-500/30 dark:text-blue-200",
   };
 
   const getIcon = () => {
@@ -54,27 +59,16 @@ export const Toast: React.FC<ToastProps> = ({
         return <CheckCircleIcon className="w-full h-full" />;
       case "error":
       case "warning":
-      case "info": // Info also uses ExclamationCircleIcon
+      case "info":
       default:
         return <ExclamationCircleIcon className="w-full h-full" />;
     }
   };
 
-  const icon = getIcon();
-
   return (
     <div
-      className={`
-        fixed top-4 right-4 z-[200] max-w-md
-        transform transition-all duration-300 ease-out
-        ${
-          isVisible
-            ? "translate-x-0 opacity-100 scale-100"
-            : "translate-x-full opacity-0 scale-95"
-        }
-      `}
+      className="fixed top-4 right-4 z-[200] max-w-md animate-slideIn"
       role="alert"
-      aria-live="assertive"
     >
       <div
         className={`
@@ -83,32 +77,18 @@ export const Toast: React.FC<ToastProps> = ({
           ${variantStyles[type]}
         `}
       >
-        {/* Progress bar */}
         <div
           className="absolute bottom-0 left-0 h-1 bg-white/30 transition-all duration-75 ease-linear"
           style={{ width: `${progress}%` }}
         />
 
-        {/* Icon with pulse animation */}
-        <div
-          className={`flex-shrink-0 w-6 h-6 ${
-            isVisible ? "animate-scaleIn" : ""
-          }`}
-        >
-          {icon}
-        </div>
+        <div className="flex-shrink-0 w-6 h-6">{getIcon()}</div>
 
-        {/* Message */}
         <p className="flex-1 text-sm font-medium leading-relaxed">{message}</p>
 
-        {/* Close button with hover effect */}
         <button
-          onClick={() => {
-            setIsVisible(false);
-            setTimeout(onClose, 300);
-          }}
-          className="flex-shrink-0 text-current opacity-60 hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-95 rounded-lg p-1"
-          aria-label="Close notification"
+          onClick={() => setIsVisible(false)}
+          className="flex-shrink-0 text-current opacity-60 hover:opacity-100 transition-all"
         >
           <XMarkIcon className="w-5 h-5" />
         </button>
