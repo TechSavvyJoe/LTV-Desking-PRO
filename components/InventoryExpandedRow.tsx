@@ -84,10 +84,12 @@ const EditableField = ({
     }
   };
 
+  const inputId = `edit-${label.replace(/\s+/g, '-').toLowerCase()}`;
   return (
     <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800 last:border-0">
-      <label className="text-slate-500 dark:text-gray-400">{label}</label>
+      <label htmlFor={inputId} className="text-slate-500 dark:text-gray-400">{label}</label>
       <input
+        id={inputId}
         type={type}
         step={step}
         value={currentValue}
@@ -95,6 +97,8 @@ const EditableField = ({
         onBlur={handleBlur}
         onClick={(e) => e.stopPropagation()}
         className="w-32 p-1 text-sm text-right border border-slate-300 dark:border-gray-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-gray-100"
+        title={`Edit ${label}`}
+        aria-label={`Edit ${label}`}
       />
     </div>
   );

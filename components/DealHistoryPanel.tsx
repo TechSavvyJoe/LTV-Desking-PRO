@@ -185,6 +185,8 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
             <button
               onClick={() => setIsOpen(false)}
               className="p-2 rounded-full text-slate-300 hover:bg-slate-800"
+              title="Close deal history panel"
+              aria-label="Close deal history panel"
             >
               <Icons.ChevronLeftIcon />
             </button>
@@ -196,12 +198,16 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg placeholder-slate-500 text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0"
+              title="Search deals"
+              aria-label="Search by deal number, customer, or vehicle"
             />
             <div className="grid grid-cols-2 gap-3">
               <select
                 value={salespersonFilter}
                 onChange={(e) => setSalespersonFilter(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0"
+                title="Filter by salesperson"
+                aria-label="Filter by salesperson"
               >
                 {salespersons.map((name) => (
                   <option key={name} value={name}>
@@ -213,6 +219,8 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
                 value={`${sortConfig.key}:${sortConfig.direction}`}
                 onChange={handleSortChange}
                 className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0"
+                title="Sort deals"
+                aria-label="Sort deals by field and direction"
               >
                 {sortOptions.flatMap((opt) => [
                   <option key={`${opt.value}:desc`} value={`${opt.value}:desc`}>
@@ -232,6 +240,8 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
                   setDateFilter((p) => ({ ...p, start: e.target.value }))
                 }
                 className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0"
+                title="Start date filter"
+                aria-label="Filter deals from start date"
               />
               <input
                 type="date"
@@ -240,6 +250,8 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
                   setDateFilter((p) => ({ ...p, end: e.target.value }))
                 }
                 className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0"
+                title="End date filter"
+                aria-label="Filter deals to end date"
               />
             </div>
             <Button

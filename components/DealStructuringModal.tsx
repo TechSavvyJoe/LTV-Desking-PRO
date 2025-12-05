@@ -130,7 +130,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({ vehicle, de
                             <h2 className="text-xl font-bold text-white">Structure Deal</h2>
                             <p className="text-slate-300">{vehicle.vehicle}</p>
                         </div>
-                        <button onClick={onClose} className="p-2 rounded-full text-slate-300 hover:bg-slate-800"><CloseIcon /></button>
+                        <button onClick={onClose} className="p-2 rounded-full text-slate-300 hover:bg-slate-800" title="Close modal" aria-label="Close deal structuring modal"><CloseIcon /></button>
                     </div>
                 </div>
 

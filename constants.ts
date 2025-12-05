@@ -6,6 +6,23 @@ import type {
   Settings,
 } from "./types";
 
+// ============================================================================
+// LOCAL STORAGE KEYS
+// Centralized storage keys to ensure consistency across the application.
+// Update version suffix when making breaking changes to data structure.
+// ============================================================================
+export const STORAGE_KEYS = {
+  INVENTORY: "ltvInventory_v3",
+  DEAL_DATA: "ltvDealData_v2",
+  FILTERS: "ltvFilters_v2",
+  FAVORITES: "ltvFavorites_v2",
+  LENDER_PROFILES: "ltvBankProfiles_v2",
+  SAVED_DEALS: "ltvSavedDeals_v2",
+  SCRATCH_PAD: "ltvScratchPad_v2",
+  SETTINGS: "ltvSettings_v2",
+  THEME: "ltvTheme_v1",
+} as const;
+
 // Initial State
 export const INITIAL_SETTINGS: Settings = {
   defaultTerm: 72,

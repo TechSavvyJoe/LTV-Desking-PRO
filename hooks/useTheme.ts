@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { STORAGE_KEYS } from "../constants";
 
 type Theme = "light" | "dark";
 
 const getInitialTheme = (): Theme => {
   if (typeof window === "undefined") return "dark";
-  const stored = window.localStorage.getItem("theme");
+  const stored = window.localStorage.getItem(STORAGE_KEYS.THEME);
   if (stored === "light" || stored === "dark") return stored;
   return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
     ? "dark"
@@ -12,20 +13,28 @@ const getInitialTheme = (): Theme => {
 };
 
 export function useTheme() {
-  // Always return 'dark'
-  const theme: Theme = "dark";
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
-    // Force dark class
-    root.classList.add("dark");
-    // Ensure local storage is consistent (optional, but good for other tabs)
-    window.localStorage.setItem("theme", "dark");
-  }, []);
+    
+    // Apply theme class
+    if (theme === "dark") {
+      root.classList.add("dark");
+      root.classList.remove("light");
+    } else {
+      root.classList.add("light");
+      root.classList.remove("dark");
+    }
+    
+    // Persist to local storage
+    window.localStorage.setItem(STORAGE_KEYS.THEME, theme);
+  }, [theme]);
 
-  // No-op toggle
-  const toggleTheme = () => {};
+  const toggleTheme = useCallback(() => {
+    setTheme((prevTheme) => (prevTheme === "dark" ? "light" : "dark"));
+  }, []);
 
   return { theme, toggleTheme };
 }
@@ -34,7 +43,7 @@ export function useTheme() {
 export function useThemeControl(): [Theme, (theme: Theme) => void] {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   useEffect(() => {
-    window.localStorage.setItem("theme", theme);
+    window.localStorage.setItem(STORAGE_KEYS.THEME, theme);
   }, [theme]);
   return [theme, setTheme];
 }

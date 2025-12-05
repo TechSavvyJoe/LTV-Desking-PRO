@@ -71,6 +71,8 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-500"
+            title="Close scanner"
+            aria-label="Close document scanner"
           >
             <Icons.XMarkIcon className="w-6 h-6" />
           </button>
@@ -80,6 +82,10 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({
           <div
             className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             onClick={() => !isScanning && fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); !isScanning && fileInputRef.current?.click(); } }}
+            aria-label="Click to upload or take a photo of pay stub"
           >
             <input
               type="file"
@@ -88,6 +94,8 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({
               accept="image/*"
               onChange={handleFileChange}
               disabled={isScanning}
+              title="Upload pay stub image"
+              aria-label="Upload pay stub image"
             />
             {isScanning ? (
               <Icons.SpinnerIcon className="w-12 h-12 text-blue-500 mx-auto mb-2 animate-spin" />

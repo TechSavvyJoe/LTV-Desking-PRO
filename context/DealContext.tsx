@@ -26,6 +26,7 @@ import {
   INITIAL_FILTER_DATA,
   SAMPLE_INVENTORY,
   DEFAULT_LENDER_PROFILES,
+  STORAGE_KEYS,
 } from "../constants";
 import { calculateFinancials } from "../services/calculator";
 
@@ -103,17 +104,17 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [settings, setSettings] = useSettings();
   const [inventory, setInventory] = useLocalStorage<Vehicle[]>(
-    "ltvInventory_v3",
+    STORAGE_KEYS.INVENTORY,
     SAMPLE_INVENTORY
   );
-  const [dealData, setDealData] = useLocalStorage<DealData>("ltvDealData_v2", {
+  const [dealData, setDealData] = useLocalStorage<DealData>(STORAGE_KEYS.DEAL_DATA, {
     ...INITIAL_DEAL_DATA,
     loanTerm: settings.defaultTerm,
     interestRate: settings.defaultApr,
     stateFees: settings.defaultStateFees,
   });
   const [filters, setFilters] = useLocalStorage<FilterData>(
-    "ltvFilters_v2",
+    STORAGE_KEYS.FILTERS,
     INITIAL_FILTER_DATA
   );
   const [message, setMessage] = useState<Message | null>(null);
@@ -127,19 +128,19 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isDealDirty, setIsDealDirty] = useState<boolean>(false);
 
   const [favorites, setFavorites] = useLocalStorage<Vehicle[]>(
-    "ltvFavorites_v2",
+    STORAGE_KEYS.FAVORITES,
     []
   );
   const [lenderProfiles, setLenderProfiles] = useLocalStorage<LenderProfile[]>(
-    "ltvBankProfiles_v2",
+    STORAGE_KEYS.LENDER_PROFILES,
     DEFAULT_LENDER_PROFILES
   );
   const [savedDeals, setSavedDeals] = useLocalStorage<SavedDeal[]>(
-    "ltvSavedDeals_v2",
+    STORAGE_KEYS.SAVED_DEALS,
     []
   );
   const [scratchPadNotes, setScratchPadNotes] = useLocalStorage<string>(
-    "ltvScratchPad_v2",
+    STORAGE_KEYS.SCRATCH_PAD,
     ""
   );
 

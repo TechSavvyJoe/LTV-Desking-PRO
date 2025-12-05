@@ -407,6 +407,8 @@ const MainLayout: React.FC = () => {
                   onChange={handleFileUpload}
                   className="hidden"
                   ref={fileInputRef}
+                  title="Upload inventory file"
+                  aria-label="Upload inventory file (CSV, XLS, XLSX)"
                 />
                 <Button
                   onClick={() => fileInputRef.current?.click()}

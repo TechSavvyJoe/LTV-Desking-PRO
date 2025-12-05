@@ -317,11 +317,15 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
             accept=".pdf"
             multiple
             className="hidden"
+            title="Upload rate sheet PDF files"
+            aria-label="Upload rate sheet PDF files"
           />
           <select
             value={targetLenderId}
             onChange={(e) => setTargetLenderId(e.target.value)}
             className="bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+            title="Select target lender for rate sheet upload"
+            aria-label="Select target lender for rate sheet upload"
           >
             <option value="auto">Auto-Detect Lender</option>
             {profiles.map((p) => (

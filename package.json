@@ -1,15 +1,16 @@
 {
-  "name": "ltv-&-desking-pro",
+  "name": "ltv-desking-pro",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "dependencies": {
-    "@google/genai": "latest",
+    "@google/genai": "^0.7.0",
     "@tanstack/react-virtual": "^3.13.12",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
