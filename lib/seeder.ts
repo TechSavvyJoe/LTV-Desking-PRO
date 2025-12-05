@@ -7,9 +7,19 @@ import {
 import { SAMPLE_INVENTORY, DEFAULT_LENDER_PROFILES } from "../constants";
 import { toast } from "./toast";
 
+import { getCurrentDealerId } from "./pocketbase";
+
 export const seedDatabase = async () => {
   try {
     // 1. Seed Inventory
+    const dealerId = getCurrentDealerId();
+    console.log("Seeding Database. Current Dealer ID:", dealerId);
+
+    if (!dealerId) {
+      toast.error("Error: No Dealer ID found. Cannot seed.");
+      return;
+    }
+
     const currentInventory = await getInventory();
     if (currentInventory.length === 0) {
       console.log("Seeding inventory...");
@@ -51,6 +61,7 @@ export const seedDatabase = async () => {
     }
   } catch (error: any) {
     console.error("Database seeding failed:", error);
+    console.error("Error Details:", error.message, error.data);
     toast.error("Failed to seed database: " + error.message);
   }
 };
