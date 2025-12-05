@@ -375,434 +375,426 @@ const MainLayout: React.FC = () => {
         onOpenSettingsModal={() => setIsSettingsOpen(true)}
       />
 
-      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300">
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-          {/* LEFT COLUMN: Deal Controls & Actions (Sticky on XL screens) */}
-          <aside className="xl:col-span-3 xl:sticky xl:top-24 space-y-6 z-10 w-full min-w-0">
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-200 dark:hover:border-slate-700">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20">
-                <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                  <Icons.UserIcon className="w-4 h-4" /> Customer & Deal
-                </h3>
-              </div>
-              <div className="p-2">
-                <DealControls
-                  dealData={dealData}
-                  setDealData={setDealData}
-                  filters={filters}
-                  setFilters={setFilters}
-                  errors={errors}
-                  setErrors={setErrors}
-                  customerName={customerName}
-                  setCustomerName={setCustomerName}
-                  salespersonName={salespersonName}
-                  setSalespersonName={setSalespersonName}
-                  onVinLookup={handleVinLookup}
-                  vinLookupResult={vinLookupResult}
-                  isVinLoading={isVinLoading}
-                />
-              </div>
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-8">
+        {/* Deal Controls & Actions (Restored to Top) */}
+        <section className="space-y-6">
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-200 dark:hover:border-slate-700">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20">
+              <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                <Icons.UserIcon className="w-4 h-4" /> Customer & Deal
+              </h3>
             </div>
-
-            <div>
-              <ActionBar
-                activeTab={activeTab}
-                favoritesCount={favorites.length}
-                onDownloadFavorites={handleDownloadFavorites}
-                onSaveDeal={() => handleSaveDeal()}
-                canSave={
-                  !!activeVehicle &&
-                  typeof activeVehicle.price === "number" &&
-                  !!customerName
-                }
+            <div className="p-4">
+              <DealControls
+                dealData={dealData}
+                setDealData={setDealData}
+                filters={filters}
+                setFilters={setFilters}
+                errors={errors}
+                setErrors={setErrors}
+                customerName={customerName}
+                setCustomerName={setCustomerName}
+                salespersonName={salespersonName}
+                setSalespersonName={setSalespersonName}
+                onVinLookup={handleVinLookup}
+                vinLookupResult={vinLookupResult}
+                isVinLoading={isVinLoading}
               />
             </div>
-          </aside>
+          </div>
 
-          {/* RIGHT COLUMN: Main Content Area */}
-          <section className="xl:col-span-9 space-y-6 min-w-0">
-            {/* Top Toolbar: File Upload & VIN (Refined) */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
-              {/* File Import Section */}
-              <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  ref={fileInputRef}
-                  title="Upload inventory file"
-                />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  variant="secondary"
-                  className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700"
-                >
-                  <Icons.CloudArrowDownIcon className="w-4 h-4 mr-2" />
-                  Import
-                </Button>
+          <ActionBar
+            activeTab={activeTab}
+            favoritesCount={favorites.length}
+            onDownloadFavorites={handleDownloadFavorites}
+            onSaveDeal={() => handleSaveDeal()}
+            canSave={
+              !!activeVehicle &&
+              typeof activeVehicle.price === "number" &&
+              !!customerName
+            }
+          />
+        </section>
 
-                <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
+        {/* Main Content Area (Tables) */}
+        <section className="space-y-6 min-w-0">
+          {/* Top Toolbar: File Upload & VIN (Refined) */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
+            {/* File Import Section */}
+            <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+                ref={fileInputRef}
+                title="Upload inventory file"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="secondary"
+                className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700"
+              >
+                <Icons.CloudArrowDownIcon className="w-4 h-4 mr-2" />
+                Import
+              </Button>
 
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                    {fileName}
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {safeInventory.length} vehicles
-                  </div>
+              <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
+
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                  {fileName}
                 </div>
-
-                <Button
-                  title="Download Sample CSV"
-                  variant="ghost"
-                  size="icon"
-                  className="text-slate-400 hover:text-blue-500"
-                  onClick={() => {
-                    const headers = [
-                      "Stock #",
-                      "Year",
-                      "Make",
-                      "Model",
-                      "Trim",
-                      "VIN",
-                      "Mileage",
-                      "Price",
-                      "Cost",
-                      "J.D. Power Trade In",
-                      "J.D. Power Retail",
-                      "Unit Cost",
-                    ];
-                    const sampleData = [
-                      [
-                        "STK1001",
-                        "2023",
-                        "Toyota",
-                        "Camry",
-                        "SE",
-                        "1G1...SAMPLE1",
-                        "15000",
-                        "28500",
-                        "25000",
-                        "24000",
-                        "29000",
-                        "25000",
-                      ],
-                    ];
-                    const csvContent = [
-                      headers.join(","),
-                      ...sampleData.map((r) => r.join(",")),
-                    ].join("\n");
-                    const blob = new Blob([csvContent], {
-                      type: "text/csv;charset=utf-8;",
-                    });
-                    const link = document.createElement("a");
-                    link.href = URL.createObjectURL(blob);
-                    link.download = "inventory_sample.csv";
-                    link.click();
-                  }}
-                >
-                  <Icons.DocumentArrowDownIcon className="w-5 h-5" />
-                </Button>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {safeInventory.length} vehicles
+                </div>
               </div>
 
-              {/* Quick VIN Decoder */}
-              <div className="flex items-center gap-2 flex-1 min-w-[280px] justify-end">
-                <div className="relative w-full max-w-xs">
-                  <input
-                    type="text"
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
-                    placeholder="Enter VIN..."
-                    maxLength={17}
-                    value={vinLookup}
-                    onChange={(e) => setVinLookup(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === "Enter" && handleVinLookup()}
-                  />
-                  <Icons.SearchIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                </div>
-                <Button
-                  onClick={handleVinLookup}
-                  disabled={isVinLoading || vinLookup.length < 11}
-                  className="shrink-0"
-                >
-                  {isVinLoading ? (
-                    <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Decode"
-                  )}
-                </Button>
-              </div>
+              <Button
+                title="Download Sample CSV"
+                variant="ghost"
+                size="icon"
+                className="text-slate-400 hover:text-blue-500"
+                onClick={() => {
+                  const headers = [
+                    "Stock #",
+                    "Year",
+                    "Make",
+                    "Model",
+                    "Trim",
+                    "VIN",
+                    "Mileage",
+                    "Price",
+                    "Cost",
+                    "J.D. Power Trade In",
+                    "J.D. Power Retail",
+                    "Unit Cost",
+                  ];
+                  const sampleData = [
+                    [
+                      "STK1001",
+                      "2023",
+                      "Toyota",
+                      "Camry",
+                      "SE",
+                      "1G1...SAMPLE1",
+                      "15000",
+                      "28500",
+                      "25000",
+                      "24000",
+                      "29000",
+                      "25000",
+                    ],
+                  ];
+                  const csvContent = [
+                    headers.join(","),
+                    ...sampleData.map((r) => r.join(",")),
+                  ].join("\n");
+                  const blob = new Blob([csvContent], {
+                    type: "text/csv;charset=utf-8;",
+                  });
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(blob);
+                  link.download = "inventory_sample.csv";
+                  link.click();
+                }}
+              >
+                <Icons.DocumentArrowDownIcon className="w-5 h-5" />
+              </Button>
             </div>
 
-            {/* Contextual Status Bar */}
-            {(dealData.tradeInValue > 0 || dealData.downPayment > 0) && (
-              <div className="flex flex-wrap items-center gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 px-5 py-3 rounded-xl text-sm text-blue-800 dark:text-blue-200 animate-fadeIn">
-                <span className="font-bold flex items-center gap-2 uppercase tracking-wide text-xs">
-                  <Icons.InformationCircleIcon className="w-5 h-5" />
-                  Pending Structure
+            {/* Quick VIN Decoder */}
+            <div className="flex items-center gap-2 flex-1 min-w-[280px] justify-end">
+              <div className="relative w-full max-w-xs">
+                <input
+                  type="text"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
+                  placeholder="Enter VIN..."
+                  maxLength={17}
+                  value={vinLookup}
+                  onChange={(e) => setVinLookup(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleVinLookup()}
+                />
+                <Icons.SearchIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              </div>
+              <Button
+                onClick={handleVinLookup}
+                disabled={isVinLoading || vinLookup.length < 11}
+                className="shrink-0"
+              >
+                {isVinLoading ? (
+                  <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Decode"
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Contextual Status Bar */}
+          {(dealData.tradeInValue > 0 || dealData.downPayment > 0) && (
+            <div className="flex flex-wrap items-center gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 px-5 py-3 rounded-xl text-sm text-blue-800 dark:text-blue-200 animate-fadeIn">
+              <span className="font-bold flex items-center gap-2 uppercase tracking-wide text-xs">
+                <Icons.InformationCircleIcon className="w-5 h-5" />
+                Pending Structure
+              </span>
+              <div className="flex items-center gap-3 ml-auto sm:ml-0">
+                <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
+                  Down: ${dealData.downPayment.toLocaleString()}
                 </span>
-                <div className="flex items-center gap-3 ml-auto sm:ml-0">
-                  <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
-                    Down: ${dealData.downPayment.toLocaleString()}
-                  </span>
-                  <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
-                    Trade: ${dealData.tradeInValue.toLocaleString()}
-                  </span>
+                <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
+                  Trade: ${dealData.tradeInValue.toLocaleString()}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                onClick={clearDealAndFilters}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+
+          {/* Navigation Tabs */}
+          <div className="sticky top-[88px] z-20 xl:static bg-transparent">
+            <nav className="flex items-center gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/80 rounded-2xl overflow-x-auto border border-slate-200 dark:border-slate-800 backdrop-blur-md shadow-sm">
+              <TabButton
+                active={activeTab === "inventory"}
+                onClick={() => setActiveTab("inventory")}
+                icon={<Icons.TruckIcon className="w-5 h-5" />}
+                label="Inventory"
+                count={inventory.length}
+              />
+              <TabButton
+                active={activeTab === "lenders"}
+                onClick={() => setActiveTab("lenders")}
+                icon={<Icons.BanknotesIcon className="w-5 h-5" />}
+                label="Lender Programs"
+                count={lenderProfiles.length}
+              />
+              <TabButton
+                active={activeTab === "saved"}
+                onClick={() => setActiveTab("saved")}
+                icon={<Icons.FolderIcon className="w-5 h-5" />}
+                label="Saved Deals"
+                count={savedDeals.length}
+              />
+              <TabButton
+                active={activeTab === "scratchpad"}
+                onClick={() => setActiveTab("scratchpad")}
+                icon={<Icons.CalculatorIcon className="w-5 h-5" />}
+                label="Finance Tools"
+              />
+            </nav>
+          </div>
+
+          {/* TAB CONTENT */}
+          <div className="min-h-[500px] animate-fadeIn">
+            {activeTab === "inventory" && (
+              <div className="space-y-8">
+                {/* Favorites Section */}
+                {safeFavorites.length > 0 && (
+                  <div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30 p-1">
+                    <div className="px-4 py-3 border-b border-amber-100 dark:border-amber-900/30 flex items-center justify-between">
+                      <h2 className="text-sm font-bold text-amber-800 dark:text-amber-200 uppercase tracking-widest flex items-center gap-2">
+                        <Icons.StarIcon className="w-4 h-4 text-amber-500 fill-current" />
+                        Shortlist ({safeFavorites.length})
+                      </h2>
+                    </div>
+                    <div className="p-2">
+                      <InventoryTable
+                        data={safeFavorites.map((item) =>
+                          calculateFinancials(item, dealData, settings)
+                        )}
+                        sortConfig={favSort}
+                        onSort={(key) =>
+                          setFavSort((prev) => ({
+                            key,
+                            direction:
+                              prev.key === key && prev.direction === "asc"
+                                ? "desc"
+                                : "asc",
+                          }))
+                        }
+                        expandedRows={expandedInventoryRows}
+                        onRowClick={(vin) =>
+                          handleRowSelect(
+                            vin,
+                            safeFavorites.map((item) =>
+                              calculateFinancials(item, dealData, settings)
+                            )
+                          )
+                        }
+                        onStructureDeal={handleSelectVehicle}
+                        favoriteVins={favoriteVins}
+                        toggleFavorite={toggleFavorite}
+                        pagination={{
+                          currentPage: 1,
+                          itemsPerPage: Infinity,
+                        }}
+                        setPagination={() => {}}
+                        totalRows={safeFavorites.length}
+                        isFavoritesView
+                        renderExpandedRow={(vehicle) => (
+                          <InventoryExpandedRow
+                            item={vehicle}
+                            lenderProfiles={safeLenderProfiles}
+                            dealData={dealData}
+                            setDealData={setDealData}
+                            onInventoryUpdate={handleInventoryUpdate}
+                            customerFilters={filters}
+                            settings={settings}
+                            onDownloadPdf={downloadPdf}
+                            onSharePdf={() => console.log("Share PDF")} // Placeholder
+                            isShareSupported={isShareSupported}
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Main Inventory */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                  <InventoryTable
+                    data={paginatedInventory}
+                    sortConfig={inventorySort}
+                    onSort={(key) =>
+                      setInventorySort((prev) => ({
+                        key,
+                        direction:
+                          prev.key === key && prev.direction === "asc"
+                            ? "desc"
+                            : "asc",
+                      }))
+                    }
+                    expandedRows={expandedInventoryRows}
+                    onRowClick={(vin) =>
+                      handleRowSelect(vin, paginatedInventory)
+                    }
+                    onStructureDeal={handleSelectVehicle}
+                    favoriteVins={favoriteVins}
+                    toggleFavorite={toggleFavorite}
+                    pagination={pagination}
+                    setPagination={setPagination}
+                    totalRows={sortedInventory.length}
+                    onLoadSampleData={loadSampleData}
+                    emptyMessage={
+                      safeInventory.length > 0 ? (
+                        <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                          <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                          <p className="text-slate-500">
+                            No vehicles match your filters.
+                          </p>
+                          <Button
+                            onClick={clearDealAndFilters}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Clear Filters
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                          <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                          <p className="text-slate-500">Inventory is empty.</p>
+                          <Button
+                            onClick={loadSampleData}
+                            variant="primary"
+                            size="sm"
+                          >
+                            Load Sample Data
+                          </Button>
+                        </div>
+                      )
+                    }
+                    renderExpandedRow={(vehicle) => (
+                      <InventoryExpandedRow
+                        item={vehicle}
+                        lenderProfiles={safeLenderProfiles}
+                        dealData={dealData}
+                        setDealData={setDealData}
+                        onInventoryUpdate={handleInventoryUpdate}
+                        customerFilters={filters}
+                        settings={settings}
+                        onDownloadPdf={downloadPdf}
+                        onSharePdf={() => console.log("Share PDF")}
+                        isShareSupported={isShareSupported}
+                      />
+                    )}
+                  />
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
-                  onClick={clearDealAndFilters}
-                >
-                  Clear
-                </Button>
               </div>
             )}
 
-            {/* Navigation Tabs */}
-            <div className="sticky top-[88px] z-20 xl:static bg-transparent">
-              <nav className="flex items-center gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/80 rounded-2xl overflow-x-auto border border-slate-200 dark:border-slate-800 backdrop-blur-md shadow-sm">
-                <TabButton
-                  active={activeTab === "inventory"}
-                  onClick={() => setActiveTab("inventory")}
-                  icon={<Icons.TruckIcon className="w-5 h-5" />}
-                  label="Inventory"
-                  count={inventory.length}
-                />
-                <TabButton
-                  active={activeTab === "lenders"}
-                  onClick={() => setActiveTab("lenders")}
-                  icon={<Icons.BanknotesIcon className="w-5 h-5" />}
-                  label="Lender Programs"
-                  count={lenderProfiles.length}
-                />
-                <TabButton
-                  active={activeTab === "saved"}
-                  onClick={() => setActiveTab("saved")}
-                  icon={<Icons.FolderIcon className="w-5 h-5" />}
-                  label="Saved Deals"
-                  count={savedDeals.length}
-                />
-                <TabButton
-                  active={activeTab === "scratchpad"}
-                  onClick={() => setActiveTab("scratchpad")}
-                  icon={<Icons.CalculatorIcon className="w-5 h-5" />}
-                  label="Finance Tools"
-                />
-              </nav>
-            </div>
+            {activeTab === "lenders" && (
+              <LenderProfiles
+                profiles={safeLenderProfiles}
+                onUpdate={setLenderProfiles}
+              />
+            )}
 
-            {/* TAB CONTENT */}
-            <div className="min-h-[500px] animate-fadeIn">
-              {activeTab === "inventory" && (
-                <div className="space-y-8">
-                  {/* Favorites Section */}
-                  {safeFavorites.length > 0 && (
-                    <div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30 p-1">
-                      <div className="px-4 py-3 border-b border-amber-100 dark:border-amber-900/30 flex items-center justify-between">
-                        <h2 className="text-sm font-bold text-amber-800 dark:text-amber-200 uppercase tracking-widest flex items-center gap-2">
-                          <Icons.StarIcon className="w-4 h-4 text-amber-500 fill-current" />
-                          Shortlist ({safeFavorites.length})
-                        </h2>
-                      </div>
-                      <div className="p-2">
-                        <InventoryTable
-                          data={safeFavorites.map((item) =>
-                            calculateFinancials(item, dealData, settings)
-                          )}
-                          sortConfig={favSort}
-                          onSort={(key) =>
-                            setFavSort((prev) => ({
-                              key,
-                              direction:
-                                prev.key === key && prev.direction === "asc"
-                                  ? "desc"
-                                  : "asc",
-                            }))
-                          }
-                          expandedRows={expandedInventoryRows}
-                          onRowClick={(vin) =>
-                            handleRowSelect(
-                              vin,
-                              safeFavorites.map((item) =>
-                                calculateFinancials(item, dealData, settings)
-                              )
-                            )
-                          }
-                          onStructureDeal={handleSelectVehicle}
-                          favoriteVins={favoriteVins}
-                          toggleFavorite={toggleFavorite}
-                          pagination={{
-                            currentPage: 1,
-                            itemsPerPage: Infinity,
-                          }}
-                          setPagination={() => {}}
-                          totalRows={safeFavorites.length}
-                          isFavoritesView
-                          renderExpandedRow={(vehicle) => (
-                            <InventoryExpandedRow
-                              item={vehicle}
-                              lenderProfiles={safeLenderProfiles}
-                              dealData={dealData}
-                              setDealData={setDealData}
-                              onInventoryUpdate={handleInventoryUpdate}
-                              customerFilters={filters}
-                              settings={settings}
-                              onDownloadPdf={downloadPdf}
-                              onSharePdf={() => console.log("Share PDF")} // Placeholder
-                              isShareSupported={isShareSupported}
-                            />
-                          )}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Main Inventory */}
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                    <InventoryTable
-                      data={paginatedInventory}
-                      sortConfig={inventorySort}
-                      onSort={(key) =>
-                        setInventorySort((prev) => ({
-                          key,
-                          direction:
-                            prev.key === key && prev.direction === "asc"
-                              ? "desc"
-                              : "asc",
-                        }))
+            {activeTab === "saved" && (
+              <SavedDeals
+                deals={safeSavedDeals}
+                onLoad={(deal) => {
+                  setCustomerName(deal.customerName);
+                  setSalespersonName(deal.salespersonName || "");
+                  setDealData(deal.dealData);
+                  setFilters((prev) => ({
+                    ...prev,
+                    creditScore: deal.customerFilters?.creditScore ?? null,
+                    monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
+                  }));
+                  setScratchPadNotes(deal.notes || "");
+                  if (deal.vehicle) {
+                    setActiveVehicle(deal.vehicle);
+                  }
+                  setMessage({
+                    type: "success",
+                    text: "Deal loaded successfully.",
+                  });
+                }}
+                onDelete={(id) => {
+                  if (
+                    window.confirm("Are you sure you want to delete this deal?")
+                  ) {
+                    deleteDeal(id).then((success) => {
+                      if (success) {
+                        setSavedDeals(
+                          safeSavedDeals.filter((d) => d.id !== id)
+                        );
+                        setMessage({
+                          type: "success",
+                          text: "Deal deleted.",
+                        });
+                      } else {
+                        setMessage({
+                          type: "error",
+                          text: "Failed to delete deal.",
+                        });
                       }
-                      expandedRows={expandedInventoryRows}
-                      onRowClick={(vin) =>
-                        handleRowSelect(vin, paginatedInventory)
-                      }
-                      onStructureDeal={handleSelectVehicle}
-                      favoriteVins={favoriteVins}
-                      toggleFavorite={toggleFavorite}
-                      pagination={pagination}
-                      setPagination={setPagination}
-                      totalRows={sortedInventory.length}
-                      onLoadSampleData={loadSampleData}
-                      emptyMessage={
-                        safeInventory.length > 0 ? (
-                          <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                            <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                            <p className="text-slate-500">
-                              No vehicles match your filters.
-                            </p>
-                            <Button
-                              onClick={clearDealAndFilters}
-                              variant="secondary"
-                              size="sm"
-                            >
-                              Clear Filters
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                            <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                            <p className="text-slate-500">
-                              Inventory is empty.
-                            </p>
-                            <Button
-                              onClick={loadSampleData}
-                              variant="primary"
-                              size="sm"
-                            >
-                              Load Sample Data
-                            </Button>
-                          </div>
-                        )
-                      }
-                      renderExpandedRow={(vehicle) => (
-                        <InventoryExpandedRow
-                          item={vehicle}
-                          lenderProfiles={safeLenderProfiles}
-                          dealData={dealData}
-                          setDealData={setDealData}
-                          onInventoryUpdate={handleInventoryUpdate}
-                          customerFilters={filters}
-                          settings={settings}
-                          onDownloadPdf={downloadPdf}
-                          onSharePdf={() => console.log("Share PDF")}
-                          isShareSupported={isShareSupported}
-                        />
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "lenders" && (
-                <LenderProfiles
-                  profiles={safeLenderProfiles}
-                  onUpdate={setLenderProfiles}
-                />
-              )}
-
-              {activeTab === "saved" && (
-                <SavedDeals
-                  deals={safeSavedDeals}
-                  onLoad={(deal) => {
-                    setCustomerName(deal.customerName);
-                    setSalespersonName(deal.salespersonName || "");
-                    setDealData(deal.dealData);
-                    setFilters((prev) => ({
-                      ...prev,
-                      creditScore: deal.customerFilters?.creditScore ?? null,
-                      monthlyIncome:
-                        deal.customerFilters?.monthlyIncome ?? null,
-                    }));
-                    setScratchPadNotes(deal.notes || "");
-                    if (deal.vehicle) {
-                      setActiveVehicle(deal.vehicle);
-                    }
-                    setMessage({
-                      type: "success",
-                      text: "Deal loaded successfully.",
                     });
-                  }}
-                  onDelete={(id) => {
-                    if (
-                      window.confirm(
-                        "Are you sure you want to delete this deal?"
-                      )
-                    ) {
-                      deleteDeal(id).then((success) => {
-                        if (success) {
-                          setSavedDeals(
-                            safeSavedDeals.filter((d) => d.id !== id)
-                          );
-                          setMessage({
-                            type: "success",
-                            text: "Deal deleted.",
-                          });
-                        } else {
-                          setMessage({
-                            type: "error",
-                            text: "Failed to delete deal.",
-                          });
-                        }
-                      });
-                    }
-                  }}
-                />
-              )}
+                  }
+                }}
+              />
+            )}
 
-              {activeTab === "scratchpad" && (
-                <FinanceTools
-                  scratchPadNotes={scratchPadNotes}
-                  setScratchPadNotes={setScratchPadNotes}
-                  dealData={dealData}
-                  activeVehicle={activeVehicle}
-                />
-              )}
-            </div>
-          </section>
-        </div>
+            {activeTab === "scratchpad" && (
+              <FinanceTools
+                scratchPadNotes={scratchPadNotes}
+                setScratchPadNotes={setScratchPadNotes}
+                dealData={dealData}
+                activeVehicle={activeVehicle}
+              />
+            )}
+          </div>
+        </section>
       </main>
 
+      {/* Modals */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
