@@ -30,6 +30,7 @@ import { checkBankEligibility } from "./services/lenderMatcher";
 import { CalculatedVehicle, SavedDeal } from "./types";
 import DealStructuringModal from "./components/DealStructuringModal";
 import { InventoryExpandedRow } from "./components/InventoryExpandedRow";
+import AiLenderManagerModal from "./components/AiLenderManagerModal";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
 
@@ -373,6 +374,8 @@ const MainLayout: React.FC = () => {
       <Header
         onOpenAiModal={() => setIsAiModalOpen(true)}
         onOpenSettingsModal={() => setIsSettingsOpen(true)}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
       <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-8">
@@ -819,6 +822,13 @@ const MainLayout: React.FC = () => {
           settings={settings}
         />
       )}
+
+      <AiLenderManagerModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        currentProfiles={lenderProfiles}
+        onUpdateProfiles={setLenderProfiles}
+      />
 
       {/* Global Toast */}
       <Toast />

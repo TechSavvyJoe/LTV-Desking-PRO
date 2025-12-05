@@ -7,11 +7,15 @@ import { useDealContext } from "../context/DealContext";
 interface HeaderProps {
   onOpenAiModal: () => void;
   onOpenSettingsModal: () => void;
+  theme: "light" | "dark";
+  toggleTheme: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
   onOpenAiModal,
   onOpenSettingsModal,
+  theme,
+  toggleTheme,
 }) => {
   const { isShowroomMode, setIsShowroomMode } = useDealContext();
 
@@ -48,7 +52,7 @@ const Header: React.FC<HeaderProps> = ({
             )}
           </button>
           <div className="h-6 w-px bg-slate-700 mx-1" />
-          <ThemeToggle />
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <Button
             variant="secondary"
             onClick={onOpenSettingsModal}

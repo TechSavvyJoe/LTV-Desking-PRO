@@ -1,18 +1,19 @@
 import React from "react";
-import { useThemeControl } from "../../hooks/useTheme";
 import * as Icons from "./Icons";
 
-const ThemeToggle: React.FC = () => {
-  const [theme, setTheme] = useThemeControl();
-  const isDark = theme === "dark";
+interface ThemeToggleProps {
+  theme?: "light" | "dark";
+  onToggle?: () => void;
+}
 
-  const toggleTheme = () => {
-    setTheme(isDark ? "light" : "dark");
-  };
+const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme, onToggle }) => {
+  // Fallback if not controlled (though we intend to control it)
+  // But strictly, we should rely on props now.
+  const isDark = theme === "dark";
 
   return (
     <button
-      onClick={toggleTheme}
+      onClick={onToggle}
       className="
         relative flex items-center
         w-14 h-8

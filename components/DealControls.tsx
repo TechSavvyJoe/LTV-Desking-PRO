@@ -117,7 +117,7 @@ const DealControls: React.FC<DealControlsProps> = ({
     : "text-green-500";
 
   return (
-    <div className="border-b border-slate-200 dark:border-gray-700 space-y-4 py-4">
+    <div className="border-b border-slate-200 dark:border-gray-700 py-4 grid grid-cols-1 2xl:grid-cols-2 gap-6">
       <div className="border border-slate-200 dark:border-gray-700 rounded-2xl p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
         <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white text-sm font-black">
@@ -125,7 +125,7 @@ const DealControls: React.FC<DealControlsProps> = ({
           </span>
           Customer & Deal Info
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-4 gap-4">
           <InputGroup
             label="Customer Name"
             htmlFor="customerName"
@@ -260,7 +260,7 @@ const DealControls: React.FC<DealControlsProps> = ({
           </span>
           Global Deal Structure
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 2xl:grid-cols-4 gap-4">
           <InputGroup
             label="Down Pmt ($)"
             htmlFor="downPayment"
