@@ -111,7 +111,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       {
         header: "Actions",
         className: "text-center",
-        width: "100px",
+        width: "120px",
         render: (item: CalculatedVehicle) => (
           <div className="flex justify-center items-center gap-2">
             <button
@@ -119,7 +119,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 e.stopPropagation();
                 toggleFavorite(item.vin);
               }}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              className="group relative p-2 hover:bg-gradient-to-br hover:from-amber-50 hover:to-yellow-50 dark:hover:from-amber-900/20 dark:hover:to-yellow-900/20 rounded-lg transition-all duration-200 hover:scale-105"
               title={
                 favoriteVins?.has(item.vin)
                   ? "Remove from favorites"
@@ -127,9 +127,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
               }
             >
               {favoriteVins?.has(item.vin) ? (
-                <Icons.StarIcon className="w-5 h-5 text-yellow-500 fill-current" />
+                <Icons.StarIcon className="w-5 h-5 text-yellow-500 fill-current drop-shadow-sm" />
               ) : (
-                <Icons.StarIcon className="w-5 h-5 text-slate-400" />
+                <Icons.StarIcon className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-yellow-400 transition-colors" />
               )}
             </button>
             <button
@@ -142,10 +142,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     vehicle: `${item.modelYear} ${item.make} ${item.model} ${item.trim}`,
                   });
               }}
-              className="p-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 rounded-lg transition-colors group"
+              className="group relative px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 dark:from-blue-600 dark:to-indigo-600 dark:hover:from-blue-500 dark:hover:to-indigo-500 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
               title="Structure Deal"
             >
-              <Icons.CurrencyDollarIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+              <Icons.CurrencyDollarIcon className="w-5 h-5 text-white" />
             </button>
           </div>
         ),
@@ -329,4 +329,5 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   );
 };
 
-export default InventoryTable;
+// Memoize to prevent unnecessary re-renders
+export default React.memo(InventoryTable);

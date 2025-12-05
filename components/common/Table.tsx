@@ -22,26 +22,37 @@ interface TableProps<T> {
 }
 
 const SortIcon = ({ direction }: { direction: "asc" | "desc" | null }) => {
-  if (!direction)
-    return (
-      <svg
-        className="w-4 h-4 opacity-30"
-        fill="currentColor"
-        viewBox="0 0 16 16"
-      >
-        <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
-      </svg>
-    );
-  if (direction === "asc")
-    return (
-      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-        <path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" />
-      </svg>
-    );
   return (
-    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-      <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
-    </svg>
+    <span
+      className={`
+      inline-flex items-center justify-center
+      w-4 h-4 ml-1
+      transition-all duration-200
+      ${direction ? "opacity-100" : "opacity-30 group-hover:opacity-50"}
+    `}
+    >
+      {direction === "asc" ? (
+        <svg
+          className="w-3.5 h-3.5 text-blue-500"
+          fill="currentColor"
+          viewBox="0 0 16 16"
+        >
+          <path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" />
+        </svg>
+      ) : direction === "desc" ? (
+        <svg
+          className="w-3.5 h-3.5 text-blue-500"
+          fill="currentColor"
+          viewBox="0 0 16 16"
+        >
+          <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
+        </svg>
+      ) : (
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
+        </svg>
+      )}
+    </span>
   );
 };
 
@@ -65,24 +76,39 @@ export const Table = <T extends { [key: string]: any }>({
     : [];
 
   return (
-    <div className="table-container overflow-x-auto">
+    <div className="table-container overflow-x-auto custom-scrollbar">
       <table className="w-full text-sm">
+        {/* Header */}
         <thead>
-          <tr className="border-b border-slate-200 dark:border-gray-700">
+          <tr className="border-b border-slate-200 dark:border-slate-700/50">
             {safeColumns.map((col, index) => (
               <th
                 key={index}
-                className={`p-2 font-semibold text-slate-400 dark:text-gray-400 align-top ${
-                  col.isNumeric ? "text-right" : "text-left"
-                } ${col.className || ""}`}
+                className={`
+                  group
+                  px-4 py-3.5
+                  text-left
+                  text-xs font-semibold uppercase tracking-wider
+                  text-slate-500 dark:text-slate-400
+                  bg-slate-50/80 dark:bg-slate-800/50
+                  ${col.isNumeric ? "text-right" : ""}
+                  ${
+                    col.accessor
+                      ? "cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200"
+                      : ""
+                  }
+                  ${col.className || ""}
+                  transition-colors duration-150
+                `}
                 onClick={() => col.accessor && onSort(col.accessor as keyof T)}
               >
                 <div
-                  className={`flex items-center gap-2 cursor-pointer select-none ${
-                    col.isNumeric ? "justify-end" : ""
-                  }`}
+                  className={`
+                    inline-flex items-center gap-1
+                    ${col.isNumeric ? "justify-end w-full" : ""}
+                  `}
                 >
-                  {col.header}
+                  <span>{col.header}</span>
                   {col.accessor && (
                     <SortIcon
                       direction={
@@ -97,14 +123,18 @@ export const Table = <T extends { [key: string]: any }>({
             ))}
           </tr>
         </thead>
-        <tbody>
+
+        {/* Body */}
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
           {safeData.length === 0 ? (
             <tr>
               <td
                 colSpan={safeColumns.length > 0 ? safeColumns.length : 1}
-                className="p-6 text-center text-slate-500 dark:text-gray-400"
+                className="px-4 py-12 text-center"
               >
-                {emptyMessage}
+                <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                  {emptyMessage}
+                </div>
               </td>
             </tr>
           ) : (
@@ -121,19 +151,31 @@ export const Table = <T extends { [key: string]: any }>({
               return (
                 <React.Fragment key={key}>
                   <tr
-                    className={`border-b border-slate-200 dark:border-gray-700 transition-colors ${
-                      onRowClick
-                        ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5"
-                        : ""
-                    }`}
+                    className={`
+                      group
+                      transition-colors duration-150
+                      ${
+                        onRowClick
+                          ? "cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-500/5"
+                          : ""
+                      }
+                      ${isExpanded ? "bg-slate-50 dark:bg-slate-800/30" : ""}
+                    `}
                     onClick={() => onRowClick && onRowClick(key)}
                   >
                     {safeColumns.map((col, colIndex) => (
                       <td
                         key={colIndex}
-                        className={`p-2 whitespace-normal break-words align-top ${
-                          col.isNumeric ? "text-right" : "text-left"
-                        } ${col.className || ""}`}
+                        className={`
+                          px-4 py-3.5
+                          text-slate-700 dark:text-slate-300
+                          ${
+                            col.isNumeric
+                              ? "text-right tabular-nums"
+                              : "text-left"
+                          }
+                          ${col.className || ""}
+                        `}
                       >
                         {col.render
                           ? col.render(item)
@@ -143,9 +185,14 @@ export const Table = <T extends { [key: string]: any }>({
                       </td>
                     ))}
                   </tr>
+
+                  {/* Expanded Row */}
                   {isExpanded && renderExpandedRow && (
-                    <tr className="border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-white/5">
-                      <td colSpan={safeColumns.length} className="p-0">
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/20">
+                      <td
+                        colSpan={safeColumns.length}
+                        className="p-0 border-b border-slate-200 dark:border-slate-700/50"
+                      >
                         {renderExpandedRow(item)}
                       </td>
                     </tr>

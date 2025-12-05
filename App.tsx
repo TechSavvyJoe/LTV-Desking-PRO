@@ -20,6 +20,8 @@ import { checkBankEligibility } from "./services/lenderMatcher";
 import { CalculatedVehicle } from "./types";
 import DealStructuringModal from "./components/DealStructuringModal";
 import { InventoryExpandedRow } from "./components/InventoryExpandedRow";
+import Header from "./components/Header";
+import SkipNavLink from "./components/common/SkipNavLink";
 
 const MainLayout: React.FC = () => {
   const {
@@ -80,6 +82,8 @@ const MainLayout: React.FC = () => {
   >("inventory");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isSavedDealModalOpen, setIsSavedDealModalOpen] = useState(false);
   const [vinLookup, setVinLookup] = useState("");
   const [vinLookupResult, setVinLookupResult] = useState<string | null>(null);
   const [isVinLoading, setIsVinLoading] = useState(false);
@@ -328,79 +332,68 @@ const MainLayout: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-300 font-sans selection:bg-blue-500/30`}
+      className={`min-h-screen transition-colors duration-300 ${
+        theme === "dark" ? "bg-[#0f172a]" : "bg-[#f8fafc]"
+      } text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-500/30 selection:text-blue-600 dark:selection:text-blue-300`}
     >
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-blue-500/20">
-              <Icons.CalculatorIcon className="w-6 h-6" />
+      {/* Skip navigation for accessibility */}
+      <SkipNavLink />
+
+      <Header
+        onOpenAiModal={() => setIsAiModalOpen(true)}
+        onOpenSettingsModal={() => setIsSettingsOpen(true)}
+      />
+
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+          {/* LEFT COLUMN: Deal Controls & Actions (Sticky on XL screens) */}
+          <aside className="xl:col-span-3 xl:sticky xl:top-24 space-y-6 z-10 w-full min-w-0">
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-200 dark:hover:border-slate-700">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20">
+                <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Icons.UserIcon className="w-4 h-4" /> Customer & Deal
+                </h3>
+              </div>
+              <div className="p-2">
+                <DealControls
+                  dealData={dealData}
+                  setDealData={setDealData}
+                  filters={filters}
+                  setFilters={setFilters}
+                  errors={errors}
+                  setErrors={setErrors}
+                  customerName={customerName}
+                  setCustomerName={setCustomerName}
+                  salespersonName={salespersonName}
+                  setSalespersonName={setSalespersonName}
+                  onVinLookup={handleVinLookup}
+                  vinLookupResult={vinLookupResult}
+                  isVinLoading={isVinLoading}
+                />
+              </div>
             </div>
+
             <div>
-              <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 tracking-tight">
-                LTV Desking{" "}
-                <span className="font-light text-blue-500">PRO</span>
-              </h1>
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-500">
-                Professional Deal Structuring
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
-              <TabButton
-                active={activeTab === "inventory"}
-                onClick={() => setActiveTab("inventory")}
-                icon={<Icons.ListIcon className="w-4 h-4" />}
-                label="Inventory"
-                count={safeInventory.length}
-              />
-
-              <TabButton
-                active={activeTab === "lenders"}
-                onClick={() => setActiveTab("lenders")}
-                icon={<Icons.BuildingLibraryIcon className="w-4 h-4" />}
-                label="Lenders"
-                count={safeLenderProfiles.length}
-              />
-              <TabButton
-                active={activeTab === "saved"}
-                onClick={() => setActiveTab("saved")}
-                icon={<Icons.SaveIcon className="w-4 h-4" />}
-                label="Deals"
-                count={safeSavedDeals.length}
-              />
-              <TabButton
-                active={activeTab === "scratchpad"}
-                onClick={() => setActiveTab("scratchpad")}
-                icon={<Icons.BriefcaseIcon className="w-4 h-4" />}
-                label="Tools"
+              <ActionBar
+                activeTab={activeTab}
+                favoritesCount={favorites.length}
+                onDownloadFavorites={handleDownloadFavorites}
+                onSaveDeal={() => handleSaveDeal()}
+                canSave={
+                  !!activeVehicle &&
+                  typeof activeVehicle.price === "number" &&
+                  !!customerName
+                }
               />
             </div>
+          </aside>
 
-            <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block"></div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSettingsOpen(true)}
-              title="Settings"
-            >
-              <Icons.Cog6ToothIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-[1920px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Top Controls: File Upload & VIN */}
-        {/* Top Controls: File Upload & VIN */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex items-center gap-4 flex-1 min-w-[300px]">
-              <div className="relative group flex gap-2">
+          {/* RIGHT COLUMN: Main Content Area */}
+          <section className="xl:col-span-9 space-y-6 min-w-0">
+            {/* Top Toolbar: File Upload & VIN (Refined) */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
+              {/* File Import Section */}
+              <div className="flex items-center gap-3 flex-1 min-w-[280px]">
                 <input
                   type="file"
                   accept=".csv,.xlsx,.xls"
@@ -408,16 +401,32 @@ const MainLayout: React.FC = () => {
                   className="hidden"
                   ref={fileInputRef}
                   title="Upload inventory file"
-                  aria-label="Upload inventory file (CSV, XLS, XLSX)"
                 />
                 <Button
                   onClick={() => fileInputRef.current?.click()}
                   variant="secondary"
+                  className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700"
                 >
-                  <Icons.UploadIcon className="w-4 h-4 mr-2" />
-                  Import Inventory
+                  <Icons.CloudArrowDownIcon className="w-4 h-4 mr-2" />
+                  Import
                 </Button>
+
+                <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                    {fileName}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {safeInventory.length} vehicles
+                  </div>
+                </div>
+
                 <Button
+                  title="Download Sample CSV"
+                  variant="ghost"
+                  size="icon"
+                  className="text-slate-400 hover:text-blue-500"
                   onClick={() => {
                     const headers = [
                       "Stock #",
@@ -448,141 +457,184 @@ const MainLayout: React.FC = () => {
                         "29000",
                         "25000",
                       ],
-                      [
-                        "STK1002",
-                        "2021",
-                        "Honda",
-                        "Accord",
-                        "Sport",
-                        "1G1...SAMPLE2",
-                        "32000",
-                        "24900",
-                        "21500",
-                        "20000",
-                        "25500",
-                        "21500",
-                      ],
-                      [
-                        "STK1003",
-                        "2022",
-                        "Ford",
-                        "F-150",
-                        "XLT",
-                        "1G1...SAMPLE3",
-                        "28000",
-                        "42000",
-                        "38000",
-                        "36000",
-                        "43000",
-                        "38000",
-                      ],
                     ];
                     const csvContent = [
                       headers.join(","),
-                      ...sampleData.map((row) => row.join(",")),
+                      ...sampleData.map((r) => r.join(",")),
                     ].join("\n");
-
                     const blob = new Blob([csvContent], {
                       type: "text/csv;charset=utf-8;",
                     });
-                    const url = URL.createObjectURL(blob);
                     const link = document.createElement("a");
-                    link.setAttribute("href", url);
-                    link.setAttribute("download", "inventory_sample.csv");
-                    document.body.appendChild(link);
+                    link.href = URL.createObjectURL(blob);
+                    link.download = "inventory_sample.csv";
                     link.click();
-                    document.body.removeChild(link);
                   }}
-                  variant="ghost"
-                  title="Download Sample CSV"
                 >
-                  <Icons.DocumentArrowDownIcon className="w-5 h-5 text-slate-500 hover:text-blue-500" />
+                  <Icons.DocumentArrowDownIcon className="w-5 h-5" />
                 </Button>
               </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-slate-900 dark:text-white truncate max-w-[200px]">
-                  {fileName}
+
+              {/* Quick VIN Decoder */}
+              <div className="flex items-center gap-2 flex-1 min-w-[280px] justify-end">
+                <div className="relative w-full max-w-xs">
+                  <input
+                    type="text"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
+                    placeholder="Enter VIN..."
+                    maxLength={17}
+                    value={vinLookup}
+                    onChange={(e) => setVinLookup(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && handleVinLookup()}
+                  />
+                  <Icons.SearchIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {safeInventory.length} vehicles loaded
-                </div>
+                <Button
+                  onClick={handleVinLookup}
+                  disabled={isVinLoading || vinLookup.length < 11}
+                  className="shrink-0"
+                >
+                  {isVinLoading ? (
+                    <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Decode"
+                  )}
+                </Button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-1 min-w-[300px] justify-end">
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="text"
-                  placeholder="Enter VIN to Decode..."
-                  value={vinLookup}
-                  onChange={(e) => setVinLookup(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && handleVinLookup()}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
-                  maxLength={17}
+            {/* Contextual Status Bar */}
+            {(dealData.tradeInValue > 0 || dealData.downPayment > 0) && (
+              <div className="flex flex-wrap items-center gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 px-5 py-3 rounded-xl text-sm text-blue-800 dark:text-blue-200 animate-fadeIn">
+                <span className="font-bold flex items-center gap-2 uppercase tracking-wide text-xs">
+                  <Icons.InformationCircleIcon className="w-5 h-5" />
+                  Pending Structure
+                </span>
+                <div className="flex items-center gap-3 ml-auto sm:ml-0">
+                  <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
+                    Down: ${dealData.downPayment.toLocaleString()}
+                  </span>
+                  <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
+                    Trade: ${dealData.tradeInValue.toLocaleString()}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                  onClick={clearDealAndFilters}
+                >
+                  Clear
+                </Button>
+              </div>
+            )}
+
+            {/* Navigation Tabs */}
+            <div className="sticky top-[88px] z-20 xl:static bg-transparent">
+              <nav className="flex items-center gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/80 rounded-2xl overflow-x-auto border border-slate-200 dark:border-slate-800 backdrop-blur-md shadow-sm">
+                <TabButton
+                  active={activeTab === "inventory"}
+                  onClick={() => setActiveTab("inventory")}
+                  icon={<Icons.TruckIcon className="w-5 h-5" />}
+                  label="Inventory"
+                  count={inventory.length}
                 />
-                <Icons.SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-              </div>
-              <Button
-                onClick={handleVinLookup}
-                disabled={isVinLoading || vinLookup.length < 11}
-              >
-                {isVinLoading ? (
-                  <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Decode"
-                )}
-              </Button>
+                <TabButton
+                  active={activeTab === "lenders"}
+                  onClick={() => setActiveTab("lenders")}
+                  icon={<Icons.BanknotesIcon className="w-5 h-5" />}
+                  label="Lender Programs"
+                  count={lenderProfiles.length}
+                />
+                <TabButton
+                  active={activeTab === "saved"}
+                  onClick={() => setActiveTab("saved")}
+                  icon={<Icons.FolderIcon className="w-5 h-5" />}
+                  label="Saved Deals"
+                  count={savedDeals.length}
+                />
+                <TabButton
+                  active={activeTab === "scratchpad"}
+                  onClick={() => setActiveTab("scratchpad")}
+                  icon={<Icons.CalculatorIcon className="w-5 h-5" />}
+                  label="Finance Tools"
+                />
+              </nav>
             </div>
-          </div>
 
-          {/* Deal Controls & Action Bar */}
-          <div className="space-y-6">
-            <DealControls
-              dealData={dealData}
-              setDealData={setDealData}
-              filters={filters}
-              setFilters={setFilters}
-              errors={errors}
-              setErrors={setErrors}
-              customerName={customerName}
-              setCustomerName={setCustomerName}
-              salespersonName={salespersonName}
-              setSalespersonName={setSalespersonName}
-              onVinLookup={handleVinLookup}
-              vinLookupResult={vinLookupResult}
-              isVinLoading={isVinLoading}
-            />
+            {/* TAB CONTENT */}
+            <div className="min-h-[500px] animate-fadeIn">
+              {activeTab === "inventory" && (
+                <div className="space-y-8">
+                  {/* Favorites Section */}
+                  {safeFavorites.length > 0 && (
+                    <div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30 p-1">
+                      <div className="px-4 py-3 border-b border-amber-100 dark:border-amber-900/30 flex items-center justify-between">
+                        <h2 className="text-sm font-bold text-amber-800 dark:text-amber-200 uppercase tracking-widest flex items-center gap-2">
+                          <Icons.StarIcon className="w-4 h-4 text-amber-500 fill-current" />
+                          Shortlist ({safeFavorites.length})
+                        </h2>
+                      </div>
+                      <div className="p-2">
+                        <InventoryTable
+                          data={safeFavorites.map((item) =>
+                            calculateFinancials(item, dealData, settings)
+                          )}
+                          sortConfig={favSort}
+                          onSort={(key) =>
+                            setFavSort((prev) => ({
+                              key,
+                              direction:
+                                prev.key === key && prev.direction === "asc"
+                                  ? "desc"
+                                  : "asc",
+                            }))
+                          }
+                          expandedRows={expandedInventoryRows}
+                          onRowClick={(vin) =>
+                            handleRowSelect(
+                              vin,
+                              safeFavorites.map((item) =>
+                                calculateFinancials(item, dealData, settings)
+                              )
+                            )
+                          }
+                          onStructureDeal={handleSelectVehicle}
+                          favoriteVins={favoriteVins}
+                          toggleFavorite={toggleFavorite}
+                          pagination={{
+                            currentPage: 1,
+                            itemsPerPage: Infinity,
+                          }}
+                          setPagination={() => {}}
+                          totalRows={safeFavorites.length}
+                          isFavoritesView
+                          renderExpandedRow={(vehicle) => (
+                            <InventoryExpandedRow
+                              item={vehicle}
+                              lenderProfiles={safeLenderProfiles}
+                              dealData={dealData}
+                              setDealData={setDealData}
+                              onInventoryUpdate={handleInventoryUpdate}
+                              customerFilters={filters}
+                              settings={settings}
+                              onDownloadPdf={downloadPdf}
+                              onSharePdf={() => console.log("Share PDF")} // Placeholder
+                              isShareSupported={isShareSupported}
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+                  )}
 
-            <ActionBar
-              activeTab={activeTab}
-              favoritesCount={safeFavorites.length}
-              onDownloadFavorites={handleDownloadFavorites}
-              onSaveDeal={() => handleSaveDeal()}
-              canSave={
-                !!activeVehicle &&
-                typeof activeVehicle.price === "number" &&
-                !!customerName
-              }
-            />
-          </div>
-
-          {/* Main Content Area */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden min-h-[600px]">
-            {activeTab === "inventory" && (
-              <div className="space-y-8">
-                {safeFavorites.length > 0 && (
-                  <section className="mb-6">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                      <Icons.StarIcon className="w-6 h-6 text-yellow-500 fill-current" />
-                      My Favorites ({safeFavorites.length})
-                    </h2>
+                  {/* Main Inventory */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                     <InventoryTable
-                      data={safeFavorites.map((item) =>
-                        calculateFinancials(item, dealData, settings)
-                      )}
-                      sortConfig={favSort}
+                      data={paginatedInventory}
+                      sortConfig={inventorySort}
                       onSort={(key) =>
-                        setFavSort((prev) => ({
+                        setInventorySort((prev) => ({
                           key,
                           direction:
                             prev.key === key && prev.direction === "asc"
@@ -592,20 +644,46 @@ const MainLayout: React.FC = () => {
                       }
                       expandedRows={expandedInventoryRows}
                       onRowClick={(vin) =>
-                        handleRowSelect(
-                          vin,
-                          safeFavorites.map((item) =>
-                            calculateFinancials(item, dealData, settings)
-                          )
-                        )
+                        handleRowSelect(vin, paginatedInventory)
                       }
                       onStructureDeal={handleSelectVehicle}
                       favoriteVins={favoriteVins}
                       toggleFavorite={toggleFavorite}
-                      pagination={{ currentPage: 1, itemsPerPage: Infinity }}
-                      setPagination={() => {}}
-                      totalRows={safeFavorites.length}
-                      isFavoritesView
+                      pagination={pagination}
+                      setPagination={setPagination}
+                      totalRows={sortedInventory.length}
+                      onLoadSampleData={loadSampleData}
+                      emptyMessage={
+                        safeInventory.length > 0 ? (
+                          <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                            <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                            <p className="text-slate-500">
+                              No vehicles match your filters.
+                            </p>
+                            <Button
+                              onClick={clearDealAndFilters}
+                              variant="secondary"
+                              size="sm"
+                            >
+                              Clear Filters
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                            <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                            <p className="text-slate-500">
+                              Inventory is empty.
+                            </p>
+                            <Button
+                              onClick={loadSampleData}
+                              variant="primary"
+                              size="sm"
+                            >
+                              Load Sample Data
+                            </Button>
+                          </div>
+                        )
+                      }
                       renderExpandedRow={(vehicle) => (
                         <InventoryExpandedRow
                           item={vehicle}
@@ -616,116 +694,60 @@ const MainLayout: React.FC = () => {
                           customerFilters={filters}
                           settings={settings}
                           onDownloadPdf={downloadPdf}
-                          onSharePdf={sharePdf}
+                          onSharePdf={() => console.log("Share PDF")}
                           isShareSupported={isShareSupported}
                         />
                       )}
                     />
-                  </section>
-                )}
+                  </div>
+                </div>
+              )}
 
-                <InventoryTable
-                  data={paginatedInventory}
-                  sortConfig={inventorySort}
-                  onSort={(key) =>
-                    setInventorySort((prev) => ({
-                      key,
-                      direction:
-                        prev.key === key && prev.direction === "asc"
-                          ? "desc"
-                          : "asc",
-                    }))
-                  }
-                  expandedRows={expandedInventoryRows}
-                  onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
-                  onStructureDeal={handleSelectVehicle}
-                  favoriteVins={favoriteVins}
-                  toggleFavorite={toggleFavorite}
-                  pagination={pagination}
-                  setPagination={setPagination}
-                  totalRows={sortedInventory.length}
-                  onLoadSampleData={loadSampleData}
-                  emptyMessage={
-                    safeInventory.length > 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                        <p className="text-slate-500 dark:text-slate-400 text-lg">
-                          No vehicles match your filters.
-                        </p>
-                        <Button
-                          onClick={clearDealAndFilters}
-                          variant="secondary"
-                        >
-                          <Icons.XMarkIcon className="w-5 h-5 mr-2" />
-                          Clear Filters
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                        <p className="text-slate-500 dark:text-slate-400 text-lg">
-                          No vehicles found.
-                        </p>
-                        <Button onClick={loadSampleData} variant="primary">
-                          <Icons.CloudArrowDownIcon className="w-5 h-5 mr-2" />
-                          Load Sample Inventory
-                        </Button>
-                      </div>
-                    )
-                  }
-                  renderExpandedRow={(vehicle) => (
-                    <InventoryExpandedRow
-                      item={vehicle}
-                      lenderProfiles={safeLenderProfiles}
-                      dealData={dealData}
-                      setDealData={setDealData}
-                      onInventoryUpdate={handleInventoryUpdate}
-                      customerFilters={filters}
-                      settings={settings}
-                      onDownloadPdf={downloadPdf}
-                      onSharePdf={sharePdf}
-                      isShareSupported={isShareSupported}
-                    />
-                  )}
+              {activeTab === "lenders" && (
+                <LenderProfiles
+                  profiles={safeLenderProfiles}
+                  onUpdate={setLenderProfiles}
                 />
-              </div>
-            )}
-            {activeTab === "lenders" && (
-              <LenderProfiles
-                profiles={safeLenderProfiles}
-                onUpdate={setLenderProfiles}
-              />
-            )}
-            {activeTab === "saved" && (
-              <SavedDeals
-                deals={safeSavedDeals}
-                onLoad={(deal) => {
-                  setCustomerName(deal.customerName);
-                  setSalespersonName(deal.salespersonName || "");
-                  setDealData(deal.dealData);
-                  setFilters((prev) => ({
-                    ...prev,
-                    creditScore: deal.customerFilters?.creditScore ?? null,
-                    monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
-                  }));
-                  setScratchPadNotes(deal.notes || "");
-                  if (deal.vehicle) {
-                    setActiveVehicle(deal.vehicle);
+              )}
+
+              {activeTab === "saved" && (
+                <SavedDeals
+                  deals={safeSavedDeals}
+                  onLoad={(deal) => {
+                    setCustomerName(deal.customerName);
+                    setSalespersonName(deal.salespersonName || "");
+                    setDealData(deal.dealData);
+                    setFilters((prev) => ({
+                      ...prev,
+                      creditScore: deal.customerFilters?.creditScore ?? null,
+                      monthlyIncome:
+                        deal.customerFilters?.monthlyIncome ?? null,
+                    }));
+                    setScratchPadNotes(deal.notes || "");
+                    if (deal.vehicle) {
+                      setActiveVehicle(deal.vehicle);
+                    }
+                    setMessage({
+                      type: "success",
+                      text: "Deal loaded successfully.",
+                    });
+                  }}
+                  onDelete={(id) =>
+                    setSavedDeals(safeSavedDeals.filter((d) => d.id !== id))
                   }
-                  setMessage({ type: "success", text: "Deal loaded." });
-                }}
-                onDelete={(id) =>
-                  setSavedDeals(safeSavedDeals.filter((d) => d.id !== id))
-                }
-              />
-            )}
-            {activeTab === "scratchpad" && (
-              <FinanceTools
-                scratchPadNotes={scratchPadNotes}
-                setScratchPadNotes={setScratchPadNotes}
-                dealData={dealData}
-                activeVehicle={activeVehicle}
-              />
-            )}
-          </div>
+                />
+              )}
+
+              {activeTab === "scratchpad" && (
+                <FinanceTools
+                  scratchPadNotes={scratchPadNotes}
+                  setScratchPadNotes={setScratchPadNotes}
+                  dealData={dealData}
+                  activeVehicle={activeVehicle}
+                />
+              )}
+            </div>
+          </section>
         </div>
       </main>
 

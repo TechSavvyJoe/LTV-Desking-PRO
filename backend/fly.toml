@@ -1,0 +1,29 @@
+# fly.toml - Fly.io configuration for LTV Desking PRO PocketBase Backend
+# Deploy with: fly launch / fly deploy
+
+app = "ltv-desking-pro-api"
+primary_region = "ord"  # Chicago - good for midwest auto dealers
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # PocketBase will auto-detect the environment
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false  # Keep running for real-time subscriptions
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[mounts]
+  source = "ltv_desking_data"
+  destination = "/pb/pb_data"
+  initial_size = "1gb"

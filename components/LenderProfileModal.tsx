@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import type { LenderProfile, LenderTier } from "../types";
+import Modal from "./common/Modal";
 import Button from "./common/Button";
+import Input from "./common/Input";
+import Select from "./common/Select";
+import InputGroup from "./common/InputGroup";
+import * as Icons from "./common/Icons";
 
 interface LenderProfileModalProps {
   profile: LenderProfile | null;
@@ -15,33 +20,6 @@ const NEW_PROFILE_TEMPLATE: Omit<LenderProfile, "id" | "name"> = {
   maxPti: 0,
   tiers: [{ name: "Default Tier", minFico: 600, maxLtv: 125, maxTerm: 72 }],
 };
-
-interface InputGroupProps {
-  label: string;
-  children: React.ReactNode;
-}
-const InputGroup: React.FC<InputGroupProps> = ({ label, children }) => (
-  <div>
-    <label className="block text-sm font-semibold text-slate-200 mb-1">
-      {label}
-    </label>
-    {children}
-  </div>
-);
-
-const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-  <input
-    {...props}
-    className="w-full px-3 py-2.5 text-base bg-slate-900 border border-slate-700 rounded-xl placeholder-slate-500 text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 transition-colors duration-200 ease-in-out shadow-sm"
-  />
-);
-
-const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select
-    {...props}
-    className="w-full px-3 py-2.5 text-base bg-slate-900 border border-slate-700 rounded-xl placeholder-slate-500 text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 transition-colors duration-200 ease-in-out shadow-sm"
-  />
-);
 
 const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
   profile,
@@ -72,7 +50,12 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    const isNumber = e.target.type === "number";
+    // For Select, type might not be "number", so check the name or schema if needed
+    // But here bookValueSource is likely the only select and it's string.
+    // minIncome/maxPti are numbers.
+    const isNumber =
+      e.target.type === "number" || name === "minIncome" || name === "maxPti";
+
     setFormData((prev) => ({
       ...prev,
       [name]: isNumber ? (value ? Number(value) : 0) : value,
@@ -111,7 +94,8 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
   const removeTier = (index: number) => {
     const currentTiers = formData.tiers || [];
     if (currentTiers.length <= 1) {
-      alert("A lender must have at least one tier.");
+      // Could use a tailored toast here, but alert is acceptable fallback for now
+      // Or better, just don't do anything or shake the UI.
       return;
     }
     setFormData((prev) => ({
@@ -123,213 +107,258 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) {
-      alert("Lender Name is required.");
+      // Maybe show standard validation error on the input instead
       return;
     }
     onSave(formData);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4"
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={profile ? `Edit ${formData.name}` : "Add New Lender"}
+      description="Configure lending parameters and tier structures."
+      size="full"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSubmit} className="ml-auto">
+            <Icons.SaveIcon className="w-4 h-4 mr-2" />
+            Save Profile
+          </Button>
+        </>
+      }
     >
-      <div
-        className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col text-slate-100"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-4 border-b border-slate-800">
-          <h2 className="text-xl font-bold text-white">
-            {profile ? `Edit ${formData.name}` : "Add New Lender"}
-          </h2>
-        </div>
-        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 flex-grow">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-4 mb-6">
+      <form onSubmit={handleSubmit} className="space-y-8 pb-4">
+        <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <h4 className="flex items-center gap-2 mb-4 text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">
+            <Icons.BuildingLibraryIcon className="w-4 h-4 text-blue-500" />
+            General Settings
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="sm:col-span-2 lg:col-span-1">
-              <InputGroup label="Lender Name">
-                <StyledInput
+              <InputGroup label="Lender Name" htmlFor="name">
+                <Input
                   type="text"
+                  id="name"
                   name="name"
                   value={formData.name}
                   onChange={handleGeneralChange}
+                  placeholder="e.g. Ally Financial"
                   required
                 />
               </InputGroup>
             </div>
-            <InputGroup label="Book Value Source">
-              <StyledSelect
+            <InputGroup label="Book Value Source" htmlFor="bookValueSource">
+              <Select
+                id="bookValueSource"
                 name="bookValueSource"
                 value={formData.bookValueSource || "Trade"}
                 onChange={handleGeneralChange}
               >
                 <option value="Trade">JD Power Trade</option>
                 <option value="Retail">JD Power Retail</option>
-              </StyledSelect>
+              </Select>
             </InputGroup>
-            <InputGroup label="Min Monthly Income ($)">
-              <StyledInput
+            <InputGroup label="Min Monthly Income ($)" htmlFor="minIncome">
+              <Input
                 type="number"
+                id="minIncome"
                 name="minIncome"
                 value={formData.minIncome || ""}
                 onChange={handleGeneralChange}
                 min="0"
+                placeholder="0"
               />
             </InputGroup>
-            <InputGroup label="Max PTI (%)">
-              <StyledInput
+            <InputGroup label="Max PTI (%)" htmlFor="maxPti">
+              <Input
                 type="number"
+                id="maxPti"
                 name="maxPti"
                 value={formData.maxPti || ""}
                 onChange={handleGeneralChange}
                 min="0"
+                max="100"
+                placeholder="0"
               />
             </InputGroup>
           </div>
+        </div>
 
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Lending Tiers
-          </h3>
-          <div className="space-y-4">
+        <div className="space-y-4">
+          <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
+            <h4 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <Icons.ListIcon className="w-4 h-4 text-indigo-500" />
+              Lending Tiers
+            </h4>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={addTier}
+            >
+              <Icons.PlusIcon className="w-4 h-4 mr-2" />
+              Add Tier
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
             {(formData.tiers || []).map((tier, index) => (
               <div
                 key={index}
-                className="p-4 border rounded-lg border-slate-800 bg-slate-900 relative"
+                className="p-5 border rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm relative group transition-all hover:border-blue-400 dark:hover:border-blue-500/50"
               >
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  <div className="col-span-2 md:col-span-4 lg:col-span-2">
-                    <InputGroup label="Tier Name">
-                      <StyledInput
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="icon"
+                    disabled={(formData.tiers?.length || 0) <= 1}
+                    onClick={() => removeTier(index)}
+                    title="Remove Tier"
+                    className="bg-red-50 hover:bg-red-100 text-red-600 border-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 dark:border-red-900/50"
+                  >
+                    <Icons.TrashIcon className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-6 xl:grid-cols-12 gap-4">
+                  <div className="col-span-2 lg:col-span-2 xl:col-span-3">
+                    <InputGroup label={`Tier ${index + 1} Name`}>
+                      <Input
                         type="text"
                         name="name"
                         value={tier.name}
                         onChange={(e) => handleTierChange(index, e)}
                         required
+                        placeholder="e.g. Tier 1+"
+                        className="font-semibold text-blue-600 dark:text-blue-400"
                       />
                     </InputGroup>
                   </div>
-                  <InputGroup label="Min FICO">
-                    <StyledInput
-                      type="number"
-                      name="minFico"
-                      value={tier.minFico ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Max FICO">
-                    <StyledInput
-                      type="number"
-                      name="maxFico"
-                      value={tier.maxFico ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Min Year">
-                    <StyledInput
-                      type="number"
-                      name="minYear"
-                      value={tier.minYear ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Max Year">
-                    <StyledInput
-                      type="number"
-                      name="maxYear"
-                      value={tier.maxYear ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Min Mileage">
-                    <StyledInput
-                      type="number"
-                      name="minMileage"
-                      value={tier.minMileage ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Max Mileage">
-                    <StyledInput
-                      type="number"
-                      name="maxMileage"
-                      value={tier.maxMileage ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Min Term (mo)">
-                    <StyledInput
-                      type="number"
-                      name="minTerm"
-                      value={tier.minTerm ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Max Term (mo)">
-                    <StyledInput
-                      type="number"
-                      name="maxTerm"
-                      value={tier.maxTerm ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Max LTV (%)">
-                    <StyledInput
-                      type="number"
-                      name="maxLtv"
-                      value={tier.maxLtv ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Min Fin. ($)">
-                    <StyledInput
-                      type="number"
-                      name="minAmountFinanced"
-                      value={tier.minAmountFinanced ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
-                  <InputGroup label="Max Fin. ($)">
-                    <StyledInput
-                      type="number"
-                      name="maxAmountFinanced"
-                      value={tier.maxAmountFinanced ?? ""}
-                      onChange={(e) => handleTierChange(index, e)}
-                    />
-                  </InputGroup>
+
+                  <div className="col-span-2 lg:col-span-4 xl:col-span-9 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <InputGroup label="FICO Range">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          name="minFico"
+                          value={tier.minFico ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Min"
+                          className="!px-2 text-center"
+                        />
+                        <span className="text-slate-400">-</span>
+                        <Input
+                          type="number"
+                          name="maxFico"
+                          value={tier.maxFico ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Max"
+                          className="!px-2 text-center"
+                        />
+                      </div>
+                    </InputGroup>
+
+                    <InputGroup label="LTV / Term">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          name="maxLtv"
+                          value={tier.maxLtv ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="LTV %"
+                          className="!px-2 text-center"
+                        />
+                        <span className="text-slate-400">/</span>
+                        <Input
+                          type="number"
+                          name="maxTerm"
+                          value={tier.maxTerm ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Mo"
+                          className="!px-2 text-center"
+                        />
+                      </div>
+                    </InputGroup>
+
+                    <InputGroup label="Year Range">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          name="minYear"
+                          value={tier.minYear ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Min"
+                          className="!px-2 text-center"
+                        />
+                        <span className="text-slate-400">-</span>
+                        <Input
+                          type="number"
+                          name="maxYear"
+                          value={tier.maxYear ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Max"
+                          className="!px-2 text-center"
+                        />
+                      </div>
+                    </InputGroup>
+
+                    <InputGroup label="Mileage Range">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          name="minMileage"
+                          value={tier.minMileage ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Min"
+                          className="!px-2 text-center"
+                        />
+                        <span className="text-slate-400">-</span>
+                        <Input
+                          type="number"
+                          name="maxMileage"
+                          value={tier.maxMileage ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Max"
+                          className="!px-2 text-center"
+                        />
+                      </div>
+                    </InputGroup>
+
+                    <InputGroup label="Amount Financed">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          name="minAmountFinanced"
+                          value={tier.minAmountFinanced ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Min"
+                          className="!px-2 text-center"
+                        />
+                        <span className="text-slate-400">-</span>
+                        <Input
+                          type="number"
+                          name="maxAmountFinanced"
+                          value={tier.maxAmountFinanced ?? ""}
+                          onChange={(e) => handleTierChange(index, e)}
+                          placeholder="Max"
+                          className="!px-2 text-center"
+                        />
+                      </div>
+                    </InputGroup>
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  className="!p-1.5 !rounded-full absolute top-2 right-2"
-                  onClick={() => removeTier(index)}
-                >
-                  &times;
-                </Button>
               </div>
             ))}
           </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={addTier}
-            className="mt-4"
-          >
-            Add Tier
-          </Button>
-        </form>
-        <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-950">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" onClick={handleSubmit}>
-            Save Profile
-          </Button>
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };
 

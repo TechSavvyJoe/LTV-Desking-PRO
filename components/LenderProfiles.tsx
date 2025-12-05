@@ -35,9 +35,13 @@ const TierDetail = ({
 }) => {
   if (value === undefined || value === null || value === "") return null;
   return (
-    <div className="text-xs">
-      <span className="text-slate-400">{label}: </span>
-      <span className="font-medium text-slate-100">{value}</span>
+    <div className="text-sm flex items-center justify-between py-1 px-2 bg-slate-50/50 dark:bg-slate-800/30 rounded-md">
+      <span className="text-slate-500 dark:text-slate-400 font-medium">
+        {label}
+      </span>
+      <span className="font-semibold text-slate-900 dark:text-slate-100">
+        {value}
+      </span>
     </div>
   );
 };
@@ -223,9 +227,12 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                 return (
                   <div
                     key={index}
-                    className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 rounded-lg p-3 space-y-1 shadow-sm hover:shadow-md transition-shadow duration-200"
+                    className="group relative border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900/50 dark:to-slate-800/30 rounded-xl p-4 space-y-2 shadow-sm hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-300"
                   >
-                    <p className="font-bold text-blue-600 dark:text-blue-400">
+                    {/* Subtle accent bar */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <p className="font-bold text-lg text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                      <Icons.ShieldCheckIcon className="w-5 h-5" />
                       {tier.name}
                     </p>
                     <TierDetail
@@ -308,9 +315,18 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
   );
 
   return (
-    <div className="my-8 bg-slate-950 border border-slate-800 rounded-2xl shadow-xl p-5">
-      <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
-        <h2 className="text-xl font-bold text-white">Manage Lender Profiles</h2>
+    <div className="p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Icons.BuildingLibraryIcon className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+            Lender Profiles
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            {safeProfiles.length}{" "}
+            {safeProfiles.length === 1 ? "lender" : "lenders"} configured
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <input
             type="file"
@@ -454,4 +470,5 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
   );
 };
 
-export default LenderProfiles;
+// Memoize expensive component
+export default React.memo(LenderProfiles);

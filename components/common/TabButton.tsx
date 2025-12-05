@@ -19,29 +19,55 @@ export const TabButton: React.FC<TabButtonProps> = ({
     <button
       onClick={onClick}
       className={`
-                flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200
-                ${
-                  active
-                    ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50"
-                }
-            `}
+        group relative px-6 py-3 text-sm font-semibold rounded-xl
+        transition-all duration-300 ease-out
+        hover:scale-105 active:scale-95
+        ${
+          active
+            ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-sm"
+            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
+        }
+      `}
+      aria-current={active ? "page" : undefined}
     >
-      {icon}
-      <span>{label}</span>
+      {/* Active indicator bar with smooth slide animation */}
+      <span
+        className={`
+            : "text-slate-400 dark:text-slate-500"
+        }
+      `}
+      >
+        {icon}
+      </span>
+
+      {/* Label */}
+      <span className="hidden sm:inline">{label}</span>
+
+      {/* Count Badge */}
       {count !== undefined && (
         <span
           className={`
-                    ml-1 px-1.5 py-0.5 text-[10px] rounded-full font-bold
-                    ${
-                      active
-                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                        : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    }
-                `}
+            min-w-[1.375rem] h-[1.375rem] px-1.5
+            flex items-center justify-center
+            text-[10px] font-bold rounded-full
+            transition-all duration-200
+            ${
+              active
+                ? "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-300"
+                : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+            }
+          `}
         >
-          {count}
+          {count > 99 ? "99+" : count}
         </span>
+      )}
+
+      {/* Active indicator underline */}
+      {active && (
+        <span
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
+          aria-hidden="true"
+        />
       )}
     </button>
   );

@@ -35,7 +35,10 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({
       });
 
       const text = result.data.text;
-      console.log("Scanned text:", text);
+      // Development-only logging
+      if (import.meta.env.DEV) {
+        console.log("Scanned text:", text);
+      }
 
       // Simple regex to find dollar amounts near "Net Pay", "Gross Pay", "Total Pay", "Take Home", "Net", "Gross"
       // Looks for patterns like "Net Pay $1,234.56" or "Gross Pay: 1234.56"
@@ -84,7 +87,12 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({
             onClick={() => !isScanning && fileInputRef.current?.click()}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); !isScanning && fileInputRef.current?.click(); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                !isScanning && fileInputRef.current?.click();
+              }
+            }}
             aria-label="Click to upload or take a photo of pay stub"
           >
             <input

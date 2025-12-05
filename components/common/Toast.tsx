@@ -1,51 +1,116 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { CheckCircleIcon, ExclamationCircleIcon, XMarkIcon } from "./Icons";
 
 interface ToastProps {
-  type: "success" | "error";
+  type?: "success" | "error" | "warning" | "info"; // Added 'info' type and made optional
   message: string;
   onClose: () => void;
-  duration?: number;
+  duration?: number; // Still present in interface, but not used in new logic
 }
 
 export const Toast: React.FC<ToastProps> = ({
-  type,
   message,
+  type = "info", // Default type changed to "info"
   onClose,
-  duration = 3000,
+  duration = 3000, // Default duration used for auto-close, but progress bar is fixed
 }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [progress, setProgress] = useState(100);
+
   useEffect(() => {
+    // Entrance animation
+    setIsVisible(true);
+
+    // Progress bar animation
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => Math.max(0, prev - 100 / (duration / 60))); // Calculate decrement based on duration
+    }, 60);
+
+    // Auto-close after 'duration' milliseconds
     const timer = setTimeout(() => {
-      onClose();
+      setIsVisible(false);
+      setTimeout(onClose, 300); // Wait for exit animation
     }, duration);
 
-    return () => clearTimeout(timer);
-  }, [onClose, duration]);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(progressInterval);
+    };
+  }, [onClose, duration]); // Added duration to dependency array
+
+  const variantStyles = {
+    success:
+      "bg-emerald-500/20 text-emerald-800 border-emerald-500 dark:bg-emerald-500/30 dark:text-emerald-200",
+    error:
+      "bg-red-500/20 text-red-800 border-red-500 dark:bg-red-500/30 dark:text-red-200",
+    warning:
+      "bg-amber-500/20 text-amber-800 border-amber-500 dark:bg-amber-500/30 dark:text-amber-200",
+    info: "bg-blue-500/20 text-blue-800 border-blue-500 dark:bg-blue-500/30 dark:text-blue-200", // Added info style
+  };
+
+  const getIcon = () => {
+    switch (type) {
+      case "success":
+        return <CheckCircleIcon className="w-full h-full" />;
+      case "error":
+      case "warning":
+      case "info": // Info also uses ExclamationCircleIcon
+      default:
+        return <ExclamationCircleIcon className="w-full h-full" />;
+    }
+  };
+
+  const icon = getIcon();
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
+    <div
+      className={`
+        fixed top-4 right-4 z-[200] max-w-md
+        transform transition-all duration-300 ease-out
+        ${
+          isVisible
+            ? "translate-x-0 opacity-100 scale-100"
+            : "translate-x-full opacity-0 scale-95"
+        }
+      `}
+      role="alert"
+      aria-live="assertive"
+    >
       <div
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
-          type === "success"
-            ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200"
-            : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
-        }`}
+        className={`
+          flex items-start gap-3 p-4 rounded-2xl shadow-2xl backdrop-blur-lg
+          border-l-4 overflow-hidden relative
+          ${variantStyles[type]}
+        `}
       >
-        {type === "success" ? (
-          <CheckCircleIcon className="w-5 h-5" />
-        ) : (
-          <ExclamationCircleIcon className="w-5 h-5" />
-        )}
-        <p className="text-sm font-medium">{message}</p>
-        <button
-          onClick={onClose}
-          className={`ml-2 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors ${
-            type === "success"
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-red-600 dark:text-red-400"
+        {/* Progress bar */}
+        <div
+          className="absolute bottom-0 left-0 h-1 bg-white/30 transition-all duration-75 ease-linear"
+          style={{ width: `${progress}%` }}
+        />
+
+        {/* Icon with pulse animation */}
+        <div
+          className={`flex-shrink-0 w-6 h-6 ${
+            isVisible ? "animate-scaleIn" : ""
           }`}
         >
-          <XMarkIcon className="w-4 h-4" />
+          {icon}
+        </div>
+
+        {/* Message */}
+        <p className="flex-1 text-sm font-medium leading-relaxed">{message}</p>
+
+        {/* Close button with hover effect */}
+        <button
+          onClick={() => {
+            setIsVisible(false);
+            setTimeout(onClose, 300);
+          }}
+          className="flex-shrink-0 text-current opacity-60 hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-95 rounded-lg p-1"
+          aria-label="Close notification"
+        >
+          <XMarkIcon className="w-5 h-5" />
         </button>
       </div>
     </div>

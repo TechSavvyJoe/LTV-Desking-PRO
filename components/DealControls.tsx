@@ -2,58 +2,9 @@ import React from "react";
 import type { FilterData, DealData, ValidationErrors } from "../types";
 import { validateInput } from "../services/validator";
 import * as Icons from "./common/Icons";
-
-interface InputGroupProps {
-  label: string;
-  children: React.ReactNode;
-  htmlFor?: string;
-  className?: string;
-  error?: string;
-  labelClassName?: string;
-}
-
-const InputGroup: React.FC<InputGroupProps> = ({
-  label,
-  children,
-  htmlFor,
-  className,
-  error,
-  labelClassName,
-}) => (
-  <div className={`flex flex-col ${className}`}>
-    <label
-      htmlFor={htmlFor}
-      className={`mb-1.5 text-sm font-semibold ${
-        labelClassName || "text-slate-700 dark:text-gray-200 tracking-tight"
-      }`}
-    >
-      {label}
-    </label>
-    {children}
-    {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-  </div>
-);
-
-const StyledInput = (
-  props: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }
-) => {
-  const errorClasses = props.error
-    ? "border-red-400 focus:border-red-400 focus:ring-red-300/60"
-    : "border-slate-200 dark:border-gray-700 focus:border-sky-300 focus:ring-sky-400/70";
-  return (
-    <input
-      {...props}
-      className={`w-full px-3 py-2.5 text-base bg-white dark:bg-slate-900/80 border ${errorClasses} rounded-xl placeholder-slate-400 dark:placeholder-slate-500 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 transition-all duration-200 ease-in-out shadow-sm`}
-    />
-  );
-};
-
-const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select
-    {...props}
-    className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-gray-700 rounded-xl placeholder-slate-400 dark:placeholder-gray-500 text-slate-900 dark:text-gray-100 focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 transition-all duration-200 ease-in-out shadow-sm"
-  />
-);
+import Input from "./common/Input";
+import Select from "./common/Select";
+import InputGroup from "./common/InputGroup";
 
 interface DealControlsProps {
   filters: FilterData;
@@ -180,7 +131,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="customerName"
             className="lg:col-span-1"
           >
-            <StyledInput
+            <Input
               type="text"
               id="customerName"
               value={customerName}
@@ -193,7 +144,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="salespersonName"
             className="lg:col-span-1"
           >
-            <StyledInput
+            <Input
               type="text"
               id="salespersonName"
               value={salespersonName}
@@ -206,7 +157,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="creditScore"
             error={errors.creditScore}
           >
-            <StyledInput
+            <Input
               type="number"
               id="creditScore"
               value={filters.creditScore ?? ""}
@@ -222,7 +173,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="monthlyIncome"
             error={errors.monthlyIncome}
           >
-            <StyledInput
+            <Input
               type="number"
               id="monthlyIncome"
               value={filters.monthlyIncome ?? ""}
@@ -235,7 +186,7 @@ const DealControls: React.FC<DealControlsProps> = ({
           <div className="lg:col-span-2 xl:col-span-1">
             <InputGroup label="VIN Lookup" htmlFor="vin">
               <div className="relative">
-                <StyledInput
+                <Input
                   type="text"
                   id="vin"
                   value={filters.vin}
@@ -261,7 +212,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="vehicle"
             className="lg:col-span-2 xl:col-span-2"
           >
-            <StyledInput
+            <Input
               type="text"
               id="vehicle"
               value={filters.vehicle}
@@ -274,7 +225,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="maxPrice"
             error={errors.maxPrice}
           >
-            <StyledInput
+            <Input
               type="number"
               id="maxPrice"
               value={filters.maxPrice ?? ""}
@@ -289,7 +240,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="maxPayment"
             error={errors.maxPayment}
           >
-            <StyledInput
+            <Input
               type="number"
               id="maxPayment"
               value={filters.maxPayment ?? ""}
@@ -315,7 +266,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="downPayment"
             error={errors.downPayment}
           >
-            <StyledInput
+            <Input
               type="number"
               id="downPayment"
               value={dealData.downPayment === 0 ? "" : dealData.downPayment}
@@ -331,7 +282,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="tradeInValue"
             error={errors.tradeInValue}
           >
-            <StyledInput
+            <Input
               type="number"
               id="tradeInValue"
               value={dealData.tradeInValue === 0 ? "" : dealData.tradeInValue}
@@ -347,7 +298,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="tradeInPayoff"
             error={errors.tradeInPayoff}
           >
-            <StyledInput
+            <Input
               type="number"
               id="tradeInPayoff"
               value={dealData.tradeInPayoff === 0 ? "" : dealData.tradeInPayoff}
@@ -363,7 +314,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="backendProducts"
             error={errors.backendProducts}
           >
-            <StyledInput
+            <Input
               type="number"
               id="backendProducts"
               value={
@@ -381,7 +332,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             htmlFor="stateFees"
             error={errors.stateFees}
           >
-            <StyledInput
+            <Input
               type="number"
               id="stateFees"
               value={dealData.stateFees === 0 ? "" : dealData.stateFees}
@@ -393,7 +344,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             />
           </InputGroup>
           <InputGroup label="Term (Mo)" htmlFor="loanTerm">
-            <StyledSelect
+            <Select
               id="loanTerm"
               value={dealData.loanTerm}
               onChange={handleDealChange}
@@ -406,14 +357,14 @@ const DealControls: React.FC<DealControlsProps> = ({
               <option value="72">72</option>
               <option value="75">75</option>
               <option value="84">84</option>
-            </StyledSelect>
+            </Select>
           </InputGroup>
           <InputGroup
             label="APR (%)"
             htmlFor="interestRate"
             error={errors.interestRate}
           >
-            <StyledInput
+            <Input
               type="number"
               id="interestRate"
               value={dealData.interestRate}

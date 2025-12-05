@@ -38,65 +38,84 @@ const Pagination: React.FC<PaginationProps> = ({
   };
 
   const startItem =
-    totalItems === 0
-      ? 0
-      : isShowAll
-      ? 1
-      : (currentPage - 1) * itemsPerPage + 1;
+    totalItems === 0 ? 0 : isShowAll ? 1 : (currentPage - 1) * itemsPerPage + 1;
   const endItem = isShowAll
     ? totalItems
     : Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-        <span>
-          Showing{" "}
-          <span className="font-medium text-slate-900 dark:text-white">
-            {startItem}
-          </span>{" "}
-          to{" "}
-          <span className="font-medium text-slate-900 dark:text-white">
-            {endItem}
-          </span>{" "}
-          of{" "}
-          <span className="font-medium text-slate-900 dark:text-white">
-            {totalItems}
-          </span>{" "}
-          results
+    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between px-5 py-4 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+      {/* Results Info */}
+      <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+        <span>Showing</span>
+        <span className="font-semibold text-slate-700 dark:text-slate-200">
+          {startItem}–{endItem}
         </span>
+        <span>of</span>
+        <span className="font-semibold text-slate-700 dark:text-slate-200">
+          {totalItems.toLocaleString()}
+        </span>
+        <span>results</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label
-          htmlFor="rows-per-page"
-          className="text-sm text-slate-600 dark:text-slate-400"
-        >
-          Rows:
-        </label>
-        <select
-          id="rows-per-page"
-          value={isShowAll ? "all" : itemsPerPage}
-          onChange={handleItemsPerPageChange}
-          className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="15">15</option>
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="all">All</option>
-        </select>
-
+      {/* Controls */}
+      <div className="flex flex-wrap items-center gap-4">
+        {/* Rows per page */}
         <div className="flex items-center gap-2">
+          <label
+            htmlFor="rows-per-page"
+            className="text-sm text-slate-500 dark:text-slate-400"
+          >
+            Rows:
+          </label>
+          <select
+            id="rows-per-page"
+            value={isShowAll ? "all" : itemsPerPage}
+            onChange={handleItemsPerPageChange}
+            className="
+              px-3 py-2 text-sm font-medium
+              bg-white dark:bg-slate-800
+              border border-slate-200 dark:border-slate-700
+              rounded-lg
+              text-slate-700 dark:text-slate-200
+              focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500
+              transition-all duration-150
+              cursor-pointer
+            "
+          >
+            <option value="15">15</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex items-center gap-1.5">
+          {/* Previous Button */}
           <button
             onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1 || isShowAll}
-            className="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="
+              inline-flex items-center gap-1.5
+              px-3 py-2
+              text-sm font-medium
+              text-slate-600 dark:text-slate-300
+              bg-white dark:bg-slate-800
+              border border-slate-200 dark:border-slate-700
+              rounded-lg
+              hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600
+              disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-slate-800
+              transition-all duration-150
+            "
             aria-label="Previous page"
           >
-            <Icons.ChevronLeftIcon className="w-4 h-4 mr-1" />
-            Previous
+            <Icons.ChevronLeftIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Prev</span>
           </button>
 
+          {/* Page Numbers */}
           <div className="flex items-center gap-1">
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let pageNum;
@@ -110,17 +129,27 @@ const Pagination: React.FC<PaginationProps> = ({
                 pageNum = currentPage - 2 + i;
               }
 
+              const isActive = currentPage === pageNum;
+
               return (
                 <button
                   key={pageNum}
                   onClick={() => goToPage(pageNum)}
-                  className={`inline-flex items-center justify-center w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
-                    currentPage === pageNum
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
-                  }`}
+                  className={`
+                    inline-flex items-center justify-center
+                    w-10 h-10
+                    text-sm font-semibold
+                    rounded-lg
+                    transition-all duration-150
+                    ${
+                      isActive
+                        ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/25"
+                        : "text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                    }
+                    disabled:opacity-40 disabled:cursor-not-allowed
+                  `}
                   aria-label={`Go to page ${pageNum}`}
-                  aria-current={currentPage === pageNum ? "page" : undefined}
+                  aria-current={isActive ? "page" : undefined}
                   disabled={isShowAll}
                 >
                   {pageNum}
@@ -129,14 +158,26 @@ const Pagination: React.FC<PaginationProps> = ({
             })}
           </div>
 
+          {/* Next Button */}
           <button
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages || isShowAll}
-            className="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="
+              inline-flex items-center gap-1.5
+              px-3 py-2
+              text-sm font-medium
+              text-slate-600 dark:text-slate-300
+              bg-white dark:bg-slate-800
+              border border-slate-200 dark:border-slate-700
+              rounded-lg
+              hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600
+              disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-slate-800
+              transition-all duration-150
+            "
             aria-label="Next page"
           >
-            Next
-            <Icons.ChevronRightIcon className="w-4 h-4 ml-1" />
+            <span className="hidden sm:inline">Next</span>
+            <Icons.ChevronRightIcon className="w-4 h-4" />
           </button>
         </div>
       </div>
