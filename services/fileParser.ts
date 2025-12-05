@@ -127,7 +127,7 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
           throw new Error("File has a header row but no data.");
         }
 
-        const headerLine = lines[0];
+        const headerLine = lines[0] ?? "";
         const delimiter = isExcel ? "," : detectDelimiter(headerLine);
         const headers = parseCsvRow(headerLine, delimiter).map((h) => h.trim());
 
@@ -192,15 +192,15 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
             const vals = parseCsvRow(rowString, delimiter);
             if (vals.length < headers.length) return null;
 
-            const make = idx.make !== -1 ? vals[idx.make] : undefined;
-            const model = idx.model !== -1 ? vals[idx.model] : undefined;
-            const trim = idx.trim !== -1 ? vals[idx.trim] : undefined;
+            const make = idx.make !== -1 ? vals[idx.make] ?? "" : undefined;
+            const model = idx.model !== -1 ? vals[idx.model] ?? "" : undefined;
+            const trim = idx.trim !== -1 ? vals[idx.trim] ?? "" : undefined;
 
-            let modelYear = parseNumber(vals[idx.modelYear]);
+            let modelYear = parseNumber(vals[idx.modelYear] ?? "");
 
             // Construct vehicle description if missing
-            let vehicleDescription =
-              idx.vehicle !== -1 ? vals[idx.vehicle] : "";
+            let vehicleDescription: string =
+              idx.vehicle !== -1 ? vals[idx.vehicle] ?? "" : "";
             if (!vehicleDescription && make && model) {
               vehicleDescription = `${
                 modelYear !== "N/A" ? modelYear : ""
@@ -214,8 +214,8 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
               if (yearMatch) modelYear = parseInt(yearMatch[0], 10);
             }
 
-            const mileage = parseNumber(vals[idx.mileage]);
-            const price = parseNumber(vals[idx.price]);
+            const mileage = parseNumber(vals[idx.mileage] ?? "");
+            const price = parseNumber(vals[idx.price] ?? "");
             if (price === "N/A" || mileage === "N/A") {
               return null; // drop rows missing critical numeric fields
             }
@@ -225,21 +225,23 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
               make,
               model,
               trim,
-              stock: vals[idx.stock] || "N/A",
+              stock: vals[idx.stock] ?? "N/A",
               vin:
-                vals[idx.vin] && vals[idx.vin].trim() !== ""
-                  ? vals[idx.vin]
-                  : `VIN-${vals[idx.stock] || "ROW"}-${rowIndex}`,
+                vals[idx.vin] && (vals[idx.vin] ?? "").trim() !== ""
+                  ? vals[idx.vin] ?? ""
+                  : `VIN-${vals[idx.stock] ?? "ROW"}-${rowIndex}`,
               modelYear: modelYear,
               mileage,
               price,
-              jdPower: parseNumber(vals[idx.jdPower]),
+              jdPower: parseNumber(vals[idx.jdPower] ?? ""),
               jdPowerRetail:
                 idx.jdPowerRetail !== -1
-                  ? parseNumber(vals[idx.jdPowerRetail])
+                  ? parseNumber(vals[idx.jdPowerRetail] ?? "")
                   : "N/A",
               unitCost:
-                idx.unitCost !== -1 ? parseNumber(vals[idx.unitCost]) : "N/A",
+                idx.unitCost !== -1
+                  ? parseNumber(vals[idx.unitCost] ?? "")
+                  : "N/A",
               baseOutTheDoorPrice: "N/A", // will be calculated later
             };
           })

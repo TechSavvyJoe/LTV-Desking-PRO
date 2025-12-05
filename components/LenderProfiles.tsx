@@ -130,6 +130,8 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        if (!file) continue;
+
         try {
           const extractedData = await processLenderSheet(file);
           if (!extractedData || !extractedData.name) {

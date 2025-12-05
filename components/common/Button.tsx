@@ -4,6 +4,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "danger" | "ghost";
   size?: "sm" | "md" | "lg" | "icon";
   children: React.ReactNode;
+  /** Accessibility label - required for icon-only buttons */
+  "aria-label"?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -11,6 +13,7 @@ const Button: React.FC<ButtonProps> = ({
   variant = "primary",
   size = "md",
   className = "",
+  "aria-label": ariaLabel,
   ...props
 }) => {
   const baseClasses =
@@ -34,9 +37,17 @@ const Button: React.FC<ButtonProps> = ({
     icon: "p-2",
   };
 
+  // Warn in development if icon button has no aria-label
+  if (process.env.NODE_ENV === "development" && size === "icon" && !ariaLabel) {
+    console.warn(
+      "Button: Icon-only buttons should have an aria-label for accessibility."
+    );
+  }
+
   return (
     <button
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      aria-label={ariaLabel}
       {...props}
     >
       {children}

@@ -305,12 +305,15 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
     value: string
   ) => {
     const newProducts = [...products];
-    const isNumber = field !== "name";
-    newProducts[index] = {
-      ...newProducts[index],
-      [field]: isNumber ? (value === "" ? "" : Number(value)) : value,
-    };
-    setProducts(newProducts);
+    const existingProduct = newProducts[index];
+    if (existingProduct) {
+      const isNumber = field !== "name";
+      newProducts[index] = {
+        ...existingProduct,
+        [field]: isNumber ? (value === "" ? "" : Number(value)) : value,
+      };
+      setProducts(newProducts);
+    }
   };
 
   const addProduct = () =>
