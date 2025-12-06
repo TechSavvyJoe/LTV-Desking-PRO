@@ -506,16 +506,23 @@ export const deleteDealer = async (id: string): Promise<boolean> => {
 
 export const getAllUsers = async (): Promise<User[]> => {
   const user = getCurrentUser();
-  if (user?.role !== "superadmin") return [];
+  console.log("[getAllUsers] Current user:", user);
+  console.log("[getAllUsers] User role:", user?.role);
+  
+  if (user?.role !== "superadmin") {
+    console.warn("[getAllUsers] Access denied - user role is not superadmin");
+    return [];
+  }
 
   try {
     const records = await pb.collection("users").getFullList({
       sort: "firstName",
       expand: "dealer",
     });
+    console.log("[getAllUsers] Fetched", records.length, "users:", records);
     return asTypeArray<User>(records);
   } catch (error) {
-    console.error("Failed to fetch users:", error);
+    console.error("[getAllUsers] Failed to fetch users:", error);
     return [];
   }
 };
