@@ -72,11 +72,17 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   const normalizedVehicles = safeVehicles;
   const handleSort = onSort;
 
+  // Check if any row is expanded in favorites view
+  const hasExpandedRow = isFavoritesView && expandedRows && expandedRows.size > 0;
+
   // Calculate dynamic height for favorites view
+  // When a row is expanded, allow more height to show content
   const tableHeight =
     customHeight ||
     (isFavoritesView
-      ? `${Math.min(Math.max(safeVehicles.length * 60 + 60, 120), 400)}px`
+      ? hasExpandedRow
+        ? `${Math.min(safeVehicles.length * 60 + 450, 800)}px` // More height when expanded
+        : `${Math.min(Math.max(safeVehicles.length * 60 + 60, 120), 400)}px`
       : "calc(100vh - 250px)");
 
   // Memoize columns to prevent re-renders

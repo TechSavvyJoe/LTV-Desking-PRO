@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useCallback, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { SortConfig } from "../../types";
 
@@ -69,18 +69,38 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
     ? columns.filter((col) => col !== null && col !== undefined)
     : [];
 
+  // Create a stable set of expanded row keys for comparison
+  const expandedRowsArray = useMemo(() => 
+    expandedRows ? Array.from(expandedRows) : [], 
+    [expandedRows]
+  );
+
+  // Dynamic size estimation - expanded rows are much taller
+  const getRowSize = useCallback((index: number) => {
+    const item = safeData[index];
+    if (!item) return 50;
+    const key = item[rowKey];
+    const isExpanded = expandedRows?.has(key);
+    // Expanded rows need ~400px for the expanded content
+    return isExpanded ? 450 : 50;
+  }, [safeData, rowKey, expandedRows]);
+
   const rowVirtualizer = useVirtualizer({
     count: safeData.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 50,
+    estimateSize: getRowSize,
     overscan: 5,
+    // Force recalculation when expanded rows change
+    measureElement: (element) => {
+      return element?.getBoundingClientRect().height ?? 50;
+    },
   });
 
+  // Re-measure all rows when expandedRows changes
   useEffect(() => {
-    if (parentRef.current) {
-      rowVirtualizer.measure();
-    }
-  }, [expandedRows, rowVirtualizer]);
+    // Reset measurements to force recalculation
+    rowVirtualizer.measure();
+  }, [expandedRowsArray.length, rowVirtualizer]);
 
   // CSS Grid Template
   const gridTemplateColumns = safeColumns
@@ -125,6 +145,7 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
       {/* Body */}
       <div
         style={{
+          minHeight: `${rowVirtualizer.getTotalSize()}px`,
           height: `${rowVirtualizer.getTotalSize()}px`,
           width: "100%",
           position: "relative",
