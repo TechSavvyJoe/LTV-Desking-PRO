@@ -1,4 +1,4 @@
-import { pb, User, Dealer } from "./pocketbase";
+import { pb, User, Dealer, clearSuperadminDealerOverride } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
 
 // Helper for type-safe casting
@@ -88,6 +88,7 @@ export const register = async (
  * Logout current user
  */
 export const logout = (): void => {
+  clearSuperadminDealerOverride(); // Clear any superadmin dealer override
   pb.authStore.clear();
 };
 

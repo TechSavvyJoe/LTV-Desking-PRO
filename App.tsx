@@ -461,6 +461,10 @@ const MainLayout: React.FC = () => {
         onOpenSettingsModal={() => setIsSettingsOpen(true)}
         theme={theme}
         toggleTheme={toggleTheme}
+        onDealerChange={() => {
+          // Reload the page to refresh all data for the new dealer
+          window.location.reload();
+        }}
       />
 
       <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-8">

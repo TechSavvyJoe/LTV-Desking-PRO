@@ -9,6 +9,28 @@ export const pb = new PocketBase(POCKETBASE_URL);
 // Enable auto-cancellation of pending requests on new ones
 pb.autoCancellation(false);
 
+// ============================================
+// SUPERADMIN DEALER OVERRIDE SYSTEM
+// ============================================
+// This allows superadmins to switch which dealer they're viewing/managing
+
+let superadminDealerOverride: string | null = null;
+
+export const setSuperadminDealerOverride = (dealerId: string | null): void => {
+  superadminDealerOverride = dealerId;
+  // Dispatch a custom event so components can react to dealer changes
+  window.dispatchEvent(new CustomEvent('dealerOverrideChanged', { detail: dealerId }));
+};
+
+export const getSuperadminDealerOverride = (): string | null => {
+  return superadminDealerOverride;
+};
+
+export const clearSuperadminDealerOverride = (): void => {
+  superadminDealerOverride = null;
+  window.dispatchEvent(new CustomEvent('dealerOverrideChanged', { detail: null }));
+};
+
 // Types for our collections
 export interface Dealer {
   id: string;
@@ -133,9 +155,15 @@ export const getCurrentUser = (): User | null => {
   return pb.authStore.model as User | null;
 };
 
-// Helper to get current dealer ID
+// Helper to get current dealer ID (with superadmin override support)
 export const getCurrentDealerId = (): string | null => {
   const user = getCurrentUser();
+  
+  // If user is superadmin and has an override set, use that
+  if (user?.role === "superadmin" && superadminDealerOverride) {
+    return superadminDealerOverride;
+  }
+  
   return user?.dealer || null;
 };
 
