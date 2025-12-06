@@ -508,21 +508,36 @@ export const getAllUsers = async (): Promise<User[]> => {
   const user = getCurrentUser();
   console.log("[getAllUsers] Current user:", user);
   console.log("[getAllUsers] User role:", user?.role);
+  console.log("[getAllUsers] Role type:", typeof user?.role);
+  console.log("[getAllUsers] Role exact check:", user?.role === "superadmin");
   
   if (user?.role !== "superadmin") {
-    console.warn("[getAllUsers] Access denied - user role is not superadmin");
+    console.warn("[getAllUsers] Access denied - user role is not superadmin. Role value:", JSON.stringify(user?.role));
     return [];
   }
 
   try {
+    console.log("[getAllUsers] Attempting to fetch users from PocketBase...");
     const records = await pb.collection("users").getFullList({
       sort: "firstName",
       expand: "dealer",
     });
-    console.log("[getAllUsers] Fetched", records.length, "users:", records);
+    console.log("[getAllUsers] SUCCESS! Fetched", records.length, "users");
+    console.log("[getAllUsers] User records:", records.map(r => ({ id: r.id, email: r.email, firstName: r.firstName, role: r.role })));
     return asTypeArray<User>(records);
-  } catch (error) {
-    console.error("[getAllUsers] Failed to fetch users:", error);
+  } catch (error: any) {
+    console.error("[getAllUsers] FAILED to fetch users!");
+    console.error("[getAllUsers] Error name:", error?.name);
+    console.error("[getAllUsers] Error message:", error?.message);
+    console.error("[getAllUsers] Error status:", error?.status);
+    console.error("[getAllUsers] Full error:", error);
+    
+    // Check if it's a permission error
+    if (error?.status === 403 || error?.status === 401) {
+      console.error("[getAllUsers] This is a PERMISSION error - check PocketBase API Rules for 'users' collection");
+      console.error("[getAllUsers] The 'List' rule needs to allow superadmins to see all users");
+    }
+    
     return [];
   }
 };
