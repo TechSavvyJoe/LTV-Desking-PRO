@@ -20,6 +20,11 @@ import type {
 const PRIMARY_MODEL = "gemini-3-pro-preview";
 const FALLBACK_MODEL = "gemini-2.5-flash";
 
+// Perplexity Sonar API for deep internet research when Google grounding isn't enough
+// API key should be set via environment variable VITE_PERPLEXITY_API_KEY
+const PERPLEXITY_API_KEY = import.meta.env.VITE_PERPLEXITY_API_KEY || "";
+const PERPLEXITY_MODEL = "sonar-pro"; // Best reasoning + real-time internet search
+
 // Progress callback type for UI updates
 export type ProcessingProgress = {
   stage:
@@ -314,8 +319,29 @@ const normalizeTier = (tier: any): LenderTier | null => {
 
 // Check if a tier has critical missing data
 const tierHasMissingCriticalData = (tier: LenderTier): boolean => {
-  // For calculations, we really need maxLtv or maxTerm at minimum
-  return tier.maxLtv === undefined && tier.maxTerm === undefined;
+  // For calculations, we really need maxLtv AND maxTerm at minimum
+  // Also check for FICO which is essential for matching
+  const missingLtv = tier.maxLtv === undefined;
+  const missingTerm = tier.maxTerm === undefined;
+  const missingFico = tier.minFico === undefined && tier.maxFico === undefined;
+  
+  // If missing any 2 of these 3 critical fields, needs enhancement
+  const missingCount = [missingLtv, missingTerm, missingFico].filter(Boolean).length;
+  return missingCount >= 2;
+};
+
+// More aggressive check - does this tier have good enough data?
+const tierNeedsMoreData = (tier: LenderTier): boolean => {
+  // Check all important fields
+  const hasLtv = tier.maxLtv !== undefined;
+  const hasTerm = tier.maxTerm !== undefined;
+  const hasFico = tier.minFico !== undefined || tier.maxFico !== undefined;
+  const hasYear = tier.minYear !== undefined || tier.maxYear !== undefined;
+  const hasMileage = tier.maxMileage !== undefined;
+  
+  // If missing more than 2 of these 5 fields, needs more data
+  const hasCount = [hasLtv, hasTerm, hasFico, hasYear, hasMileage].filter(Boolean).length;
+  return hasCount < 3;
 };
 
 // Check if a profile needs enhancement
@@ -323,6 +349,162 @@ const profileNeedsEnhancement = (profile: Partial<LenderProfile>): boolean => {
   if (!profile.tiers || profile.tiers.length === 0) return true;
   // Check if any tier is missing critical data
   return profile.tiers.some(tierHasMissingCriticalData);
+};
+
+// More aggressive check for profiles that need internet research
+const profileNeedsDeepResearch = (profile: Partial<LenderProfile>): boolean => {
+  if (!profile.tiers || profile.tiers.length === 0) return true;
+  // If more than half of tiers need more data, do deep research
+  const tiersNeedingData = profile.tiers.filter(tierNeedsMoreData).length;
+  return tiersNeedingData > profile.tiers.length / 2;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERPLEXITY SONAR API - Deep Internet Research
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface PerplexityMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+interface PerplexityResponse {
+  id: string;
+  model: string;
+  choices: {
+    index: number;
+    finish_reason: string;
+    message: {
+      role: string;
+      content: string;
+    };
+  }[];
+  citations?: string[];
+}
+
+/**
+ * Search the internet using Perplexity Sonar for accurate lender data
+ * This is our most powerful research tool - uses real-time web search
+ */
+const searchWithPerplexity = async (
+  lenderName: string,
+  existingData: Partial<LenderProfile>
+): Promise<Partial<LenderProfile> | null> => {
+  console.log(`[Perplexity Sonar] Searching for: ${lenderName}`);
+  
+  const systemPrompt = `You are an expert automotive finance researcher. Your job is to find accurate, current lending program details for auto lenders.
+
+CRITICAL INSTRUCTIONS:
+1. Search for the EXACT lender name provided
+2. Look for official rate sheets, lending matrices, and program guides
+3. Find specific numbers: Max LTV percentages, Max terms, FICO requirements, vehicle age limits
+4. Only report data you find from reliable sources - do NOT make up numbers
+5. If you can't find specific data, say so - don't guess
+
+Return your findings as a JSON object with this structure:
+{
+  "name": "Lender Name",
+  "minIncome": 2000,
+  "maxPti": 18,
+  "bookValueSource": "Trade or Retail",
+  "tiers": [
+    {
+      "name": "Tier name with credit range",
+      "minFico": 720,
+      "maxFico": 850,
+      "maxLtv": 125,
+      "maxTerm": 84,
+      "minYear": 2019,
+      "maxMileage": 100000,
+      "vehicleType": "new or used",
+      "baseRate": 5.99
+    }
+  ],
+  "sources": ["URL or source name"]
+}
+
+Only include fields where you found actual data. Omit fields you couldn't verify.`;
+
+  const userPrompt = `Research the auto lending programs for: "${lenderName}"
+
+I already have this partial data extracted from their rate sheet:
+${JSON.stringify(existingData, null, 2)}
+
+Please search for their current auto loan programs and find:
+1. Maximum LTV (Loan-to-Value) percentages by credit tier
+2. Maximum loan terms in months
+3. FICO/credit score requirements for each tier  
+4. Vehicle age restrictions (min/max model year)
+5. Maximum mileage limits
+6. Any income or PTI requirements
+
+Focus on finding the specific numbers that are MISSING from my existing data.
+Return ONLY a valid JSON object with the lender data.`;
+
+  try {
+    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${PERPLEXITY_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: PERPLEXITY_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.1, // Low temperature for factual accuracy
+        max_tokens: 4000,
+        return_citations: true,
+        search_recency_filter: "year", // Focus on recent data
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[Perplexity Sonar] API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const data: PerplexityResponse = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      console.error("[Perplexity Sonar] No content in response");
+      return null;
+    }
+
+    console.log(`[Perplexity Sonar] Got response with ${data.citations?.length || 0} citations`);
+    if (data.citations && data.citations.length > 0) {
+      console.log("[Perplexity Sonar] Sources:", data.citations.slice(0, 3));
+    }
+
+    // Extract JSON from the response (it might be wrapped in markdown)
+    let jsonStr = content;
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
+    } else {
+      // Try to find JSON object directly
+      const objMatch = content.match(/\{[\s\S]*\}/);
+      if (objMatch) {
+        jsonStr = objMatch[0];
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(jsonStr);
+      console.log(`[Perplexity Sonar] Successfully parsed lender data for: ${parsed.name || lenderName}`);
+      return parsed;
+    } catch (parseError) {
+      console.error("[Perplexity Sonar] Failed to parse JSON:", parseError);
+      console.log("[Perplexity Sonar] Raw content:", content.substring(0, 500));
+      return null;
+    }
+  } catch (error) {
+    console.error("[Perplexity Sonar] Request failed:", error);
+    return null;
+  }
 };
 
 const normalizeProfile = (profile: any): Partial<LenderProfile> => {
@@ -338,6 +520,89 @@ const normalizeProfile = (profile: any): Partial<LenderProfile> => {
     bookValueSource: profile.bookValueSource === "Retail" ? "Retail" : "Trade",
     tiers,
   };
+};
+
+// Helper function to merge lender data from search results into existing profile
+const mergeLenderData = (
+  original: LenderProfile,
+  enhanced: Partial<LenderProfile>
+): LenderProfile => {
+  const merged = { ...original };
+
+  // Only update fields that are missing or empty in original
+  if (
+    enhanced.minIncome &&
+    enhanced.minIncome > 0 &&
+    (!original.minIncome || original.minIncome === 0)
+  ) {
+    merged.minIncome = enhanced.minIncome;
+  }
+
+  if (
+    enhanced.maxPti &&
+    enhanced.maxPti > 0 &&
+    (!original.maxPti || original.maxPti === 0)
+  ) {
+    merged.maxPti = enhanced.maxPti;
+  }
+
+  if (
+    enhanced.bookValueSource &&
+    (!original.bookValueSource || original.bookValueSource === "Trade")
+  ) {
+    merged.bookValueSource = enhanced.bookValueSource;
+  }
+
+  // Merge tiers - only add missing tier data
+  if (enhanced.tiers && enhanced.tiers.length > 0 && original.tiers) {
+    merged.tiers = original.tiers.map((originalTier) => {
+      const matchingEnhanced = enhanced.tiers?.find(
+        (et) =>
+          et.name?.toLowerCase() === originalTier.name?.toLowerCase() ||
+          et.minScore === originalTier.minScore
+      );
+      if (matchingEnhanced) {
+        return {
+          ...originalTier,
+          maxLtv:
+            originalTier.maxLtv ||
+            matchingEnhanced.maxLtv ||
+            originalTier.maxLtv,
+          maxTermNew:
+            originalTier.maxTermNew ||
+            matchingEnhanced.maxTermNew ||
+            originalTier.maxTermNew,
+          maxTermUsed:
+            originalTier.maxTermUsed ||
+            matchingEnhanced.maxTermUsed ||
+            originalTier.maxTermUsed,
+          maxMileage:
+            originalTier.maxMileage ||
+            matchingEnhanced.maxMileage ||
+            originalTier.maxMileage,
+          maxAge:
+            originalTier.maxAge ||
+            matchingEnhanced.maxAge ||
+            originalTier.maxAge,
+          minLoanAmount:
+            originalTier.minLoanAmount ||
+            matchingEnhanced.minLoanAmount ||
+            originalTier.minLoanAmount,
+          maxLoanAmount:
+            originalTier.maxLoanAmount ||
+            matchingEnhanced.maxLoanAmount ||
+            originalTier.maxLoanAmount,
+          buyRate:
+            originalTier.buyRate ||
+            matchingEnhanced.buyRate ||
+            originalTier.buyRate,
+        };
+      }
+      return originalTier;
+    });
+  }
+
+  return merged;
 };
 
 // Enhanced extraction prompt with chain-of-thought reasoning for maximum accuracy
@@ -700,89 +965,117 @@ export const processLenderSheet = async (
       onProgress?.({
         stage: "enhancing",
         progress: 70,
-        message: `Enhancing ${lendersNeedingEnhancement.length} lender(s) with Google Search grounding and internet research...`,
+        message: `Enhancing ${lendersNeedingEnhancement.length} lender(s) with Perplexity Sonar internet research...`,
         currentFile: file.name,
       });
 
-      // Enhance lenders with missing critical data
-      const enhancedLenders = await Promise.all(
-        normalizedLenders.map(
-          async (lender: Partial<LenderProfile>, index: number) => {
-            if (!profileNeedsEnhancement(lender)) {
-              return lender;
-            }
+      // Enhanced lender research function - Perplexity first, then Google fallback
+      const enhanceLenderWithResearch = async (
+        lender: Partial<LenderProfile>,
+        index: number
+      ): Promise<Partial<LenderProfile>> => {
+        if (!profileNeedsEnhancement(lender)) {
+          return lender;
+        }
 
-            onProgress?.({
-              stage: "enhancing",
-              progress:
-                70 + Math.floor((index / normalizedLenders.length) * 20),
-              message: `Researching "${lender.name}" via Google Search for accurate lending data...`,
-              currentFile: file.name,
+        const lenderName = lender.name || "Unknown";
+        console.log(`[AI Lender Upload] Enhancing lender: ${lenderName}`);
+
+        // STEP 1: Try Perplexity Sonar first (faster, dedicated search)
+        onProgress?.({
+          stage: "enhancing",
+          progress: 70 + Math.floor((index / normalizedLenders.length) * 15),
+          message: `Searching Perplexity Sonar for "${lenderName}" lending programs...`,
+          currentFile: file.name,
+        });
+
+        let enhancedData: Partial<LenderProfile> | null = null;
+        
+        try {
+          enhancedData = await searchWithPerplexity(lenderName, lender);
+          
+          if (enhancedData && enhancedData.tiers && enhancedData.tiers.length > 0) {
+            console.log(`[AI Lender Upload] Perplexity found data for: ${lenderName}`);
+            
+            // Merge Perplexity data with original
+            const mergedLender = mergeLenderData(lender, enhancedData);
+            
+            // Check if we got enough data from Perplexity
+            if (!profileNeedsEnhancement(mergedLender)) {
+              console.log(`[AI Lender Upload] Perplexity provided sufficient data for: ${lenderName}`);
+              return mergedLender;
+            }
+            
+            // Perplexity helped but we still need more - continue with partial data
+            lender = mergedLender;
+          }
+        } catch (perplexityError) {
+          console.warn(`[AI Lender Upload] Perplexity search failed for ${lenderName}:`, perplexityError);
+        }
+
+        // STEP 2: Fall back to Google Search grounding if Perplexity didn't get everything
+        if (profileNeedsEnhancement(lender)) {
+          onProgress?.({
+            stage: "enhancing",
+            progress: 70 + Math.floor((index / normalizedLenders.length) * 20),
+            message: `Searching Google for "${lenderName}" rate sheet data...`,
+            currentFile: file.name,
+          });
+
+          try {
+            console.log(`[AI Lender Upload] Falling back to Google Search grounding for: ${lenderName}`);
+
+            const groundingTool = { googleSearch: {} };
+
+            const enhanceResponse = await ai.models.generateContent({
+              model: PRIMARY_MODEL,
+              contents: getGroundingPrompt(lenderName, lender),
+              config: {
+                tools: [groundingTool],
+                responseMimeType: "application/json",
+                responseSchema: LENDER_PROFILE_SCHEMA,
+              },
             });
 
-            try {
-              // Use Google Search grounding to look up actual lender data from the internet
-              console.log(
-                `[AI Lender Upload] Enhancing lender with Google Search grounding: ${lender.name}`
-              );
-
-              // Enable Google Search grounding for live internet research
-              const groundingTool = { googleSearch: {} };
-
-              const enhanceResponse = await ai.models.generateContent({
-                model: PRIMARY_MODEL,
-                contents: getGroundingPrompt(lender.name || "Unknown", lender),
-                config: {
-                  tools: [groundingTool], // Enable Google Search grounding
-                  responseMimeType: "application/json",
-                  responseSchema: LENDER_PROFILE_SCHEMA,
-                },
-              });
-
-              const enhanceText = enhanceResponse.text;
-              if (enhanceText) {
-                try {
-                  const enhanced = JSON.parse(enhanceText);
-                  // Merge enhanced data with original, preferring original non-undefined values
-                  const mergedTiers = (lender.tiers || []).map(
-                    (tier: LenderTier, tierIndex: number) => {
-                      const enhancedTier = enhanced.tiers?.[tierIndex] || {};
-                      return {
-                        ...enhancedTier,
-                        ...Object.fromEntries(
-                          Object.entries(tier).filter(
-                            ([_, v]) => v !== undefined
-                          )
-                        ),
-                      };
-                    }
-                  );
-
-                  return {
-                    ...lender,
-                    ...Object.fromEntries(
-                      Object.entries(enhanced).filter(
-                        ([key, v]) =>
-                          v !== undefined &&
-                          (lender as any)[key] === undefined &&
-                          key !== "tiers"
-                      )
-                    ),
-                    tiers: mergedTiers,
-                  };
-                } catch {
-                  return lender; // Keep original if enhancement fails
-                }
+            const enhanceText = enhanceResponse.text;
+            if (enhanceText) {
+              try {
+                const googleData = JSON.parse(enhanceText);
+                console.log(`[AI Lender Upload] Google found data for: ${lenderName}`);
+                return mergeLenderData(lender, googleData);
+              } catch {
+                console.warn(`[AI Lender Upload] Failed to parse Google response for: ${lenderName}`);
               }
-              return lender;
-            } catch {
-              return lender; // Keep original if enhancement fails
             }
+          } catch (googleError) {
+            console.warn(`[AI Lender Upload] Google search failed for ${lenderName}:`, googleError);
           }
-        )
-      );
+        }
 
-      normalizedLenders = enhancedLenders;
+        return lender;
+      };
+
+      // Run all enhancements in parallel for speed (max 3 concurrent)
+      const enhanceWithConcurrencyLimit = async (
+        lenders: Partial<LenderProfile>[],
+        maxConcurrent: number = 3
+      ): Promise<Partial<LenderProfile>[]> => {
+        const results: Partial<LenderProfile>[] = [];
+        
+        for (let i = 0; i < lenders.length; i += maxConcurrent) {
+          const batch = lenders.slice(i, i + maxConcurrent);
+          const batchResults = await Promise.all(
+            batch.map((lender, batchIndex) => 
+              enhanceLenderWithResearch(lender, i + batchIndex)
+            )
+          );
+          results.push(...batchResults);
+        }
+        
+        return results;
+      };
+
+      normalizedLenders = await enhanceWithConcurrencyLimit(normalizedLenders);
     }
 
     // Stage 5: Final validation
