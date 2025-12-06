@@ -39,13 +39,13 @@ const retryWithBackoff = async <T>(
   context: string = "API call"
 ): Promise<T> => {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       // Don't retry on certain errors
       const errorMessage = lastError.message.toLowerCase();
       if (
@@ -57,15 +57,20 @@ const retryWithBackoff = async <T>(
         console.error(`[${context}] Non-retryable error:`, lastError.message);
         throw lastError;
       }
-      
+
       if (attempt < retries) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        console.warn(`[${context}] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`, lastError.message);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        console.warn(
+          `[${context}] Attempt ${
+            attempt + 1
+          } failed, retrying in ${delay}ms...`,
+          lastError.message
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   console.error(`[${context}] All ${retries + 1} attempts failed`);
   throw lastError;
 };
@@ -374,9 +379,11 @@ const tierHasMissingCriticalData = (tier: LenderTier): boolean => {
   const missingLtv = tier.maxLtv === undefined;
   const missingTerm = tier.maxTerm === undefined;
   const missingFico = tier.minFico === undefined && tier.maxFico === undefined;
-  
+
   // If missing any 2 of these 3 critical fields, needs enhancement
-  const missingCount = [missingLtv, missingTerm, missingFico].filter(Boolean).length;
+  const missingCount = [missingLtv, missingTerm, missingFico].filter(
+    Boolean
+  ).length;
   return missingCount >= 2;
 };
 
@@ -388,9 +395,11 @@ const tierNeedsMoreData = (tier: LenderTier): boolean => {
   const hasFico = tier.minFico !== undefined || tier.maxFico !== undefined;
   const hasYear = tier.minYear !== undefined || tier.maxYear !== undefined;
   const hasMileage = tier.maxMileage !== undefined;
-  
+
   // If missing more than 2 of these 5 fields, needs more data
-  const hasCount = [hasLtv, hasTerm, hasFico, hasYear, hasMileage].filter(Boolean).length;
+  const hasCount = [hasLtv, hasTerm, hasFico, hasYear, hasMileage].filter(
+    Boolean
+  ).length;
   return hasCount < 3;
 };
 
@@ -441,7 +450,7 @@ const searchWithPerplexity = async (
   existingData: Partial<LenderProfile>
 ): Promise<Partial<LenderProfile> | null> => {
   console.log(`[Perplexity Sonar] Searching for: ${lenderName}`);
-  
+
   const systemPrompt = `You are an expert automotive finance researcher specializing in indirect auto lending programs. Your job is to find accurate, current lending program details for auto lenders.
 
 CRITICAL INSTRUCTIONS:
@@ -518,7 +527,7 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
         const res = await fetch("https://api.perplexity.ai/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${PERPLEXITY_API_KEY}`,
+            Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -540,7 +549,9 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
             throw new Error(`HTTP ${res.status}: ${res.statusText}`);
           }
           // For client errors, don't retry
-          console.error(`[Perplexity Sonar] API error: ${res.status} ${res.statusText}`);
+          console.error(
+            `[Perplexity Sonar] API error: ${res.status} ${res.statusText}`
+          );
           return null;
         }
         return res;
@@ -555,13 +566,17 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
 
     const data: PerplexityResponse = await response.json();
     const content = data.choices?.[0]?.message?.content;
-    
+
     if (!content) {
       console.error("[Perplexity Sonar] No content in response");
       return null;
     }
 
-    console.log(`[Perplexity Sonar] Got response with ${data.citations?.length || 0} citations`);
+    console.log(
+      `[Perplexity Sonar] Got response with ${
+        data.citations?.length || 0
+      } citations`
+    );
     if (data.citations && data.citations.length > 0) {
       console.log("[Perplexity Sonar] Sources:", data.citations.slice(0, 3));
     }
@@ -569,7 +584,7 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
     // Extract JSON from the response (it might be wrapped in markdown)
     let jsonStr = content;
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
+    if (jsonMatch && jsonMatch[1]) {
       jsonStr = jsonMatch[1].trim();
     } else {
       // Try to find JSON object directly
@@ -581,7 +596,11 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
 
     try {
       const parsed = JSON.parse(jsonStr);
-      console.log(`[Perplexity Sonar] Successfully parsed lender data for: ${parsed.name || lenderName}`);
+      console.log(
+        `[Perplexity Sonar] Successfully parsed lender data for: ${
+          parsed.name || lenderName
+        }`
+      );
       return parsed;
     } catch (parseError) {
       console.error("[Perplexity Sonar] Failed to parse JSON:", parseError);
@@ -657,29 +676,40 @@ const mergeLenderData = (
         (et, idx) =>
           !matchedEnhancedIndices.has(idx) &&
           (et.name?.toLowerCase() === originalTier.name?.toLowerCase() ||
-            (et.minFico === originalTier.minFico && et.maxFico === originalTier.maxFico))
+            (et.minFico === originalTier.minFico &&
+              et.maxFico === originalTier.maxFico))
       );
 
       if (enhancedIndex !== -1) {
         matchedEnhancedIndices.add(enhancedIndex);
         const matchingEnhanced = enhanced.tiers[enhancedIndex];
-        mergedTiers.push({
-          ...originalTier,
-          // Fill in missing values from enhanced data using correct property names
-          maxLtv: originalTier.maxLtv || matchingEnhanced.maxLtv,
-          maxTerm: originalTier.maxTerm || matchingEnhanced.maxTerm,
-          minTerm: originalTier.minTerm || matchingEnhanced.minTerm,
-          maxMileage: originalTier.maxMileage || matchingEnhanced.maxMileage,
-          minMileage: originalTier.minMileage || matchingEnhanced.minMileage,
-          maxAge: originalTier.maxAge || matchingEnhanced.maxAge,
-          minAmountFinanced: originalTier.minAmountFinanced || matchingEnhanced.minAmountFinanced,
-          maxAmountFinanced: originalTier.maxAmountFinanced || matchingEnhanced.maxAmountFinanced,
-          maxAdvance: originalTier.maxAdvance || matchingEnhanced.maxAdvance,
-          baseInterestRate: originalTier.baseInterestRate || matchingEnhanced.baseInterestRate,
-          rateAdder: originalTier.rateAdder || matchingEnhanced.rateAdder,
-          minYear: originalTier.minYear || matchingEnhanced.minYear,
-          maxYear: originalTier.maxYear || matchingEnhanced.maxYear,
-        });
+        if (matchingEnhanced) {
+          mergedTiers.push({
+            ...originalTier,
+            // Fill in missing values from enhanced data using correct property names
+            maxLtv: originalTier.maxLtv || matchingEnhanced.maxLtv,
+            maxTerm: originalTier.maxTerm || matchingEnhanced.maxTerm,
+            minTerm: originalTier.minTerm || matchingEnhanced.minTerm,
+            maxMileage: originalTier.maxMileage || matchingEnhanced.maxMileage,
+            minMileage: originalTier.minMileage || matchingEnhanced.minMileage,
+            maxAge: originalTier.maxAge || matchingEnhanced.maxAge,
+            minAmountFinanced:
+              originalTier.minAmountFinanced ||
+              matchingEnhanced.minAmountFinanced,
+            maxAmountFinanced:
+              originalTier.maxAmountFinanced ||
+              matchingEnhanced.maxAmountFinanced,
+            maxAdvance: originalTier.maxAdvance || matchingEnhanced.maxAdvance,
+            baseInterestRate:
+              originalTier.baseInterestRate ||
+              matchingEnhanced.baseInterestRate,
+            rateAdder: originalTier.rateAdder || matchingEnhanced.rateAdder,
+            minYear: originalTier.minYear || matchingEnhanced.minYear,
+            maxYear: originalTier.maxYear || matchingEnhanced.maxYear,
+          });
+        } else {
+          mergedTiers.push(originalTier);
+        }
       } else {
         mergedTiers.push(originalTier);
       }
@@ -689,8 +719,8 @@ const mergeLenderData = (
     for (let i = 0; i < enhanced.tiers.length; i++) {
       if (!matchedEnhancedIndices.has(i)) {
         const newTier = enhanced.tiers[i];
-        // Only add if it has meaningful data (at least a name or FICO range)
-        if (newTier.name || (newTier.minFico && newTier.maxFico)) {
+        // Only add if it exists and has meaningful data (at least a name or FICO range)
+        if (newTier && (newTier.name || (newTier.minFico && newTier.maxFico))) {
           mergedTiers.push(newTier);
         }
       }
@@ -1036,19 +1066,20 @@ export const processLenderSheet = async (
     );
 
     const response = await retryWithBackoff(
-      async () => ai.models.generateContent({
-        model: PRIMARY_MODEL,
-        contents: {
-          parts: [
-            { inlineData: { mimeType: "application/pdf", data: base64Data } },
-            { text: getExtractionPrompt() },
-          ],
-        },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: MULTI_LENDER_RESPONSE_SCHEMA,
-        },
-      }),
+      async () =>
+        ai.models.generateContent({
+          model: PRIMARY_MODEL,
+          contents: {
+            parts: [
+              { inlineData: { mimeType: "application/pdf", data: base64Data } },
+              { text: getExtractionPrompt() },
+            ],
+          },
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: MULTI_LENDER_RESPONSE_SCHEMA,
+          },
+        }),
       MAX_RETRIES,
       "Gemini extraction"
     );
@@ -1135,27 +1166,41 @@ export const processLenderSheet = async (
         });
 
         let enhancedData: Partial<LenderProfile> | null = null;
-        
+
         try {
           enhancedData = await searchWithPerplexity(lenderName, lender);
-          
-          if (enhancedData && enhancedData.tiers && enhancedData.tiers.length > 0) {
-            console.log(`[AI Lender Upload] Perplexity found data for: ${lenderName}`);
-            
-            // Merge Perplexity data with original
-            const mergedLender = mergeLenderData(lender, enhancedData);
-            
+
+          if (
+            enhancedData &&
+            enhancedData.tiers &&
+            enhancedData.tiers.length > 0
+          ) {
+            console.log(
+              `[AI Lender Upload] Perplexity found data for: ${lenderName}`
+            );
+
+            // Merge Perplexity data with original - cast to full LenderProfile since lender comes from normalized list
+            const mergedLender = mergeLenderData(
+              lender as LenderProfile,
+              enhancedData
+            );
+
             // Check if we got enough data from Perplexity
             if (!profileNeedsEnhancement(mergedLender)) {
-              console.log(`[AI Lender Upload] Perplexity provided sufficient data for: ${lenderName}`);
+              console.log(
+                `[AI Lender Upload] Perplexity provided sufficient data for: ${lenderName}`
+              );
               return mergedLender;
             }
-            
+
             // Perplexity helped but we still need more - continue with partial data
             lender = mergedLender;
           }
         } catch (perplexityError) {
-          console.warn(`[AI Lender Upload] Perplexity search failed for ${lenderName}:`, perplexityError);
+          console.warn(
+            `[AI Lender Upload] Perplexity search failed for ${lenderName}:`,
+            perplexityError
+          );
         }
 
         // STEP 2: Fall back to Google Search grounding if Perplexity didn't get everything
@@ -1168,20 +1213,23 @@ export const processLenderSheet = async (
           });
 
           try {
-            console.log(`[AI Lender Upload] Falling back to Google Search grounding for: ${lenderName}`);
+            console.log(
+              `[AI Lender Upload] Falling back to Google Search grounding for: ${lenderName}`
+            );
 
             const groundingTool = { googleSearch: {} };
 
             const enhanceResponse = await retryWithBackoff(
-              async () => ai.models.generateContent({
-                model: PRIMARY_MODEL,
-                contents: getGroundingPrompt(lenderName, lender),
-                config: {
-                  tools: [groundingTool],
-                  responseMimeType: "application/json",
-                  responseSchema: LENDER_PROFILE_SCHEMA,
-                },
-              }),
+              async () =>
+                ai.models.generateContent({
+                  model: PRIMARY_MODEL,
+                  contents: getGroundingPrompt(lenderName, lender),
+                  config: {
+                    tools: [groundingTool],
+                    responseMimeType: "application/json",
+                    responseSchema: LENDER_PROFILE_SCHEMA,
+                  },
+                }),
               MAX_RETRIES,
               "Google grounding"
             );
@@ -1190,14 +1238,21 @@ export const processLenderSheet = async (
             if (enhanceText) {
               try {
                 const googleData = JSON.parse(enhanceText);
-                console.log(`[AI Lender Upload] Google found data for: ${lenderName}`);
-                return mergeLenderData(lender, googleData);
+                console.log(
+                  `[AI Lender Upload] Google found data for: ${lenderName}`
+                );
+                return mergeLenderData(lender as LenderProfile, googleData);
               } catch {
-                console.warn(`[AI Lender Upload] Failed to parse Google response for: ${lenderName}`);
+                console.warn(
+                  `[AI Lender Upload] Failed to parse Google response for: ${lenderName}`
+                );
               }
             }
           } catch (googleError) {
-            console.warn(`[AI Lender Upload] Google search failed for ${lenderName}:`, googleError);
+            console.warn(
+              `[AI Lender Upload] Google search failed for ${lenderName}:`,
+              googleError
+            );
           }
         }
 
@@ -1210,17 +1265,17 @@ export const processLenderSheet = async (
         maxConcurrent: number = 3
       ): Promise<Partial<LenderProfile>[]> => {
         const results: Partial<LenderProfile>[] = [];
-        
+
         for (let i = 0; i < lenders.length; i += maxConcurrent) {
           const batch = lenders.slice(i, i + maxConcurrent);
           const batchResults = await Promise.all(
-            batch.map((lender, batchIndex) => 
+            batch.map((lender, batchIndex) =>
               enhanceLenderWithResearch(lender, i + batchIndex)
             )
           );
           results.push(...batchResults);
         }
-        
+
         return results;
       };
 
@@ -1397,14 +1452,15 @@ export const analyzeDealWithAi = async (
       `[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`
     );
     const response = await retryWithBackoff(
-      async () => ai.models.generateContent({
-        model: PRIMARY_MODEL,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: DEAL_SUGGESTION_SCHEMA,
-        },
-      }),
+      async () =>
+        ai.models.generateContent({
+          model: PRIMARY_MODEL,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: DEAL_SUGGESTION_SCHEMA,
+          },
+        }),
       MAX_RETRIES,
       "AI Deal Assistant"
     );

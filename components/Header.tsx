@@ -3,7 +3,12 @@ import Button from "./common/Button";
 import * as Icons from "./common/Icons";
 import ThemeToggle from "./common/ThemeToggle";
 import { useDealContext } from "../context/DealContext";
-import { getCurrentUser, Dealer, getSuperadminDealerOverride, setSuperadminDealerOverride } from "../lib/pocketbase";
+import {
+  getCurrentUser,
+  Dealer,
+  getSuperadminDealerOverride,
+  setSuperadminDealerOverride,
+} from "../lib/pocketbase";
 import { getAllDealers } from "../lib/api";
 
 interface HeaderProps {
@@ -15,9 +20,13 @@ interface HeaderProps {
 }
 
 // Dealer Switcher Component for SuperAdmins
-const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerChange }) => {
+const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({
+  onDealerChange,
+}) => {
   const [dealers, setDealers] = useState<Dealer[]>([]);
-  const [selectedDealerId, setSelectedDealerId] = useState<string | null>(getSuperadminDealerOverride());
+  const [selectedDealerId, setSelectedDealerId] = useState<string | null>(
+    getSuperadminDealerOverride()
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -26,12 +35,13 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
     const loadDealers = async () => {
       const dealerList = await getAllDealers();
       setDealers(dealerList);
-      
+
       // If no dealer is selected yet and we have dealers, auto-select the first one
       // Don't trigger onDealerChange for auto-selection - only for manual switches
-      if (!selectedDealerId && dealerList.length > 0) {
-        setSelectedDealerId(dealerList[0].id);
-        setSuperadminDealerOverride(dealerList[0].id);
+      const firstDealer = dealerList[0];
+      if (!selectedDealerId && firstDealer) {
+        setSelectedDealerId(firstDealer.id);
+        setSuperadminDealerOverride(firstDealer.id);
         // No reload needed - data will load with the selected dealer
       }
     };
@@ -41,7 +51,10 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -49,10 +62,11 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedDealer = dealers.find(d => d.id === selectedDealerId);
-  const filteredDealers = dealers.filter(d => 
-    d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.code?.toLowerCase().includes(searchTerm.toLowerCase())
+  const selectedDealer = dealers.find((d) => d.id === selectedDealerId);
+  const filteredDealers = dealers.filter(
+    (d) =>
+      d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      d.code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSelectDealer = (dealerId: string) => {
@@ -82,7 +96,11 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
         <span className="font-medium max-w-[150px] truncate">
           {selectedDealer?.name || "Select Dealer"}
         </span>
-        <Icons.ChevronDownIcon className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <Icons.ChevronDownIcon
+          className={`w-4 h-4 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
 
       {isOpen && (
@@ -114,17 +132,26 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
                   key={dealer.id}
                   onClick={() => handleSelectDealer(dealer.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-700/50 transition-colors ${
-                    dealer.id === selectedDealerId ? 'bg-purple-600/20 border-l-2 border-purple-500' : ''
+                    dealer.id === selectedDealerId
+                      ? "bg-purple-600/20 border-l-2 border-purple-500"
+                      : ""
                   }`}
                 >
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
                     {dealer.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white truncate">{dealer.name}</div>
+                    <div className="text-sm font-medium text-white truncate">
+                      {dealer.name}
+                    </div>
                     <div className="text-xs text-slate-400">
                       {dealer.code && <span>Code: {dealer.code}</span>}
-                      {dealer.city && dealer.state && <span> • {dealer.city}, {dealer.state}</span>}
+                      {dealer.city && dealer.state && (
+                        <span>
+                          {" "}
+                          • {dealer.city}, {dealer.state}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {dealer.id === selectedDealerId && (
@@ -138,7 +165,7 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
           {/* Footer */}
           <div className="p-2 border-t border-slate-700 bg-slate-800/50">
             <div className="text-xs text-slate-400 text-center">
-              {dealers.length} dealer{dealers.length !== 1 ? 's' : ''} available
+              {dealers.length} dealer{dealers.length !== 1 ? "s" : ""} available
             </div>
           </div>
         </div>
@@ -167,17 +194,19 @@ const Header: React.FC<HeaderProps> = ({
               LTV & Desking Pro
             </h1>
             <p className="mt-1 text-sm sm:text-base text-slate-200/80">
-              Precision deal structuring, lender intelligence, and desking in one
-              refined workspace.
+              Precision deal structuring, lender intelligence, and desking in
+              one refined workspace.
             </p>
           </div>
-          
+
           {/* SuperAdmin Dealer Switcher */}
           {isSuperAdmin && (
             <div className="flex items-center gap-3 ml-4 pl-4 border-l border-slate-700">
               <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-600/30 rounded-lg">
                 <Icons.ShieldCheckIcon className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-medium text-purple-300">Super Admin</span>
+                <span className="text-xs font-medium text-purple-300">
+                  Super Admin
+                </span>
               </div>
               <DealerSwitcher onDealerChange={onDealerChange} />
             </div>

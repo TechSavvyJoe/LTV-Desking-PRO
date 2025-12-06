@@ -11,6 +11,7 @@ import {
   getCurrentUser,
 } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
+import { sanitizeId } from "./typeGuards";
 
 // Helper for type-safe casting
 const asType = <T>(record: RecordModel): T => record as unknown as T;
@@ -27,7 +28,7 @@ export const getInventory = async (): Promise<InventoryItem[]> => {
 
   try {
     const records = await collections.inventory.getFullList({
-      filter: `dealer = "${dealerId}"`,
+      filter: `dealer = "${sanitizeId(dealerId)}"`,
       sort: "-created",
     });
     return asTypeArray<InventoryItem>(records);
@@ -100,7 +101,7 @@ export const syncInventory = async (
   try {
     // Get existing inventory for this dealer
     const existingRecords = await collections.inventory.getFullList({
-      filter: `dealer = "${dealerId}"`,
+      filter: `dealer = "${sanitizeId(dealerId)}"`,
     });
 
     const existingByVin = new Map<string, InventoryItem>();
@@ -186,7 +187,7 @@ export const getLenderProfiles = async (): Promise<LenderProfile[]> => {
 
   try {
     const records = await collections.lenderProfiles.getFullList({
-      filter: `dealer = "${dealerId}"`,
+      filter: `dealer = "${sanitizeId(dealerId)}"`,
       sort: "name",
     });
     return asTypeArray<LenderProfile>(records);
@@ -247,7 +248,7 @@ export const getSavedDeals = async (): Promise<SavedDeal[]> => {
 
   try {
     const records = await collections.savedDeals.getFullList({
-      filter: `dealer = "${dealerId}"`,
+      filter: `dealer = "${sanitizeId(dealerId)}"`,
       sort: "-created",
       expand: "user,vehicle",
     });
@@ -311,7 +312,7 @@ export const getDealerSettings = async (): Promise<DealerSettings | null> => {
 
   try {
     const records = await collections.dealerSettings.getList(1, 1, {
-      filter: `dealer = "${dealerId}"`,
+      filter: `dealer = "${sanitizeId(dealerId)}"`,
     });
     return records.items[0] ? asType<DealerSettings>(records.items[0]) : null;
   } catch (error) {
@@ -521,7 +522,10 @@ export const createUser = async (data: {
   }
 
   try {
-    console.log("[createUser] Creating user with data:", { ...data, password: "[REDACTED]" });
+    console.log("[createUser] Creating user with data:", {
+      ...data,
+      password: "[REDACTED]",
+    });
     const record = await pb.collection("users").create(data);
     console.log("[createUser] Successfully created user:", record.id);
     return asType<User>(record);
@@ -538,9 +542,12 @@ export const getAllUsers = async (): Promise<User[]> => {
   console.log("[getAllUsers] User role:", user?.role);
   console.log("[getAllUsers] Role type:", typeof user?.role);
   console.log("[getAllUsers] Role exact check:", user?.role === "superadmin");
-  
+
   if (user?.role !== "superadmin") {
-    console.warn("[getAllUsers] Access denied - user role is not superadmin. Role value:", JSON.stringify(user?.role));
+    console.warn(
+      "[getAllUsers] Access denied - user role is not superadmin. Role value:",
+      JSON.stringify(user?.role)
+    );
     return [];
   }
 
@@ -551,7 +558,15 @@ export const getAllUsers = async (): Promise<User[]> => {
       expand: "dealer",
     });
     console.log("[getAllUsers] SUCCESS! Fetched", records.length, "users");
-    console.log("[getAllUsers] User records:", records.map(r => ({ id: r.id, email: r.email, firstName: r.firstName, role: r.role })));
+    console.log(
+      "[getAllUsers] User records:",
+      records.map((r) => ({
+        id: r.id,
+        email: r.email,
+        firstName: r.firstName,
+        role: r.role,
+      }))
+    );
     return asTypeArray<User>(records);
   } catch (error: any) {
     console.error("[getAllUsers] FAILED to fetch users!");
@@ -559,13 +574,17 @@ export const getAllUsers = async (): Promise<User[]> => {
     console.error("[getAllUsers] Error message:", error?.message);
     console.error("[getAllUsers] Error status:", error?.status);
     console.error("[getAllUsers] Full error:", error);
-    
+
     // Check if it's a permission error
     if (error?.status === 403 || error?.status === 401) {
-      console.error("[getAllUsers] This is a PERMISSION error - check PocketBase API Rules for 'users' collection");
-      console.error("[getAllUsers] The 'List' rule needs to allow superadmins to see all users");
+      console.error(
+        "[getAllUsers] This is a PERMISSION error - check PocketBase API Rules for 'users' collection"
+      );
+      console.error(
+        "[getAllUsers] The 'List' rule needs to allow superadmins to see all users"
+      );
     }
-    
+
     return [];
   }
 };
