@@ -929,7 +929,17 @@ const App: React.FC = () => {
   const [isAuth, setIsAuth] = useState(isAuthenticated());
   const [view, setView] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"auto" | "dealer">("auto");
+  
+  // Persist viewMode in sessionStorage so it survives page reloads
+  const [viewMode, setViewMode] = useState<"auto" | "dealer">(() => {
+    const saved = sessionStorage.getItem('superadmin_view_mode');
+    return (saved === 'dealer') ? 'dealer' : 'auto';
+  });
+  
+  // Save viewMode to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('superadmin_view_mode', viewMode);
+  }, [viewMode]);
 
   const currentUser = getCurrentUser();
   const isSuperAdmin = currentUser?.role === "superadmin";

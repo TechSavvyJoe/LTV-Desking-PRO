@@ -89,6 +89,7 @@ export const register = async (
  */
 export const logout = (): void => {
   clearSuperadminDealerOverride(); // Clear any superadmin dealer override
+  sessionStorage.removeItem('superadmin_view_mode'); // Clear view mode
   pb.authStore.clear();
 };
 

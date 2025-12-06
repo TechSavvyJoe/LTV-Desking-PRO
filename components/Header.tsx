@@ -28,10 +28,11 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
       setDealers(dealerList);
       
       // If no dealer is selected yet and we have dealers, auto-select the first one
+      // Don't trigger onDealerChange for auto-selection - only for manual switches
       if (!selectedDealerId && dealerList.length > 0) {
         setSelectedDealerId(dealerList[0].id);
         setSuperadminDealerOverride(dealerList[0].id);
-        onDealerChange?.();
+        // No reload needed - data will load with the selected dealer
       }
     };
     loadDealers();
