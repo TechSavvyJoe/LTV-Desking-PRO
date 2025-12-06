@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from "react";
 import type { LenderProfile } from "../types";
-import { processLenderSheet } from "../services/aiProcessor";
+import { processLenderSheet, type ProcessingProgress } from "../services/aiProcessor";
 import Button from "./common/Button";
 
 interface AiLenderManagerModalProps {
@@ -15,6 +15,12 @@ type AiResult = {
   status: "success" | "error";
   lenders?: Partial<LenderProfile>[];
   error?: string;
+  dataQuality?: number;
+};
+
+type FileProgress = {
+  fileName: string;
+  progress: ProcessingProgress;
 };
 
 const CloseIcon = () => (
@@ -54,6 +60,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
   const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<AiResult[]>([]);
+  const [fileProgresses, setFileProgresses] = useState<Map<string, ProcessingProgress>>(new Map());
+  const [overallProgress, setOverallProgress] = useState(0);
+  const [currentStage, setCurrentStage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,30 +84,106 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
     }
   };
 
+  const getStageIcon = (stage: ProcessingProgress['stage']) => {
+    switch (stage) {
+      case 'uploading':
+        return '📤';
+      case 'extracting':
+        return '🔍';
+      case 'validating':
+        return '✅';
+      case 'enhancing':
+        return '🧠';
+      case 'complete':
+        return '🎉';
+      case 'error':
+        return '❌';
+      default:
+        return '⏳';
+    }
+  };
+
+  const getStageColor = (stage: ProcessingProgress['stage']) => {
+    switch (stage) {
+      case 'uploading':
+        return 'text-blue-400';
+      case 'extracting':
+        return 'text-yellow-400';
+      case 'validating':
+        return 'text-purple-400';
+      case 'enhancing':
+        return 'text-cyan-400';
+      case 'complete':
+        return 'text-green-400';
+      case 'error':
+        return 'text-red-400';
+      default:
+        return 'text-x-text-secondary';
+    }
+  };
+
   const handleAnalyze = async () => {
     if (files.length === 0) return;
     setIsLoading(true);
     setResults([]);
+    setFileProgresses(new Map());
+    setOverallProgress(0);
 
-    const analysisPromises = files.map((file) =>
-      processLenderSheet(file)
-        .then((lenders) => ({
+    const totalFiles = files.length;
+    const newResults: AiResult[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file) continue;
+      
+      const baseProgress = (i / totalFiles) * 100;
+      const fileWeight = 100 / totalFiles;
+
+      try {
+        const lenders = await processLenderSheet(file, (progress) => {
+          // Update individual file progress
+          setFileProgresses(prev => {
+            const newMap = new Map(prev);
+            newMap.set(file.name, progress);
+            return newMap;
+          });
+
+          // Update current stage message
+          setCurrentStage(`${getStageIcon(progress.stage)} ${progress.message}`);
+
+          // Calculate overall progress
+          const fileProgress = (progress.progress / 100) * fileWeight;
+          setOverallProgress(Math.round(baseProgress + fileProgress));
+        });
+
+        // Calculate data quality score
+        const totalTiers = lenders.reduce((acc, l) => acc + (l.tiers?.length || 0), 0);
+        const tiersWithLtv = lenders.reduce((acc, l) => 
+          acc + (l.tiers?.filter(t => t.maxLtv !== undefined).length || 0), 0);
+        const tiersWithTerm = lenders.reduce((acc, l) => 
+          acc + (l.tiers?.filter(t => t.maxTerm !== undefined).length || 0), 0);
+        const dataQuality = totalTiers > 0 
+          ? Math.round(((tiersWithLtv + tiersWithTerm) / (totalTiers * 2)) * 100) 
+          : 0;
+
+        newResults.push({
           fileName: file.name,
-          status: "success" as const,
+          status: "success",
           lenders,
-        }))
-        .catch((error) => ({
+          dataQuality,
+        });
+      } catch (error) {
+        newResults.push({
           fileName: file.name,
-          status: "error" as const,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unknown processing error.",
-        }))
-    );
+          status: "error",
+          error: error instanceof Error ? error.message : "Unknown processing error.",
+        });
+      }
+    }
 
-    const settledResults = await Promise.all(analysisPromises);
-    setResults(settledResults as AiResult[]);
+    setResults(newResults);
+    setOverallProgress(100);
+    setCurrentStage('🎉 All files processed!');
     setIsLoading(false);
   };
 
@@ -150,6 +235,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
     setFiles([]);
     setIsLoading(false);
     setResults([]);
+    setFileProgresses(new Map());
+    setOverallProgress(0);
+    setCurrentStage('');
   };
 
   const handleClose = () => {
@@ -158,6 +246,89 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  // Progress bar component
+  const ProgressSection = () => (
+    <div className="space-y-4">
+      {/* Overall progress bar */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium text-x-text-primary">Overall Progress</span>
+          <span className="text-sm font-bold text-x-blue">{overallProgress}%</span>
+        </div>
+        <div className="w-full bg-x-hover-dark rounded-full h-3 overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${overallProgress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Current stage message */}
+      {currentStage && (
+        <div className="text-center py-2">
+          <p className="text-sm text-x-text-secondary animate-pulse">{currentStage}</p>
+        </div>
+      )}
+
+      {/* Individual file progress */}
+      <div className="space-y-3 mt-4">
+        {files.map((file, index) => {
+          const progress = fileProgresses.get(file.name);
+          const stage = progress?.stage || 'uploading';
+          const stageProgress = progress?.progress || 0;
+          
+          return (
+            <div key={index} className="bg-x-hover-dark rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{getStageIcon(stage)}</span>
+                  <span className="text-sm font-medium text-x-text-primary truncate max-w-[200px]">
+                    {file.name}
+                  </span>
+                </div>
+                <span className={`text-xs font-semibold ${getStageColor(stage)}`}>
+                  {stage.charAt(0).toUpperCase() + stage.slice(1)}
+                </span>
+              </div>
+              <div className="w-full bg-x-black rounded-full h-2 overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    stage === 'error' ? 'bg-red-500' :
+                    stage === 'complete' ? 'bg-green-500' :
+                    'bg-gradient-to-r from-blue-500 to-purple-500'
+                  }`}
+                  style={{ width: `${stageProgress}%` }}
+                />
+              </div>
+              {progress?.message && (
+                <p className="text-xs text-x-text-secondary mt-1 truncate">{progress.message}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Processing stages legend */}
+      <div className="flex flex-wrap justify-center gap-3 mt-4 pt-4 border-t border-x-border">
+        <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+          <span>📤</span> Upload
+        </div>
+        <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+          <span>🔍</span> Extract
+        </div>
+        <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+          <span>✅</span> Validate
+        </div>
+        <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+          <span>🧠</span> Enhance
+        </div>
+        <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+          <span>🎉</span> Complete
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -181,7 +352,10 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         </div>
 
         <div className="p-6 overflow-y-auto flex-grow">
-          {results.length === 0 ? (
+          {/* Show progress UI while loading */}
+          {isLoading ? (
+            <ProgressSection />
+          ) : results.length === 0 ? (
             <>
               <div
                 className="border-2 border-dashed border-x-border rounded-lg p-8 text-center cursor-pointer hover:border-x-blue bg-x-hover-dark transition-colors"
@@ -223,37 +397,92 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
               <h3 className="text-lg font-semibold text-x-text-primary mb-3">
                 Analysis Results
               </h3>
-              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+              <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {results.map((res, i) => (
                   <div
                     key={i}
-                    className={`p-3 rounded-md border ${
+                    className={`p-4 rounded-lg border ${
                       res.status === "success"
                         ? "bg-green-900/20 border-green-500/30"
                         : "bg-red-900/20 border-red-500/30"
                     }`}
                   >
-                    <p className="font-semibold text-sm text-x-text-primary">
-                      {res.fileName}
+                    <p className="font-semibold text-sm text-x-text-primary mb-2">
+                      📄 {res.fileName}
                     </p>
                     {res.status === "success" && res.lenders ? (
-                      <div className="text-xs text-green-300">
-                        <p>
-                          Successfully extracted <strong className="font-bold">{res.lenders.length}</strong> lender(s):
+                      <div className="space-y-3">
+                        <p className="text-xs text-green-300">
+                          ✓ Successfully extracted <strong className="font-bold">{res.lenders.length}</strong> lender(s)
                         </p>
-                        <ul className="mt-1 ml-4 list-disc">
-                          {res.lenders.map((lender, j) => (
-                            <li key={j}>
-                              <strong>{lender.name}</strong>
-                              {lender.tiers && lender.tiers.length > 0 && (
-                                <span className="text-green-400"> ({lender.tiers.length} tiers)</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                        {res.lenders.map((lender, j) => (
+                          <div key={j} className="bg-x-black/40 rounded-md p-3 border border-x-border/50">
+                            <p className="font-semibold text-x-text-primary text-sm mb-2">
+                              🏦 {lender.name}
+                            </p>
+                            {lender.tiers && lender.tiers.length > 0 ? (
+                              <div className="space-y-2">
+                                <p className="text-xs text-x-text-secondary">
+                                  {lender.tiers.length} credit tier(s) extracted:
+                                </p>
+                                <div className="grid gap-2">
+                                  {lender.tiers.slice(0, 4).map((tier, k) => {
+                                    // Calculate data completeness
+                                    const fields = [
+                                      tier.maxLtv, tier.minFico, tier.maxFico,
+                                      tier.minYear, tier.maxYear, tier.minTerm, tier.maxTerm,
+                                      tier.minMileage, tier.maxMileage
+                                    ];
+                                    const filledFields = fields.filter(f => f !== undefined && f !== null).length;
+                                    const completeness = Math.round((filledFields / fields.length) * 100);
+                                    
+                                    return (
+                                      <div key={k} className="bg-x-hover-dark rounded p-2 text-xs">
+                                        <div className="flex justify-between items-center mb-1">
+                                          <span className="font-medium text-x-blue">{tier.tierName || `Tier ${k + 1}`}</span>
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                            completeness >= 80 ? 'bg-green-500/20 text-green-300' :
+                                            completeness >= 50 ? 'bg-yellow-500/20 text-yellow-300' :
+                                            'bg-red-500/20 text-red-300'
+                                          }`}>
+                                            {completeness}% complete
+                                          </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-x-text-secondary">
+                                          {tier.minFico !== undefined && tier.maxFico !== undefined && (
+                                            <span>FICO: {tier.minFico}-{tier.maxFico}</span>
+                                          )}
+                                          {tier.maxLtv !== undefined && (
+                                            <span>Max LTV: {tier.maxLtv}%</span>
+                                          )}
+                                          {tier.minYear !== undefined && tier.maxYear !== undefined && (
+                                            <span>Years: {tier.minYear}-{tier.maxYear}</span>
+                                          )}
+                                          {tier.minTerm !== undefined && tier.maxTerm !== undefined && (
+                                            <span>Terms: {tier.minTerm}-{tier.maxTerm}mo</span>
+                                          )}
+                                          {tier.maxMileage !== undefined && (
+                                            <span>Max Miles: {tier.maxMileage.toLocaleString()}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  {lender.tiers.length > 4 && (
+                                    <p className="text-xs text-x-text-secondary italic">
+                                      +{lender.tiers.length - 4} more tier(s)...
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-yellow-300">⚠️ No credit tiers extracted</p>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-red-300">Error: {res.error}</p>
+                      <p className="text-xs text-red-300">❌ Error: {res.error}</p>
                     )}
                   </div>
                 ))}

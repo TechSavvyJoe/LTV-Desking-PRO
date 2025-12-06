@@ -53,10 +53,12 @@ export interface SortConfig {
 
 export interface LenderTier {
   name: string; // e.g. "New - Tier 1", "Used 2018+ - Gold"
+  tierName?: string; // Display name for the tier
   minFico?: number;
   maxFico?: number;
   minYear?: number;
   maxYear?: number;
+  maxAge?: number; // Maximum vehicle age in years
   // FIX: Added minMileage to support tiers with minimum mileage requirements.
   minMileage?: number;
   maxMileage?: number;
@@ -66,6 +68,9 @@ export interface LenderTier {
   maxTerm?: number;
   minAmountFinanced?: number;
   maxAmountFinanced?: number;
+  maxAdvance?: number; // Maximum advance amount over invoice/MSRP
+  baseInterestRate?: number; // Base APR for this tier
+  rateAdder?: number; // Additional rate adjustment
 }
 
 export interface LenderProfile {
