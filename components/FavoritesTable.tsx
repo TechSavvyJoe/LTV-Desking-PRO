@@ -218,10 +218,9 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
 
   const toggleRowExpansion = useCallback((vin: string) => {
     setExpandedRows((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(vin)) {
-        newSet.delete(vin);
-      } else {
+      const newSet = new Set<string>();
+      // Only one row can be expanded at a time - clear others before adding
+      if (!prev.has(vin)) {
         newSet.add(vin);
       }
       return newSet;

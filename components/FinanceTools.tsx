@@ -367,7 +367,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   ];
 
   return (
-    <div className="glass-panel flex h-full rounded-2xl overflow-hidden shadow-sm">
+    <div className="glass-panel flex min-h-[600px] rounded-2xl overflow-hidden shadow-sm">
       {/* Sidebar */}
       <div className="w-64 bg-slate-50/50 dark:bg-slate-950/50 border-r border-slate-200/50 dark:border-slate-800/50 flex flex-col backdrop-blur-sm">
         <div className="p-4 border-b border-slate-200/50 dark:border-slate-800/50">
@@ -378,7 +378,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             Calculators & Utilities
           </p>
         </div>
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+        <nav className="flex-1 p-2 space-y-1">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -408,8 +408,8 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
-        <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 flex flex-col bg-transparent">
+        <div className="flex-1 p-6">
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">

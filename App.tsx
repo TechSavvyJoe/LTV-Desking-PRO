@@ -72,6 +72,8 @@ const MainLayout: React.FC = () => {
     setFileName,
     expandedInventoryRows,
     setExpandedInventoryRows,
+    expandedFavoriteRows,
+    setExpandedFavoriteRows,
     safeInventory,
     safeFavorites,
     safeLenderProfiles,
@@ -82,6 +84,7 @@ const MainLayout: React.FC = () => {
     paginatedInventory,
     toggleFavorite,
     toggleInventoryRowExpansion,
+    toggleFavoriteRowExpansion,
     handleInventoryUpdate,
     clearDealAndFilters,
     loadSampleData,
@@ -91,6 +94,14 @@ const MainLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     "inventory" | "lenders" | "saved" | "scratchpad"
   >("inventory");
+
+  // Handler to change tabs and scroll to top
+  const handleTabChange = (tab: "inventory" | "lenders" | "saved" | "scratchpad") => {
+    setActiveTab(tab);
+    // Scroll to top of page when changing tabs
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -309,6 +320,23 @@ const MainLayout: React.FC = () => {
       setActiveVehicle(candidate);
     }
     toggleInventoryRowExpansion(vin);
+  };
+
+  const handleFavoriteRowSelect = (
+    vin: string,
+    fallbackVehicles: CalculatedVehicle[]
+  ) => {
+    const candidate =
+      fallbackVehicles.find(
+        (v) =>
+          v.vin === vin ||
+          (!v.vin && vin.startsWith("VIN-")) ||
+          (v.vin === "N/A" && vin.startsWith("VIN-"))
+      );
+    if (candidate) {
+      setActiveVehicle(candidate);
+    }
+    toggleFavoriteRowExpansion(vin);
   };
 
   // PDF Download Handlers
@@ -565,28 +593,28 @@ const MainLayout: React.FC = () => {
             <nav className="flex items-center gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/80 rounded-2xl overflow-x-auto border border-slate-200 dark:border-slate-800 backdrop-blur-md shadow-sm">
               <TabButton
                 active={activeTab === "inventory"}
-                onClick={() => setActiveTab("inventory")}
+                onClick={() => handleTabChange("inventory")}
                 icon={<Icons.TruckIcon className="w-5 h-5" />}
                 label="Inventory"
                 count={inventory.length}
               />
               <TabButton
                 active={activeTab === "lenders"}
-                onClick={() => setActiveTab("lenders")}
+                onClick={() => handleTabChange("lenders")}
                 icon={<Icons.BanknotesIcon className="w-5 h-5" />}
                 label="Lender Programs"
                 count={lenderProfiles.length}
               />
               <TabButton
                 active={activeTab === "saved"}
-                onClick={() => setActiveTab("saved")}
+                onClick={() => handleTabChange("saved")}
                 icon={<Icons.FolderIcon className="w-5 h-5" />}
                 label="Saved Deals"
                 count={savedDeals.length}
               />
               <TabButton
                 active={activeTab === "scratchpad"}
-                onClick={() => setActiveTab("scratchpad")}
+                onClick={() => handleTabChange("scratchpad")}
                 icon={<Icons.CalculatorIcon className="w-5 h-5" />}
                 label="Finance Tools"
               />
@@ -621,9 +649,9 @@ const MainLayout: React.FC = () => {
                                 : "asc",
                           }))
                         }
-                        expandedRows={expandedInventoryRows}
+                        expandedRows={expandedFavoriteRows}
                         onRowClick={(vin) =>
-                          handleRowSelect(
+                          handleFavoriteRowSelect(
                             vin,
                             safeFavorites.map((item) =>
                               calculateFinancials(item, dealData, settings)

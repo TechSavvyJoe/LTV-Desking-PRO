@@ -88,6 +88,8 @@ interface DealContextType {
   setFileName: React.Dispatch<React.SetStateAction<string>>;
   expandedInventoryRows: Set<string>;
   setExpandedInventoryRows: React.Dispatch<React.SetStateAction<Set<string>>>;
+  expandedFavoriteRows: Set<string>;
+  setExpandedFavoriteRows: React.Dispatch<React.SetStateAction<Set<string>>>;
 
   // Computed / Helpers
   safeInventory: Vehicle[];
@@ -102,6 +104,7 @@ interface DealContextType {
   // Actions
   toggleFavorite: (vin: string) => void;
   toggleInventoryRowExpansion: (vin: string) => void;
+  toggleFavoriteRowExpansion: (vin: string) => void;
   handleInventoryUpdate: (vin: string, updatedData: Partial<Vehicle>) => void;
   clearDealAndFilters: () => void;
   loadSampleData: () => void;
@@ -166,6 +169,9 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [fileName, setFileName] = useState<string>("Sample Data Loaded");
   const [expandedInventoryRows, setExpandedInventoryRows] = useState<
+    Set<string>
+  >(new Set());
+  const [expandedFavoriteRows, setExpandedFavoriteRows] = useState<
     Set<string>
   >(new Set());
   const [isShowroomMode, setIsShowroomMode] = useState<boolean>(false);
@@ -465,17 +471,35 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   const toggleInventoryRowExpansion = useCallback(
     (vin: string) => {
       setExpandedInventoryRows((prev) => {
-        const newSet = new Set(prev);
-        if (newSet.has(vin)) {
-          newSet.delete(vin);
+        // Only allow one expanded row at a time
+        if (prev.has(vin)) {
+          // If clicking the same row, collapse it
+          return new Set();
         } else {
-          newSet.add(vin);
+          // Collapse all others and expand this one
+          return new Set([vin]);
         }
-        return newSet;
       });
     },
     [setExpandedInventoryRows]
   );
+
+  const toggleFavoriteRowExpansion = useCallback(
+    (vin: string) => {
+      setExpandedFavoriteRows((prev) => {
+        // Only allow one expanded row at a time
+        if (prev.has(vin)) {
+          // If clicking the same row, collapse it
+          return new Set();
+        } else {
+          // Collapse all others and expand this one
+          return new Set([vin]);
+        }
+      });
+    },
+    [setExpandedFavoriteRows]
+  );
+
   const handleInventoryUpdate = useCallback(
     async (vin: string, updatedData: Partial<Vehicle>) => {
       setInventory((prev) =>
@@ -609,6 +633,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     setFileName,
     expandedInventoryRows,
     setExpandedInventoryRows,
+    expandedFavoriteRows,
+    setExpandedFavoriteRows,
     safeInventory,
     safeFavorites,
     safeLenderProfiles,
@@ -619,6 +645,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     paginatedInventory,
     toggleFavorite,
     toggleInventoryRowExpansion,
+    toggleFavoriteRowExpansion,
     handleInventoryUpdate,
     clearDealAndFilters,
     loadSampleData,
