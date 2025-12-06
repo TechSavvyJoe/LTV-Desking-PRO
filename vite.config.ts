@@ -8,8 +8,13 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
 
   // Prioritize process.env (CI/CD) over .env files
-  // Do NOT embed API keys in client bundle; require runtime/proxy usage.
-  const apiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || "";
+  // Check multiple possible env var names for Gemini API key
+  const apiKey =
+    process.env.VITE_GEMINI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    env.VITE_GEMINI_API_KEY ||
+    env.GEMINI_API_KEY ||
+    "";
 
   return {
     base: "/",
@@ -19,7 +24,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react()],
     define: {
-      // Keep empty to avoid leaking secrets into the client bundle
+      // Inject API key at build time for client-side AI processing
       "process.env.API_KEY": JSON.stringify(apiKey),
       "process.env.GEMINI_API_KEY": JSON.stringify(apiKey),
     },
