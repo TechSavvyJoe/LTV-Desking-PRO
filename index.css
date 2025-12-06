@@ -243,17 +243,50 @@ main {
 .input-premium:focus {
   outline: none;
   border-color: #3b82f6;
-  box-shadow: var(--shadow-sm), 0 0 0 3px rgba(59, 130, 246, 0.15);
+  box-shadow: 
+    var(--shadow-sm), 
+    0 0 0 3px rgba(59, 130, 246, 0.15),
+    0 0 20px rgba(59, 130, 246, 0.1);
+  animation: focusPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes focusPulse {
+  0%, 100% {
+    box-shadow: 
+      var(--shadow-sm), 
+      0 0 0 3px rgba(59, 130, 246, 0.15),
+      0 0 15px rgba(59, 130, 246, 0.08);
+  }
+  50% {
+    box-shadow: 
+      var(--shadow-sm), 
+      0 0 0 4px rgba(59, 130, 246, 0.2),
+      0 0 25px rgba(59, 130, 246, 0.15);
+  }
 }
 
 .dark .input-premium:focus {
   border-color: #60a5fa;
-  box-shadow: var(--shadow-sm), 0 0 0 3px rgba(96, 165, 250, 0.2);
+  box-shadow: 
+    var(--shadow-sm), 
+    0 0 0 3px rgba(96, 165, 250, 0.2),
+    0 0 20px rgba(96, 165, 250, 0.15);
+  animation: focusPulseDark 1.5s ease-in-out infinite;
 }
 
-.input-premium.input-error {
-  border-color: #ef4444;
-  box-shadow: var(--shadow-sm), 0 0 0 3px rgba(239, 68, 68, 0.15);
+@keyframes focusPulseDark {
+  0%, 100% {
+    box-shadow: 
+      var(--shadow-sm), 
+      0 0 0 3px rgba(96, 165, 250, 0.2),
+      0 0 15px rgba(96, 165, 250, 0.1);
+  }
+  50% {
+    box-shadow: 
+      var(--shadow-sm), 
+      0 0 0 4px rgba(96, 165, 250, 0.25),
+      0 0 25px rgba(96, 165, 250, 0.2);
+  }
 }
 
 /* Input with icon */
@@ -277,6 +310,19 @@ main {
 
 .input-with-icon:focus-within .input-icon {
   color: #3b82f6;
+}
+
+/* Input Error State */
+.input-premium.input-error {
+  border-color: #ef4444;
+  box-shadow: var(--shadow-sm), 0 0 0 3px rgba(239, 68, 68, 0.15);
+  animation: inputShake 0.5s ease-in-out;
+}
+
+@keyframes inputShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
 }
 
 /* ============================================================================

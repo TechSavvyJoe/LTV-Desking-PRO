@@ -70,20 +70,23 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
     : [];
 
   // Create a stable set of expanded row keys for comparison
-  const expandedRowsArray = useMemo(() => 
-    expandedRows ? Array.from(expandedRows) : [], 
+  const expandedRowsArray = useMemo(
+    () => (expandedRows ? Array.from(expandedRows) : []),
     [expandedRows]
   );
 
   // Dynamic size estimation - expanded rows are much taller
-  const getRowSize = useCallback((index: number) => {
-    const item = safeData[index];
-    if (!item) return 50;
-    const key = item[rowKey];
-    const isExpanded = expandedRows?.has(key);
-    // Expanded rows need ~400px for the expanded content
-    return isExpanded ? 450 : 50;
-  }, [safeData, rowKey, expandedRows]);
+  const getRowSize = useCallback(
+    (index: number) => {
+      const item = safeData[index];
+      if (!item) return 50;
+      const key = item[rowKey];
+      const isExpanded = expandedRows?.has(key);
+      // Expanded rows need ~400px for the expanded content
+      return isExpanded ? 450 : 50;
+    },
+    [safeData, rowKey, expandedRows]
+  );
 
   const rowVirtualizer = useVirtualizer({
     count: safeData.length,
@@ -113,9 +116,9 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
       className="table-container overflow-auto relative border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950"
       style={{ height }}
     >
-      {/* Header */}
+      {/* Header with premium shadow */}
       <div
-        className="sticky top-0 z-10 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-400 dark:text-gray-400 text-sm"
+        className="sticky top-0 z-10 bg-gradient-to-b from-white via-white to-white/95 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950/95 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]"
         style={{
           display: "grid",
           gridTemplateColumns,
@@ -125,9 +128,11 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
         {safeColumns.map((col, index) => (
           <div
             key={index}
-            className={`p-2 flex items-center gap-2 cursor-pointer select-none ${
-              col.isNumeric ? "justify-end" : "justify-start"
-            } ${col.className || ""}`}
+            className={`p-3 flex items-center gap-2 transition-colors duration-150 hover:text-slate-700 dark:hover:text-slate-200 ${
+              col.accessor ? "cursor-pointer select-none" : ""
+            } ${col.isNumeric ? "justify-end" : "justify-start"} ${
+              col.className || ""
+            }`}
             onClick={() => col.accessor && onSort(col.accessor as keyof T)}
           >
             {col.header}
@@ -152,8 +157,27 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
         }}
       >
         {safeData.length === 0 ? (
-          <div className="absolute top-0 left-0 w-full p-6 text-center text-slate-500 dark:text-gray-400">
-            {emptyMessage}
+          <div className="absolute top-0 left-0 w-full p-12 text-center">
+            <div className="flex flex-col items-center justify-center space-y-3">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center">
+                <svg
+                  className="w-8 h-8 text-slate-400 dark:text-slate-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H6.911a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661Z"
+                  />
+                </svg>
+              </div>
+              <div className="text-slate-500 dark:text-slate-400 font-medium">
+                {emptyMessage}
+              </div>
+            </div>
           </div>
         ) : (
           rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -181,11 +205,11 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
               >
                 {/* Main Row */}
                 <div
-                  className={`grid border-b border-slate-200 dark:border-slate-800 transition-colors ${
+                  className={`grid border-b border-slate-100 dark:border-slate-800/50 transition-all duration-150 ${
                     onRowClick
-                      ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5"
+                      ? "cursor-pointer hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/30 dark:hover:from-blue-500/5 dark:hover:to-indigo-500/5 hover:shadow-[inset_3px_0_0_0_rgba(59,130,246,0.5)]"
                       : ""
-                  }`}
+                  } ${isExpanded ? "bg-slate-50/50 dark:bg-white/[0.02]" : ""}`}
                   style={{ gridTemplateColumns }}
                   onClick={() => onRowClick && onRowClick(key)}
                 >
