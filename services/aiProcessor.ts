@@ -15,10 +15,10 @@ import type {
 // - "gemini-2.5-pro"          - Advanced reasoning and analysis
 // - "gemini-2.0-flash"        - Fast, reliable workhorse
 
-// Using gemini-2.5-flash for optimal PDF/document processing speed
-// Change to "gemini-3-pro-preview" for maximum intelligence (slower, higher cost)
-const PRIMARY_MODEL = "gemini-2.5-flash";
-const FALLBACK_MODEL = "gemini-2.5-pro";
+// Using Gemini 3 Pro for maximum intelligence and best extraction accuracy
+// Has same 1M token context as 2.5, but with superior reasoning for complex rate sheets
+const PRIMARY_MODEL = "gemini-3-pro-preview";
+const FALLBACK_MODEL = "gemini-2.5-flash";
 
 // Progress callback type for UI updates
 export type ProcessingProgress = {
