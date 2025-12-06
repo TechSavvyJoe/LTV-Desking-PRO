@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import type { LenderProfile } from "../types";
 import { processLenderSheet, type ProcessingProgress } from "../services/aiProcessor";
+import { saveLenderProfile, updateLenderProfile } from "../lib/api";
 import Button from "./common/Button";
 
 interface AiLenderManagerModalProps {
@@ -187,7 +188,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
     setIsLoading(false);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     // Flatten all lenders from all successful results
     const allLenders: Partial<LenderProfile>[] = [];
     results.forEach((result) => {
@@ -198,37 +199,82 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
     if (allLenders.length === 0) return;
 
-    onUpdateProfiles((prevProfiles) => {
-      let updatedProfiles = [...prevProfiles];
-      allLenders.forEach((newProfileData, index) => {
-        if (!newProfileData.name) return;
-        
-        const existingProfileIndex = updatedProfiles.findIndex(
+    setIsLoading(true);
+    setCurrentStage('💾 Saving lenders to database...');
+
+    let savedCount = 0;
+    let updatedCount = 0;
+    let errorCount = 0;
+
+    // Process each lender and save to PocketBase
+    for (const newProfileData of allLenders) {
+      if (!newProfileData.name) continue;
+
+      try {
+        // Check if lender already exists
+        const existingProfile = currentProfiles.find(
           (p) => p.name.toLowerCase() === newProfileData.name!.toLowerCase()
         );
 
-        if (existingProfileIndex > -1) {
-          // Update existing profile, preserving ID
-          const existingProfile = updatedProfiles[existingProfileIndex];
-          if (existingProfile) {
-            updatedProfiles[existingProfileIndex] = {
-              ...existingProfile,
-              ...newProfileData,
-            } as LenderProfile;
+        if (existingProfile) {
+          // Update existing profile in PocketBase
+          const updatedProfile = await updateLenderProfile(existingProfile.id, {
+            ...newProfileData,
+            tiers: newProfileData.tiers || existingProfile.tiers,
+          });
+          
+          if (updatedProfile) {
+            // Update local state
+            onUpdateProfiles((prev) =>
+              prev.map((p) =>
+                p.id === existingProfile.id ? (updatedProfile as unknown as LenderProfile) : p
+              )
+            );
+            updatedCount++;
+          } else {
+            errorCount++;
           }
         } else {
-          // Add new profile
-          updatedProfiles.push({
-            id: `ai_${Date.now()}_${index}_${Math.random()}`,
-            ...newProfileData,
-          } as LenderProfile);
-        }
-      });
-      return updatedProfiles;
-    });
+          // Create new profile in PocketBase
+          const { id, ...createData } = newProfileData as any;
+          const savedProfile = await saveLenderProfile({
+            ...createData,
+            name: newProfileData.name,
+            active: true,
+            tiers: newProfileData.tiers || [],
+          } as any);
 
-    onClose();
-    resetState();
+          if (savedProfile) {
+            // Add to local state
+            onUpdateProfiles((prev) => [...prev, savedProfile as unknown as LenderProfile]);
+            savedCount++;
+          } else {
+            errorCount++;
+          }
+        }
+      } catch (error) {
+        console.error('Error saving lender:', newProfileData.name, error);
+        errorCount++;
+      }
+    }
+
+    setIsLoading(false);
+    
+    // Show summary message
+    const messages = [];
+    if (savedCount > 0) messages.push(`${savedCount} new lender(s) saved`);
+    if (updatedCount > 0) messages.push(`${updatedCount} lender(s) updated`);
+    if (errorCount > 0) messages.push(`${errorCount} error(s)`);
+    
+    if (messages.length > 0) {
+      setCurrentStage(`✅ Complete: ${messages.join(', ')}`);
+    }
+
+    // Close after brief delay to show completion message
+    setTimeout(() => {
+      onClose();
+      resetState();
+    }, 1500);
   };
 
   const resetState = () => {
@@ -341,7 +387,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
       >
         <div className="p-4 flex justify-between items-center border-b border-x-border">
           <h2 className="text-xl font-bold text-x-text-primary">
-            AI Lender Profile Manager
+            AI Lender Upload
           </h2>
           <button
             onClick={handleClose}

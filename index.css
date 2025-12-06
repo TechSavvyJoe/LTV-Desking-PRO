@@ -92,12 +92,39 @@
 /* ============================================================================
    2. BASE STYLES
    ============================================================================ */
+html {
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Enable momentum scrolling on iOS */
+}
+
+html, body {
+  height: 100%;
+  overscroll-behavior: contain;
+  touch-action: pan-y; /* Allow vertical scrolling on touch devices */
+}
+
 body {
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
   min-height: 100vh;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative; /* Establish positioning context */
+}
+
+#root {
+  min-height: 100%;
+  position: relative;
+}
+
+/* Ensure main content area is scrollable */
+main {
+  position: relative;
+  z-index: 1;
 }
 
 .dark body {

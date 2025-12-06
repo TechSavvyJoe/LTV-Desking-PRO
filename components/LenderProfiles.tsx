@@ -317,7 +317,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
     const tiers =
       profile?.tiers && Array.isArray(profile.tiers) ? profile.tiers : [];
     return (
-      <td colSpan={6} className="p-0">
+      <td colSpan={9} className="p-0">
         <div className="p-4 dark:hover:bg-slate-800">
           <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
             Lending Tiers
@@ -484,14 +484,17 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
               {[
                 "Name",
                 "FICO Range",
-                "Max LTV Range",
-                "Book Source",
+                "Max LTV",
+                "Years",
+                "Max Term",
+                "Max Miles",
+                "Book",
                 "Tiers",
                 "Action",
               ].map((header) => (
                 <th
                   key={header}
-                  className="p-3 font-semibold text-slate-400 text-left"
+                  className="p-3 font-semibold text-slate-400 text-left whitespace-nowrap"
                 >
                   {header}
                 </th>
@@ -507,7 +510,18 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                 >
                   <td className="p-3 font-medium text-white">{profile.name}</td>
                   <td className="p-3">{getRange(profile.tiers, "minFico")}</td>
-                  <td className="p-3">{getRange(profile.tiers, "maxLtv")}%</td>
+                  <td className="p-3 text-green-400 font-medium">{getRange(profile.tiers, "maxLtv")}%</td>
+                  <td className="p-3">{getRange(profile.tiers, "minYear")}</td>
+                  <td className="p-3">{getRange(profile.tiers, "maxTerm")} mo</td>
+                  <td className="p-3">
+                    {(() => {
+                      const range = getRange(profile.tiers, "maxMileage");
+                      if (range === "N/A") return range;
+                      // Format mileage with commas for readability
+                      const parts = range.split(" - ");
+                      return parts.map(p => parseInt(p).toLocaleString()).join(" - ");
+                    })()}
+                  </td>
                   <td className="p-3">
                     <span
                       className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
@@ -520,9 +534,11 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                     </span>
                   </td>
                   <td className="p-3">
-                    {profile.tiers && Array.isArray(profile.tiers)
-                      ? profile.tiers.length
-                      : 0}
+                    <span className="px-2 py-0.5 text-xs font-medium bg-purple-900/50 text-purple-300 rounded-full">
+                      {profile.tiers && Array.isArray(profile.tiers)
+                        ? profile.tiers.length
+                        : 0}
+                    </span>
                   </td>
                   <td className="p-3">
                     <div className="flex gap-2">
