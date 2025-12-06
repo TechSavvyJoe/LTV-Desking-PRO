@@ -176,15 +176,15 @@ const LENDER_TIER_SCHEMA = {
       description:
         "Maximum amount financed for this tier. Omit if not specified.",
     },
-    baseRate: {
+    baseInterestRate: {
       type: Type.NUMBER,
       description:
         "Base interest rate or buy rate for this tier (as percentage, e.g., 5.99). Omit if not specified.",
     },
-    maxRate: {
+    rateAdder: {
       type: Type.NUMBER,
       description:
-        "Maximum interest rate allowed for this tier. Omit if not specified.",
+        "Additional rate adjustment added to base rate (as percentage points, e.g., 1.5 for +1.5%). Omit if not specified.",
     },
     maxAdvance: {
       type: Type.NUMBER,
@@ -342,8 +342,9 @@ const normalizeTier = (tier: any): LenderTier | null => {
 
   // Calculate minYear from maxAge if minYear isn't directly provided
   let minYear = normalizeNumber(tier.minYear);
-  if (!minYear && tier.maxAge) {
-    minYear = calculateMinYearFromAge(normalizeNumber(tier.maxAge));
+  const maxAge = normalizeNumber(tier.maxAge);
+  if (!minYear && maxAge) {
+    minYear = calculateMinYearFromAge(maxAge);
   }
 
   return {
@@ -352,6 +353,7 @@ const normalizeTier = (tier: any): LenderTier | null => {
     maxFico: normalizeNumber(tier.maxFico),
     minYear,
     maxYear: normalizeNumber(tier.maxYear),
+    maxAge, // Preserve original maxAge value
     minMileage: normalizeNumber(tier.minMileage),
     maxMileage: normalizeNumber(tier.maxMileage),
     minTerm: normalizeNumber(tier.minTerm),
@@ -359,6 +361,9 @@ const normalizeTier = (tier: any): LenderTier | null => {
     maxLtv: normalizeNumber(tier.maxLtv),
     minAmountFinanced: normalizeNumber(tier.minAmountFinanced),
     maxAmountFinanced: normalizeNumber(tier.maxAmountFinanced),
+    maxAdvance: normalizeNumber(tier.maxAdvance),
+    baseInterestRate: normalizeNumber(tier.baseInterestRate),
+    rateAdder: normalizeNumber(tier.rateAdder),
   };
 };
 
@@ -701,6 +706,34 @@ const mergeLenderData = (
 const getExtractionPrompt =
   () => `You are an expert AI data extraction specialist for automotive dealer finance departments.
 
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL: OCR & DOCUMENT PROCESSING INSTRUCTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+**HANDLE ALL PDF TYPES:**
+1. **Scanned/Image PDFs**: Use OCR to read text from images. Look carefully at:
+   - Faded or low-contrast text
+   - Handwritten annotations
+   - Watermarks that may contain version/date info
+   - Stamps or seals with lender names
+
+2. **Low Quality Documents**: 
+   - If text is blurry, use context to infer characters (e.g., "125%" vs "12S%")
+   - Tables with broken lines - infer structure from alignment
+   - OCR errors: "0" vs "O", "1" vs "l", "5" vs "S"
+
+3. **Multi-Page Documents**:
+   - SCAN EVERY SINGLE PAGE - don't stop at page 1
+   - Different lenders may appear on different pages
+   - Footer/header may have different lender branding per section
+   - Continuation tables on subsequent pages belong to same lender
+
+4. **Complex Layouts**:
+   - Multi-column rate sheets: read left-to-right, then top-to-bottom
+   - Rotated/landscape pages: orient text properly before reading
+   - Nested tables: parent table defines context (e.g., "New Vehicles" section)
+   - Merged cells: apply value to all cells in the merge
+
 **CHAIN-OF-THOUGHT EXTRACTION PROCESS**
 
 Follow these reasoning steps carefully to ensure 100% accurate data extraction:
@@ -815,6 +848,22 @@ CRITICAL EXTRACTION RULES
 - **PRESERVE PRECISION**: "125%" → 125, "$2,000" → 2000, "80K" → 80000
 - **SEPARATE NEW/USED**: If a sheet has different terms for new vs used, create separate tiers
 - **EXTRACT ALL LENDERS**: Multiple banks in one PDF = multiple lenders in output
+- **READ EVERY PAGE**: Lender data often continues on page 2, 3, etc.
+- **LOOK FOR FOOTNOTES**: Special conditions often appear at bottom of tables
+- **CHECK HEADERS/FOOTERS**: Lender names, effective dates, version numbers often here
+
+═══════════════════════════════════════════════════════════════════════════════
+COMMON DATA LOCATIONS TO CHECK
+═══════════════════════════════════════════════════════════════════════════════
+
+**Often Missed Data - Look Extra Hard For:**
+1. Effective Date: Usually in header, footer, or document title area
+2. Min Income: Often in "Requirements" or "Eligibility" sections
+3. Max PTI/DTI: May be in footnotes or "Program Guidelines"
+4. Book Value Source: "Trade" or "Retail" - often mentioned once at top
+5. Max Mileage: Sometimes in footnotes like "*Max 100,000 miles"
+6. Vehicle Age Limits: "Model year 2018+" or "Max 7 years old"
+7. Rate Adders: "+0.5% for 80+ months" type notes in footnotes
 
 ═══════════════════════════════════════════════════════════════════════════════
 OUTPUT FORMAT

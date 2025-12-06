@@ -171,6 +171,51 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
     let createdCount = 0;
     let errors: string[] = [];
 
+    // Helper to save/update a lender and update local state
+    const persistLender = async (
+      extractedData: Partial<LenderProfile>,
+      existingProfile: LenderProfile | null
+    ): Promise<boolean> => {
+      try {
+        if (existingProfile) {
+          // Update existing lender in PocketBase
+          const mergedData = {
+            ...existingProfile,
+            ...extractedData,
+            id: existingProfile.id,
+            tiers: extractedData.tiers || existingProfile.tiers,
+          };
+          const updated = await updateLenderProfile(existingProfile.id, mergedData as any);
+          if (updated) {
+            onUpdate((prev) =>
+              prev.map((p) =>
+                p.id === existingProfile.id ? (updated as unknown as LenderProfile) : p
+              )
+            );
+            updatedCount++;
+            return true;
+          }
+        } else {
+          // Create new lender in PocketBase
+          const { id, ...createData } = extractedData as any;
+          const saved = await saveLenderProfile({
+            ...createData,
+            active: true,
+            tiers: createData.tiers || [],
+          } as any);
+          if (saved) {
+            onUpdate((prev) => [...prev, saved as unknown as LenderProfile]);
+            createdCount++;
+            return true;
+          }
+        }
+        return false;
+      } catch (error) {
+        console.error("Failed to persist lender:", error);
+        return false;
+      }
+    };
+
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -179,7 +224,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
         try {
           // processLenderSheet now returns an array of lenders
           const extractedLenders = await processLenderSheet(file);
-          
+
           if (!extractedLenders || extractedLenders.length === 0) {
             errors.push(`Could not extract any lender data from ${file.name}`);
             continue;
@@ -207,87 +252,21 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
               }
             }
 
-            if (targetId !== "auto" && extractedLenders.length === 1) {
-              // Only update specific target if there's exactly one lender in the file
-              // Otherwise auto-create for multi-lender files
-              onUpdate((prev) =>
-                prev.map((p) => {
-                  if (p.id === targetId) {
-                    updatedCount++;
-                    return {
-                      ...p,
-                      ...extractedData, // Overwrite fields
-                      id: p.id, // Keep ID
-                      tiers: extractedData.tiers || p.tiers, // Replace tiers if present
-                    } as LenderProfile;
-                  }
-                  return p;
-                })
-              );
-            } else if (targetId !== "auto") {
-              // For multi-lender files with a target selected, check if this lender exists
-              const existingMatch = profiles.find(
-                (p) => p.name.toLowerCase() === extractedData.name!.toLowerCase()
-              );
-              if (existingMatch) {
-                onUpdate((prev) =>
-                  prev.map((p) => {
-                    if (p.id === existingMatch.id) {
-                      updatedCount++;
-                      return {
-                        ...p,
-                        ...extractedData,
-                        id: p.id,
-                        tiers: extractedData.tiers || p.tiers,
-                      } as LenderProfile;
-                    }
-                    return p;
-                  })
-                );
-              } else {
-                // Create new
-                createdCount++;
-                onUpdate((prev) => [
-                  ...prev,
-                  {
-                    ...extractedData,
-                    id: `ai_${Date.now()}_${i}_${j}`,
-                    tiers: extractedData.tiers || [],
-                  } as LenderProfile,
-                ]);
-              }
+            // Find existing profile if we have a target
+            let existingProfile: LenderProfile | null = null;
+            if (targetId !== "auto") {
+              existingProfile = profiles.find((p) => p.id === targetId) || null;
             } else {
-              // Auto-detect mode: check if lender already exists
-              const existingMatch = profiles.find(
+              // Auto-detect: check if lender already exists by name
+              existingProfile = profiles.find(
                 (p) => p.name.toLowerCase() === extractedData.name!.toLowerCase()
-              );
-              if (existingMatch) {
-                onUpdate((prev) =>
-                  prev.map((p) => {
-                    if (p.id === existingMatch.id) {
-                      updatedCount++;
-                      return {
-                        ...p,
-                        ...extractedData,
-                        id: p.id,
-                        tiers: extractedData.tiers || p.tiers,
-                      } as LenderProfile;
-                    }
-                    return p;
-                  })
-                );
-              } else {
-                // Create new
-                createdCount++;
-                onUpdate((prev) => [
-                  ...prev,
-                  {
-                    ...extractedData,
-                    id: `ai_${Date.now()}_${i}_${j}`,
-                    tiers: extractedData.tiers || [],
-                  } as LenderProfile,
-                ]);
-              }
+              ) || null;
+            }
+
+            // Persist to PocketBase and update local state
+            const success = await persistLender(extractedData, existingProfile);
+            if (!success) {
+              errors.push(`Failed to save ${extractedData.name} to database`);
             }
           }
         } catch (err: any) {
