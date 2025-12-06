@@ -22,7 +22,13 @@ const FALLBACK_MODEL = "gemini-2.5-flash";
 
 // Progress callback type for UI updates
 export type ProcessingProgress = {
-  stage: 'uploading' | 'extracting' | 'validating' | 'enhancing' | 'complete' | 'error';
+  stage:
+    | "uploading"
+    | "extracting"
+    | "validating"
+    | "enhancing"
+    | "complete"
+    | "error";
   progress: number; // 0-100
   message: string;
   currentFile?: string;
@@ -46,6 +52,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 // Enhanced tier schema with ALL possible fields for accurate extraction
+// Includes confidence scoring and source tracking for transparency
 const LENDER_TIER_SCHEMA = {
   type: Type.OBJECT,
   properties: {
@@ -139,6 +146,17 @@ const LENDER_TIER_SCHEMA = {
       description:
         "Vehicle type restriction: 'new', 'used', 'certified', or 'all'. Omit if not specified.",
     },
+    // Confidence scoring for extraction quality
+    confidence: {
+      type: Type.NUMBER,
+      description:
+        "Confidence score 0.0-1.0 for this tier's data. 1.0 = directly read from table, 0.7 = inferred from context, 0.5 = estimated from document structure.",
+    },
+    extractionSource: {
+      type: Type.STRING,
+      description:
+        "Where this tier data came from: 'table', 'text', 'header', 'inferred'. Helps track accuracy.",
+    },
   },
   required: ["name"],
 };
@@ -195,7 +213,8 @@ const MULTI_LENDER_RESPONSE_SCHEMA = {
   properties: {
     lenders: {
       type: Type.ARRAY,
-      description: "An array of ALL lender profiles found in the document. Each bank/credit union is a separate entry.",
+      description:
+        "An array of ALL lender profiles found in the document. Each bank/credit union is a separate entry.",
       items: LENDER_PROFILE_SCHEMA,
     },
   },
@@ -260,7 +279,9 @@ const normalizeNumber = (value: unknown): number | undefined => {
 };
 
 // Calculate minYear from maxAge if provided
-const calculateMinYearFromAge = (maxAge: number | undefined): number | undefined => {
+const calculateMinYearFromAge = (
+  maxAge: number | undefined
+): number | undefined => {
   if (maxAge === undefined) return undefined;
   const currentYear = new Date().getFullYear();
   return currentYear - maxAge;
@@ -268,13 +289,13 @@ const calculateMinYearFromAge = (maxAge: number | undefined): number | undefined
 
 const normalizeTier = (tier: any): LenderTier | null => {
   if (!tier || typeof tier !== "object") return null;
-  
+
   // Calculate minYear from maxAge if minYear isn't directly provided
   let minYear = normalizeNumber(tier.minYear);
   if (!minYear && tier.maxAge) {
     minYear = calculateMinYearFromAge(normalizeNumber(tier.maxAge));
   }
-  
+
   return {
     name: typeof tier.name === "string" ? tier.name : "Unnamed Tier",
     minFico: normalizeNumber(tier.minFico),
@@ -319,118 +340,244 @@ const normalizeProfile = (profile: any): Partial<LenderProfile> => {
   };
 };
 
-// Enhanced extraction prompt with even more detailed instructions
-const getExtractionPrompt = () => `You are an expert AI data extraction specialist for automotive dealer finance departments.
+// Enhanced extraction prompt with chain-of-thought reasoning for maximum accuracy
+const getExtractionPrompt =
+  () => `You are an expert AI data extraction specialist for automotive dealer finance departments.
 
-**YOUR MISSION**: Extract ALL lender/bank rate sheet data from EVERY PAGE of this PDF into structured JSON. This PDF may contain rate sheets from MULTIPLE different banks, credit unions, or lending institutions. You MUST extract data for EVERY SINGLE lender found.
+**CHAIN-OF-THOUGHT EXTRACTION PROCESS**
 
-**CRITICAL DATA EXTRACTION PRIORITY** (in order of importance for deal calculations):
+Follow these reasoning steps carefully to ensure 100% accurate data extraction:
 
-1. **MAX LTV (Loan-to-Value)** - MOST CRITICAL
-   - Look for columns labeled: "LTV", "Max LTV", "Advance", "Max Advance %", "Loan to Value"
-   - Common values: 100%, 110%, 115%, 120%, 125%, 130%, 140%, 150%
-   - If you see "up to 125% of book", maxLtv = 125
-   - If you see "retail book value", also note bookValueSource = "Retail"
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: DOCUMENT ANALYSIS (Think through this first)
+═══════════════════════════════════════════════════════════════════════════════
 
-2. **CREDIT SCORE RANGES (FICO)**
-   - Look for: Credit Tier, FICO Score, Credit Score, Beacon Score
-   - "720+" means minFico=720, omit maxFico
-   - "680-719" means minFico=680, maxFico=719
-   - "Sub-prime" or "Deep" usually means minFico around 500-580
+Before extracting any data, analyze the document structure:
 
-3. **LOAN TERMS (months)**
-   - Look for: Term, Max Term, Loan Term, Months
-   - "Up to 84 months" = maxTerm=84
-   - "60-72 months" = minTerm=60, maxTerm=72
+1. **Document Type**: What type of document is this?
+   - Rate Sheet / Rate Matrix (structured tables with tiers)
+   - Program Guide (narrative text with embedded values)
+   - Quick Reference Card (condensed data)
+   - Multi-lender compilation (multiple banks on one sheet)
 
-4. **VEHICLE RESTRICTIONS**
-   - Model Year: "2019+", "Within 5 years", "2020-2024"
-   - Mileage: "Under 100K", "Max 80,000 miles"
-   - Age: "Vehicles 7 years or newer" = maxAge=7
+2. **Lender Identification**: Scan ALL pages for lender names
+   - Look at headers, footers, logos, and branding
+   - Note the page number(s) where each lender appears
+   - List every unique lender/bank/credit union found
 
-5. **INCOME/PTI REQUIREMENTS**
-   - "Minimum $2,000/month gross income" = minIncome=2000
-   - "Max PTI 18%" = maxPti=18
+3. **Table Structure Analysis**: For each table found:
+   - What are the column headers?
+   - What do rows represent? (credit tiers, vehicle types, terms)
+   - Are there nested tables or matrices?
 
-6. **BOOK VALUE SOURCE**
-   - "Trade value", "Clean Trade", "Average Trade" = bookValueSource: "Trade"
-   - "Retail value", "Retail Book" = bookValueSource: "Retail"
-   - If no mention, default to "Trade"
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: DATA MAPPING (Map document content to our schema)
+═══════════════════════════════════════════════════════════════════════════════
 
-**SCAN ALL PAGES**: Go through EVERY page of this PDF document. Different lenders may appear on different pages.
+Create a mental map of how document headers relate to our fields:
 
-**IDENTIFY ALL LENDERS**: Look for bank names, credit union names, lender logos, or headers that indicate different financial institutions. Common patterns include:
-- Bank/Credit Union name at the top of a page
-- "Rate Sheet" or "Program Guide" headers with lender branding
-- Footer or header text identifying the lender
-- Separate sections or pages for different banks
+**LTV/Advance Fields:**
+- "LTV", "Max LTV", "Advance", "Advance %" → maxLtv
+- "Min Advance", "Floor" → minLtv
+- If expressed as percentage (e.g., "125%"), convert to number (125)
 
-**DATA ACCURACY RULES**:
-- NEVER hallucinate or make up data
-- If a field is not explicitly stated, OMIT it (don't guess)
-- If a range says "600+", set minFico=600, omit maxFico
-- If max mileage is "150K", set maxMileage=150000
-- Convert all percentages to numbers (e.g., "125%" LTV = maxLtv: 125)
-- Model year ranges like "2018-2024" = minYear=2018, maxYear=2024
-- If it says "No vehicles older than 7 years", set maxAge=7
+**Credit Score Fields:**
+- "FICO", "Credit Score", "Beacon", "Credit Tier" → minFico/maxFico
+- "720+" means minFico=720, no maxFico
+- "680-719" means minFico=680, maxFico=719
+- "Super Prime", "A+", "Tier 1" → typically 720+
+- "Subprime", "Deep", "Tier 6" → typically 500-580
 
-**COMMON RATE SHEET TABLE FORMATS**:
-| Credit Tier | FICO | Max LTV | Max Term | Rate |
-Look for these column headers and extract each row as a tier.
+**Term Fields:**
+- "Term", "Max Term", "Months", "Loan Term" → maxTerm
+- "84", "72", "60" in months context → maxTerm value
+- If range "60-72", minTerm=60, maxTerm=72
 
-**OUTPUT REQUIREMENTS**:
-Return a JSON object with a "lenders" array containing ALL extracted lender profiles.
-Each lender profile must have at minimum: name and tiers array.
-For EACH tier, try to capture: name, minFico/maxFico, maxLtv, maxTerm, minYear/maxYear, maxMileage
+**Vehicle Fields:**
+- "Model Year", "Year" → minYear/maxYear
+- "2019+" means minYear=2019
+- "Within 5 years" → calculate minYear from current year
+- "Max Age 7" → maxAge=7 (we'll calculate minYear)
+- "Mileage", "Max Miles", "Odometer" → maxMileage
+- "100K", "100,000" → maxMileage=100000
+- "New", "Used", "CPO" → vehicleType
 
-**EXAMPLE STRUCTURE**:
+**Income/DTI Fields:**
+- "Min Income", "Gross Monthly" → minIncome
+- "PTI", "Payment to Income" → maxPti
+- "DTI", "Debt to Income" → maxDti
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: EXTRACTION WITH CONFIDENCE SCORING
+═══════════════════════════════════════════════════════════════════════════════
+
+For each data point extracted, assign a confidence score:
+
+**Confidence Levels:**
+- 1.0: Directly read from a clear table cell or explicit text
+- 0.9: Read from table but required minor interpretation
+- 0.8: Inferred from surrounding context with high confidence
+- 0.7: Calculated from other values (e.g., minYear from maxAge)
+- 0.6: Reasonable inference from document structure
+- 0.5 or below: Do NOT include - too uncertain
+
+**Extraction Source:**
+- "table": Extracted from a structured table
+- "text": Extracted from narrative text
+- "header": Found in section/page headers
+- "inferred": Calculated or reasoned from other data
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4: VALIDATION & CROSS-CHECK
+═══════════════════════════════════════════════════════════════════════════════
+
+Before outputting, validate your extraction:
+
+1. **Logical Consistency:**
+   - Is minFico < maxFico for each tier?
+   - Is minYear < maxYear?
+   - Is minTerm < maxTerm?
+   - Are LTV values realistic (typically 80-150%)?
+
+2. **Tier Completeness:**
+   - Does each tier have a descriptive name?
+   - Are credit tiers properly differentiated?
+   - Are new vs used vehicle programs separated if applicable?
+
+3. **Lender-Level Data:**
+   - Is the lender name correct and complete?
+   - Are global requirements (minIncome, maxPti) at lender level?
+   - Is bookValueSource noted if mentioned?
+
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL EXTRACTION RULES
+═══════════════════════════════════════════════════════════════════════════════
+
+- **NEVER HALLUCINATE**: Only extract what is explicitly stated or clearly inferable
+- **OMIT UNCERTAIN DATA**: If you're not confident, leave the field out
+- **PRESERVE PRECISION**: "125%" → 125, "$2,000" → 2000, "80K" → 80000
+- **SEPARATE NEW/USED**: If a sheet has different terms for new vs used, create separate tiers
+- **EXTRACT ALL LENDERS**: Multiple banks in one PDF = multiple lenders in output
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT FORMAT
+═══════════════════════════════════════════════════════════════════════════════
+
+Return a JSON object with a "lenders" array. Include confidence and extractionSource for transparency.
+
+**Example Output:**
 {
   "lenders": [
     {
-      "name": "First Bank Auto",
+      "name": "First Community Credit Union",
       "minIncome": 2000,
       "maxPti": 18,
       "bookValueSource": "Trade",
       "tiers": [
-        { "name": "Tier 1 - New", "minFico": 720, "maxLtv": 130, "maxTerm": 84, "minYear": 2024 },
-        { "name": "Tier 1 - Used", "minFico": 720, "maxLtv": 120, "maxTerm": 72, "minYear": 2019, "maxMileage": 80000 }
+        {
+          "name": "Tier 1 - New Vehicles (720+)",
+          "minFico": 720,
+          "maxLtv": 130,
+          "maxTerm": 84,
+          "minYear": 2024,
+          "vehicleType": "new",
+          "confidence": 0.95,
+          "extractionSource": "table"
+        },
+        {
+          "name": "Tier 1 - Used (720+, 2019-2023)",
+          "minFico": 720,
+          "maxLtv": 120,
+          "maxTerm": 72,
+          "minYear": 2019,
+          "maxYear": 2023,
+          "maxMileage": 100000,
+          "vehicleType": "used",
+          "confidence": 0.90,
+          "extractionSource": "table"
+        }
       ]
     }
   ]
 }
 
-NOW EXTRACT ALL LENDERS FROM ALL PAGES OF THIS DOCUMENT:`;
+NOW: Apply this chain-of-thought process to extract ALL lenders from ALL pages of this document:`;
 
-// Grounding enhancement prompt for filling in missing data
-const getGroundingPrompt = (lenderName: string, existingData: Partial<LenderProfile>) => `You are an automotive finance expert. I have partial data for the lender "${lenderName}" that is missing critical information needed for deal calculations.
+// Grounding enhancement prompt for filling in missing data with reasoning
+const getGroundingPrompt = (
+  lenderName: string,
+  existingData: Partial<LenderProfile>
+) => `You are an automotive finance expert with deep knowledge of lender programs and industry standards.
 
-**EXISTING EXTRACTED DATA**:
+**LENDER DATA TO ENHANCE: "${lenderName}"**
+
+**EXISTING EXTRACTED DATA:**
 ${JSON.stringify(existingData, null, 2)}
 
-**YOUR TASK**: Using your knowledge of standard automotive lending practices and this specific lender (if you know about them), suggest reasonable default values for any missing critical fields. Focus especially on:
+═══════════════════════════════════════════════════════════════════════════════
+CHAIN-OF-THOUGHT ENHANCEMENT PROCESS
+═══════════════════════════════════════════════════════════════════════════════
 
-1. **maxLtv** - If missing, what is a typical max LTV for this type of lender/tier?
-   - Prime lenders (720+): typically 110-130%
-   - Near-prime (660-719): typically 100-120%
-   - Subprime (<660): typically 90-110%
+**STEP 1: LENDER ANALYSIS**
+Think about this lender:
+- Is this a bank, credit union, or captive finance company?
+- Credit unions typically offer more favorable terms to members
+- Banks often have stricter requirements but wider vehicle eligibility
+- Captive lenders (Toyota Financial, Ford Credit) focus on their brands
 
-2. **maxTerm** - If missing, what's typical for this vehicle age/tier?
-   - New vehicles: 72-84 months typical
-   - Used (2-5 years): 60-72 months typical
-   - Older used (6+ years): 48-60 months typical
+**STEP 2: TIER ANALYSIS**
+For each tier with missing data, reason about:
+- What credit score range is this tier serving? (Prime, Near-Prime, Subprime)
+- Is it for new or used vehicles?
+- What's a reasonable max LTV given the risk profile?
+- What term limits make sense for the vehicle age/type?
 
-3. **maxMileage** - If missing, suggest reasonable limits
-   - Most lenders: 100,000-150,000 mile cap
+**STEP 3: INDUSTRY STANDARD DEFAULTS**
+Apply these well-established industry standards where data is missing:
 
-4. **minYear** - If missing, calculate from typical age limits
-   - Most lenders finance vehicles 7-10 years old max
+**Max LTV by Credit Tier:**
+| Credit Profile | Typical Max LTV |
+|----------------|-----------------|
+| Super Prime (780+) | 125-140% |
+| Prime (720-779) | 115-130% |
+| Near-Prime (660-719) | 100-120% |
+| Subprime (580-659) | 90-105% |
+| Deep Subprime (<580) | 80-95% |
 
-**IMPORTANT**: 
-- Only fill in values you are reasonably confident about based on industry standards
-- Mark clearly which values are your suggestions vs extracted
-- If you truly don't know, leave undefined
+**Max Term by Vehicle Type:**
+| Vehicle Type | Typical Max Term |
+|--------------|------------------|
+| New Current Year | 72-84 months |
+| New Prior Year | 72-84 months |
+| Used 1-3 years | 72-75 months |
+| Used 4-5 years | 60-72 months |
+| Used 6-7 years | 48-60 months |
+| Older than 7 years | 36-48 months |
 
-Return the enhanced lender profile with suggested values filled in where appropriate.`;
+**Max Mileage Standards:**
+- Most prime lenders: 100,000-120,000 miles
+- Subprime lenders: 120,000-150,000 miles
+- Deep subprime: 150,000-175,000 miles
+
+**Min Year Calculation:**
+- Current year is ${new Date().getFullYear()}
+- Most lenders: 7-10 year vehicle age limit
+- Credit unions often more lenient: 10-12 years
+- Subprime may accept older: 12-15 years
+
+**STEP 4: APPLY ENHANCEMENTS**
+For each missing field:
+1. State your reasoning for the value you're suggesting
+2. Set confidence to 0.5-0.7 (never >0.7 for enhanced data)
+3. Set extractionSource to "inferred"
+
+**OUTPUT REQUIREMENTS:**
+Return the COMPLETE enhanced lender profile with:
+- Original extracted values preserved (confidence unchanged)
+- Missing critical fields filled with reasonable defaults
+- Each filled field marked with confidence 0.5-0.7 and extractionSource "inferred"
+
+Focus on filling: maxLtv, maxTerm, maxMileage, minYear (the most important for calculations).`;
 
 export const processLenderSheet = async (
   file: File,
@@ -446,36 +593,42 @@ export const processLenderSheet = async (
     );
 
   const ai = new GoogleGenAI({ apiKey });
-  
+
   // Stage 1: Upload file
   onProgress?.({
-    stage: 'uploading',
+    stage: "uploading",
     progress: 10,
-    message: 'Reading and encoding PDF file...',
+    message: "Reading and encoding PDF file...",
     currentFile: file.name,
   });
-  
+
   const base64Data = await fileToBase64(file);
-  
+
   onProgress?.({
-    stage: 'uploading',
+    stage: "uploading",
     progress: 20,
-    message: 'File encoded successfully. Starting AI extraction...',
+    message: "File encoded successfully. Starting AI extraction...",
     currentFile: file.name,
   });
 
   try {
     // Stage 2: Initial extraction
     onProgress?.({
-      stage: 'extracting',
+      stage: "extracting",
       progress: 30,
       message: `AI (${PRIMARY_MODEL}) is scanning all pages for lender data...`,
       currentFile: file.name,
     });
-    
-    console.log(`[AI Lender Upload] Starting extraction with model: ${PRIMARY_MODEL}`);
-    console.log(`[AI Lender Upload] File: ${file.name}, Size: ${(file.size / 1024).toFixed(1)}KB`);
-    
+
+    console.log(
+      `[AI Lender Upload] Starting extraction with model: ${PRIMARY_MODEL}`
+    );
+    console.log(
+      `[AI Lender Upload] File: ${file.name}, Size: ${(
+        file.size / 1024
+      ).toFixed(1)}KB`
+    );
+
     const response = await ai.models.generateContent({
       model: PRIMARY_MODEL,
       contents: {
@@ -491,9 +644,9 @@ export const processLenderSheet = async (
     });
 
     onProgress?.({
-      stage: 'extracting',
+      stage: "extracting",
       progress: 50,
-      message: 'AI extraction complete. Parsing results...',
+      message: "AI extraction complete. Parsing results...",
       currentFile: file.name,
     });
 
@@ -518,7 +671,7 @@ export const processLenderSheet = async (
 
     // Stage 3: Validate and normalize
     onProgress?.({
-      stage: 'validating',
+      stage: "validating",
       progress: 60,
       message: `Found ${parsed.lenders.length} lender(s). Validating data...`,
       currentFile: file.name,
@@ -527,82 +680,106 @@ export const processLenderSheet = async (
     // Normalize all lender profiles
     let normalizedLenders = parsed.lenders
       .map((lender: any) => normalizeProfile(lender))
-      .filter((lender: Partial<LenderProfile>) => lender.name && lender.name !== "Unnamed Lender");
+      .filter(
+        (lender: Partial<LenderProfile>) =>
+          lender.name && lender.name !== "Unnamed Lender"
+      );
 
     if (normalizedLenders.length === 0) {
-      throw new Error("No valid lender data could be extracted from the document.");
+      throw new Error(
+        "No valid lender data could be extracted from the document."
+      );
     }
 
     // Stage 4: Check for missing critical data and enhance if needed
-    const lendersNeedingEnhancement = normalizedLenders.filter(profileNeedsEnhancement);
-    
+    const lendersNeedingEnhancement = normalizedLenders.filter(
+      profileNeedsEnhancement
+    );
+
     if (lendersNeedingEnhancement.length > 0) {
       onProgress?.({
-        stage: 'enhancing',
+        stage: "enhancing",
         progress: 70,
-        message: `Enhancing ${lendersNeedingEnhancement.length} lender(s) with missing data using industry knowledge...`,
+        message: `Enhancing ${lendersNeedingEnhancement.length} lender(s) with Google Search grounding and internet research...`,
         currentFile: file.name,
       });
 
       // Enhance lenders with missing critical data
       const enhancedLenders = await Promise.all(
-        normalizedLenders.map(async (lender, index) => {
-          if (!profileNeedsEnhancement(lender)) {
-            return lender;
-          }
+        normalizedLenders.map(
+          async (lender: Partial<LenderProfile>, index: number) => {
+            if (!profileNeedsEnhancement(lender)) {
+              return lender;
+            }
 
-          onProgress?.({
-            stage: 'enhancing',
-            progress: 70 + Math.floor((index / normalizedLenders.length) * 20),
-            message: `Enhancing "${lender.name}" with industry-standard values...`,
-            currentFile: file.name,
-          });
-
-          try {
-            // Use grounding to fill in missing data
-            console.log(`[AI Lender Upload] Enhancing lender: ${lender.name}`);
-            const enhanceResponse = await ai.models.generateContent({
-              model: PRIMARY_MODEL,
-              contents: getGroundingPrompt(lender.name || 'Unknown', lender),
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: LENDER_PROFILE_SCHEMA,
-              },
+            onProgress?.({
+              stage: "enhancing",
+              progress:
+                70 + Math.floor((index / normalizedLenders.length) * 20),
+              message: `Researching "${lender.name}" via Google Search for accurate lending data...`,
+              currentFile: file.name,
             });
 
-            const enhanceText = enhanceResponse.text;
-            if (enhanceText) {
-              try {
-                const enhanced = JSON.parse(enhanceText);
-                // Merge enhanced data with original, preferring original non-undefined values
-                const mergedTiers = (lender.tiers || []).map((tier, tierIndex) => {
-                  const enhancedTier = enhanced.tiers?.[tierIndex] || {};
-                  return {
-                    ...enhancedTier,
-                    ...Object.fromEntries(
-                      Object.entries(tier).filter(([_, v]) => v !== undefined)
-                    ),
-                  };
-                });
+            try {
+              // Use Google Search grounding to look up actual lender data from the internet
+              console.log(
+                `[AI Lender Upload] Enhancing lender with Google Search grounding: ${lender.name}`
+              );
 
-                return {
-                  ...lender,
-                  ...Object.fromEntries(
-                    Object.entries(enhanced).filter(([key, v]) => 
-                      v !== undefined && (lender as any)[key] === undefined && key !== 'tiers'
-                    )
-                  ),
-                  tiers: mergedTiers,
-                };
-              } catch {
-                return lender; // Keep original if enhancement fails
+              // Enable Google Search grounding for live internet research
+              const groundingTool = { googleSearch: {} };
+
+              const enhanceResponse = await ai.models.generateContent({
+                model: PRIMARY_MODEL,
+                contents: getGroundingPrompt(lender.name || "Unknown", lender),
+                config: {
+                  tools: [groundingTool], // Enable Google Search grounding
+                  responseMimeType: "application/json",
+                  responseSchema: LENDER_PROFILE_SCHEMA,
+                },
+              });
+
+              const enhanceText = enhanceResponse.text;
+              if (enhanceText) {
+                try {
+                  const enhanced = JSON.parse(enhanceText);
+                  // Merge enhanced data with original, preferring original non-undefined values
+                  const mergedTiers = (lender.tiers || []).map(
+                    (tier: LenderTier, tierIndex: number) => {
+                      const enhancedTier = enhanced.tiers?.[tierIndex] || {};
+                      return {
+                        ...enhancedTier,
+                        ...Object.fromEntries(
+                          Object.entries(tier).filter(
+                            ([_, v]) => v !== undefined
+                          )
+                        ),
+                      };
+                    }
+                  );
+
+                  return {
+                    ...lender,
+                    ...Object.fromEntries(
+                      Object.entries(enhanced).filter(
+                        ([key, v]) =>
+                          v !== undefined &&
+                          (lender as any)[key] === undefined &&
+                          key !== "tiers"
+                      )
+                    ),
+                    tiers: mergedTiers,
+                  };
+                } catch {
+                  return lender; // Keep original if enhancement fails
+                }
               }
+              return lender;
+            } catch {
+              return lender; // Keep original if enhancement fails
             }
-            return lender;
-          } catch {
-            return lender; // Keep original if enhancement fails
           }
-        })
+        )
       );
 
       normalizedLenders = enhancedLenders;
@@ -610,32 +787,49 @@ export const processLenderSheet = async (
 
     // Stage 5: Final validation
     onProgress?.({
-      stage: 'complete',
+      stage: "complete",
       progress: 95,
-      message: `Successfully extracted ${normalizedLenders.length} lender(s) with ${normalizedLenders.reduce((acc, l) => acc + (l.tiers?.length || 0), 0)} total tiers.`,
+      message: `Successfully extracted ${
+        normalizedLenders.length
+      } lender(s) with ${normalizedLenders.reduce(
+        (acc: number, l: Partial<LenderProfile>) =>
+          acc + (l.tiers?.length || 0),
+        0
+      )} total tiers.`,
       currentFile: file.name,
     });
 
     // Add data quality summary
-    const qualitySummary = normalizedLenders.map(lender => {
-      const tiersWithLtv = lender.tiers?.filter(t => t.maxLtv !== undefined).length || 0;
-      const tiersWithTerm = lender.tiers?.filter(t => t.maxTerm !== undefined).length || 0;
-      const totalTiers = lender.tiers?.length || 0;
-      return {
-        name: lender.name,
-        totalTiers,
-        tiersWithLtv,
-        tiersWithTerm,
-        dataQuality: totalTiers > 0 ? Math.round(((tiersWithLtv + tiersWithTerm) / (totalTiers * 2)) * 100) : 0,
-      };
-    });
-    
-    console.log('Extraction quality summary:', qualitySummary);
+    const qualitySummary = normalizedLenders.map(
+      (lender: Partial<LenderProfile>) => {
+        const tiersWithLtv =
+          lender.tiers?.filter((t: LenderTier) => t.maxLtv !== undefined)
+            .length || 0;
+        const tiersWithTerm =
+          lender.tiers?.filter((t: LenderTier) => t.maxTerm !== undefined)
+            .length || 0;
+        const totalTiers = lender.tiers?.length || 0;
+        return {
+          name: lender.name,
+          totalTiers,
+          tiersWithLtv,
+          tiersWithTerm,
+          dataQuality:
+            totalTiers > 0
+              ? Math.round(
+                  ((tiersWithLtv + tiersWithTerm) / (totalTiers * 2)) * 100
+                )
+              : 0,
+        };
+      }
+    );
+
+    console.log("Extraction quality summary:", qualitySummary);
 
     onProgress?.({
-      stage: 'complete',
+      stage: "complete",
       progress: 100,
-      message: 'Extraction complete!',
+      message: "Extraction complete!",
       currentFile: file.name,
     });
 
@@ -648,22 +842,29 @@ export const processLenderSheet = async (
       status: error?.status,
       statusText: error?.statusText,
     });
-    
+
     let userMessage = error?.message || String(error);
-    
+
     // Provide more helpful error messages
     if (userMessage.includes("404") || userMessage.includes("not found")) {
       userMessage = `Model "${PRIMARY_MODEL}" not available. Please check API access.`;
-    } else if (userMessage.includes("403") || userMessage.includes("permission")) {
+    } else if (
+      userMessage.includes("403") ||
+      userMessage.includes("permission")
+    ) {
       userMessage = "API access denied. Please check your API key permissions.";
     } else if (userMessage.includes("429") || userMessage.includes("quota")) {
-      userMessage = "API rate limit exceeded. Please try again in a few moments.";
-    } else if (userMessage.includes("500") || userMessage.includes("internal")) {
+      userMessage =
+        "API rate limit exceeded. Please try again in a few moments.";
+    } else if (
+      userMessage.includes("500") ||
+      userMessage.includes("internal")
+    ) {
       userMessage = "AI service temporarily unavailable. Please try again.";
     }
-    
+
     onProgress?.({
-      stage: 'error',
+      stage: "error",
       progress: 0,
       message: `Error: ${userMessage}`,
       currentFile: file.name,
@@ -750,7 +951,9 @@ export const analyzeDealWithAi = async (
     `;
 
   try {
-    console.log(`[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`);
+    console.log(
+      `[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`
+    );
     const response = await ai.models.generateContent({
       model: PRIMARY_MODEL,
       contents: prompt,

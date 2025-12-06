@@ -38,6 +38,7 @@ import { InventoryExpandedRow } from "./components/InventoryExpandedRow";
 import AiLenderManagerModal from "./components/AiLenderManagerModal";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
+import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
 
 const MainLayout: React.FC = () => {
   const {
@@ -924,6 +925,10 @@ const App: React.FC = () => {
   const [isAuth, setIsAuth] = useState(isAuthenticated());
   const [view, setView] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"auto" | "dealer">("auto");
+
+  const currentUser = getCurrentUser();
+  const isSuperAdmin = currentUser?.role === "superadmin";
 
   useEffect(() => {
     // Check initial auth state
@@ -966,11 +971,29 @@ const App: React.FC = () => {
     );
   }
 
+  // SuperAdmin role-based routing
+  if (isSuperAdmin && viewMode === "auto") {
+    return (
+      <SuperAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />
+    );
+  }
+
   return (
     <DealProvider>
       <MainLayout />
-      {/* Logout Button (Temporary placement, ideally in Header/Sidebar) */}
-      <div className="fixed bottom-4 right-4 z-50">
+      {/* Admin/Logout Controls */}
+      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
+        {isSuperAdmin && viewMode === "dealer" && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setViewMode("auto")}
+            className="shadow-lg bg-purple-600 border-purple-500 text-white hover:bg-purple-700"
+          >
+            <Icons.Cog6ToothIcon className="w-4 h-4 mr-2" />
+            Admin Console
+          </Button>
+        )}
         <Button
           variant="secondary"
           size="sm"
@@ -978,7 +1001,7 @@ const App: React.FC = () => {
           className="shadow-lg border-red-200 text-red-600 hover:bg-red-50 dark:bg-slate-800 dark:border-red-900 dark:text-red-400"
         >
           <Icons.ArrowRightStartOnRectangleIcon className="w-4 h-4 mr-2" />
-          Logout ({getCurrentUser()?.email})
+          Logout
         </Button>
       </div>
     </DealProvider>

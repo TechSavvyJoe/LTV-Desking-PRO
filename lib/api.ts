@@ -5,7 +5,10 @@ import {
   LenderProfile,
   SavedDeal,
   DealerSettings,
+  Dealer,
+  User,
   getCurrentDealerId,
+  getCurrentUser,
 } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
 
@@ -380,4 +383,186 @@ export const subscribeToSavedDeals = (
   return () => {
     collections.savedDeals.unsubscribe("*");
   };
+};
+
+// ============================================
+// SUPERADMIN: System Stats
+// ============================================
+
+export interface SystemStats {
+  totalDealers: number;
+  activeDealers: number;
+  totalUsers: number;
+  totalDeals: number;
+  totalInventory: number;
+}
+
+export const getSystemStats = async (): Promise<SystemStats> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") {
+    return {
+      totalDealers: 0,
+      activeDealers: 0,
+      totalUsers: 0,
+      totalDeals: 0,
+      totalInventory: 0,
+    };
+  }
+
+  try {
+    const [dealers, users, deals, inventory] = await Promise.all([
+      collections.dealers.getFullList(),
+      pb.collection("users").getFullList(),
+      collections.savedDeals.getFullList(),
+      collections.inventory.getFullList(),
+    ]);
+
+    return {
+      totalDealers: dealers.length,
+      activeDealers: dealers.filter((d) => (d as unknown as Dealer).active)
+        .length,
+      totalUsers: users.length,
+      totalDeals: deals.length,
+      totalInventory: inventory.length,
+    };
+  } catch (error) {
+    console.error("Failed to fetch system stats:", error);
+    return {
+      totalDealers: 0,
+      activeDealers: 0,
+      totalUsers: 0,
+      totalDeals: 0,
+      totalInventory: 0,
+    };
+  }
+};
+
+// ============================================
+// SUPERADMIN: Dealer Management
+// ============================================
+
+export const getAllDealers = async (): Promise<Dealer[]> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") return [];
+
+  try {
+    const records = await collections.dealers.getFullList({
+      sort: "name",
+    });
+    return asTypeArray<Dealer>(records);
+  } catch (error) {
+    console.error("Failed to fetch dealers:", error);
+    return [];
+  }
+};
+
+export const createDealer = async (
+  data: Omit<Dealer, "id" | "created" | "updated">
+): Promise<Dealer | null> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") return null;
+
+  try {
+    const record = await collections.dealers.create(data);
+    return asType<Dealer>(record);
+  } catch (error) {
+    console.error("Failed to create dealer:", error);
+    return null;
+  }
+};
+
+export const updateDealer = async (
+  id: string,
+  data: Partial<Dealer>
+): Promise<Dealer | null> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") return null;
+
+  try {
+    const record = await collections.dealers.update(id, data);
+    return asType<Dealer>(record);
+  } catch (error) {
+    console.error("Failed to update dealer:", error);
+    return null;
+  }
+};
+
+export const deleteDealer = async (id: string): Promise<boolean> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") return false;
+
+  try {
+    await collections.dealers.delete(id);
+    return true;
+  } catch (error) {
+    console.error("Failed to delete dealer:", error);
+    return false;
+  }
+};
+
+// ============================================
+// SUPERADMIN: User Management
+// ============================================
+
+export const getAllUsers = async (): Promise<User[]> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") return [];
+
+  try {
+    const records = await pb.collection("users").getFullList({
+      sort: "firstName",
+      expand: "dealer",
+    });
+    return asTypeArray<User>(records);
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+    return [];
+  }
+};
+
+export const updateUserRole = async (
+  id: string,
+  role: User["role"]
+): Promise<User | null> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") return null;
+
+  try {
+    const record = await pb.collection("users").update(id, { role });
+    return asType<User>(record);
+  } catch (error) {
+    console.error("Failed to update user role:", error);
+    return null;
+  }
+};
+
+export const updateUser = async (
+  id: string,
+  data: Partial<
+    Pick<User, "firstName" | "lastName" | "email" | "phone" | "role" | "dealer">
+  >
+): Promise<User | null> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") return null;
+
+  try {
+    const record = await pb.collection("users").update(id, data);
+    return asType<User>(record);
+  } catch (error) {
+    console.error("Failed to update user:", error);
+    return null;
+  }
+};
+
+export const deleteUser = async (id: string): Promise<boolean> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") return false;
+
+  try {
+    await pb.collection("users").delete(id);
+    return true;
+  } catch (error) {
+    console.error("Failed to delete user:", error);
+    return false;
+  }
 };
