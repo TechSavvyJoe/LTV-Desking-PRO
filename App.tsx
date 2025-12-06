@@ -467,14 +467,26 @@ const MainLayout: React.FC = () => {
         }}
       />
 
-      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-8">
-        {/* Deal Controls & Actions (Restored to Top) */}
-        <section className="space-y-6">
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-6">
+        {/* Deal Controls */}
+        <section>
           <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-200 dark:hover:border-slate-700">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20 flex items-center justify-between">
               <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
                 <Icons.UserIcon className="w-4 h-4" /> Customer & Deal
               </h3>
+              {/* Action Buttons moved here */}
+              <ActionBar
+                activeTab={activeTab}
+                favoritesCount={favorites.length}
+                onDownloadFavorites={handleDownloadFavorites}
+                onSaveDeal={() => handleSaveDeal()}
+                canSave={
+                  !!activeVehicle &&
+                  typeof activeVehicle.price === "number" &&
+                  !!customerName
+                }
+              />
             </div>
             <div className="p-4">
               <DealControls
@@ -494,18 +506,6 @@ const MainLayout: React.FC = () => {
               />
             </div>
           </div>
-
-          <ActionBar
-            activeTab={activeTab}
-            favoritesCount={favorites.length}
-            onDownloadFavorites={handleDownloadFavorites}
-            onSaveDeal={() => handleSaveDeal()}
-            canSave={
-              !!activeVehicle &&
-              typeof activeVehicle.price === "number" &&
-              !!customerName
-            }
-          />
         </section>
 
         {/* Main Content Area (Tables) */}
