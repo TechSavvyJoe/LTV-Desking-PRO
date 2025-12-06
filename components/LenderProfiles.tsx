@@ -172,63 +172,123 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
     let errors: string[] = [];
 
     try {
-      const newProfiles: LenderProfile[] = [];
-
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file) continue;
 
         try {
-          const extractedData = await processLenderSheet(file);
-          if (!extractedData || !extractedData.name) {
-            errors.push(`Could not extract data from ${file.name}`);
+          // processLenderSheet now returns an array of lenders
+          const extractedLenders = await processLenderSheet(file);
+          
+          if (!extractedLenders || extractedLenders.length === 0) {
+            errors.push(`Could not extract any lender data from ${file.name}`);
             continue;
           }
 
-          // Determine target profile to update
-          let targetId = targetLenderId;
+          // Process each extracted lender
+          for (let j = 0; j < extractedLenders.length; j++) {
+            const extractedData = extractedLenders[j];
+            if (!extractedData || !extractedData.name) continue;
 
-          // If auto-detect, try to find a match by name
-          if (targetId === "auto") {
-            const match = profiles.find(
-              (p) =>
-                p.name
-                  .toLowerCase()
-                  .includes(extractedData.name!.toLowerCase()) ||
-                extractedData.name!.toLowerCase().includes(p.name.toLowerCase())
-            );
-            if (match) {
-              targetId = match.id;
+            // Determine target profile to update
+            let targetId = targetLenderId;
+
+            // If auto-detect, try to find a match by name
+            if (targetId === "auto") {
+              const match = profiles.find(
+                (p) =>
+                  p.name
+                    .toLowerCase()
+                    .includes(extractedData.name!.toLowerCase()) ||
+                  extractedData.name!.toLowerCase().includes(p.name.toLowerCase())
+              );
+              if (match) {
+                targetId = match.id;
+              }
             }
-          }
 
-          if (targetId !== "auto") {
-            // Update existing
-            onUpdate((prev) =>
-              prev.map((p) => {
-                if (p.id === targetId) {
-                  updatedCount++;
-                  return {
-                    ...p,
-                    ...extractedData, // Overwrite fields
-                    id: p.id, // Keep ID
-                    tiers: extractedData.tiers || p.tiers, // Replace tiers if present
-                  } as LenderProfile;
-                }
-                return p;
-              })
-            );
-          } else {
-            // Create new
-            createdCount++;
-            onUpdate((prev) => [
-              ...prev,
-              {
-                ...extractedData,
-                id: `ai_${Date.now()}_${i}`,
-                tiers: extractedData.tiers || [],
-              } as LenderProfile,
-            ]);
+            if (targetId !== "auto" && extractedLenders.length === 1) {
+              // Only update specific target if there's exactly one lender in the file
+              // Otherwise auto-create for multi-lender files
+              onUpdate((prev) =>
+                prev.map((p) => {
+                  if (p.id === targetId) {
+                    updatedCount++;
+                    return {
+                      ...p,
+                      ...extractedData, // Overwrite fields
+                      id: p.id, // Keep ID
+                      tiers: extractedData.tiers || p.tiers, // Replace tiers if present
+                    } as LenderProfile;
+                  }
+                  return p;
+                })
+              );
+            } else if (targetId !== "auto") {
+              // For multi-lender files with a target selected, check if this lender exists
+              const existingMatch = profiles.find(
+                (p) => p.name.toLowerCase() === extractedData.name!.toLowerCase()
+              );
+              if (existingMatch) {
+                onUpdate((prev) =>
+                  prev.map((p) => {
+                    if (p.id === existingMatch.id) {
+                      updatedCount++;
+                      return {
+                        ...p,
+                        ...extractedData,
+                        id: p.id,
+                        tiers: extractedData.tiers || p.tiers,
+                      } as LenderProfile;
+                    }
+                    return p;
+                  })
+                );
+              } else {
+                // Create new
+                createdCount++;
+                onUpdate((prev) => [
+                  ...prev,
+                  {
+                    ...extractedData,
+                    id: `ai_${Date.now()}_${i}_${j}`,
+                    tiers: extractedData.tiers || [],
+                  } as LenderProfile,
+                ]);
+              }
+            } else {
+              // Auto-detect mode: check if lender already exists
+              const existingMatch = profiles.find(
+                (p) => p.name.toLowerCase() === extractedData.name!.toLowerCase()
+              );
+              if (existingMatch) {
+                onUpdate((prev) =>
+                  prev.map((p) => {
+                    if (p.id === existingMatch.id) {
+                      updatedCount++;
+                      return {
+                        ...p,
+                        ...extractedData,
+                        id: p.id,
+                        tiers: extractedData.tiers || p.tiers,
+                      } as LenderProfile;
+                    }
+                    return p;
+                  })
+                );
+              } else {
+                // Create new
+                createdCount++;
+                onUpdate((prev) => [
+                  ...prev,
+                  {
+                    ...extractedData,
+                    id: `ai_${Date.now()}_${i}_${j}`,
+                    tiers: extractedData.tiers || [],
+                  } as LenderProfile,
+                ]);
+              }
+            }
           }
         } catch (err: any) {
           errors.push(`${file.name}: ${err.message}`);

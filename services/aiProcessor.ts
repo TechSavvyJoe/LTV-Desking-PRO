@@ -119,6 +119,19 @@ const LENDER_PROFILE_SCHEMA = {
   required: ["name", "tiers"],
 };
 
+// Schema for extracting MULTIPLE lenders from a single PDF
+const MULTI_LENDER_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    lenders: {
+      type: Type.ARRAY,
+      description: "An array of ALL lender profiles found in the document. Each bank/credit union is a separate entry.",
+      items: LENDER_PROFILE_SCHEMA,
+    },
+  },
+  required: ["lenders"],
+};
+
 const DEAL_SUGGESTION_SCHEMA = {
   type: Type.OBJECT,
   properties: {
@@ -211,7 +224,7 @@ const normalizeProfile = (profile: any): Partial<LenderProfile> => {
 
 export const processLenderSheet = async (
   file: File
-): Promise<Partial<LenderProfile>> => {
+): Promise<Partial<LenderProfile>[]> => {
   if (typeof window === "undefined") {
     throw new Error("AI processing is only available in the browser.");
   }
@@ -231,32 +244,100 @@ export const processLenderSheet = async (
         parts: [
           { inlineData: { mimeType: "application/pdf", data: base64Data } },
           {
-            text: `You are an expert AI data extraction specialist for automotive lending. 
-Extract all lender guidelines from this rate sheet into a structured JSON format.
+            text: `You are an expert AI data extraction specialist for automotive dealer finance departments.
 
-CRITICAL INSTRUCTIONS:
-1. **Lender Name**: Extract the exact name of the bank or credit union.
-2. **Tiers**: Extract ALL credit tiers/programs. For each tier, capture:
-   - Name (e.g., "Tier 1", "A+", "Super Prime")
-   - FICO Range (minFico, maxFico)
-   - LTV Caps (maxLtv) - look for "Max LTV", "Advance", or "LTV" columns.
-   - Term Limits (minTerm, maxTerm)
-   - Year/Model Restrictions (minYear, maxYear) - e.g., "2018-2024" or "Up to 7 years old".
-   - Mileage Limits (minMileage, maxMileage)
-   - Amount Financed Limits (minAmountFinanced, maxAmountFinanced)
-3. **Global Policies**: Extract bank-level rules:
-   - minIncome (Minimum monthly income)
-   - maxPti (Maximum Payment-to-Income ratio)
-   - bookValueSource (Look for "Trade", "Retail", "Wholesale", "Clean", "Average". Default to "Trade" if ambiguous, but prefer "Retail" if explicitly stated for used cars).
-4. **Accuracy**: Do not hallucinate. If a field is not present, omit it. If a range is "600+", set minFico to 600 and omit maxFico.
+**YOUR MISSION**: Extract ALL lender/bank rate sheet data from EVERY PAGE of this PDF into structured JSON. This PDF may contain rate sheets from MULTIPLE different banks, credit unions, or lending institutions. You MUST extract data for EVERY SINGLE lender found.
 
-Return ONLY the JSON object matching the schema.`,
+**CRITICAL REQUIREMENTS**:
+
+1. **SCAN ALL PAGES**: Go through EVERY page of this PDF document. Different lenders may appear on different pages.
+
+2. **IDENTIFY ALL LENDERS**: Look for bank names, credit union names, lender logos, or headers that indicate different financial institutions. Common patterns include:
+   - Bank/Credit Union name at the top of a page
+   - "Rate Sheet" or "Program Guide" headers with lender branding
+   - Footer or header text identifying the lender
+   - Separate sections or pages for different banks
+
+3. **FOR EACH LENDER, EXTRACT**:
+   
+   **Lender Name** (REQUIRED):
+   - The exact name of the bank, credit union, or lending institution
+   - Examples: "Capital One", "Ally Financial", "Chase Auto", "Navy Federal Credit Union"
+   
+   **Credit Tiers** (REQUIRED - extract ALL tiers):
+   For each tier/program, capture:
+   - **name**: Tier identifier (e.g., "Tier 1", "A+", "Super Prime", "New Vehicle Program", "Used 2020-2024")
+   - **minFico/maxFico**: Credit score range (e.g., "720+" means minFico=720, no maxFico; "680-719" means minFico=680, maxFico=719)
+   - **maxLtv**: Maximum Loan-to-Value percentage (look for "LTV", "Advance", "Max LTV" columns)
+   - **minTerm/maxTerm**: Loan term range in months (e.g., "Up to 72 months" = maxTerm=72)
+   - **minYear/maxYear**: Vehicle model year restrictions (e.g., "2019+" = minYear=2019; "Within 5 years" = calculate from current year)
+   - **minMileage/maxMileage**: Mileage restrictions (e.g., "Under 100,000 miles" = maxMileage=100000)
+   - **minAmountFinanced/maxAmountFinanced**: Loan amount limits
+
+   **Global Policies** (if specified):
+   - **minIncome**: Minimum monthly gross income required
+   - **maxPti**: Maximum Payment-To-Income ratio (as percentage, e.g., 20 for 20%)
+   - **bookValueSource**: Book value basis - look for "Trade", "Retail", "Wholesale", "Clean Trade", "Average Trade". Default to "Trade" if unclear.
+
+4. **DATA ACCURACY RULES**:
+   - NEVER hallucinate or make up data
+   - If a field is not explicitly stated, OMIT it (don't guess)
+   - If a range says "600+", set minFico=600, omit maxFico
+   - If max mileage is "150K", set maxMileage=150000
+   - Convert all percentages to numbers (e.g., "125%" LTV = maxLtv: 125)
+   - Model year ranges like "2018-2024" = minYear=2018, maxYear=2024
+   - If it says "No vehicles older than 7 years", calculate minYear based on current year
+
+5. **COMMON RATE SHEET FORMATS**:
+   - Look for tables with columns like: Credit Tier | FICO | LTV | Term | Rate
+   - Look for sections labeled: New Vehicles, Used Vehicles, Certified Pre-Owned
+   - Look for footnotes that specify income requirements or PTI limits
+   - Pay attention to "Stipulations" or "Conditions" sections
+
+6. **WHAT TO LOOK FOR ON EACH PAGE**:
+   - Page headers/footers with lender branding
+   - Logo images that indicate the lender
+   - "Effective Date" with lender name
+   - Contact information for different lenders
+   - Separate rate tables for each lender
+
+**OUTPUT FORMAT**:
+Return a JSON object with a "lenders" array containing ALL extracted lender profiles.
+Each lender profile must have at minimum: name and tiers array.
+If only ONE lender is in the document, still return it in the lenders array.
+
+**EXAMPLE STRUCTURE**:
+{
+  "lenders": [
+    {
+      "name": "First Bank Auto",
+      "minIncome": 2000,
+      "maxPti": 18,
+      "bookValueSource": "Trade",
+      "tiers": [
+        { "name": "Tier 1 - New", "minFico": 720, "maxLtv": 130, "maxTerm": 84, "minYear": 2024 },
+        { "name": "Tier 1 - Used", "minFico": 720, "maxLtv": 120, "maxTerm": 72, "minYear": 2019, "maxMileage": 80000 }
+      ]
+    },
+    {
+      "name": "Credit Union Two",
+      "minIncome": 1800,
+      "bookValueSource": "Retail",
+      "tiers": [
+        { "name": "A+ Credit", "minFico": 750, "maxLtv": 115, "maxTerm": 84 },
+        { "name": "A Credit", "minFico": 700, "maxFico": 749, "maxLtv": 110, "maxTerm": 72 }
+      ]
+    }
+  ]
+}
+
+NOW EXTRACT ALL LENDERS FROM ALL PAGES OF THIS DOCUMENT:`,
           },
         ],
       },
       config: {
         responseMimeType: "application/json",
-        responseSchema: LENDER_PROFILE_SCHEMA,
+        responseSchema: MULTI_LENDER_RESPONSE_SCHEMA,
       },
     });
 
@@ -270,10 +351,24 @@ Return ONLY the JSON object matching the schema.`,
       throw new Error("Failed to parse AI response as JSON.");
     }
 
-    if (!parsed) return {};
+    if (!parsed || !parsed.lenders || !Array.isArray(parsed.lenders)) {
+      // Fallback: if response is a single lender object, wrap it
+      if (parsed && parsed.name) {
+        return [normalizeProfile(parsed)];
+      }
+      return [];
+    }
 
-    const normalized = normalizeProfile(parsed);
-    return normalized;
+    // Normalize all lender profiles
+    const normalizedLenders = parsed.lenders
+      .map((lender: any) => normalizeProfile(lender))
+      .filter((lender: Partial<LenderProfile>) => lender.name && lender.name !== "Unnamed Lender");
+
+    if (normalizedLenders.length === 0) {
+      throw new Error("No valid lender data could be extracted from the document.");
+    }
+
+    return normalizedLenders;
   } catch (error: any) {
     console.error("AI Processing Error:", error);
     const msg = error?.message || String(error);

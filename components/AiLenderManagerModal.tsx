@@ -13,7 +13,7 @@ interface AiLenderManagerModalProps {
 type AiResult = {
   fileName: string;
   status: "success" | "error";
-  data?: Partial<LenderProfile>;
+  lenders?: Partial<LenderProfile>[];
   error?: string;
 };
 
@@ -82,14 +82,14 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
     const analysisPromises = files.map((file) =>
       processLenderSheet(file)
-        .then((data) => ({
+        .then((lenders) => ({
           fileName: file.name,
-          status: "success",
-          data,
+          status: "success" as const,
+          lenders,
         }))
         .catch((error) => ({
           fileName: file.name,
-          status: "error",
+          status: "error" as const,
           error:
             error instanceof Error
               ? error.message
@@ -103,15 +103,21 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
   };
 
   const handleConfirm = () => {
-    const successfulResults = results.filter(
-      (r) => r.status === "success" && r.data && r.data.name
-    );
-    if (successfulResults.length === 0) return;
+    // Flatten all lenders from all successful results
+    const allLenders: Partial<LenderProfile>[] = [];
+    results.forEach((result) => {
+      if (result.status === "success" && result.lenders && result.lenders.length > 0) {
+        allLenders.push(...result.lenders);
+      }
+    });
+
+    if (allLenders.length === 0) return;
 
     onUpdateProfiles((prevProfiles) => {
       let updatedProfiles = [...prevProfiles];
-      successfulResults.forEach((result) => {
-        const newProfileData = result.data!;
+      allLenders.forEach((newProfileData, index) => {
+        if (!newProfileData.name) return;
+        
         const existingProfileIndex = updatedProfiles.findIndex(
           (p) => p.name.toLowerCase() === newProfileData.name!.toLowerCase()
         );
@@ -128,7 +134,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         } else {
           // Add new profile
           updatedProfiles.push({
-            id: `ai_${Date.now()}_${Math.random()}`,
+            id: `ai_${Date.now()}_${index}_${Math.random()}`,
             ...newProfileData,
           } as LenderProfile);
         }
@@ -230,13 +236,22 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                     <p className="font-semibold text-sm text-x-text-primary">
                       {res.fileName}
                     </p>
-                    {res.status === "success" ? (
-                      <p className="text-xs text-green-300">
-                        Successfully extracted data for:{" "}
-                        <strong className="font-bold">
-                          {res.data?.name || "Unknown Lender"}
-                        </strong>
-                      </p>
+                    {res.status === "success" && res.lenders ? (
+                      <div className="text-xs text-green-300">
+                        <p>
+                          Successfully extracted <strong className="font-bold">{res.lenders.length}</strong> lender(s):
+                        </p>
+                        <ul className="mt-1 ml-4 list-disc">
+                          {res.lenders.map((lender, j) => (
+                            <li key={j}>
+                              <strong>{lender.name}</strong>
+                              {lender.tiers && lender.tiers.length > 0 && (
+                                <span className="text-green-400"> ({lender.tiers.length} tiers)</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     ) : (
                       <p className="text-xs text-red-300">Error: {res.error}</p>
                     )}
