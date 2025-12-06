@@ -36,6 +36,7 @@ import { CalculatedVehicle, SavedDeal } from "./types";
 import DealStructuringModal from "./components/DealStructuringModal";
 import { InventoryExpandedRow } from "./components/InventoryExpandedRow";
 import AiLenderManagerModal from "./components/AiLenderManagerModal";
+import BackgroundUploadIndicator from "./components/BackgroundUploadIndicator";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
 import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
@@ -113,6 +114,11 @@ const MainLayout: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isAiMinimized, setIsAiMinimized] = useState(false);
+  const [aiUploadProgress, setAiUploadProgress] = useState({
+    progress: 0,
+    stage: "",
+  });
   const [isSavedDealModalOpen, setIsSavedDealModalOpen] = useState(false);
   const [vinLookup, setVinLookup] = useState("");
   const [vinLookupResult, setVinLookupResult] = useState<string | null>(null);
@@ -913,10 +919,21 @@ const MainLayout: React.FC = () => {
       )}
 
       <AiLenderManagerModal
-        isOpen={isAiModalOpen}
+        isOpen={isAiModalOpen && !isAiMinimized}
         onClose={() => setIsAiModalOpen(false)}
         currentProfiles={lenderProfiles}
         onUpdateProfiles={setLenderProfiles}
+        onMinimize={() => setIsAiMinimized(true)}
+        isMinimized={isAiMinimized}
+      />
+
+      {/* Background Upload Indicator */}
+      <BackgroundUploadIndicator
+        isProcessing={isAiModalOpen}
+        isMinimized={isAiMinimized}
+        overallProgress={aiUploadProgress.progress}
+        currentStage={aiUploadProgress.stage}
+        onRestore={() => setIsAiMinimized(false)}
       />
 
       {/* Global Toast */}
@@ -929,16 +946,16 @@ const App: React.FC = () => {
   const [isAuth, setIsAuth] = useState(isAuthenticated());
   const [view, setView] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Persist viewMode in sessionStorage so it survives page reloads
   const [viewMode, setViewMode] = useState<"auto" | "dealer">(() => {
-    const saved = sessionStorage.getItem('superadmin_view_mode');
-    return (saved === 'dealer') ? 'dealer' : 'auto';
+    const saved = sessionStorage.getItem("superadmin_view_mode");
+    return saved === "dealer" ? "dealer" : "auto";
   });
-  
+
   // Save viewMode to sessionStorage whenever it changes
   useEffect(() => {
-    sessionStorage.setItem('superadmin_view_mode', viewMode);
+    sessionStorage.setItem("superadmin_view_mode", viewMode);
   }, [viewMode]);
 
   const currentUser = getCurrentUser();
