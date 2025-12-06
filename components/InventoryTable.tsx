@@ -154,7 +154,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "Year",
         accessor: "modelYear" as const,
         isNumeric: true,
-        width: "60px",
+        width: "minmax(60px, 80px)",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.modelYear}>
             <span className="tabular-nums">{item.modelYear}</span>
@@ -165,13 +165,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "Make",
         accessor: "make" as const,
         className: "font-medium text-slate-900 dark:text-gray-100",
-        width: "100px",
+        width: "minmax(80px, 1fr)",
       },
       {
         header: "Model",
         accessor: "model" as const,
         className: "text-slate-500 dark:text-gray-400",
-        width: "150px",
+        width: "minmax(120px, 2fr)",
         render: (item: CalculatedVehicle) => (
           <span>
             {item.model} {item.trim}
@@ -182,13 +182,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "Stock #",
         accessor: "stock" as const,
         className: "text-slate-500 dark:text-gray-400",
-        width: "80px",
+        width: "minmax(70px, 100px)",
       },
       {
         header: "Miles",
         accessor: "mileage" as const,
         isNumeric: true,
-        width: "80px",
+        width: "minmax(70px, 100px)",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.mileage}>
             <span className="tabular-nums">{formatNumber(item.mileage)}</span>
@@ -200,7 +200,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "price" as const,
         isNumeric: true,
         className: "text-right font-medium",
-        width: "100px",
+        width: "minmax(85px, 120px)",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.price}>
             <span className="tabular-nums">{formatCurrency(item.price)}</span>
@@ -212,7 +212,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "jdPower" as const,
         isNumeric: true,
         className: "text-right",
-        width: "100px",
+        width: "minmax(85px, 120px)",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.jdPower}>
             <span className="tabular-nums">{formatCurrency(item.jdPower)}</span>
@@ -224,7 +224,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "frontEndLtv" as const,
         isNumeric: true,
         className: "text-right",
-        width: "80px",
+        width: "minmax(70px, 100px)",
         render: (item: CalculatedVehicle) => (
           <LtvCell value={item.frontEndLtv} />
         ),
@@ -234,7 +234,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "frontEndGross" as const,
         isNumeric: true,
         className: "text-right",
-        width: "100px",
+        width: "minmax(80px, 110px)",
         render: (item: CalculatedVehicle) => (
           <GrossCell value={item.frontEndGross} />
         ),
@@ -244,7 +244,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "amountToFinance" as const,
         isNumeric: true,
         className: "text-right font-semibold text-blue-600 dark:text-blue-400",
-        width: "120px",
+        width: "minmax(95px, 130px)",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.amountToFinance}>
             <span className="tabular-nums">
@@ -258,7 +258,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "otdLtv" as const,
         isNumeric: true,
         className: "text-right",
-        width: "80px",
+        width: "minmax(70px, 100px)",
         render: (item: CalculatedVehicle) => <OtdLtvCell value={item.otdLtv} />,
       },
       {
@@ -266,7 +266,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         accessor: "monthlyPayment" as const,
         isNumeric: true,
         className: "text-right",
-        width: "100px",
+        width: "minmax(80px, 110px)",
         render: (item: CalculatedVehicle) => (
           <PaymentCell value={item.monthlyPayment} />
         ),
@@ -274,8 +274,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       {
         header: "VIN",
         accessor: "vin" as const,
-        className: "max-w-[220px]",
-        width: "220px",
+        className: "",
+        width: "minmax(180px, 1.5fr)",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.vin}>
             <span className="font-mono text-xs break-all">{item.vin}</span>
