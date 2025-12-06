@@ -8,6 +8,18 @@ import type {
   Vehicle,
 } from "../types";
 
+// Model configuration for paid API access
+// Available models (newest to oldest):
+// - "gemini-3-pro-preview"    - Most intelligent, best reasoning (paid only, no free tier)
+// - "gemini-2.5-flash"        - Best balance of speed & capability for document processing
+// - "gemini-2.5-pro"          - Advanced reasoning and analysis
+// - "gemini-2.0-flash"        - Fast, reliable workhorse
+
+// Using gemini-2.5-flash for optimal PDF/document processing speed
+// Change to "gemini-3-pro-preview" for maximum intelligence (slower, higher cost)
+const PRIMARY_MODEL = "gemini-2.5-flash";
+const FALLBACK_MODEL = "gemini-2.5-pro";
+
 // Progress callback type for UI updates
 export type ProcessingProgress = {
   stage: 'uploading' | 'extracting' | 'validating' | 'enhancing' | 'complete' | 'error';
@@ -457,12 +469,15 @@ export const processLenderSheet = async (
     onProgress?.({
       stage: 'extracting',
       progress: 30,
-      message: 'AI is scanning all pages for lender data...',
+      message: `AI (${PRIMARY_MODEL}) is scanning all pages for lender data...`,
       currentFile: file.name,
     });
     
+    console.log(`[AI Lender Upload] Starting extraction with model: ${PRIMARY_MODEL}`);
+    console.log(`[AI Lender Upload] File: ${file.name}, Size: ${(file.size / 1024).toFixed(1)}KB`);
+    
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: PRIMARY_MODEL,
       contents: {
         parts: [
           { inlineData: { mimeType: "application/pdf", data: base64Data } },
@@ -545,8 +560,9 @@ export const processLenderSheet = async (
 
           try {
             // Use grounding to fill in missing data
+            console.log(`[AI Lender Upload] Enhancing lender: ${lender.name}`);
             const enhanceResponse = await ai.models.generateContent({
-              model: "gemini-3-pro-preview",
+              model: PRIMARY_MODEL,
               contents: getGroundingPrompt(lender.name || 'Unknown', lender),
               config: {
                 responseMimeType: "application/json",
@@ -625,15 +641,34 @@ export const processLenderSheet = async (
 
     return normalizedLenders;
   } catch (error: any) {
-    console.error("AI Processing Error:", error);
-    const msg = error?.message || String(error);
+    console.error("[AI Lender Upload] Processing Error:", error);
+    console.error("[AI Lender Upload] Error details:", {
+      name: error?.name,
+      message: error?.message,
+      status: error?.status,
+      statusText: error?.statusText,
+    });
+    
+    let userMessage = error?.message || String(error);
+    
+    // Provide more helpful error messages
+    if (userMessage.includes("404") || userMessage.includes("not found")) {
+      userMessage = `Model "${PRIMARY_MODEL}" not available. Please check API access.`;
+    } else if (userMessage.includes("403") || userMessage.includes("permission")) {
+      userMessage = "API access denied. Please check your API key permissions.";
+    } else if (userMessage.includes("429") || userMessage.includes("quota")) {
+      userMessage = "API rate limit exceeded. Please try again in a few moments.";
+    } else if (userMessage.includes("500") || userMessage.includes("internal")) {
+      userMessage = "AI service temporarily unavailable. Please try again.";
+    }
+    
     onProgress?.({
       stage: 'error',
       progress: 0,
-      message: `Error: ${msg}`,
+      message: `Error: ${userMessage}`,
       currentFile: file.name,
     });
-    throw new Error(`Failed to extract lender data: ${msg}`);
+    throw new Error(`Failed to extract lender data: ${userMessage}`);
   }
 };
 
@@ -715,8 +750,9 @@ export const analyzeDealWithAi = async (
     `;
 
   try {
+    console.log(`[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`);
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: PRIMARY_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",

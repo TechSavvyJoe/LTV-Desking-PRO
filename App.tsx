@@ -5,7 +5,12 @@ import {
   logout,
   getCurrentUser,
 } from "./lib/auth";
-import { saveDeal, deleteDeal, updateInventoryItem, syncInventory } from "./lib/api";
+import {
+  saveDeal,
+  deleteDeal,
+  updateInventoryItem,
+  syncInventory,
+} from "./lib/api";
 import { Login } from "./components/auth/Login";
 import { Register } from "./components/auth/Register";
 import { AuthLayout } from "./components/auth/AuthLayout";
@@ -96,7 +101,9 @@ const MainLayout: React.FC = () => {
   >("inventory");
 
   // Handler to change tabs and scroll to top
-  const handleTabChange = (tab: "inventory" | "lenders" | "saved" | "scratchpad") => {
+  const handleTabChange = (
+    tab: "inventory" | "lenders" | "saved" | "scratchpad"
+  ) => {
     setActiveTab(tab);
     // Scroll to top of page when changing tabs
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -148,16 +155,19 @@ const MainLayout: React.FC = () => {
         });
         return;
       }
-      
+
       // Update local state immediately for responsiveness
       setInventory(data);
       setPagination((prev) => ({ ...prev, currentPage: 1 }));
-      
+
       // Sync to PocketBase in background (dealer-specific)
       const itemsToSync = data.map((v) => ({
         vin: v.vin,
         stockNumber: v.stock !== "N/A" ? v.stock : undefined,
-        year: typeof v.modelYear === "number" ? v.modelYear : new Date().getFullYear(),
+        year:
+          typeof v.modelYear === "number"
+            ? v.modelYear
+            : new Date().getFullYear(),
         make: v.make || "",
         model: v.model || "",
         trim: v.trim,
@@ -165,11 +175,12 @@ const MainLayout: React.FC = () => {
         price: typeof v.price === "number" ? v.price : 0,
         unitCost: typeof v.unitCost === "number" ? v.unitCost : undefined,
         jdPower: typeof v.jdPower === "number" ? v.jdPower : undefined,
-        jdPowerRetail: typeof v.jdPowerRetail === "number" ? v.jdPowerRetail : undefined,
+        jdPowerRetail:
+          typeof v.jdPowerRetail === "number" ? v.jdPowerRetail : undefined,
       }));
-      
+
       const syncResult = await syncInventory(itemsToSync);
-      
+
       setMessage({
         type: "success",
         text: `Loaded ${data.length} vehicles. Synced: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.`,
@@ -214,14 +225,29 @@ const MainLayout: React.FC = () => {
         setActiveVehicle(calculateFinancials(newVehicle, dealData, settings));
         setVinLookupResult("Success: Vehicle added to inventory");
         setVinLookup("");
-        
+
         // Also sync to PocketBase
-        syncInventoryToPocketBase([newVehicle]).then(() => {
-          console.log("VIN lookup vehicle synced to PocketBase");
-        }).catch((err) => {
-          console.error("Failed to sync VIN lookup to PocketBase:", err);
-        });
-        
+        syncInventory([
+          {
+            vin: newVehicle.vin,
+            year: newVehicle.modelYear,
+            make: newVehicle.make || "",
+            model: newVehicle.model || "",
+            trim: newVehicle.trim,
+            mileage:
+              typeof newVehicle.mileage === "number"
+                ? newVehicle.mileage
+                : undefined,
+            price: typeof newVehicle.price === "number" ? newVehicle.price : 0,
+          },
+        ])
+          .then(() => {
+            console.log("VIN lookup vehicle synced to PocketBase");
+          })
+          .catch((err: unknown) => {
+            console.error("Failed to sync VIN lookup to PocketBase:", err);
+          });
+
         setMessage({
           type: "success",
           text: "Vehicle decoded and saved. Please enter price/mileage before structuring.",
@@ -357,13 +383,12 @@ const MainLayout: React.FC = () => {
     vin: string,
     fallbackVehicles: CalculatedVehicle[]
   ) => {
-    const candidate =
-      fallbackVehicles.find(
-        (v) =>
-          v.vin === vin ||
-          (!v.vin && vin.startsWith("VIN-")) ||
-          (v.vin === "N/A" && vin.startsWith("VIN-"))
-      );
+    const candidate = fallbackVehicles.find(
+      (v) =>
+        v.vin === vin ||
+        (!v.vin && vin.startsWith("VIN-")) ||
+        (v.vin === "N/A" && vin.startsWith("VIN-"))
+    );
     if (candidate) {
       setActiveVehicle(candidate);
     }
