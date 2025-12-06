@@ -204,6 +204,28 @@ export const saveLenderProfile = async (
   if (!dealerId) return null;
 
   try {
+    // Check if a lender with the same name already exists for this dealer
+    const existingRecords = await collections.lenderProfiles.getFullList({
+      filter: `dealer = "${sanitizeId(
+        dealerId
+      )}" && name = "${profile.name.replace(/"/g, '\\"')}"`,
+    });
+
+    if (existingRecords.length > 0) {
+      // Update existing lender instead of creating duplicate
+      const existingId = existingRecords[0]?.id;
+      if (existingId) {
+        console.log(`[API] Updating existing lender profile: ${profile.name}`);
+        const record = await collections.lenderProfiles.update(existingId, {
+          ...profile,
+          dealer: dealerId,
+        });
+        return asType<LenderProfile>(record);
+      }
+    }
+
+    // Create new lender profile
+    console.log(`[API] Creating new lender profile: ${profile.name}`);
     const record = await collections.lenderProfiles.create({
       ...profile,
       dealer: dealerId,
