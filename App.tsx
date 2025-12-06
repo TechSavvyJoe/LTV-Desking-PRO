@@ -5,7 +5,7 @@ import {
   logout,
   getCurrentUser,
 } from "./lib/auth";
-import { saveDeal, deleteDeal, updateInventoryItem } from "./lib/api";
+import { saveDeal, deleteDeal, updateInventoryItem, syncInventory } from "./lib/api";
 import { Login } from "./components/auth/Login";
 import { Register } from "./components/auth/Register";
 import { AuthLayout } from "./components/auth/AuthLayout";
@@ -148,11 +148,31 @@ const MainLayout: React.FC = () => {
         });
         return;
       }
+      
+      // Update local state immediately for responsiveness
       setInventory(data);
       setPagination((prev) => ({ ...prev, currentPage: 1 }));
+      
+      // Sync to PocketBase in background (dealer-specific)
+      const itemsToSync = data.map((v) => ({
+        vin: v.vin,
+        stockNumber: v.stock !== "N/A" ? v.stock : undefined,
+        year: typeof v.modelYear === "number" ? v.modelYear : new Date().getFullYear(),
+        make: v.make || "",
+        model: v.model || "",
+        trim: v.trim,
+        mileage: typeof v.mileage === "number" ? v.mileage : undefined,
+        price: typeof v.price === "number" ? v.price : 0,
+        unitCost: typeof v.unitCost === "number" ? v.unitCost : undefined,
+        jdPower: typeof v.jdPower === "number" ? v.jdPower : undefined,
+        jdPowerRetail: typeof v.jdPowerRetail === "number" ? v.jdPowerRetail : undefined,
+      }));
+      
+      const syncResult = await syncInventory(itemsToSync);
+      
       setMessage({
         type: "success",
-        text: `Successfully loaded ${data.length} vehicles.`,
+        text: `Loaded ${data.length} vehicles. Synced: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.`,
       });
     } catch (err) {
       console.error(err);
@@ -179,6 +199,9 @@ const MainLayout: React.FC = () => {
           vehicle: `${decoded.year} ${decoded.make} ${decoded.model}`,
           stock: `VIN-${Date.now()}`,
           vin: vinLookup,
+          make: decoded.make,
+          model: decoded.model,
+          trim: decoded.trim,
           modelYear: decoded.year,
           mileage: 0,
           price: 0,
@@ -191,9 +214,17 @@ const MainLayout: React.FC = () => {
         setActiveVehicle(calculateFinancials(newVehicle, dealData, settings));
         setVinLookupResult("Success: Vehicle added to inventory");
         setVinLookup("");
+        
+        // Also sync to PocketBase
+        syncInventoryToPocketBase([newVehicle]).then(() => {
+          console.log("VIN lookup vehicle synced to PocketBase");
+        }).catch((err) => {
+          console.error("Failed to sync VIN lookup to PocketBase:", err);
+        });
+        
         setMessage({
           type: "success",
-          text: "Vehicle decoded. Please enter price/mileage before structuring.",
+          text: "Vehicle decoded and saved. Please enter price/mileage before structuring.",
         });
       } else {
         setVinLookupResult("Error: Could not decode VIN");

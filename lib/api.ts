@@ -75,6 +75,104 @@ export const deleteInventoryItem = async (id: string): Promise<boolean> => {
   }
 };
 
+// Bulk sync inventory - updates existing items by VIN, adds new ones, removes stale ones
+export const syncInventory = async (
+  items: Array<{
+    vin: string;
+    stockNumber?: string;
+    year: number;
+    make: string;
+    model: string;
+    trim?: string;
+    mileage?: number;
+    price: number;
+    unitCost?: number;
+    jdPower?: number;
+    jdPowerRetail?: number;
+  }>
+): Promise<{ added: number; updated: number; removed: number }> => {
+  const dealerId = getCurrentDealerId();
+  if (!dealerId) return { added: 0, updated: 0, removed: 0 };
+
+  try {
+    // Get existing inventory for this dealer
+    const existingRecords = await collections.inventory.getFullList({
+      filter: `dealer = "${dealerId}"`,
+    });
+
+    const existingByVin = new Map<string, InventoryItem>();
+    for (const record of existingRecords) {
+      const item = asType<InventoryItem>(record);
+      if (item.vin) {
+        existingByVin.set(item.vin.toUpperCase(), item);
+      }
+    }
+
+    const incomingVins = new Set<string>();
+    let added = 0;
+    let updated = 0;
+
+    // Process incoming items
+    for (const item of items) {
+      if (!item.vin) continue;
+      const vinUpper = item.vin.toUpperCase();
+      incomingVins.add(vinUpper);
+
+      const existing = existingByVin.get(vinUpper);
+      if (existing) {
+        // Update existing item
+        await collections.inventory.update(existing.id, {
+          stockNumber: item.stockNumber,
+          year: item.year,
+          make: item.make,
+          model: item.model,
+          trim: item.trim,
+          mileage: item.mileage,
+          price: item.price,
+          unitCost: item.unitCost,
+          jdPower: item.jdPower,
+          jdPowerRetail: item.jdPowerRetail,
+          status: "available",
+        });
+        updated++;
+      } else {
+        // Add new item
+        await collections.inventory.create({
+          dealer: dealerId,
+          vin: item.vin,
+          stockNumber: item.stockNumber,
+          year: item.year,
+          make: item.make,
+          model: item.model,
+          trim: item.trim,
+          mileage: item.mileage,
+          price: item.price,
+          unitCost: item.unitCost,
+          jdPower: item.jdPower,
+          jdPowerRetail: item.jdPowerRetail,
+          status: "available",
+        });
+        added++;
+      }
+    }
+
+    // Remove items no longer in upload (mark as sold or delete)
+    let removed = 0;
+    for (const [vin, existing] of existingByVin) {
+      if (!incomingVins.has(vin)) {
+        // Mark as sold instead of deleting to preserve history
+        await collections.inventory.update(existing.id, { status: "sold" });
+        removed++;
+      }
+    }
+
+    return { added, updated, removed };
+  } catch (error) {
+    console.error("Failed to sync inventory:", error);
+    return { added: 0, updated: 0, removed: 0 };
+  }
+};
+
 // ============================================
 // LENDER PROFILES OPERATIONS
 // ============================================
