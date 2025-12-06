@@ -80,6 +80,7 @@ export interface LenderProfile {
   bookValueSource?: "Trade" | "Retail";
   minIncome?: number;
   maxPti?: number;
+  effectiveDate?: string;
   tiers: LenderTier[];
   [key: string]: any; // For dynamic keys
 }

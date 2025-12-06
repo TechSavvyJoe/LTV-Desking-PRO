@@ -25,6 +25,51 @@ const FALLBACK_MODEL = "gemini-2.5-flash";
 const PERPLEXITY_API_KEY = import.meta.env.VITE_PERPLEXITY_API_KEY || "";
 const PERPLEXITY_MODEL = "sonar-pro"; // Best reasoning + real-time internet search
 
+// Retry configuration for API resilience
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000; // 1 second base delay
+
+/**
+ * Retry a function with exponential backoff
+ * Delays: 1s, 2s, 4s for retries 1, 2, 3
+ */
+const retryWithBackoff = async <T>(
+  fn: () => Promise<T>,
+  retries: number = MAX_RETRIES,
+  context: string = "API call"
+): Promise<T> => {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Don't retry on certain errors
+      const errorMessage = lastError.message.toLowerCase();
+      if (
+        errorMessage.includes("invalid api key") ||
+        errorMessage.includes("unauthorized") ||
+        errorMessage.includes("quota exceeded") ||
+        errorMessage.includes("rate limit")
+      ) {
+        console.error(`[${context}] Non-retryable error:`, lastError.message);
+        throw lastError;
+      }
+      
+      if (attempt < retries) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+        console.warn(`[${context}] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`, lastError.message);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  console.error(`[${context}] All ${retries + 1} attempts failed`);
+  throw lastError;
+};
+
 // Progress callback type for UI updates
 export type ProcessingProgress = {
   stage:
@@ -392,77 +437,114 @@ const searchWithPerplexity = async (
 ): Promise<Partial<LenderProfile> | null> => {
   console.log(`[Perplexity Sonar] Searching for: ${lenderName}`);
   
-  const systemPrompt = `You are an expert automotive finance researcher. Your job is to find accurate, current lending program details for auto lenders.
+  const systemPrompt = `You are an expert automotive finance researcher specializing in indirect auto lending programs. Your job is to find accurate, current lending program details for auto lenders.
 
 CRITICAL INSTRUCTIONS:
-1. Search for the EXACT lender name provided
-2. Look for official rate sheets, lending matrices, and program guides
-3. Find specific numbers: Max LTV percentages, Max terms, FICO requirements, vehicle age limits
+1. Search for the EXACT lender name provided - look for their dealer/indirect auto lending programs
+2. Look for official rate sheets, lending matrices, dealer guides, and program announcements
+3. Find specific numbers: Max LTV percentages, Max terms, FICO requirements, vehicle restrictions, rate buy-down options
 4. Only report data you find from reliable sources - do NOT make up numbers
 5. If you can't find specific data, say so - don't guess
+6. Look for effective dates on rate sheets to determine currency of information
 
-Return your findings as a JSON object with this structure:
+Return your findings as a JSON object with this EXACT structure:
 {
   "name": "Lender Name",
+  "effectiveDate": "2024-01-15",
   "minIncome": 2000,
   "maxPti": 18,
-  "bookValueSource": "Trade or Retail",
+  "bookValueSource": "Trade",
   "tiers": [
     {
-      "name": "Tier name with credit range",
+      "name": "Tier A / Prime (720-850)",
       "minFico": 720,
       "maxFico": 850,
-      "maxLtv": 125,
-      "maxTerm": 84,
       "minYear": 2019,
+      "maxYear": 2025,
+      "maxAge": 7,
+      "minMileage": 0,
       "maxMileage": 100000,
-      "vehicleType": "new or used",
-      "baseRate": 5.99
+      "minTerm": 12,
+      "maxTerm": 84,
+      "maxLtv": 125,
+      "minAmountFinanced": 7500,
+      "maxAmountFinanced": 100000,
+      "maxAdvance": 150,
+      "baseInterestRate": 5.99,
+      "rateAdder": 0
     }
   ],
   "sources": ["URL or source name"]
 }
 
+FIELD DEFINITIONS:
+- effectiveDate: When the rate sheet became effective (YYYY-MM-DD format)
+- maxAge: Maximum vehicle age in years (e.g., 7 means up to 7 years old)
+- maxAdvance: Maximum advance over invoice/book value (percentage or flat amount)
+- minAmountFinanced/maxAmountFinanced: Loan amount limits
+- baseInterestRate: The buy rate or base APR for dealers
+- rateAdder: Additional rate markup allowed
+
 Only include fields where you found actual data. Omit fields you couldn't verify.`;
 
-  const userPrompt = `Research the auto lending programs for: "${lenderName}"
+  const userPrompt = `Research the INDIRECT/DEALER auto lending programs for: "${lenderName}"
 
 I already have this partial data extracted from their rate sheet:
 ${JSON.stringify(existingData, null, 2)}
 
-Please search for their current auto loan programs and find:
-1. Maximum LTV (Loan-to-Value) percentages by credit tier
-2. Maximum loan terms in months
-3. FICO/credit score requirements for each tier  
-4. Vehicle age restrictions (min/max model year)
-5. Maximum mileage limits
-6. Any income or PTI requirements
+Please search for their current auto loan programs and find these SPECIFIC details:
+1. Rate sheet effective date (when was this program published?)
+2. Maximum LTV (Loan-to-Value) percentages by credit tier
+3. Maximum and minimum loan terms in months
+4. FICO/credit score requirements and tier breakdowns
+5. Vehicle age restrictions (min/max model year OR max age in years)
+6. Maximum mileage limits
+7. Minimum and maximum financed amount limits
+8. Maximum advance over book/invoice value
+9. Buy rates or base interest rates by tier
+10. Any income or PTI (payment-to-income) requirements
 
 Focus on finding the specific numbers that are MISSING from my existing data.
-Return ONLY a valid JSON object with the lender data.`;
+Return ONLY a valid JSON object with the lender data - no explanatory text.`;
 
   try {
-    const response = await fetch("https://api.perplexity.ai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${PERPLEXITY_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: PERPLEXITY_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.1, // Low temperature for factual accuracy
-        max_tokens: 4000,
-        return_citations: true,
-        search_recency_filter: "year", // Focus on recent data
-      }),
-    });
+    const response = await retryWithBackoff(
+      async () => {
+        const res = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${PERPLEXITY_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: PERPLEXITY_MODEL,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.1, // Low temperature for factual accuracy
+            max_tokens: 4000,
+            return_citations: true,
+            search_recency_filter: "year", // Focus on recent data
+          }),
+        });
 
-    if (!response.ok) {
-      console.error(`[Perplexity Sonar] API error: ${response.status} ${response.statusText}`);
+        if (!res.ok) {
+          // Throw error to trigger retry for server errors
+          if (res.status >= 500 || res.status === 429) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          // For client errors, don't retry
+          console.error(`[Perplexity Sonar] API error: ${res.status} ${res.statusText}`);
+          return null;
+        }
+        return res;
+      },
+      MAX_RETRIES,
+      "Perplexity Sonar"
+    );
+
+    if (!response) {
       return null;
     }
 
@@ -553,53 +635,63 @@ const mergeLenderData = (
     merged.bookValueSource = enhanced.bookValueSource;
   }
 
-  // Merge tiers - only add missing tier data
-  if (enhanced.tiers && enhanced.tiers.length > 0 && original.tiers) {
-    merged.tiers = original.tiers.map((originalTier) => {
-      const matchingEnhanced = enhanced.tiers?.find(
-        (et) =>
-          et.name?.toLowerCase() === originalTier.name?.toLowerCase() ||
-          et.minScore === originalTier.minScore
+  // Merge effectiveDate if available
+  if (enhanced.effectiveDate && !original.effectiveDate) {
+    merged.effectiveDate = enhanced.effectiveDate;
+  }
+
+  // Merge tiers - update existing tiers and add new ones from enhancement
+  if (enhanced.tiers && enhanced.tiers.length > 0) {
+    const originalTiers = original.tiers || [];
+    const mergedTiers: typeof originalTiers = [];
+    const matchedEnhancedIndices = new Set<number>();
+
+    // First, merge existing original tiers with matching enhanced tiers
+    for (const originalTier of originalTiers) {
+      const enhancedIndex = enhanced.tiers.findIndex(
+        (et, idx) =>
+          !matchedEnhancedIndices.has(idx) &&
+          (et.name?.toLowerCase() === originalTier.name?.toLowerCase() ||
+            (et.minFico === originalTier.minFico && et.maxFico === originalTier.maxFico))
       );
-      if (matchingEnhanced) {
-        return {
+
+      if (enhancedIndex !== -1) {
+        matchedEnhancedIndices.add(enhancedIndex);
+        const matchingEnhanced = enhanced.tiers[enhancedIndex];
+        mergedTiers.push({
           ...originalTier,
-          maxLtv:
-            originalTier.maxLtv ||
-            matchingEnhanced.maxLtv ||
-            originalTier.maxLtv,
-          maxTermNew:
-            originalTier.maxTermNew ||
-            matchingEnhanced.maxTermNew ||
-            originalTier.maxTermNew,
-          maxTermUsed:
-            originalTier.maxTermUsed ||
-            matchingEnhanced.maxTermUsed ||
-            originalTier.maxTermUsed,
-          maxMileage:
-            originalTier.maxMileage ||
-            matchingEnhanced.maxMileage ||
-            originalTier.maxMileage,
-          maxAge:
-            originalTier.maxAge ||
-            matchingEnhanced.maxAge ||
-            originalTier.maxAge,
-          minLoanAmount:
-            originalTier.minLoanAmount ||
-            matchingEnhanced.minLoanAmount ||
-            originalTier.minLoanAmount,
-          maxLoanAmount:
-            originalTier.maxLoanAmount ||
-            matchingEnhanced.maxLoanAmount ||
-            originalTier.maxLoanAmount,
-          buyRate:
-            originalTier.buyRate ||
-            matchingEnhanced.buyRate ||
-            originalTier.buyRate,
-        };
+          // Fill in missing values from enhanced data using correct property names
+          maxLtv: originalTier.maxLtv || matchingEnhanced.maxLtv,
+          maxTerm: originalTier.maxTerm || matchingEnhanced.maxTerm,
+          minTerm: originalTier.minTerm || matchingEnhanced.minTerm,
+          maxMileage: originalTier.maxMileage || matchingEnhanced.maxMileage,
+          minMileage: originalTier.minMileage || matchingEnhanced.minMileage,
+          maxAge: originalTier.maxAge || matchingEnhanced.maxAge,
+          minAmountFinanced: originalTier.minAmountFinanced || matchingEnhanced.minAmountFinanced,
+          maxAmountFinanced: originalTier.maxAmountFinanced || matchingEnhanced.maxAmountFinanced,
+          maxAdvance: originalTier.maxAdvance || matchingEnhanced.maxAdvance,
+          baseInterestRate: originalTier.baseInterestRate || matchingEnhanced.baseInterestRate,
+          rateAdder: originalTier.rateAdder || matchingEnhanced.rateAdder,
+          minYear: originalTier.minYear || matchingEnhanced.minYear,
+          maxYear: originalTier.maxYear || matchingEnhanced.maxYear,
+        });
+      } else {
+        mergedTiers.push(originalTier);
       }
-      return originalTier;
-    });
+    }
+
+    // Then, add any new tiers from enhanced that weren't matched
+    for (let i = 0; i < enhanced.tiers.length; i++) {
+      if (!matchedEnhancedIndices.has(i)) {
+        const newTier = enhanced.tiers[i];
+        // Only add if it has meaningful data (at least a name or FICO range)
+        if (newTier.name || (newTier.minFico && newTier.maxFico)) {
+          mergedTiers.push(newTier);
+        }
+      }
+    }
+
+    merged.tiers = mergedTiers;
   }
 
   return merged;
@@ -894,19 +986,23 @@ export const processLenderSheet = async (
       ).toFixed(1)}KB`
     );
 
-    const response = await ai.models.generateContent({
-      model: PRIMARY_MODEL,
-      contents: {
-        parts: [
-          { inlineData: { mimeType: "application/pdf", data: base64Data } },
-          { text: getExtractionPrompt() },
-        ],
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: MULTI_LENDER_RESPONSE_SCHEMA,
-      },
-    });
+    const response = await retryWithBackoff(
+      async () => ai.models.generateContent({
+        model: PRIMARY_MODEL,
+        contents: {
+          parts: [
+            { inlineData: { mimeType: "application/pdf", data: base64Data } },
+            { text: getExtractionPrompt() },
+          ],
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: MULTI_LENDER_RESPONSE_SCHEMA,
+        },
+      }),
+      MAX_RETRIES,
+      "Gemini extraction"
+    );
 
     onProgress?.({
       stage: "extracting",
@@ -1027,15 +1123,19 @@ export const processLenderSheet = async (
 
             const groundingTool = { googleSearch: {} };
 
-            const enhanceResponse = await ai.models.generateContent({
-              model: PRIMARY_MODEL,
-              contents: getGroundingPrompt(lenderName, lender),
-              config: {
-                tools: [groundingTool],
-                responseMimeType: "application/json",
-                responseSchema: LENDER_PROFILE_SCHEMA,
-              },
-            });
+            const enhanceResponse = await retryWithBackoff(
+              async () => ai.models.generateContent({
+                model: PRIMARY_MODEL,
+                contents: getGroundingPrompt(lenderName, lender),
+                config: {
+                  tools: [groundingTool],
+                  responseMimeType: "application/json",
+                  responseSchema: LENDER_PROFILE_SCHEMA,
+                },
+              }),
+              MAX_RETRIES,
+              "Google grounding"
+            );
 
             const enhanceText = enhanceResponse.text;
             if (enhanceText) {
@@ -1247,14 +1347,18 @@ export const analyzeDealWithAi = async (
     console.log(
       `[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`
     );
-    const response = await ai.models.generateContent({
-      model: PRIMARY_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: DEAL_SUGGESTION_SCHEMA,
-      },
-    });
+    const response = await retryWithBackoff(
+      async () => ai.models.generateContent({
+        model: PRIMARY_MODEL,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: DEAL_SUGGESTION_SCHEMA,
+        },
+      }),
+      MAX_RETRIES,
+      "AI Deal Assistant"
+    );
 
     const text = response.text;
     if (!text) throw new Error("No analysis returned.");
