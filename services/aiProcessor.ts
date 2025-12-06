@@ -462,7 +462,7 @@ export const processLenderSheet = async (
     });
     
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-05-20",
+      model: "gemini-3-pro-preview",
       contents: {
         parts: [
           { inlineData: { mimeType: "application/pdf", data: base64Data } },
@@ -546,7 +546,7 @@ export const processLenderSheet = async (
           try {
             // Use grounding to fill in missing data
             const enhanceResponse = await ai.models.generateContent({
-              model: "gemini-2.5-flash-preview-05-20",
+              model: "gemini-3-pro-preview",
               contents: getGroundingPrompt(lender.name || 'Unknown', lender),
               config: {
                 responseMimeType: "application/json",

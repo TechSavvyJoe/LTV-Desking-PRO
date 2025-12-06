@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({
             size="sm"
             className="!rounded-full gap-2 bg-gradient-to-r from-purple-500 to-pink-500"
           >
-            <Icons.SparklesIcon className="w-4 h-4" /> AI Lender Tools
+            <Icons.SparklesIcon className="w-4 h-4" /> AI Lender Upload
           </Button>
         </div>
       </div>
