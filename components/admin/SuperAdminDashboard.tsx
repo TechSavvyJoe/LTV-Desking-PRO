@@ -7,6 +7,7 @@ import {
   updateDealer,
   deleteDealer,
   getAllUsers,
+  createUser,
   updateUserRole,
   updateUser,
   deleteUser,
@@ -396,6 +397,82 @@ const UserManagement: React.FC<{
 }> = ({ users, dealers, onRefresh }) => {
   const [filterDealer, setFilterDealer] = useState<string>("");
   const [filterRole, setFilterRole] = useState<string>("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    passwordConfirm: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
+    role: "sales" as User["role"],
+    dealer: "",
+  });
+
+  const resetForm = () => {
+    setFormData({
+      email: "",
+      password: "",
+      passwordConfirm: "",
+      firstName: "",
+      lastName: "",
+      phone: "",
+      role: "sales",
+      dealer: dealers[0]?.id || "",
+    });
+    setIsCreating(false);
+    setEditingId(null);
+    setError(null);
+  };
+
+  const handleSubmit = async () => {
+    setError(null);
+    try {
+      if (editingId) {
+        // Update existing user
+        await updateUser(editingId, {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          role: formData.role,
+          dealer: formData.dealer,
+        });
+      } else {
+        // Create new user
+        if (formData.password !== formData.passwordConfirm) {
+          setError("Passwords do not match");
+          return;
+        }
+        if (formData.password.length < 8) {
+          setError("Password must be at least 8 characters");
+          return;
+        }
+        await createUser(formData);
+      }
+      resetForm();
+      onRefresh();
+    } catch (err: any) {
+      setError(err?.data?.message || err?.message || "Failed to save user");
+    }
+  };
+
+  const handleEdit = (user: User) => {
+    setFormData({
+      email: user.email,
+      password: "",
+      passwordConfirm: "",
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      phone: user.phone || "",
+      role: user.role,
+      dealer: user.dealer || "",
+    });
+    setEditingId(user.id);
+    setError(null);
+  };
 
   const filteredUsers = users.filter((user) => {
     if (filterDealer && user.dealer !== filterDealer) return false;
@@ -462,8 +539,165 @@ const UserManagement: React.FC<{
             <option value="admin">Admin</option>
             <option value="superadmin">SuperAdmin</option>
           </select>
+          <Button onClick={() => setIsCreating(true)} className="gap-2">
+            <Icons.PlusIcon className="w-4 h-4" />
+            Add User
+          </Button>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-300">
+          {error}
+        </div>
+      )}
+
+      {/* Create/Edit Form */}
+      {(isCreating || editingId) && (
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4">
+            {editingId ? "Edit User" : "Create New User"}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                First Name *
+              </label>
+              <input
+                type="text"
+                value={formData.firstName}
+                onChange={(e) =>
+                  setFormData({ ...formData, firstName: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                placeholder="John"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                value={formData.lastName}
+                onChange={(e) =>
+                  setFormData({ ...formData, lastName: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                placeholder="Doe"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Email *
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                placeholder="john@dealer.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Phone
+              </label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                placeholder="(555) 123-4567"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Dealer *
+              </label>
+              <select
+                value={formData.dealer}
+                onChange={(e) =>
+                  setFormData({ ...formData, dealer: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+              >
+                <option value="">Select Dealer</option>
+                {dealers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Role *
+              </label>
+              <select
+                value={formData.role}
+                onChange={(e) =>
+                  setFormData({ ...formData, role: e.target.value as User["role"] })
+                }
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+              >
+                <option value="sales">Sales</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+                <option value="superadmin">SuperAdmin</option>
+              </select>
+            </div>
+            {!editingId && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                    placeholder="Min 8 characters"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.passwordConfirm}
+                    onChange={(e) =>
+                      setFormData({ ...formData, passwordConfirm: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                    placeholder="Re-enter password"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="secondary" onClick={resetForm}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.dealer || (!editingId && !formData.password)}
+            >
+              {editingId ? "Save Changes" : "Create User"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Users Table */}
       <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
@@ -534,6 +768,13 @@ const UserManagement: React.FC<{
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => handleEdit(user)}
+                      className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Icons.PencilIcon className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleDeleteUser(user.id)}
                       className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"

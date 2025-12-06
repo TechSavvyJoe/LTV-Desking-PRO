@@ -504,6 +504,34 @@ export const deleteDealer = async (id: string): Promise<boolean> => {
 // SUPERADMIN: User Management
 // ============================================
 
+export const createUser = async (data: {
+  email: string;
+  password: string;
+  passwordConfirm: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role: User["role"];
+  dealer: string;
+}): Promise<User | null> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") {
+    console.error("[createUser] Access denied - not superadmin");
+    return null;
+  }
+
+  try {
+    console.log("[createUser] Creating user with data:", { ...data, password: "[REDACTED]" });
+    const record = await pb.collection("users").create(data);
+    console.log("[createUser] Successfully created user:", record.id);
+    return asType<User>(record);
+  } catch (error: any) {
+    console.error("[createUser] Failed to create user:", error);
+    console.error("[createUser] Error details:", error?.data);
+    throw error; // Re-throw to show error to user
+  }
+};
+
 export const getAllUsers = async (): Promise<User[]> => {
   const user = getCurrentUser();
   console.log("[getAllUsers] Current user:", user);
