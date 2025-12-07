@@ -211,25 +211,58 @@ export const saveLenderProfile = async (
   profile: Omit<LenderProfile, "id" | "dealer" | "created" | "updated">
 ): Promise<LenderProfile | null> => {
   const dealerId = getCurrentDealerId();
-  if (!dealerId) return null;
+  console.log(
+    "[API] saveLenderProfile - dealerId:",
+    dealerId,
+    "lender:",
+    profile.name
+  );
+  if (!dealerId) {
+    console.warn("[API] No dealer ID - cannot save lender profile");
+    return null;
+  }
 
   try {
-    // Check if a lender with the same name already exists for this dealer
+    // Check if lender(s) with the same name already exist for this dealer
     const existingRecords = await collections.lenderProfiles.getFullList({
       filter: `dealer = "${sanitizeId(
         dealerId
-      )}" && name = "${profile.name.replace(/"/g, '\\"')}"`,
+      )}" && name ~ "${profile.name.replace(/"/g, '\\"')}"`,
+      sort: "-updated", // Most recently updated first
     });
 
+    console.log(
+      "[API] Found",
+      existingRecords.length,
+      "existing records for",
+      profile.name
+    );
+
     if (existingRecords.length > 0) {
-      // Update existing lender instead of creating duplicate
-      const existingId = existingRecords[0]?.id;
-      if (existingId) {
-        console.log(`[API] Updating existing lender profile: ${profile.name}`);
-        const record = await collections.lenderProfiles.update(existingId, {
+      // Update the most recent record
+      const primaryId = existingRecords[0]?.id;
+      if (primaryId) {
+        console.log(
+          `[API] Updating lender profile: ${profile.name} (id: ${primaryId})`
+        );
+        const record = await collections.lenderProfiles.update(primaryId, {
           ...profile,
           dealer: dealerId,
         });
+
+        // Delete all other duplicate records (keeping only the one we just updated)
+        for (let i = 1; i < existingRecords.length; i++) {
+          const dupId = existingRecords[i]?.id;
+          if (dupId) {
+            console.log(`[API] Deleting duplicate lender record: ${dupId}`);
+            try {
+              await collections.lenderProfiles.delete(dupId);
+            } catch (delErr) {
+              console.warn("[API] Failed to delete duplicate:", dupId, delErr);
+            }
+          }
+        }
+
         return asType<LenderProfile>(record);
       }
     }
@@ -267,6 +300,77 @@ export const deleteLenderProfile = async (id: string): Promise<boolean> => {
   } catch (error) {
     console.error("Failed to delete lender profile:", error);
     return false;
+  }
+};
+
+/**
+ * Cleanup all duplicate lender profiles for the current dealer.
+ * Keeps only the most recently updated record for each unique lender name.
+ * Returns the number of duplicates removed.
+ */
+export const cleanupDuplicateLenders = async (): Promise<number> => {
+  const dealerId = getCurrentDealerId();
+  if (!dealerId) {
+    console.warn("[API] No dealer ID - cannot cleanup lenders");
+    return 0;
+  }
+
+  try {
+    // Get all lender profiles for this dealer, sorted by name and then by updated date
+    const allRecords = await collections.lenderProfiles.getFullList({
+      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      sort: "name,-updated", // Group by name, newest first within each group
+    });
+
+    console.log(
+      "[API] cleanupDuplicateLenders - found",
+      allRecords.length,
+      "total records"
+    );
+
+    // Group by normalized lender name (lowercase, trimmed)
+    const lenderMap = new Map<string, typeof allRecords>();
+    for (const record of allRecords) {
+      const name = (record.name || "").toLowerCase().trim();
+      if (!lenderMap.has(name)) {
+        lenderMap.set(name, []);
+      }
+      lenderMap.get(name)!.push(record);
+    }
+
+    let deletedCount = 0;
+
+    // For each lender name, keep only the first (most recent) and delete the rest
+    for (const [name, records] of lenderMap.entries()) {
+      if (records.length > 1) {
+        console.log(
+          `[API] Found ${records.length} duplicates for "${name}" - keeping newest`
+        );
+        // Skip the first (most recent), delete the rest
+        for (let i = 1; i < records.length; i++) {
+          const dupId = records[i]?.id;
+          if (dupId) {
+            try {
+              await collections.lenderProfiles.delete(dupId);
+              deletedCount++;
+              console.log(`[API] Deleted duplicate: ${dupId}`);
+            } catch (err) {
+              console.warn("[API] Failed to delete duplicate:", dupId, err);
+            }
+          }
+        }
+      }
+    }
+
+    console.log(
+      "[API] cleanupDuplicateLenders - removed",
+      deletedCount,
+      "duplicates"
+    );
+    return deletedCount;
+  } catch (error) {
+    console.error("Failed to cleanup duplicate lenders:", error);
+    return 0;
   }
 };
 
