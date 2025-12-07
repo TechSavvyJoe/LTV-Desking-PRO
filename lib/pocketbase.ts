@@ -19,7 +19,9 @@ let superadminDealerOverride: string | null = null;
 export const setSuperadminDealerOverride = (dealerId: string | null): void => {
   superadminDealerOverride = dealerId;
   // Dispatch a custom event so components can react to dealer changes
-  window.dispatchEvent(new CustomEvent('dealerOverrideChanged', { detail: dealerId }));
+  window.dispatchEvent(
+    new CustomEvent("dealerOverrideChanged", { detail: dealerId })
+  );
 };
 
 export const getSuperadminDealerOverride = (): string | null => {
@@ -28,7 +30,9 @@ export const getSuperadminDealerOverride = (): string | null => {
 
 export const clearSuperadminDealerOverride = (): void => {
   superadminDealerOverride = null;
-  window.dispatchEvent(new CustomEvent('dealerOverrideChanged', { detail: null }));
+  window.dispatchEvent(
+    new CustomEvent("dealerOverrideChanged", { detail: null })
+  );
 };
 
 // Types for our collections
@@ -152,19 +156,34 @@ export interface DealerSettings {
 
 // Helper to get current user
 export const getCurrentUser = (): User | null => {
-  return pb.authStore.model as User | null;
+  const model = pb.authStore.model as User | null;
+  console.log(
+    "[PocketBase] getCurrentUser:",
+    model?.email,
+    "dealer:",
+    model?.dealer,
+    "role:",
+    model?.role
+  );
+  return model;
 };
 
 // Helper to get current dealer ID (with superadmin override support)
 export const getCurrentDealerId = (): string | null => {
   const user = getCurrentUser();
-  
+
   // If user is superadmin and has an override set, use that
   if (user?.role === "superadmin" && superadminDealerOverride) {
+    console.log(
+      "[PocketBase] Using superadmin override dealer:",
+      superadminDealerOverride
+    );
     return superadminDealerOverride;
   }
-  
-  return user?.dealer || null;
+
+  const dealerId = user?.dealer || null;
+  console.log("[PocketBase] getCurrentDealerId returning:", dealerId);
+  return dealerId;
 };
 
 // Check if user is authenticated

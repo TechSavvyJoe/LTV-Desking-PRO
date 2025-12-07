@@ -171,9 +171,9 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   const [expandedInventoryRows, setExpandedInventoryRows] = useState<
     Set<string>
   >(new Set());
-  const [expandedFavoriteRows, setExpandedFavoriteRows] = useState<
-    Set<string>
-  >(new Set());
+  const [expandedFavoriteRows, setExpandedFavoriteRows] = useState<Set<string>>(
+    new Set()
+  );
   const [isShowroomMode, setIsShowroomMode] = useState<boolean>(false);
 
   // Safe Data Hooks
@@ -225,9 +225,17 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   // Effects
   // Load initial data from PocketBase
   useEffect(() => {
-    if (!isAuthenticated()) return;
+    console.log(
+      "[DealContext] useEffect running, isAuthenticated:",
+      isAuthenticated()
+    );
+    if (!isAuthenticated()) {
+      console.log("[DealContext] Not authenticated, skipping data load");
+      return;
+    }
 
     const loadData = async () => {
+      console.log("[DealContext] loadData starting...");
       try {
         const [inv, lenders, deals, dealerSettings] = await Promise.all([
           getInventory(), // Returns InventoryItem[]
@@ -235,6 +243,13 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
           getSavedDeals(), // Returns SavedDeal[] (PB)
           getDealerSettings(),
         ]);
+
+        console.log("[DealContext] Data loaded:", {
+          inventory: inv.length,
+          lenders: lenders.length,
+          deals: deals.length,
+          settings: !!dealerSettings,
+        });
 
         // Map InventoryItem -> Vehicle
         const mappedInventory: Vehicle[] = inv.map((i) => ({
@@ -256,11 +271,11 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
         setInventory(mappedInventory);
 
         // Map LenderProfile (PB) -> LenderProfile (App)
-        // They are now compatible mostly, assuming `tiers` is `any[]`
-        if (lenders.length > 0)
-          setLenderProfiles(
-            lenders as unknown as import("../types").LenderProfile[]
-          );
+        // Always set lender profiles (even if empty, to clear stale data)
+        console.log("[DealContext] Setting lender profiles:", lenders.length);
+        setLenderProfiles(
+          lenders as unknown as import("../types").LenderProfile[]
+        );
 
         // Map SavedDeal (PB) -> SavedDeal (App)
         const mappedDeals: SavedDeal[] = deals.map((d) => ({
