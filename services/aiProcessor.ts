@@ -61,9 +61,7 @@ const retryWithBackoff = async <T>(
       if (attempt < retries) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt);
         console.warn(
-          `[${context}] Attempt ${
-            attempt + 1
-          } failed, retrying in ${delay}ms...`,
+          `[${context}] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`,
           lastError.message
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -77,13 +75,7 @@ const retryWithBackoff = async <T>(
 
 // Progress callback type for UI updates
 export type ProcessingProgress = {
-  stage:
-    | "uploading"
-    | "extracting"
-    | "validating"
-    | "enhancing"
-    | "complete"
-    | "error";
+  stage: "uploading" | "extracting" | "validating" | "enhancing" | "complete" | "error";
   progress: number; // 0-100
   message: string;
   currentFile?: string;
@@ -133,23 +125,19 @@ const LENDER_TIER_SCHEMA = {
     },
     minLtv: {
       type: Type.NUMBER,
-      description:
-        "Minimum LTV percentage for this tier. Omit if not specified.",
+      description: "Minimum LTV percentage for this tier. Omit if not specified.",
     },
     maxTerm: {
       type: Type.INTEGER,
-      description:
-        "Maximum loan term in months for this tier. Omit if not specified.",
+      description: "Maximum loan term in months for this tier. Omit if not specified.",
     },
     minYear: {
       type: Type.INTEGER,
-      description:
-        "Minimum vehicle model year for this tier. Omit if not specified.",
+      description: "Minimum vehicle model year for this tier. Omit if not specified.",
     },
     maxYear: {
       type: Type.INTEGER,
-      description:
-        "Maximum vehicle model year for this tier. Omit if not specified.",
+      description: "Maximum vehicle model year for this tier. Omit if not specified.",
     },
     maxAge: {
       type: Type.INTEGER,
@@ -158,28 +146,23 @@ const LENDER_TIER_SCHEMA = {
     },
     minMileage: {
       type: Type.INTEGER,
-      description:
-        "Minimum vehicle mileage for this tier. Omit if not specified.",
+      description: "Minimum vehicle mileage for this tier. Omit if not specified.",
     },
     maxMileage: {
       type: Type.INTEGER,
-      description:
-        "Maximum vehicle mileage for this tier. Omit if not specified.",
+      description: "Maximum vehicle mileage for this tier. Omit if not specified.",
     },
     minTerm: {
       type: Type.INTEGER,
-      description:
-        "Minimum loan term in months for this tier. Omit if not specified.",
+      description: "Minimum loan term in months for this tier. Omit if not specified.",
     },
     minAmountFinanced: {
       type: Type.NUMBER,
-      description:
-        "Minimum amount financed for this tier. Omit if not specified.",
+      description: "Minimum amount financed for this tier. Omit if not specified.",
     },
     maxAmountFinanced: {
       type: Type.NUMBER,
-      description:
-        "Maximum amount financed for this tier. Omit if not specified.",
+      description: "Maximum amount financed for this tier. Omit if not specified.",
     },
     baseInterestRate: {
       type: Type.NUMBER,
@@ -278,8 +261,7 @@ const LENDER_PROFILE_SCHEMA = {
     },
     minIncome: {
       type: Type.NUMBER,
-      description:
-        "The overall minimum monthly income required. Omit if not specified.",
+      description: "The overall minimum monthly income required. Omit if not specified.",
     },
     maxPti: {
       type: Type.NUMBER,
@@ -303,8 +285,7 @@ const LENDER_PROFILE_SCHEMA = {
     },
     stipulations: {
       type: Type.STRING,
-      description:
-        "Any special stipulations, requirements, or notes about this lender's policies.",
+      description: "Any special stipulations, requirements, or notes about this lender's policies.",
     },
     tiers: {
       type: Type.ARRAY,
@@ -359,8 +340,7 @@ const DEAL_SUGGESTION_SCHEMA = {
           },
           alternativeVehicleVin: {
             type: Type.STRING,
-            description:
-              "VIN of a better fitting vehicle from inventory. Omit if none.",
+            description: "VIN of a better fitting vehicle from inventory. Omit if none.",
           },
         },
         required: ["title", "reasoning"],
@@ -387,9 +367,7 @@ const normalizeNumber = (value: unknown): number | undefined => {
 };
 
 // Calculate minYear from maxAge if provided
-const calculateMinYearFromAge = (
-  maxAge: number | undefined
-): number | undefined => {
+const calculateMinYearFromAge = (maxAge: number | undefined): number | undefined => {
   if (maxAge === undefined) return undefined;
   const currentYear = new Date().getFullYear();
   return currentYear - maxAge;
@@ -449,16 +427,11 @@ const normalizeTier = (tier: any): LenderTier | null => {
     maxBackendPercent: normalizeNumber(tier.maxBackendPercent),
 
     // Vehicle type - CRITICAL for New/Used/CPO filtering!
-    vehicleType:
-      typeof tier.vehicleType === "string" ? tier.vehicleType : undefined,
+    vehicleType: typeof tier.vehicleType === "string" ? tier.vehicleType : undefined,
 
     // Make restrictions (for captive lenders)
-    excludedMakes: Array.isArray(tier.excludedMakes)
-      ? tier.excludedMakes
-      : undefined,
-    includedMakes: Array.isArray(tier.includedMakes)
-      ? tier.includedMakes
-      : undefined,
+    excludedMakes: Array.isArray(tier.excludedMakes) ? tier.excludedMakes : undefined,
+    includedMakes: Array.isArray(tier.includedMakes) ? tier.includedMakes : undefined,
 
     // Tier-level income/DTI requirements (some lenders have per-tier)
     minIncome: normalizeNumber(tier.minIncome),
@@ -467,10 +440,7 @@ const normalizeTier = (tier: any): LenderTier | null => {
 
     // Extraction metadata - helps track data quality
     confidence: normalizeNumber(tier.confidence),
-    extractionSource:
-      typeof tier.extractionSource === "string"
-        ? tier.extractionSource
-        : undefined,
+    extractionSource: typeof tier.extractionSource === "string" ? tier.extractionSource : undefined,
   };
 
   return normalized;
@@ -485,9 +455,7 @@ const tierHasMissingCriticalData = (tier: LenderTier): boolean => {
   const missingFico = tier.minFico === undefined && tier.maxFico === undefined;
 
   // If missing any 2 of these 3 critical fields, needs enhancement
-  const missingCount = [missingLtv, missingTerm, missingFico].filter(
-    Boolean
-  ).length;
+  const missingCount = [missingLtv, missingTerm, missingFico].filter(Boolean).length;
   return missingCount >= 2;
 };
 
@@ -501,9 +469,7 @@ const tierNeedsMoreData = (tier: LenderTier): boolean => {
   const hasMileage = tier.maxMileage !== undefined;
 
   // If missing more than 2 of these 5 fields, needs more data
-  const hasCount = [hasLtv, hasTerm, hasFico, hasYear, hasMileage].filter(
-    Boolean
-  ).length;
+  const hasCount = [hasLtv, hasTerm, hasFico, hasYear, hasMileage].filter(Boolean).length;
   return hasCount < 3;
 };
 
@@ -585,11 +551,15 @@ Return your findings as a JSON object with this EXACT structure:
       "minTerm": 12,
       "maxTerm": 84,
       "maxLtv": 125,
+      "frontEndLtv": 110,
+      "otdLtv": 125,
       "minAmountFinanced": 7500,
       "maxAmountFinanced": 100000,
       "maxAdvance": 150,
       "baseInterestRate": 5.99,
-      "rateAdder": 0
+      "rateAdder": 0,
+      "maxBackend": 2500,
+      "maxBackendPercent": 15
     }
   ],
   "sources": ["URL or source name"]
@@ -597,6 +567,11 @@ Return your findings as a JSON object with this EXACT structure:
 
 FIELD DEFINITIONS:
 - effectiveDate: When the rate sheet became effective (YYYY-MM-DD format)
+- maxLtv: Generic LTV limit if type is unspecified
+- frontEndLtv: Max Advance BEFORE backend products (hard metal/invoice advance)
+- otdLtv: Max "Out The Door" LTV including taxes, fees, and products
+- maxBackend: Max dollar amount for GAP/Warranty/etc.
+- maxBackendPercent: Max backend as % of amount financed
 - maxAge: Maximum vehicle age in years (e.g., 7 means up to 7 years old)
 - maxAdvance: Maximum advance over invoice/book value (percentage or flat amount)
 - minAmountFinanced/maxAmountFinanced: Loan amount limits
@@ -612,7 +587,7 @@ ${JSON.stringify(existingData, null, 2)}
 
 Please search for their current auto loan programs and find these SPECIFIC details:
 1. Rate sheet effective date (when was this program published?)
-2. Maximum LTV (Loan-to-Value) percentages by credit tier
+2. Maximum LTV (Loan-to-Value) percentages by credit tier - Look for BOTH "Front-End/Advance" and "OTD/Total LTV" limits
 3. Maximum and minimum loan terms in months
 4. FICO/credit score requirements and tier breakdowns
 5. Vehicle age restrictions (min/max model year OR max age in years)
@@ -621,6 +596,7 @@ Please search for their current auto loan programs and find these SPECIFIC detai
 8. Maximum advance over book/invoice value
 9. Buy rates or base interest rates by tier
 10. Any income or PTI (payment-to-income) requirements
+11. Backend product limits (Max GAP, Warranty, or total backend amounts/percentages)
 
 Focus on finding the specific numbers that are MISSING from my existing data.
 Return ONLY a valid JSON object with the lender data - no explanatory text.`;
@@ -653,9 +629,7 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
             throw new Error(`HTTP ${res.status}: ${res.statusText}`);
           }
           // For client errors, don't retry
-          console.error(
-            `[Perplexity Sonar] API error: ${res.status} ${res.statusText}`
-          );
+          console.error(`[Perplexity Sonar] API error: ${res.status} ${res.statusText}`);
           return null;
         }
         return res;
@@ -676,11 +650,7 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
       return null;
     }
 
-    console.log(
-      `[Perplexity Sonar] Got response with ${
-        data.citations?.length || 0
-      } citations`
-    );
+    console.log(`[Perplexity Sonar] Got response with ${data.citations?.length || 0} citations`);
     if (data.citations && data.citations.length > 0) {
       console.log("[Perplexity Sonar] Sources:", data.citations.slice(0, 3));
     }
@@ -701,9 +671,7 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
     try {
       const parsed = JSON.parse(jsonStr);
       console.log(
-        `[Perplexity Sonar] Successfully parsed lender data for: ${
-          parsed.name || lenderName
-        }`
+        `[Perplexity Sonar] Successfully parsed lender data for: ${parsed.name || lenderName}`
       );
       return parsed;
     } catch (parseError) {
@@ -748,11 +716,7 @@ const mergeLenderData = (
     merged.minIncome = enhanced.minIncome;
   }
 
-  if (
-    enhanced.maxPti &&
-    enhanced.maxPti > 0 &&
-    (!original.maxPti || original.maxPti === 0)
-  ) {
+  if (enhanced.maxPti && enhanced.maxPti > 0 && (!original.maxPti || original.maxPti === 0)) {
     merged.maxPti = enhanced.maxPti;
   }
 
@@ -780,8 +744,7 @@ const mergeLenderData = (
         (et, idx) =>
           !matchedEnhancedIndices.has(idx) &&
           (et.name?.toLowerCase() === originalTier.name?.toLowerCase() ||
-            (et.minFico === originalTier.minFico &&
-              et.maxFico === originalTier.maxFico))
+            (et.minFico === originalTier.minFico && et.maxFico === originalTier.maxFico))
       );
 
       if (enhancedIndex !== -1) {
@@ -797,16 +760,10 @@ const mergeLenderData = (
             maxMileage: originalTier.maxMileage || matchingEnhanced.maxMileage,
             minMileage: originalTier.minMileage || matchingEnhanced.minMileage,
             maxAge: originalTier.maxAge || matchingEnhanced.maxAge,
-            minAmountFinanced:
-              originalTier.minAmountFinanced ||
-              matchingEnhanced.minAmountFinanced,
-            maxAmountFinanced:
-              originalTier.maxAmountFinanced ||
-              matchingEnhanced.maxAmountFinanced,
+            minAmountFinanced: originalTier.minAmountFinanced || matchingEnhanced.minAmountFinanced,
+            maxAmountFinanced: originalTier.maxAmountFinanced || matchingEnhanced.maxAmountFinanced,
             maxAdvance: originalTier.maxAdvance || matchingEnhanced.maxAdvance,
-            baseInterestRate:
-              originalTier.baseInterestRate ||
-              matchingEnhanced.baseInterestRate,
+            baseInterestRate: originalTier.baseInterestRate || matchingEnhanced.baseInterestRate,
             rateAdder: originalTier.rateAdder || matchingEnhanced.rateAdder,
             minYear: originalTier.minYear || matchingEnhanced.minYear,
             maxYear: originalTier.maxYear || matchingEnhanced.maxYear,
@@ -1290,7 +1247,7 @@ Return the COMPLETE enhanced lender profile with:
 - Missing critical fields filled with reasonable defaults
 - Each filled field marked with confidence 0.5-0.7 and extractionSource "inferred"
 
-Focus on filling: maxLtv, maxTerm, maxMileage, minYear (the most important for calculations).`;
+Focus on filling: maxLtv, frontEndLtv, otdLtv, maxTerm, maxMileage, minYear, maxBackend (the most important for calculations).`;
 
 export const processLenderSheet = async (
   file: File,
@@ -1301,9 +1258,7 @@ export const processLenderSheet = async (
   }
   const apiKey = process.env.API_KEY;
   if (!apiKey)
-    throw new Error(
-      "AI is disabled. Call this via a server-side proxy with an API key."
-    );
+    throw new Error("AI is disabled. Call this via a server-side proxy with an API key.");
 
   const ai = new GoogleGenAI({ apiKey });
 
@@ -1333,14 +1288,8 @@ export const processLenderSheet = async (
       currentFile: file.name,
     });
 
-    console.log(
-      `[AI Lender Upload] Starting extraction with model: ${PRIMARY_MODEL}`
-    );
-    console.log(
-      `[AI Lender Upload] File: ${file.name}, Size: ${(
-        file.size / 1024
-      ).toFixed(1)}KB`
-    );
+    console.log(`[AI Lender Upload] Starting extraction with model: ${PRIMARY_MODEL}`);
+    console.log(`[AI Lender Upload] File: ${file.name}, Size: ${(file.size / 1024).toFixed(1)}KB`);
 
     const response = await retryWithBackoff(
       async () =>
@@ -1445,21 +1394,14 @@ export const processLenderSheet = async (
     // Normalize all lender profiles
     let normalizedLenders = parsed.lenders
       .map((lender: any) => normalizeProfile(lender))
-      .filter(
-        (lender: Partial<LenderProfile>) =>
-          lender.name && lender.name !== "Unnamed Lender"
-      );
+      .filter((lender: Partial<LenderProfile>) => lender.name && lender.name !== "Unnamed Lender");
 
     if (normalizedLenders.length === 0) {
-      throw new Error(
-        "No valid lender data could be extracted from the document."
-      );
+      throw new Error("No valid lender data could be extracted from the document.");
     }
 
     // Stage 4: Check for missing critical data and enhance if needed
-    const lendersNeedingEnhancement = normalizedLenders.filter(
-      profileNeedsEnhancement
-    );
+    const lendersNeedingEnhancement = normalizedLenders.filter(profileNeedsEnhancement);
 
     if (lendersNeedingEnhancement.length > 0) {
       onProgress?.({
@@ -1494,20 +1436,11 @@ export const processLenderSheet = async (
         try {
           enhancedData = await searchWithPerplexity(lenderName, lender);
 
-          if (
-            enhancedData &&
-            enhancedData.tiers &&
-            enhancedData.tiers.length > 0
-          ) {
-            console.log(
-              `[AI Lender Upload] Perplexity found data for: ${lenderName}`
-            );
+          if (enhancedData && enhancedData.tiers && enhancedData.tiers.length > 0) {
+            console.log(`[AI Lender Upload] Perplexity found data for: ${lenderName}`);
 
             // Merge Perplexity data with original - cast to full LenderProfile since lender comes from normalized list
-            const mergedLender = mergeLenderData(
-              lender as LenderProfile,
-              enhancedData
-            );
+            const mergedLender = mergeLenderData(lender as LenderProfile, enhancedData);
 
             // Check if we got enough data from Perplexity
             if (!profileNeedsEnhancement(mergedLender)) {
@@ -1562,9 +1495,7 @@ export const processLenderSheet = async (
             if (enhanceText) {
               try {
                 const googleData = JSON.parse(enhanceText);
-                console.log(
-                  `[AI Lender Upload] Google found data for: ${lenderName}`
-                );
+                console.log(`[AI Lender Upload] Google found data for: ${lenderName}`);
                 return mergeLenderData(lender as LenderProfile, googleData);
               } catch {
                 console.warn(
@@ -1573,10 +1504,7 @@ export const processLenderSheet = async (
               }
             }
           } catch (googleError) {
-            console.warn(
-              `[AI Lender Upload] Google search failed for ${lenderName}:`,
-              googleError
-            );
+            console.warn(`[AI Lender Upload] Google search failed for ${lenderName}:`, googleError);
           }
         }
 
@@ -1593,9 +1521,7 @@ export const processLenderSheet = async (
         for (let i = 0; i < lenders.length; i += maxConcurrent) {
           const batch = lenders.slice(i, i + maxConcurrent);
           const batchResults = await Promise.all(
-            batch.map((lender, batchIndex) =>
-              enhanceLenderWithResearch(lender, i + batchIndex)
-            )
+            batch.map((lender, batchIndex) => enhanceLenderWithResearch(lender, i + batchIndex))
           );
           results.push(...batchResults);
         }
@@ -1613,37 +1539,30 @@ export const processLenderSheet = async (
       message: `Successfully extracted ${
         normalizedLenders.length
       } lender(s) with ${normalizedLenders.reduce(
-        (acc: number, l: Partial<LenderProfile>) =>
-          acc + (l.tiers?.length || 0),
+        (acc: number, l: Partial<LenderProfile>) => acc + (l.tiers?.length || 0),
         0
       )} total tiers.`,
       currentFile: file.name,
     });
 
     // Add data quality summary
-    const qualitySummary = normalizedLenders.map(
-      (lender: Partial<LenderProfile>) => {
-        const tiersWithLtv =
-          lender.tiers?.filter((t: LenderTier) => t.maxLtv !== undefined)
-            .length || 0;
-        const tiersWithTerm =
-          lender.tiers?.filter((t: LenderTier) => t.maxTerm !== undefined)
-            .length || 0;
-        const totalTiers = lender.tiers?.length || 0;
-        return {
-          name: lender.name,
-          totalTiers,
-          tiersWithLtv,
-          tiersWithTerm,
-          dataQuality:
-            totalTiers > 0
-              ? Math.round(
-                  ((tiersWithLtv + tiersWithTerm) / (totalTiers * 2)) * 100
-                )
-              : 0,
-        };
-      }
-    );
+    const qualitySummary = normalizedLenders.map((lender: Partial<LenderProfile>) => {
+      const tiersWithLtv =
+        lender.tiers?.filter((t: LenderTier) => t.maxLtv !== undefined).length || 0;
+      const tiersWithTerm =
+        lender.tiers?.filter((t: LenderTier) => t.maxTerm !== undefined).length || 0;
+      const totalTiers = lender.tiers?.length || 0;
+      return {
+        name: lender.name,
+        totalTiers,
+        tiersWithLtv,
+        tiersWithTerm,
+        dataQuality:
+          totalTiers > 0
+            ? Math.round(((tiersWithLtv + tiersWithTerm) / (totalTiers * 2)) * 100)
+            : 0,
+      };
+    });
 
     console.log("Extraction quality summary:", qualitySummary);
 
@@ -1669,18 +1588,11 @@ export const processLenderSheet = async (
     // Provide more helpful error messages
     if (userMessage.includes("404") || userMessage.includes("not found")) {
       userMessage = `Model "${PRIMARY_MODEL}" not available. Please check API access.`;
-    } else if (
-      userMessage.includes("403") ||
-      userMessage.includes("permission")
-    ) {
+    } else if (userMessage.includes("403") || userMessage.includes("permission")) {
       userMessage = "API access denied. Please check your API key permissions.";
     } else if (userMessage.includes("429") || userMessage.includes("quota")) {
-      userMessage =
-        "API rate limit exceeded. Please try again in a few moments.";
-    } else if (
-      userMessage.includes("500") ||
-      userMessage.includes("internal")
-    ) {
+      userMessage = "API rate limit exceeded. Please try again in a few moments.";
+    } else if (userMessage.includes("500") || userMessage.includes("internal")) {
       userMessage = "AI service temporarily unavailable. Please try again.";
     }
 
@@ -1706,9 +1618,7 @@ export const analyzeDealWithAi = async (
   }
   const apiKey = process.env.API_KEY;
   if (!apiKey)
-    throw new Error(
-      "AI is disabled. Call this via a server-side proxy with an API key."
-    );
+    throw new Error("AI is disabled. Call this via a server-side proxy with an API key.");
 
   const ai = new GoogleGenAI({ apiKey });
 
@@ -1772,9 +1682,7 @@ export const analyzeDealWithAi = async (
     `;
 
   try {
-    console.log(
-      `[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`
-    );
+    console.log(`[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`);
     const response = await retryWithBackoff(
       async () =>
         ai.models.generateContent({
@@ -1799,8 +1707,7 @@ export const analyzeDealWithAi = async (
       throw new Error("Failed to parse AI response.");
     }
 
-    if (!parsed)
-      return { analysis: "Error parsing AI response.", suggestions: [] };
+    if (!parsed) return { analysis: "Error parsing AI response.", suggestions: [] };
 
     if (!parsed.suggestions || !Array.isArray(parsed.suggestions)) {
       parsed.suggestions = [];
