@@ -11,7 +11,7 @@ import {
   getCurrentUser,
 } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
-import { sanitizeId } from "./typeGuards";
+import { sanitizeId, escapeFilterString } from "./typeGuards";
 
 // Helper for type-safe casting
 const asType = <T>(record: RecordModel): T => record as unknown as T;
@@ -225,9 +225,7 @@ export const saveLenderProfile = async (
   try {
     // Check if lender(s) with the same name already exist for this dealer
     const existingRecords = await collections.lenderProfiles.getFullList({
-      filter: `dealer = "${sanitizeId(
-        dealerId
-      )}" && name ~ "${profile.name.replace(/"/g, '\\"')}"`,
+      filter: `dealer = "${sanitizeId(dealerId)}" && name ~ "${escapeFilterString(profile.name)}"`,
       sort: "-updated", // Most recently updated first
     });
 
@@ -250,17 +248,17 @@ export const saveLenderProfile = async (
           dealer: dealerId,
         });
 
-        // Delete all other duplicate records (keeping only the one we just updated)
-        for (let i = 1; i < existingRecords.length; i++) {
-          const dupId = existingRecords[i]?.id;
-          if (dupId) {
-            console.log(`[API] Deleting duplicate lender record: ${dupId}`);
-            try {
-              await collections.lenderProfiles.delete(dupId);
-            } catch (delErr) {
-              console.warn("[API] Failed to delete duplicate:", dupId, delErr);
-            }
-          }
+        // Delete all other duplicate records in parallel (keeping only the one we just updated)
+        const duplicateIds = existingRecords.slice(1).map((r) => r.id).filter(Boolean);
+        if (duplicateIds.length > 0) {
+          console.log(`[API] Deleting ${duplicateIds.length} duplicate lender records`);
+          await Promise.allSettled(
+            duplicateIds.map((dupId) =>
+              collections.lenderProfiles.delete(dupId).catch((delErr) => {
+                console.warn("[API] Failed to delete duplicate:", dupId, delErr);
+              })
+            )
+          );
         }
 
         return asType<LenderProfile>(record);
@@ -340,26 +338,34 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
 
     let deletedCount = 0;
 
-    // For each lender name, keep only the first (most recent) and delete the rest
+    // Collect all duplicate IDs to delete in parallel
+    const allDuplicateIds: string[] = [];
     for (const [name, records] of lenderMap.entries()) {
       if (records.length > 1) {
         console.log(
           `[API] Found ${records.length} duplicates for "${name}" - keeping newest`
         );
-        // Skip the first (most recent), delete the rest
-        for (let i = 1; i < records.length; i++) {
-          const dupId = records[i]?.id;
-          if (dupId) {
-            try {
-              await collections.lenderProfiles.delete(dupId);
-              deletedCount++;
-              console.log(`[API] Deleted duplicate: ${dupId}`);
-            } catch (err) {
-              console.warn("[API] Failed to delete duplicate:", dupId, err);
-            }
-          }
-        }
+        // Skip the first (most recent), collect the rest for deletion
+        const duplicateIds = records.slice(1).map((r) => r.id).filter(Boolean);
+        allDuplicateIds.push(...duplicateIds);
       }
+    }
+
+    // Delete all duplicates in parallel
+    if (allDuplicateIds.length > 0) {
+      console.log(`[API] Deleting ${allDuplicateIds.length} total duplicates in parallel`);
+      const deleteResults = await Promise.allSettled(
+        allDuplicateIds.map((dupId) =>
+          collections.lenderProfiles.delete(dupId).catch((err) => {
+            console.warn("[API] Failed to delete duplicate:", dupId, err);
+            throw err; // Re-throw to track failures
+          })
+        )
+      );
+
+      // Count successful deletions
+      deletedCount = deleteResults.filter((result) => result.status === "fulfilled").length;
+      console.log(`[API] Successfully deleted ${deletedCount} of ${allDuplicateIds.length} duplicates`);
     }
 
     console.log(

@@ -1,0 +1,27 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-ssr
+*.local
+
+# Backend
+backend/pb_data
+backend/pb_migrations
+backend/pb_hooks
+
+# Coverage
+coverage
+
+# Misc
+.DS_Store
+*.log
+.env
+.env.local
+.env*.local
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

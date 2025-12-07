@@ -123,6 +123,7 @@ const MainLayout: React.FC = () => {
   const [vinLookup, setVinLookup] = useState("");
   const [vinLookupResult, setVinLookupResult] = useState<string | null>(null);
   const [isVinLoading, setIsVinLoading] = useState(false);
+  const [isUploadingInventory, setIsUploadingInventory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Create a Set of favorite VINs for efficient lookups in InventoryTable
@@ -152,8 +153,46 @@ const MainLayout: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file size (10MB max)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > MAX_FILE_SIZE) {
+      setMessage({
+        type: "error",
+        text: "File size exceeds 10MB limit. Please upload a smaller file.",
+      });
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    // Validate file type (CSV and Excel only)
+    const allowedTypes = [
+      "text/csv",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+    const allowedExtensions = [".csv", ".xls", ".xlsx"];
+    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+      setMessage({
+        type: "error",
+        text: "Invalid file type. Please upload a CSV or Excel file (.csv, .xls, .xlsx).",
+      });
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
     setFileName(file.name);
+    setIsUploadingInventory(true);
+
     try {
+      // Parse the file first
       const data = await parseFile(file);
       if (data.length === 0) {
         setMessage({
@@ -163,11 +202,23 @@ const MainLayout: React.FC = () => {
         return;
       }
 
-      // Update local state immediately for responsiveness
-      setInventory(data);
-      setPagination((prev) => ({ ...prev, currentPage: 1 }));
+      // Validate row count (10,000 rows max)
+      const MAX_ROWS = 10000;
+      if (data.length > MAX_ROWS) {
+        setMessage({
+          type: "error",
+          text: `File contains ${data.length} vehicles. Maximum allowed is ${MAX_ROWS} rows. Please split into smaller files.`,
+        });
+        return;
+      }
 
-      // Sync to PocketBase in background (dealer-specific)
+      // Show syncing message
+      setMessage({
+        type: "success",
+        text: `Parsed ${data.length} vehicles. Syncing to database...`,
+      });
+
+      // Prepare items for sync
       const itemsToSync = data.map((v) => ({
         vin: v.vin,
         stockNumber: v.stock !== "N/A" ? v.stock : undefined,
@@ -186,18 +237,25 @@ const MainLayout: React.FC = () => {
           typeof v.jdPowerRetail === "number" ? v.jdPowerRetail : undefined,
       }));
 
+      // Wait for sync to complete before updating UI
       const syncResult = await syncInventory(itemsToSync);
+
+      // Only update local state after successful sync
+      setInventory(data);
+      setPagination((prev) => ({ ...prev, currentPage: 1 }));
 
       setMessage({
         type: "success",
-        text: `Loaded ${data.length} vehicles. Synced: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.`,
+        text: `Synced ${data.length} vehicles: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.`,
       });
     } catch (err) {
       console.error(err);
       setMessage({
         type: "error",
-        text: "Error parsing file. Ensure it is a valid CSV or Excel file.",
+        text: "Error syncing inventory. Please try again.",
       });
+    } finally {
+      setIsUploadingInventory(false);
     }
   };
 
