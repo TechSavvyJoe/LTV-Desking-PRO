@@ -1,4 +1,4 @@
-import React, { Fragment, useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "./Icons";
 
@@ -23,32 +23,42 @@ const Modal: React.FC<ModalProps> = ({
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const scrollPositionRef = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
-      // Save current scroll position and lock body
-      const scrollY = window.scrollY;
+      // Save current scroll position BEFORE locking body
+      scrollPositionRef.current = window.scrollY;
       setIsVisible(true);
       requestAnimationFrame(() => setIsAnimating(true));
+
+      // Lock body scroll
       document.body.style.overflow = "hidden";
       document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
+      document.body.style.top = `-${scrollPositionRef.current}px`;
       document.body.style.width = "100%";
-    } else {
+      document.body.style.left = "0";
+    } else if (isVisible) {
+      // IMMEDIATELY restore scroll when closing starts
       setIsAnimating(false);
+
+      // Restore body styles immediately (don't wait for animation)
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      document.body.style.left = "";
+
+      // Restore scroll position immediately
+      window.scrollTo(0, scrollPositionRef.current);
+
+      // Only delay the visibility (unmount) for animation
       const timer = setTimeout(() => {
         setIsVisible(false);
-        // Restore scroll position
-        const scrollY = parseInt(document.body.style.top || "0") * -1;
-        document.body.style.overflow = "";
-        document.body.style.position = "";
-        document.body.style.top = "";
-        document.body.style.width = "";
-        window.scrollTo(0, scrollY);
-      }, 300); // Match transition duration
+      }, 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, isVisible]);
 
   if (!isVisible && !isOpen) return null;
 
