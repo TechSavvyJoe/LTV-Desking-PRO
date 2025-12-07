@@ -1130,48 +1130,36 @@ Your output MUST include:
 6. **Extraction source** for each tier (where did you find it?)
 
 ═══════════════════════════════════════════════════════════════════════════════
-OUTPUT FORMAT
-═══════════════════════════════════════════════════════════════════════════════
 
-Return a JSON object with a "lenders" array. Include confidence and extractionSource for transparency.
+**CRITICAL: MULTI-LENDER "SCAN & EXTRACT" PROTOCOL**
 
-**Example Output:**
+You are analyzing a document that likely contains MULTIPLE DIFFERENT LENDERS.
+You must NOT stop after the first lender you find.
+
+**STEP 1: INVENTORY SCAN**
+First, mentally scan the entire document from start to finish.
+Identify every distinct lender name (e.g., "Ally", "Chase", "Wells Fargo", "Credit Union X") and the page it appears on.
+*Do not extract details yet, just find them all.*
+
+**STEP 2: DETAILED EXTRACTION**
+Now, for EACH lender identified in Step 1, create a full JSON object.
+- If a lender spans multiple pages, combine the data.
+- If a new lender starts, create a NEW object.
+
+**OUTPUT FORMAT:**
 {
   "lenders": [
-    {
-      "name": "First Community Credit Union",
-      "minIncome": 2000,
-      "maxPti": 18,
-      "bookValueSource": "Trade",
-      "tiers": [
-        {
-          "name": "Tier 1 - New Vehicles (720+)",
-          "minFico": 720,
-          "maxLtv": 130,
-          "maxTerm": 84,
-          "minYear": 2024,
-          "vehicleType": "new",
-          "confidence": 0.95,
-          "extractionSource": "table"
-        },
-        {
-          "name": "Tier 1 - Used (720+, 2019-2023)",
-          "minFico": 720,
-          "maxLtv": 120,
-          "maxTerm": 72,
-          "minYear": 2019,
-          "maxYear": 2023,
-          "maxMileage": 100000,
-          "vehicleType": "used",
-          "confidence": 0.90,
-          "extractionSource": "table"
-        }
-      ]
-    }
+    { "name": "Lender 1", ... },
+    { "name": "Lender 2", ... }
   ]
 }
 
-NOW: Apply this chain-of-thought process to extract ALL lenders from ALL pages of this document:`;
+**VERIFICATION CHECKLIST:**
+- did I find the lender on Page 1?
+- did I find the lender on the LAST page?
+- did I separate them into different objects?
+
+NOW: Execute the Scan & Extract protocol for this document.`;
 
 // Grounding enhancement prompt for filling in missing data with reasoning
 const getGroundingPrompt = (
@@ -1375,13 +1363,17 @@ export const processLenderSheet = async (
     }
 
     if (!parsed || !parsed.lenders || !Array.isArray(parsed.lenders)) {
+      console.warn("[AI] Response was not a valid lenders array:", parsed);
       // Fallback: if response is a single lender object, wrap it
       if (parsed && parsed.name) {
+        console.log("[AI] Wrapping single lender object in array");
         parsed = { lenders: [parsed] };
       } else {
-        throw new Error("No lender data found in the document.");
+        throw new Error("No valid lender data structure found in the response.");
       }
     }
+
+    console.log(`[AI] Successfully extracted ${parsed.lenders.length} raw lender profiles.`);
 
     // Stage 3: Validate and normalize
     onProgress?.({

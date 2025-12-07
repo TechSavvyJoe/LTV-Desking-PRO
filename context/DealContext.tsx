@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import {
   getInventory,
   getLenderProfiles,
@@ -32,6 +25,7 @@ import type {
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useSettings } from "../hooks/useSettings";
 import { useSafeData } from "../hooks/useSafeData";
+import { useDebouncedValue } from "../hooks/useDebounce";
 import {
   INITIAL_DEAL_DATA,
   INITIAL_FILTER_DATA,
@@ -61,9 +55,7 @@ interface DealContextType {
   salespersonName: string;
   setSalespersonName: React.Dispatch<React.SetStateAction<string>>;
   activeVehicle: CalculatedVehicle | null;
-  setActiveVehicle: React.Dispatch<
-    React.SetStateAction<CalculatedVehicle | null>
-  >;
+  setActiveVehicle: React.Dispatch<React.SetStateAction<CalculatedVehicle | null>>;
   isDealDirty: boolean;
   setIsDealDirty: React.Dispatch<React.SetStateAction<boolean>>;
   favorites: Vehicle[];
@@ -114,22 +106,17 @@ interface DealContextType {
 
 const DealContext = createContext<DealContextType | undefined>(undefined);
 
-export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
 
   // Data State with PB sync
   const [inventory, setInventory] = useState<Vehicle[]>([]);
-  const [dealData, setDealData] = useLocalStorage<DealData>(
-    STORAGE_KEYS.DEAL_DATA,
-    {
-      ...INITIAL_DEAL_DATA,
-      loanTerm: settings.defaultTerm,
-      interestRate: settings.defaultApr,
-      stateFees: settings.defaultStateFees,
-    }
-  );
+  const [dealData, setDealData] = useLocalStorage<DealData>(STORAGE_KEYS.DEAL_DATA, {
+    ...INITIAL_DEAL_DATA,
+    loanTerm: settings.defaultTerm,
+    interestRate: settings.defaultApr,
+    stateFees: settings.defaultStateFees,
+  });
   const [filters, setFilters] = useLocalStorage<FilterData>(
     STORAGE_KEYS.FILTERS,
     INITIAL_FILTER_DATA
@@ -139,15 +126,10 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [customerName, setCustomerName] = useState<string>("");
   const [salespersonName, setSalespersonName] = useState<string>("");
-  const [activeVehicle, setActiveVehicle] = useState<CalculatedVehicle | null>(
-    null
-  );
+  const [activeVehicle, setActiveVehicle] = useState<CalculatedVehicle | null>(null);
   const [isDealDirty, setIsDealDirty] = useState<boolean>(false);
 
-  const [favorites, setFavorites] = useLocalStorage<Vehicle[]>(
-    STORAGE_KEYS.FAVORITES,
-    []
-  );
+  const [favorites, setFavorites] = useLocalStorage<Vehicle[]>(STORAGE_KEYS.FAVORITES, []);
   const [lenderProfiles, setLenderProfiles] = useState<LenderProfile[]>([]);
   const [savedDeals, setSavedDeals] = useState<SavedDeal[]>([]);
   const [scratchPadNotes, setScratchPadNotes] = useLocalStorage<string>(
@@ -168,12 +150,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     itemsPerPage: 15,
   });
   const [fileName, setFileName] = useState<string>("Sample Data Loaded");
-  const [expandedInventoryRows, setExpandedInventoryRows] = useState<
-    Set<string>
-  >(new Set());
-  const [expandedFavoriteRows, setExpandedFavoriteRows] = useState<Set<string>>(
-    new Set()
-  );
+  const [expandedInventoryRows, setExpandedInventoryRows] = useState<Set<string>>(new Set());
+  const [expandedFavoriteRows, setExpandedFavoriteRows] = useState<Set<string>>(new Set());
   const [isShowroomMode, setIsShowroomMode] = useState<boolean>(false);
 
   // Safe Data Hooks
@@ -185,15 +163,12 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   const normalizeSavedDeal = (deal: any): SavedDeal | null => {
     if (!deal || typeof deal !== "object") return null;
     const baseVehicle =
-      (deal.vehicle as CalculatedVehicle) ||
-      (deal.vehicleSnapshot as CalculatedVehicle);
+      (deal.vehicle as CalculatedVehicle) || (deal.vehicleSnapshot as CalculatedVehicle);
     const normalizedVehicle = baseVehicle
       ? ({
           ...baseVehicle,
           vehicle: baseVehicle.vehicle || `${baseVehicle.modelYear || ""}`,
-          vin:
-            baseVehicle.vin ||
-            `VIN-${baseVehicle.stock || ""}-${baseVehicle.modelYear || ""}`,
+          vin: baseVehicle.vin || `VIN-${baseVehicle.stock || ""}-${baseVehicle.modelYear || ""}`,
         } as CalculatedVehicle)
       : null;
 
@@ -217,18 +192,13 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const normalizedSavedDeals = useMemo(() => {
-    return safeSavedDeals
-      .map((d) => normalizeSavedDeal(d))
-      .filter((d): d is SavedDeal => !!d);
+    return safeSavedDeals.map((d) => normalizeSavedDeal(d)).filter((d): d is SavedDeal => !!d);
   }, [safeSavedDeals]);
 
   // Effects
   // Load initial data from PocketBase
   useEffect(() => {
-    console.log(
-      "[DealContext] useEffect running, isAuthenticated:",
-      isAuthenticated()
-    );
+    console.log("[DealContext] useEffect running, isAuthenticated:", isAuthenticated());
     if (!isAuthenticated()) {
       console.log("[DealContext] Not authenticated, skipping data load");
       return;
@@ -273,9 +243,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
         // Map LenderProfile (PB) -> LenderProfile (App)
         // Always set lender profiles (even if empty, to clear stale data)
         console.log("[DealContext] Setting lender profiles:", lenders.length);
-        setLenderProfiles(
-          lenders as unknown as import("../types").LenderProfile[]
-        );
+        setLenderProfiles(lenders as unknown as import("../types").LenderProfile[]);
 
         // Map SavedDeal (PB) -> SavedDeal (App)
         const mappedDeals: SavedDeal[] = deals.map((d) => ({
@@ -297,8 +265,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
             ...prev,
             defaultTerm: dealerSettings.defaultLoanTerm || prev.defaultTerm,
             defaultApr: dealerSettings.defaultInterestRate || prev.defaultApr,
-            defaultStateFees:
-              dealerSettings.defaultStateFees || prev.defaultStateFees,
+            defaultStateFees: dealerSettings.defaultStateFees || prev.defaultStateFees,
             docFee: dealerSettings.docFee,
             cvrFee: dealerSettings.cvrFee,
             defaultState: dealerSettings.defaultState as any,
@@ -366,29 +333,26 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Sync settings changes to PocketBase
-  const updateSettings: React.Dispatch<React.SetStateAction<Settings>> =
-    useCallback((action) => {
-      setSettings((prev) => {
-        const newSettings =
-          typeof action === "function"
-            ? (action as (prev: Settings) => Settings)(prev)
-            : action;
+  const updateSettings: React.Dispatch<React.SetStateAction<Settings>> = useCallback((action) => {
+    setSettings((prev) => {
+      const newSettings =
+        typeof action === "function" ? (action as (prev: Settings) => Settings)(prev) : action;
 
-        // Fire and forget update
-        updateDealerSettings({
-          defaultLoanTerm: newSettings.defaultTerm,
-          defaultInterestRate: newSettings.defaultApr,
-          defaultStateFees: newSettings.defaultStateFees,
-          docFee: newSettings.docFee,
-          cvrFee: newSettings.cvrFee,
-          defaultState: newSettings.defaultState,
-          outOfStateTransitFee: newSettings.outOfStateTransitFee,
-          customTaxRate: newSettings.customTaxRate ?? undefined,
-        }).catch((err) => console.error("Failed to persist settings", err));
+      // Fire and forget update
+      updateDealerSettings({
+        defaultLoanTerm: newSettings.defaultTerm,
+        defaultInterestRate: newSettings.defaultApr,
+        defaultStateFees: newSettings.defaultStateFees,
+        docFee: newSettings.docFee,
+        cvrFee: newSettings.cvrFee,
+        defaultState: newSettings.defaultState,
+        outOfStateTransitFee: newSettings.outOfStateTransitFee,
+        customTaxRate: newSettings.customTaxRate ?? undefined,
+      }).catch((err) => console.error("Failed to persist settings", err));
 
-        return newSettings;
-      });
-    }, []);
+      return newSettings;
+    });
+  }, []);
 
   useEffect(() => {
     if (activeVehicle) {
@@ -396,43 +360,41 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [dealData, filters, customerName, salespersonName, activeVehicle]);
 
+  // Debounce expensive calculation inputs
+  const debouncedDealData = useDebouncedValue(dealData, 300);
+  const debouncedFilters = useDebouncedValue(filters, 300);
+
   // Computed
   const processedInventory = useMemo(() => {
-    return safeInventory.map((item) =>
-      calculateFinancials(item, dealData, settings)
-    );
-  }, [safeInventory, dealData, settings]);
+    // effectiveDealData uses debounced values to prevent rapid re-calculations during slider moves
+    // but force update if activeVehicle changes (to keep immediate responsiveness there)
+    return safeInventory.map((item) => calculateFinancials(item, debouncedDealData, settings));
+  }, [safeInventory, debouncedDealData, settings]);
 
   const filteredInventory = useMemo(() => {
-    const safeFilters = filters || INITIAL_FILTER_DATA;
+    const safeFilters = debouncedFilters || INITIAL_FILTER_DATA;
     const result = processedInventory.filter((item) => {
       const vehicleMatch =
         !safeFilters.vehicle ||
-        (item.vehicle || "")
-          .toLowerCase()
-          .includes(safeFilters.vehicle.toLowerCase());
+        (item.vehicle || "").toLowerCase().includes(safeFilters.vehicle.toLowerCase());
       const maxPriceMatch =
         !safeFilters.maxPrice ||
         (typeof item.price === "number" && item.price <= safeFilters.maxPrice);
       const maxPaymentMatch =
         !safeFilters.maxPayment ||
-        (typeof item.monthlyPayment === "number" &&
-          item.monthlyPayment <= safeFilters.maxPayment);
+        (typeof item.monthlyPayment === "number" && item.monthlyPayment <= safeFilters.maxPayment);
       const vinMatch =
-        !safeFilters.vin ||
-        (item.vin || "").toLowerCase().includes(safeFilters.vin.toLowerCase());
+        !safeFilters.vin || (item.vin || "").toLowerCase().includes(safeFilters.vin.toLowerCase());
 
       // New maxMiles filter
       const maxMilesMatch =
         !safeFilters.maxMiles ||
-        (typeof item.mileage === "number" &&
-          item.mileage <= safeFilters.maxMiles);
+        (typeof item.mileage === "number" && item.mileage <= safeFilters.maxMiles);
 
       // New maxOtdLtv filter
       const maxOtdLtvMatch =
         !safeFilters.maxOtdLtv ||
-        (typeof item.otdLtv === "number" &&
-          item.otdLtv <= safeFilters.maxOtdLtv);
+        (typeof item.otdLtv === "number" && item.otdLtv <= safeFilters.maxOtdLtv);
 
       return (
         vehicleMatch &&
@@ -444,7 +406,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     });
     return result;
-  }, [processedInventory, filters]);
+  }, [processedInventory, debouncedFilters]);
 
   const sortedInventory = useMemo(() => {
     if (!inventorySort.key) return filteredInventory;
@@ -453,16 +415,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
       const valA = a[inventorySort.key!];
       const valB = b[inventorySort.key!];
 
-      const isAInvalid =
-        valA === null ||
-        valA === "Error" ||
-        valA === "N/A" ||
-        valA === undefined;
-      const isBInvalid =
-        valB === null ||
-        valB === "Error" ||
-        valB === "N/A" ||
-        valB === undefined;
+      const isAInvalid = valA === null || valA === "Error" || valA === "N/A" || valA === undefined;
+      const isBInvalid = valB === null || valB === "Error" || valB === "N/A" || valB === undefined;
 
       if (isAInvalid && isBInvalid) return 0;
       if (isAInvalid) return 1;
