@@ -183,13 +183,23 @@ export const syncInventory = async (
 
 export const getLenderProfiles = async (): Promise<LenderProfile[]> => {
   const dealerId = getCurrentDealerId();
-  if (!dealerId) return [];
+  console.log("[API] getLenderProfiles - dealerId:", dealerId);
+  if (!dealerId) {
+    console.warn("[API] No dealer ID - cannot load lender profiles");
+    return [];
+  }
 
   try {
     const records = await collections.lenderProfiles.getFullList({
       filter: `dealer = "${sanitizeId(dealerId)}"`,
       sort: "name",
     });
+    console.log(
+      "[API] getLenderProfiles - loaded",
+      records.length,
+      "lenders for dealer",
+      dealerId
+    );
     return asTypeArray<LenderProfile>(records);
   } catch (error) {
     console.error("Failed to fetch lender profiles:", error);
