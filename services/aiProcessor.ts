@@ -778,7 +778,7 @@ Before extracting any data, analyze the document structure:
    - Rate Sheet / Rate Matrix (structured tables with tiers)
    - Program Guide (narrative text with embedded values)
    - Quick Reference Card (condensed data)
-   - Multi-lender compilation (multiple banks on one sheet)
+   - Multi-lender compilation (multiple banks on one sheet) *** VERY COMMON ***
 
 2. **Lender Identification**: Scan ALL pages for lender names
    - Look at headers, footers, logos, and branding
@@ -789,6 +789,37 @@ Before extracting any data, analyze the document structure:
    - What are the column headers?
    - What do rows represent? (credit tiers, vehicle types, terms)
    - Are there nested tables or matrices?
+
+═══════════════════════════════════════════════════════════════════════════════
+⚠️ CRITICAL: MULTI-LENDER DETECTION - DO NOT SKIP ANY BANKS ⚠️
+═══════════════════════════════════════════════════════════════════════════════
+
+**DEALER RATE SHEETS COMMONLY CONTAIN MULTIPLE LENDERS!**
+
+This is a compilation document from an automotive dealer. It likely contains 
+programs from MANY different banks, credit unions, and finance companies.
+
+**HOW TO IDENTIFY SEPARATE LENDERS:**
+
+1. **Page Headers/Footers**: Each page may have a different bank name/logo
+2. **Section Headers**: "Wells Fargo", "Capital One", "Ally Financial", etc.
+3. **Table Titles**: Look above each rate table for the lender name
+4. **Logo Changes**: Different logos = different lenders
+5. **Color/Branding Changes**: Often each lender section has different styling
+6. **Page Breaks**: New lender often starts on new page
+7. **"Continued" Markers**: Same lender may span multiple pages
+
+**COMMON LENDER NAMES TO LOOK FOR:**
+- Banks: Chase, Wells Fargo, Bank of America, Capital One, Ally, Santander
+- Credit Unions: Navy Federal, PenFed, Local CU names, State Employee CUs
+- Captives: Toyota Financial, Honda Financial, Ford Credit, GM Financial
+- Subprime: Westlake, DriveTime, Exeter, Credit Acceptance
+
+**CRITICAL RULE**: If you see a new bank/credit union name ANYWHERE in the 
+document, that's a SEPARATE lender object. Don't merge different banks together!
+
+**OUTPUT MUST INCLUDE ALL LENDERS FOUND** - The "lenders" array should contain 
+one object per unique financial institution found in the document.
 
 ═══════════════════════════════════════════════════════════════════════════════
 STEP 2: DATA MAPPING (Map document content to our schema)
