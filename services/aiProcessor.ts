@@ -1096,9 +1096,56 @@ export const processLenderSheet = async (
 
     let parsed: any;
     try {
+      // Try direct parse first (for clean JSON responses)
       parsed = JSON.parse(text);
     } catch (e) {
-      throw new Error("Failed to parse AI response as JSON.");
+      // Fallback: extract JSON from markdown code blocks or surrounding text
+      console.log("[AI] Direct parse failed, attempting extraction...");
+
+      // Try to extract JSON from markdown code blocks
+      const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonBlockMatch?.[1]) {
+        try {
+          parsed = JSON.parse(jsonBlockMatch[1].trim());
+          console.log("[AI] Successfully extracted JSON from code block");
+        } catch (e2) {
+          // Continue to next fallback
+        }
+      }
+
+      // Try to find JSON object directly (starts with { and ends with })
+      if (!parsed) {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch?.[0]) {
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+            console.log("[AI] Successfully extracted JSON object");
+          } catch (e3) {
+            // Continue to next fallback
+          }
+        }
+      }
+
+      // Try to find JSON array (starts with [ and ends with ])
+      if (!parsed) {
+        const arrayMatch = text.match(/\[[\s\S]*\]/);
+        if (arrayMatch?.[0]) {
+          try {
+            const arr = JSON.parse(arrayMatch[0]);
+            parsed = { lenders: arr };
+            console.log("[AI] Successfully extracted JSON array as lenders");
+          } catch (e4) {
+            // All fallbacks failed
+          }
+        }
+      }
+
+      if (!parsed) {
+        console.error("[AI] Raw response:", text.substring(0, 500));
+        throw new Error(
+          "Failed to parse AI response as JSON. The AI may have returned malformed data."
+        );
+      }
     }
 
     if (!parsed || !parsed.lenders || !Array.isArray(parsed.lenders)) {
