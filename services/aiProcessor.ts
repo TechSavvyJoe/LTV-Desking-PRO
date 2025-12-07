@@ -196,6 +196,59 @@ const LENDER_TIER_SCHEMA = {
       description:
         "Maximum advance amount in dollars (different from LTV - this is a hard dollar cap). Omit if not specified.",
     },
+    // CRITICAL: Front-End vs OTD LTV distinction
+    frontEndLtv: {
+      type: Type.NUMBER,
+      description:
+        "Maximum FRONT-END LTV - the advance percentage BEFORE backend products (GAP, warranty) are added. Look for 'Front-end', 'Base LTV', 'Invoice LTV'. This is typically lower than OTD LTV.",
+    },
+    otdLtv: {
+      type: Type.NUMBER,
+      description:
+        "Maximum OUT-THE-DOOR (OTD) LTV - the total advance percentage INCLUDING all backend products, fees, and taxes. Look for 'OTD', 'Out the Door', 'Total LTV', 'All-in LTV'. This is typically the higher number.",
+    },
+    maxRate: {
+      type: Type.NUMBER,
+      description:
+        "Maximum interest rate cap for this tier (as percentage, e.g., 24.99). Omit if not specified.",
+    },
+    maxBackend: {
+      type: Type.NUMBER,
+      description:
+        "Maximum dollar amount for backend products (GAP, warranty, paint protection, etc.) allowed in this tier. Look for 'Max Backend', 'Product Cap', 'Max add-ons'.",
+    },
+    maxBackendPercent: {
+      type: Type.NUMBER,
+      description:
+        "Maximum backend products as a PERCENTAGE of amount financed (e.g., 15 for 15%). Some lenders cap backend as a % rather than dollar amount.",
+    },
+    minIncome: {
+      type: Type.NUMBER,
+      description:
+        "Minimum monthly income required for THIS TIER specifically (if different from lender-level). Look for tier-specific income requirements.",
+    },
+    maxPti: {
+      type: Type.NUMBER,
+      description:
+        "Maximum Payment-to-Income ratio for THIS TIER specifically (as percentage). Look for PTI limits in tier footnotes.",
+    },
+    maxDti: {
+      type: Type.NUMBER,
+      description:
+        "Maximum Debt-to-Income ratio for THIS TIER specifically (as percentage). Look for DTI limits in tier sections.",
+    },
+    excludedMakes: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description:
+        "List of vehicle makes NOT eligible for this tier/program. Look for 'Excluded:', 'Not accepted:', 'Luxury makes excluded'. E.g., ['Maserati', 'Lotus', 'McLaren']",
+    },
+    includedMakes: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description:
+        "For captive lenders: ONLY these makes are eligible. E.g., Toyota Financial only finances ['Toyota', 'Lexus'].",
+    },
     vehicleType: {
       type: Type.STRING,
       description:
@@ -914,17 +967,62 @@ CRITICAL EXTRACTION RULES
 - **CHECK HEADERS/FOOTERS**: Lender names, effective dates, version numbers often here
 
 ═══════════════════════════════════════════════════════════════════════════════
-COMMON DATA LOCATIONS TO CHECK
+🔍 MANDATORY FIELD EXTRACTION CHECKLIST - SCAN FOR EVERY FIELD!
 ═══════════════════════════════════════════════════════════════════════════════
 
-**Often Missed Data - Look Extra Hard For:**
-1. Effective Date: Usually in header, footer, or document title area
-2. Min Income: Often in "Requirements" or "Eligibility" sections
-3. Max PTI/DTI: May be in footnotes or "Program Guidelines"
-4. Book Value Source: "Trade" or "Retail" - often mentioned once at top
-5. Max Mileage: Sometimes in footnotes like "*Max 100,000 miles"
-6. Vehicle Age Limits: "Model year 2018+" or "Max 7 years old"
-7. Rate Adders: "+0.5% for 80+ months" type notes in footnotes
+**FOR EACH LENDER, YOU MUST SEARCH FOR ALL OF THESE FIELDS:**
+
+📋 **LENDER-LEVEL FIELDS (search headers, footers, intro sections):**
+□ name - Bank/credit union name (REQUIRED - look at logo, header, page title)
+□ minIncome - Monthly income requirement (look for "$X,XXX/month", "Min Income")
+□ maxPti - Payment-to-income ratio (look for "PTI", "payment ratio", "18% max")
+□ maxDti - Debt-to-income ratio (look for "DTI", "debt ratio")
+□ bookValueSource - "Trade", "Retail", "NADA", "KBB" (often in fine print)
+□ maxBackend - Backend product limits (GAP, warranty max amounts)
+□ stipulations - Special requirements or exclusions
+
+📊 **TIER-LEVEL FIELDS (for EACH credit tier or program row):**
+□ name - Descriptive tier name (REQUIRED - combine info like "Tier 1 New 720+")
+□ minFico - Credit score floor (look for "720+", "680-719", "FICO", "Beacon")
+□ maxFico - Credit score ceiling (upper bound of ranges)
+□ maxLtv - MAX LTV percentage (CRITICAL - "Advance", "LTV", "Max %", look in columns!)
+□ minLtv - Min LTV if specified
+□ maxTerm - Maximum loan term in months ("84 mo", "72 months", column headers)
+□ minTerm - Minimum term if specified
+□ minYear - Vehicle model year minimum ("2020+", "MY 2019-present")
+□ maxYear - Vehicle model year maximum (for used vehicles)
+□ maxAge - Vehicle age limit ("7 years", "within 5 years" - calculate minYear)
+□ maxMileage - Odometer limit ("100K", "80,000 miles", "*75k max")
+□ minMileage - If specified
+□ baseInterestRate - Buy rate or base APR (percentage in columns)
+□ rateAdder - Term adjustments ("+0.25% over 72mo", rate bumps)
+□ vehicleType - "new", "used", "certified" (section headers, row labels)
+□ minAmountFinanced - Min loan amount
+□ maxAmountFinanced - Max loan amount or advance cap
+□ maxAdvance - Dollar cap on advance
+
+**COMMON FIELD LOCATIONS (check ALL of these for EVERY field):**
+┌────────────────────────────────────────────────────────────────────┐
+│ LOCATION          │ WHAT TO LOOK FOR                              │
+├────────────────────────────────────────────────────────────────────│
+│ Column Headers    │ LTV, Advance, Term, Rate, FICO, Score         │
+│ Row Labels        │ Credit tier names, vehicle types              │
+│ Table Cells       │ Numeric values: 125%, 84, 720, $2000          │
+│ Footnotes (*)     │ Mileage caps, exceptions, rate adjusters      │
+│ Fine Print         │ Income requirements, DTI/PTI limits          │
+│ Section Headers   │ "New Vehicles", "Used Program", bank names    │
+│ Page Headers      │ Lender logos, document titles, dates          │
+│ Page Footers      │ Version numbers, effective dates              │
+│ Bullet Lists      │ Eligibility requirements, exclusions          │
+│ Separate Pages    │ Each page may have different lender/program   │
+└────────────────────────────────────────────────────────────────────┘
+
+**CRITICAL: DO NOT LEAVE FIELDS EMPTY IF DATA EXISTS!**
+- If you see a number in a column, figure out what field it belongs to
+- If there's a footnote with "*", find what restriction it defines
+- If a section says "Requirements:", extract ALL listed requirements
+- Look at ALL rows in tables, not just headers
+- Process EVERY page of the document
 
 ═══════════════════════════════════════════════════════════════════════════════
 OUTPUT FORMAT

@@ -59,18 +59,44 @@ export interface LenderTier {
   minYear?: number;
   maxYear?: number;
   maxAge?: number; // Maximum vehicle age in years
-  // FIX: Added minMileage to support tiers with minimum mileage requirements.
   minMileage?: number;
   maxMileage?: number;
-  // FIX: Added minTerm to support tiers with minimum loan term requirements.
   minTerm?: number;
-  maxLtv?: number;
   maxTerm?: number;
+
+  // LTV/Advance fields - CRITICAL for deal structuring
+  maxLtv?: number; // Generic max LTV (used if no distinction)
+  minLtv?: number; // Minimum LTV floor
+  frontEndLtv?: number; // Max LTV on front-end (before backend products)
+  otdLtv?: number; // Max Out-The-Door LTV (includes all fees/products)
+  maxAdvance?: number; // Dollar cap on advance over book/invoice
+
+  // Amount limits
   minAmountFinanced?: number;
   maxAmountFinanced?: number;
-  maxAdvance?: number; // Maximum advance amount over invoice/MSRP
-  baseInterestRate?: number; // Base APR for this tier
-  rateAdder?: number; // Additional rate adjustment
+
+  // Rate information
+  baseInterestRate?: number; // Base APR/buy rate for this tier
+  rateAdder?: number; // Additional rate adjustment (e.g., +0.25% for 80+ months)
+  maxRate?: number; // Maximum rate cap
+
+  // Vehicle restrictions
+  vehicleType?: "new" | "used" | "certified" | "all";
+  excludedMakes?: string[]; // Makes not eligible (e.g., "Maserati", "Lotus")
+  includedMakes?: string[]; // Only these makes eligible (for captive lenders)
+
+  // Income/DTI requirements at tier level (if different from lender level)
+  minIncome?: number;
+  maxPti?: number;
+  maxDti?: number;
+
+  // Backend product limits
+  maxBackend?: number; // Maximum backend products in dollars
+  maxBackendPercent?: number; // Maximum backend as % of amount financed
+
+  // Extraction metadata
+  confidence?: number; // 0.0-1.0 confidence score
+  extractionSource?: string; // "table", "text", "inferred"
 }
 
 export interface LenderProfile {
