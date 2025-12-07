@@ -405,24 +405,75 @@ const normalizeTier = (tier: any): LenderTier | null => {
     minYear = calculateMinYearFromAge(maxAge);
   }
 
-  return {
+  // Build the tier object with ALL fields from the schema
+  // This ensures no extracted data is lost during normalization
+  const normalized: LenderTier = {
+    // Core identification
     name: typeof tier.name === "string" ? tier.name : "Unnamed Tier",
+
+    // Credit score range
     minFico: normalizeNumber(tier.minFico),
     maxFico: normalizeNumber(tier.maxFico),
+
+    // Vehicle year restrictions
     minYear,
     maxYear: normalizeNumber(tier.maxYear),
     maxAge, // Preserve original maxAge value
+
+    // Mileage restrictions
     minMileage: normalizeNumber(tier.minMileage),
     maxMileage: normalizeNumber(tier.maxMileage),
+
+    // Term restrictions
     minTerm: normalizeNumber(tier.minTerm),
     maxTerm: normalizeNumber(tier.maxTerm),
+
+    // LTV/Advance - CRITICAL fields that were being lost!
     maxLtv: normalizeNumber(tier.maxLtv),
+    minLtv: normalizeNumber(tier.minLtv),
+    frontEndLtv: normalizeNumber(tier.frontEndLtv), // Front-end LTV (before backend)
+    otdLtv: normalizeNumber(tier.otdLtv), // OTD LTV (after backend products)
+    maxAdvance: normalizeNumber(tier.maxAdvance), // Dollar cap
+
+    // Amount financed restrictions
     minAmountFinanced: normalizeNumber(tier.minAmountFinanced),
     maxAmountFinanced: normalizeNumber(tier.maxAmountFinanced),
-    maxAdvance: normalizeNumber(tier.maxAdvance),
+
+    // Interest rate info
     baseInterestRate: normalizeNumber(tier.baseInterestRate),
     rateAdder: normalizeNumber(tier.rateAdder),
+    maxRate: normalizeNumber(tier.maxRate),
+
+    // Backend product limits - CRITICAL for dealer profitability!
+    maxBackend: normalizeNumber(tier.maxBackend),
+    maxBackendPercent: normalizeNumber(tier.maxBackendPercent),
+
+    // Vehicle type - CRITICAL for New/Used/CPO filtering!
+    vehicleType:
+      typeof tier.vehicleType === "string" ? tier.vehicleType : undefined,
+
+    // Make restrictions (for captive lenders)
+    excludedMakes: Array.isArray(tier.excludedMakes)
+      ? tier.excludedMakes
+      : undefined,
+    includedMakes: Array.isArray(tier.includedMakes)
+      ? tier.includedMakes
+      : undefined,
+
+    // Tier-level income/DTI requirements (some lenders have per-tier)
+    minIncome: normalizeNumber(tier.minIncome),
+    maxPti: normalizeNumber(tier.maxPti),
+    maxDti: normalizeNumber(tier.maxDti),
+
+    // Extraction metadata - helps track data quality
+    confidence: normalizeNumber(tier.confidence),
+    extractionSource:
+      typeof tier.extractionSource === "string"
+        ? tier.extractionSource
+        : undefined,
   };
+
+  return normalized;
 };
 
 // Check if a tier has critical missing data
