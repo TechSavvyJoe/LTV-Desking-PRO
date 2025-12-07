@@ -13,11 +13,38 @@ pb.autoCancellation(false);
 // SUPERADMIN DEALER OVERRIDE SYSTEM
 // ============================================
 // This allows superadmins to switch which dealer they're viewing/managing
+// Uses sessionStorage to persist across page refreshes
 
-let superadminDealerOverride: string | null = null;
+const DEALER_OVERRIDE_KEY = "superadmin_dealer_override";
+
+// Initialize from sessionStorage on module load
+let superadminDealerOverride: string | null = (() => {
+  try {
+    return sessionStorage.getItem(DEALER_OVERRIDE_KEY);
+  } catch {
+    return null;
+  }
+})();
 
 export const setSuperadminDealerOverride = (dealerId: string | null): void => {
   superadminDealerOverride = dealerId;
+
+  // Persist to sessionStorage
+  try {
+    if (dealerId) {
+      sessionStorage.setItem(DEALER_OVERRIDE_KEY, dealerId);
+      console.log(
+        "[PocketBase] Saved dealer override to sessionStorage:",
+        dealerId
+      );
+    } else {
+      sessionStorage.removeItem(DEALER_OVERRIDE_KEY);
+      console.log("[PocketBase] Cleared dealer override from sessionStorage");
+    }
+  } catch (e) {
+    console.warn("[PocketBase] Failed to persist dealer override:", e);
+  }
+
   // Dispatch a custom event so components can react to dealer changes
   window.dispatchEvent(
     new CustomEvent("dealerOverrideChanged", { detail: dealerId })
@@ -25,11 +52,25 @@ export const setSuperadminDealerOverride = (dealerId: string | null): void => {
 };
 
 export const getSuperadminDealerOverride = (): string | null => {
+  // Always try to read from sessionStorage to stay in sync
+  try {
+    const stored = sessionStorage.getItem(DEALER_OVERRIDE_KEY);
+    if (stored !== superadminDealerOverride) {
+      superadminDealerOverride = stored;
+    }
+  } catch {
+    // Ignore
+  }
   return superadminDealerOverride;
 };
 
 export const clearSuperadminDealerOverride = (): void => {
   superadminDealerOverride = null;
+  try {
+    sessionStorage.removeItem(DEALER_OVERRIDE_KEY);
+  } catch {
+    // Ignore
+  }
   window.dispatchEvent(
     new CustomEvent("dealerOverrideChanged", { detail: null })
   );
@@ -172,13 +213,11 @@ export const getCurrentUser = (): User | null => {
 export const getCurrentDealerId = (): string | null => {
   const user = getCurrentUser();
 
-  // If user is superadmin and has an override set, use that
-  if (user?.role === "superadmin" && superadminDealerOverride) {
-    console.log(
-      "[PocketBase] Using superadmin override dealer:",
-      superadminDealerOverride
-    );
-    return superadminDealerOverride;
+  // If user is superadmin, check for override from sessionStorage
+  const override = getSuperadminDealerOverride();
+  if (user?.role === "superadmin" && override) {
+    console.log("[PocketBase] Using superadmin override dealer:", override);
+    return override;
   }
 
   const dealerId = user?.dealer || null;
