@@ -471,6 +471,11 @@ const MainLayout: React.FC = () => {
           // Reload the page to refresh all data for the new dealer
           window.location.reload();
         }}
+        isUploading={isAiModalOpen}
+        isUploadMinimized={isAiMinimized}
+        uploadProgress={aiUploadProgress.progress}
+        uploadStage={aiUploadProgress.stage}
+        onRestoreUpload={() => setIsAiMinimized(false)}
       />
 
       <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-6">
@@ -927,14 +932,7 @@ const MainLayout: React.FC = () => {
         isMinimized={isAiMinimized}
       />
 
-      {/* Background Upload Indicator */}
-      <BackgroundUploadIndicator
-        isProcessing={isAiModalOpen}
-        isMinimized={isAiMinimized}
-        overallProgress={aiUploadProgress.progress}
-        currentStage={aiUploadProgress.stage}
-        onRestore={() => setIsAiMinimized(false)}
-      />
+      {/* Background Upload Indicator - now integrated into Header button */}
 
       {/* Global Toast */}
       <Toast />

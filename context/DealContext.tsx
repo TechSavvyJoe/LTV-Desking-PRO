@@ -351,9 +351,17 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
       setSavedDeals(mapped);
     });
 
+    // Listen for dealer override changes (superadmin switching dealers)
+    const handleDealerChange = () => {
+      console.log("[DealContext] Dealer override changed, reloading data...");
+      loadData();
+    };
+    window.addEventListener("dealerOverrideChanged", handleDealerChange);
+
     return () => {
       unsubInv();
       unsubDeals();
+      window.removeEventListener("dealerOverrideChanged", handleDealerChange);
     };
   }, []);
 

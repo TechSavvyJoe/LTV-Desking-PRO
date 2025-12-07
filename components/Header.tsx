@@ -17,6 +17,12 @@ interface HeaderProps {
   theme: "light" | "dark";
   toggleTheme: () => void;
   onDealerChange?: () => void;
+  // Upload state for animated button
+  isUploading?: boolean;
+  isUploadMinimized?: boolean;
+  uploadProgress?: number;
+  uploadStage?: string;
+  onRestoreUpload?: () => void;
 }
 
 // Dealer Switcher Component for SuperAdmins
@@ -180,6 +186,11 @@ const Header: React.FC<HeaderProps> = ({
   theme,
   toggleTheme,
   onDealerChange,
+  isUploading,
+  isUploadMinimized,
+  uploadProgress,
+  uploadStage,
+  onRestoreUpload,
 }) => {
   const { isShowroomMode, setIsShowroomMode } = useDealContext();
   const currentUser = getCurrentUser();
@@ -242,13 +253,83 @@ const Header: React.FC<HeaderProps> = ({
           >
             <Icons.CogIcon className="w-4 h-4" /> Settings
           </Button>
-          <Button
-            onClick={onOpenAiModal}
-            size="sm"
-            className="!rounded-full gap-2 bg-gradient-to-r from-purple-500 to-pink-500"
-          >
-            <Icons.SparklesIcon className="w-4 h-4" /> AI Lender Upload
-          </Button>
+          {/* AI Lender Upload Button with Progress Animation */}
+          <div className="relative">
+            {/* Animated progress ring when uploading and minimized */}
+            {isUploading && isUploadMinimized && (
+              <>
+                {/* Outer glow ring */}
+                <div
+                  className="absolute -inset-1 rounded-full opacity-75 animate-pulse"
+                  style={{
+                    background: `conic-gradient(from 0deg, rgba(168, 85, 247, 0.8) ${
+                      (uploadProgress || 0) * 3.6
+                    }deg, rgba(236, 72, 153, 0.2) ${
+                      (uploadProgress || 0) * 3.6
+                    }deg)`,
+                  }}
+                />
+                {/* Spinning glow effect */}
+                <div
+                  className="absolute -inset-1 rounded-full animate-spin"
+                  style={{
+                    background:
+                      "conic-gradient(from 0deg, transparent 0deg, rgba(168, 85, 247, 0.6) 60deg, transparent 120deg)",
+                    animationDuration: "2s",
+                  }}
+                />
+              </>
+            )}
+            <Button
+              onClick={
+                isUploading && isUploadMinimized && onRestoreUpload
+                  ? onRestoreUpload
+                  : onOpenAiModal
+              }
+              size="sm"
+              className={`!rounded-full gap-2 relative z-10 transition-all duration-300 ${
+                isUploading && isUploadMinimized
+                  ? "bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 animate-gradient-x shadow-lg shadow-purple-500/50"
+                  : "bg-gradient-to-r from-purple-500 to-pink-500"
+              }`}
+              title={
+                isUploading && isUploadMinimized
+                  ? `Uploading: ${uploadProgress || 0}% - ${
+                      uploadStage || "Processing..."
+                    }`
+                  : "AI Lender Upload"
+              }
+            >
+              {isUploading && isUploadMinimized ? (
+                <>
+                  <svg
+                    className="w-4 h-4 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  <span className="font-semibold">{uploadProgress || 0}%</span>
+                </>
+              ) : (
+                <>
+                  <Icons.SparklesIcon className="w-4 h-4" /> AI Lender Upload
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </header>
