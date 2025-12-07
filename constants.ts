@@ -57,6 +57,8 @@ export const INITIAL_FILTER_DATA: FilterData = {
   vehicle: "",
   maxPrice: null,
   maxPayment: null,
+  maxMiles: null,
+  maxOtdLtv: null,
   vin: "",
 };
 

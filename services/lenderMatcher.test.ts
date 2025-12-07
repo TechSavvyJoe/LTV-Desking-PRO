@@ -47,6 +47,8 @@ const mockDeal = (
   vehicle: "",
   maxPrice: null,
   maxPayment: null,
+  maxMiles: null,
+  maxOtdLtv: null,
   vin: "",
   ...overrides,
 });

@@ -1205,3 +1205,200 @@ html {
   );
   background-size: 200% 100%;
 }
+
+/* ============================================================================
+   LIGHT MODE READABILITY FIXES
+   Ensures all text is readable with proper contrast in light mode
+   ============================================================================ */
+
+/* Base text colors for light mode - HIGH CONTRAST */
+:root:not(.dark) body,
+:root:not(.dark) main,
+:root:not(.dark) .text-slate-900,
+:root:not(.dark) [class*="text-gray"],
+:root:not(.dark) [class*="text-slate"] {
+  color: #0f172a !important; /* slate-900 for maximum readability */
+}
+
+/* Ensure all headings are dark in light mode */
+:root:not(.dark) h1,
+:root:not(.dark) h2,
+:root:not(.dark) h3,
+:root:not(.dark) h4,
+:root:not(.dark) h5,
+:root:not(.dark) h6 {
+  color: #020617; /* slate-950 */
+}
+
+/* Light mode input fixes - dark text, visible borders */
+:root:not(.dark) input,
+:root:not(.dark) select,
+:root:not(.dark) textarea {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important; /* slate-300 */
+}
+
+:root:not(.dark) input::placeholder,
+:root:not(.dark) textarea::placeholder {
+  color: #64748b !important; /* slate-500 */
+}
+
+:root:not(.dark) input:focus,
+:root:not(.dark) select:focus,
+:root:not(.dark) textarea:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Light mode table fixes */
+:root:not(.dark) table td,
+:root:not(.dark) table th {
+  color: #0f172a;
+}
+
+:root:not(.dark) table th {
+  color: #334155; /* slate-700 */
+  background-color: #f1f5f9 !important; /* slate-100 */
+}
+
+:root:not(.dark) table tbody tr {
+  background-color: #ffffff;
+}
+
+:root:not(.dark) table tbody tr:nth-child(even) {
+  background-color: #f8fafc; /* slate-50 */
+}
+
+:root:not(.dark) table tbody tr:hover {
+  background-color: #e2e8f0; /* slate-200 */
+}
+
+/* Light mode card fixes */
+:root:not(.dark) .bg-white\/80,
+:root:not(.dark) .bg-slate-900\/80,
+:root:not(.dark) [class*="bg-white"],
+:root:not(.dark) [class*="bg-slate-50"] {
+  background-color: #ffffff !important;
+}
+
+:root:not(.dark) .border-slate-200,
+:root:not(.dark) .border-slate-800 {
+  border-color: #cbd5e1 !important; /* slate-300 */
+}
+
+/* Light mode label contrast */
+:root:not(.dark) label {
+  color: #1e293b !important; /* slate-800 */
+}
+
+/* Light mode section text */
+:root:not(.dark) p,
+:root:not(.dark) span:not([class*="text-"]),
+:root:not(.dark) div:not([class*="text-"]):not([class*="bg-"]) {
+  color: inherit;
+}
+
+/* Ensure secondary/muted text is still readable */
+:root:not(.dark) .text-slate-500,
+:root:not(.dark) .text-slate-400,
+:root:not(.dark) .text-gray-500,
+:root:not(.dark) .text-gray-400 {
+  color: #475569 !important; /* slate-600 */
+}
+
+:root:not(.dark) .text-slate-300,
+:root:not(.dark) .text-gray-300 {
+  color: #64748b !important; /* slate-500 */
+}
+
+/* Light mode button text */
+:root:not(.dark) button:not([class*="bg-"]):not([class*="btn-"]) {
+  color: #0f172a;
+}
+
+/* Light mode dropdown menus */
+:root:not(.dark) [class*="dropdown"],
+:root:not(.dark) [role="menu"],
+:root:not(.dark) [role="listbox"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+}
+
+:root:not(.dark) [role="menuitem"],
+:root:not(.dark) [role="option"] {
+  color: #0f172a !important;
+}
+
+:root:not(.dark) [role="menuitem"]:hover,
+:root:not(.dark) [role="option"]:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Light mode modal fixes */
+:root:not(.dark) [role="dialog"],
+:root:not(.dark) .modal-content {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Light mode tabs */
+:root:not(.dark) [role="tab"] {
+  color: #475569;
+}
+
+:root:not(.dark) [role="tab"][aria-selected="true"],
+:root:not(.dark) [role="tab"].active {
+  color: #1e40af !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Light mode badges */
+:root:not(.dark) [class*="badge"],
+:root:not(.dark) [class*="tag"] {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+/* Light mode dividers */
+:root:not(.dark) hr,
+:root:not(.dark) [class*="divide-"],
+:root:not(.dark) [class*="border-b"] {
+  border-color: #e2e8f0 !important; /* slate-200 */
+}
+
+/* Light mode icons */
+:root:not(.dark) svg:not([class*="text-"]) {
+  color: #475569; /* slate-600 */
+}
+
+/* Light mode empty states */
+:root:not(.dark) .empty-state,
+:root:not(.dark) [class*="empty"] {
+  color: #64748b !important;
+}
+
+/* Light mode section headers - uppercase labels */
+:root:not(.dark) .uppercase,
+:root:not(.dark) [class*="tracking-"] {
+  color: #475569 !important; /* slate-600 */
+}
+
+/* Glassmorphism adjustment for light mode - reduce transparency */
+:root:not(.dark) .glass-panel,
+:root:not(.dark) .glass-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Light mode stat cards */
+:root:not(.dark) [class*="stat"],
+:root:not(.dark) [class*="metric"] {
+  color: #0f172a;
+}
+
+:root:not(.dark) [class*="stat"] span,
+:root:not(.dark) [class*="metric"] span {
+  color: inherit;
+}

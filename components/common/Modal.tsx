@@ -26,14 +26,25 @@ const Modal: React.FC<ModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      // Save current scroll position and lock body
+      const scrollY = window.scrollY;
       setIsVisible(true);
       requestAnimationFrame(() => setIsAnimating(true));
       document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
     } else {
       setIsAnimating(false);
       const timer = setTimeout(() => {
         setIsVisible(false);
-        document.body.style.overflow = "unset";
+        // Restore scroll position
+        const scrollY = parseInt(document.body.style.top || "0") * -1;
+        document.body.style.overflow = "";
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.width = "";
+        window.scrollTo(0, scrollY);
       }, 300); // Match transition duration
       return () => clearTimeout(timer);
     }

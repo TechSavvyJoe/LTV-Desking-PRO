@@ -422,7 +422,26 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({
         !safeFilters.vin ||
         (item.vin || "").toLowerCase().includes(safeFilters.vin.toLowerCase());
 
-      return vehicleMatch && maxPriceMatch && maxPaymentMatch && vinMatch;
+      // New maxMiles filter
+      const maxMilesMatch =
+        !safeFilters.maxMiles ||
+        (typeof item.mileage === "number" &&
+          item.mileage <= safeFilters.maxMiles);
+
+      // New maxOtdLtv filter
+      const maxOtdLtvMatch =
+        !safeFilters.maxOtdLtv ||
+        (typeof item.otdLtv === "number" &&
+          item.otdLtv <= safeFilters.maxOtdLtv);
+
+      return (
+        vehicleMatch &&
+        maxPriceMatch &&
+        maxPaymentMatch &&
+        vinMatch &&
+        maxMilesMatch &&
+        maxOtdLtvMatch
+      );
     });
     return result;
   }, [processedInventory, filters]);

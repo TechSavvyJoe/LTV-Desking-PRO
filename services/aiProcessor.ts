@@ -1025,6 +1025,103 @@ CRITICAL EXTRACTION RULES
 - Process EVERY page of the document
 
 ═══════════════════════════════════════════════════════════════════════════════
+🔬 MULTI-PASS VERIFICATION PROTOCOL (Apple/Google Quality Standard)
+═══════════════════════════════════════════════════════════════════════════════
+
+**PASS 1: INITIAL EXTRACTION**
+Go through the entire document and extract all visible data. Don't try to be perfect - capture everything you see.
+
+**PASS 2: TABLE CROSS-REFERENCE**
+For each table you found:
+1. Read column headers left-to-right: What does each column represent?
+2. Read row headers top-to-bottom: What does each row represent?
+3. For each CELL: What value is there? Which field does it map to?
+4. Cross-reference: Does the value make sense for that field?
+   - LTV should be 80-200%
+   - FICO should be 300-850
+   - Term should be 12-84 months
+   - Year should be 4-digit (2015-2030)
+   - Mileage should be reasonable (50,000-200,000)
+
+**PASS 3: FOOTNOTE / FINE PRINT SWEEP**
+Go back through the document looking ONLY at:
+- Footnotes (*, **, †, ‡)
+- Small print sections
+- "Notes:" or "Requirements:" blocks
+- Asterisks anywhere in tables
+- "Subject to" clauses
+ADD any restrictions found to the appropriate tier's data.
+
+**PASS 4: EDGE CASE DETECTION**
+Look for commonly missed data:
+- Rate adjustments for term ("+0.25% for 80+ months")
+- Rate adjustments for mileage ("+0.5% over 80K miles")
+- Rate adjustments for age ("+0.5% for 7+ year old vehicles")
+- Min finance amounts ($5,000+ to finance)
+- Max finance amounts ($50,000 cap)
+- Max advance over book ($2,000 max over trade)
+- Backend product limits ($3,000 max GAP+Warranty)
+
+**PASS 5: SELF-VALIDATION CHECK**
+Before outputting, verify your extraction:
+□ Did I capture EVERY lender name I saw in the document?
+□ Does each tier have at least one of: minFico, maxLtv, or maxTerm?
+□ Are my LTV values reasonable (typically 80-150%)?
+□ Do credit score ranges overlap correctly between tiers?
+□ Did I include BOTH front-end LTV AND OTD LTV if specified?
+□ Did I capture mileage restrictions from footnotes?
+□ Did I capture year/age restrictions?
+□ Did I capture income requirements?
+□ Did I capture PTI/DTI limits?
+
+═══════════════════════════════════════════════════════════════════════════════
+💡 EXPERT REASONING: COMMON PATTERNS IN AUTO RATE SHEETS
+═══════════════════════════════════════════════════════════════════════════════
+
+**UNDERSTANDING RATE SHEET STRUCTURE:**
+Most auto lender rate sheets follow this pattern:
+1. Higher credit = Higher LTV allowed = More advance
+2. Newer vehicles = Better terms than older vehicles
+3. New vehicles = Better than used vehicles
+4. Shorter terms = Better rates than longer terms
+5. Lower mileage = Better terms than high mileage
+
+**LTV TERMINOLOGY (CRITICAL - GET THESE RIGHT!):**
+- "Advance" or "Max Advance" = Usually means max LTV percentage
+- "Front-End Advance" = LTV before backend products added
+- "OTD Advance" or "Total Advance" = Including all products/fees
+- "Invoice Advance" = % of MSRP/invoice rather than book value
+- "Max % of Trade" = Max LTV based on trade value
+- "Max % of Retail" = Max LTV based on retail book value
+
+**INTERPRETING FICO RANGES:**
+- "A+" or "Tier 1" = Typically 720-850+
+- "A" or "Tier 2" = Typically 680-719
+- "B" or "Tier 3" = Typically 620-679
+- "C" or "Tier 4" = Typically 580-619
+- "680+" means minFico=680, no maxFico
+- "620-679" means minFico=620, maxFico=679
+
+**INTERPRETING VEHICLE RESTRICTIONS:**
+- "Current + 1" = Current year and next year (new models)
+- "Current - 7" = Vehicles from past 7 years
+- "MY 2018+" = Model year 2018 or newer
+- "100K max" = Max 100,000 miles
+- Often footnoted restrictions override table values
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 FINAL OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+Your output MUST include:
+1. **ALL lenders** found in the document (may be 1 or many)
+2. **ALL tiers** for each lender (separate new/used if different terms)
+3. **ALL restrictions** (mileage, year, income, DTI, PTI)
+4. **BOTH LTV types** if specified (front-end and OTD)
+5. **Confidence score** for each tier (how sure are you?)
+6. **Extraction source** for each tier (where did you find it?)
+
+═══════════════════════════════════════════════════════════════════════════════
 OUTPUT FORMAT
 ═══════════════════════════════════════════════════════════════════════════════
 

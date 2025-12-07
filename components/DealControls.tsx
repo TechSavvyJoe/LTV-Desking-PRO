@@ -250,6 +250,37 @@ const DealControls: React.FC<DealControlsProps> = ({
               error={!!errors.maxPayment}
             />
           </InputGroup>
+          <InputGroup
+            label="Max Miles"
+            htmlFor="maxMiles"
+            error={errors.maxMiles}
+          >
+            <Input
+              type="number"
+              id="maxMiles"
+              value={filters.maxMiles ?? ""}
+              onChange={handleFilterChange}
+              placeholder="e.g., 100000"
+              min="0"
+              error={!!errors.maxMiles}
+            />
+          </InputGroup>
+          <InputGroup
+            label="Max OTD LTV (%)"
+            htmlFor="maxOtdLtv"
+            error={errors.maxOtdLtv}
+          >
+            <Input
+              type="number"
+              id="maxOtdLtv"
+              value={filters.maxOtdLtv ?? ""}
+              onChange={handleFilterChange}
+              placeholder="e.g., 125"
+              min="0"
+              max="200"
+              error={!!errors.maxOtdLtv}
+            />
+          </InputGroup>
         </div>
       </div>
 

@@ -43,6 +43,8 @@ export interface FilterData {
   vehicle: string;
   maxPrice: number | null;
   maxPayment: number | null;
+  maxMiles: number | null; // Optional max mileage filter for inventory
+  maxOtdLtv: number | null; // Optional max OTD LTV filter
   vin: string;
 }
 
