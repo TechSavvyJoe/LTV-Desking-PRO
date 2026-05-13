@@ -32,15 +32,19 @@ export const Register: React.FC<RegisterProps> = ({
 
     setLoading(true);
     try {
-      await register(
+      const result = await register(
         formData.email,
         formData.password,
         formData.firstName,
         formData.lastName,
         formData.dealerCode
       );
-      toast.success("Registration successful! Please login.");
-      onLoginClick(); // Redirect to login after registration
+      if (result.success) {
+        toast.success("Registration successful! Logging you in...");
+        onSuccess(); // User is already logged in via auto-login in register()
+      } else {
+        toast.error(result.error || "Registration failed");
+      }
     } catch (error: any) {
       console.error("Registration error:", error);
       toast.error(error.message || "Registration failed");

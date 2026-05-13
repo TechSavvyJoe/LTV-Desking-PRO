@@ -23,7 +23,6 @@ export interface CalculatedVehicle extends Vehicle {
   amountToFinance: number | "Error" | "N/A";
   otdLtv: number | "Error" | "N/A";
   monthlyPayment: number | "Error" | "N/A";
-  [key: string]: any; // For dynamic sorting key
 }
 
 export interface DealData {
@@ -49,7 +48,7 @@ export interface FilterData {
 }
 
 export interface SortConfig {
-  key: keyof CalculatedVehicle | null;
+  key: string | null;
   direction: "asc" | "desc";
 }
 
@@ -108,9 +107,13 @@ export interface LenderProfile {
   bookValueSource?: "Trade" | "Retail";
   minIncome?: number;
   maxPti?: number;
+  maxDti?: number;
+  maxBackend?: number;
+  minAmountFinanced?: number;
+  maxAmountFinanced?: number;
+  stipulations?: string;
   effectiveDate?: string;
   tiers: LenderTier[];
-  [key: string]: any; // For dynamic keys
 }
 
 export interface Message {

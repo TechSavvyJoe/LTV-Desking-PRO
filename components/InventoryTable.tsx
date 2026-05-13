@@ -1,13 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import type {
   CalculatedVehicle,
   SortConfig,
-  Vehicle,
-  LenderProfile,
-  DealData,
-  FilterData,
-  DealPdfData,
-  Settings,
 } from "../types";
 import { useDealContext } from "../context/DealContext";
 import { useSafeData } from "../hooks/useSafeData";
@@ -69,8 +63,6 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   customHeight,
 }) => {
   const safeVehicles = useSafeData(data);
-  const normalizedVehicles = safeVehicles;
-  const handleSort = onSort;
 
   // Check if any row is expanded in favorites view
   const hasExpandedRow = isFavoritesView && expandedRows && expandedRows.size > 0;
@@ -300,9 +292,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     <div className="h-full flex flex-col">
       <VirtualizedTable
         columns={visibleColumns}
-        data={normalizedVehicles}
+        data={safeVehicles}
         sortConfig={sortConfig}
-        onSort={handleSort}
+        onSort={onSort}
         emptyMessage={
           emptyMessage || (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">

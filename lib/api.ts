@@ -210,9 +210,13 @@ export const syncInventory = async (
 
 export const getLenderProfiles = async (): Promise<LenderProfile[]> => {
   const dealerId = getCurrentDealerId();
-  console.log("[API] getLenderProfiles - dealerId:", dealerId);
+  if (import.meta.env.DEV) {
+    console.log("[API] getLenderProfiles - dealerId:", dealerId);
+  }
   if (!dealerId) {
-    console.warn("[API] No dealer ID - cannot load lender profiles");
+    if (import.meta.env.DEV) {
+      console.warn("[API] No dealer ID - cannot load lender profiles");
+    }
     return [];
   }
 
@@ -221,7 +225,9 @@ export const getLenderProfiles = async (): Promise<LenderProfile[]> => {
       filter: `dealer = "${sanitizeId(dealerId)}"`,
       sort: "name",
     });
-    console.log("[API] getLenderProfiles - loaded", records.length, "lenders for dealer", dealerId);
+    if (import.meta.env.DEV) {
+      console.log("[API] getLenderProfiles - loaded", records.length, "lenders for dealer", dealerId);
+    }
     return asTypeArray<LenderProfile>(records);
   } catch (error) {
     console.error("Failed to fetch lender profiles:", error);
@@ -233,9 +239,13 @@ export const saveLenderProfile = async (
   profile: Omit<LenderProfile, "id" | "dealer" | "created" | "updated">
 ): Promise<LenderProfile | null> => {
   const dealerId = getCurrentDealerId();
-  console.log("[API] saveLenderProfile - dealerId:", dealerId, "lender:", profile.name);
+  if (import.meta.env.DEV) {
+    console.log("[API] saveLenderProfile - dealerId:", dealerId, "lender:", profile.name);
+  }
   if (!dealerId) {
-    console.warn("[API] No dealer ID - cannot save lender profile");
+    if (import.meta.env.DEV) {
+      console.warn("[API] No dealer ID - cannot save lender profile");
+    }
     return null;
   }
 
@@ -246,13 +256,17 @@ export const saveLenderProfile = async (
       sort: "-updated", // Most recently updated first
     });
 
-    console.log("[API] Found", existingRecords.length, "existing records for", profile.name);
+    if (import.meta.env.DEV) {
+      console.log("[API] Found", existingRecords.length, "existing records for", profile.name);
+    }
 
     if (existingRecords.length > 0) {
       // Update the most recent record
       const primaryId = existingRecords[0]?.id;
       if (primaryId) {
-        console.log(`[API] Updating lender profile: ${profile.name} (id: ${primaryId})`);
+        if (import.meta.env.DEV) {
+          console.log(`[API] Updating lender profile: ${profile.name} (id: ${primaryId})`);
+        }
         const record = await collections.lenderProfiles.update(primaryId, {
           ...profile,
           dealer: dealerId,
@@ -264,7 +278,9 @@ export const saveLenderProfile = async (
           .map((r) => r.id)
           .filter(Boolean);
         if (duplicateIds.length > 0) {
-          console.log(`[API] Deleting ${duplicateIds.length} duplicate lender records`);
+          if (import.meta.env.DEV) {
+            console.log(`[API] Deleting ${duplicateIds.length} duplicate lender records`);
+          }
           await Promise.allSettled(
             duplicateIds.map((dupId) =>
               collections.lenderProfiles.delete(dupId).catch((delErr) => {
@@ -279,7 +295,9 @@ export const saveLenderProfile = async (
     }
 
     // Create new lender profile
-    console.log(`[API] Creating new lender profile: ${profile.name}`);
+    if (import.meta.env.DEV) {
+      console.log(`[API] Creating new lender profile: ${profile.name}`);
+    }
     const record = await collections.lenderProfiles.create({
       ...profile,
       dealer: dealerId,
@@ -333,7 +351,9 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
       sort: "name,-updated", // Group by name, newest first within each group
     });
 
-    console.log("[API] cleanupDuplicateLenders - found", allRecords.length, "total records");
+    if (import.meta.env.DEV) {
+      console.log("[API] cleanupDuplicateLenders - found", allRecords.length, "total records");
+    }
 
     // Group by normalized lender name (lowercase, trimmed)
     const lenderMap = new Map<string, typeof allRecords>();
@@ -351,7 +371,9 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
     const allDuplicateIds: string[] = [];
     for (const [name, records] of lenderMap.entries()) {
       if (records.length > 1) {
-        console.log(`[API] Found ${records.length} duplicates for "${name}" - keeping newest`);
+        if (import.meta.env.DEV) {
+          console.log(`[API] Found ${records.length} duplicates for "${name}" - keeping newest`);
+        }
         // Skip the first (most recent), collect the rest for deletion
         const duplicateIds = records
           .slice(1)
@@ -363,7 +385,9 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
 
     // Delete all duplicates in parallel
     if (allDuplicateIds.length > 0) {
-      console.log(`[API] Deleting ${allDuplicateIds.length} total duplicates in parallel`);
+      if (import.meta.env.DEV) {
+        console.log(`[API] Deleting ${allDuplicateIds.length} total duplicates in parallel`);
+      }
       const deleteResults = await Promise.allSettled(
         allDuplicateIds.map((dupId) =>
           collections.lenderProfiles.delete(dupId).catch((err) => {
@@ -375,12 +399,16 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
 
       // Count successful deletions
       deletedCount = deleteResults.filter((result) => result.status === "fulfilled").length;
-      console.log(
-        `[API] Successfully deleted ${deletedCount} of ${allDuplicateIds.length} duplicates`
-      );
+      if (import.meta.env.DEV) {
+        console.log(
+          `[API] Successfully deleted ${deletedCount} of ${allDuplicateIds.length} duplicates`
+        );
+      }
     }
 
-    console.log("[API] cleanupDuplicateLenders - removed", deletedCount, "duplicates");
+    if (import.meta.env.DEV) {
+      console.log("[API] cleanupDuplicateLenders - removed", deletedCount, "duplicates");
+    }
     return deletedCount;
   } catch (error) {
     console.error("Failed to cleanup duplicate lenders:", error);
@@ -622,7 +650,7 @@ export const updateDealer = async (id: string, data: Partial<Dealer>): Promise<D
   if (user?.role !== "superadmin") return null;
 
   try {
-    const record = await collections.dealers.update(id, data);
+    const record = await collections.dealers.update(sanitizeId(id), data);
     return asType<Dealer>(record);
   } catch (error) {
     console.error("Failed to update dealer:", error);
@@ -635,7 +663,7 @@ export const deleteDealer = async (id: string): Promise<boolean> => {
   if (user?.role !== "superadmin") return false;
 
   try {
-    await collections.dealers.delete(id);
+    await collections.dealers.delete(sanitizeId(id));
     return true;
   } catch (error) {
     console.error("Failed to delete dealer:", error);
@@ -664,12 +692,16 @@ export const createUser = async (data: {
   }
 
   try {
-    console.log("[createUser] Creating user with data:", {
-      ...data,
-      password: "[REDACTED]",
-    });
+    if (import.meta.env.DEV) {
+      console.log("[createUser] Creating user with data:", {
+        ...data,
+        password: "[REDACTED]",
+      });
+    }
     const record = await pb.collection("users").create(data);
-    console.log("[createUser] Successfully created user:", record.id);
+    if (import.meta.env.DEV) {
+      console.log("[createUser] Successfully created user:", record.id);
+    }
     return asType<User>(record);
   } catch (error: any) {
     console.error("[createUser] Failed to create user:", error);
@@ -680,49 +712,33 @@ export const createUser = async (data: {
 
 export const getAllUsers = async (): Promise<User[]> => {
   const user = getCurrentUser();
-  console.log("[getAllUsers] Current user:", user);
-  console.log("[getAllUsers] User role:", user?.role);
-  console.log("[getAllUsers] Role type:", typeof user?.role);
-  console.log("[getAllUsers] Role exact check:", user?.role === "superadmin");
+  if (import.meta.env.DEV) {
+    console.log("[getAllUsers] Current user:", user?.email, "role:", user?.role);
+  }
 
   if (user?.role !== "superadmin") {
-    console.warn(
-      "[getAllUsers] Access denied - user role is not superadmin. Role value:",
-      JSON.stringify(user?.role)
-    );
+    if (import.meta.env.DEV) {
+      console.warn("[getAllUsers] Access denied - not superadmin");
+    }
     return [];
   }
 
   try {
-    console.log("[getAllUsers] Attempting to fetch users from PocketBase...");
     const records = await pb.collection("users").getFullList({
       sort: "firstName",
       expand: "dealer",
     });
-    console.log("[getAllUsers] SUCCESS! Fetched", records.length, "users");
-    console.log(
-      "[getAllUsers] User records:",
-      records.map((r) => ({
-        id: r.id,
-        email: r.email,
-        firstName: r.firstName,
-        role: r.role,
-      }))
-    );
+    if (import.meta.env.DEV) {
+      console.log("[getAllUsers] Fetched", records.length, "users");
+    }
     return asTypeArray<User>(records);
   } catch (error: any) {
-    console.error("[getAllUsers] FAILED to fetch users!");
-    console.error("[getAllUsers] Error name:", error?.name);
-    console.error("[getAllUsers] Error message:", error?.message);
-    console.error("[getAllUsers] Error status:", error?.status);
-    console.error("[getAllUsers] Full error:", error);
+    console.error("[getAllUsers] Failed to fetch users:", error?.message || error);
 
-    // Check if it's a permission error
-    if (error?.status === 403 || error?.status === 401) {
+    if (import.meta.env.DEV && (error?.status === 403 || error?.status === 401)) {
       console.error(
-        "[getAllUsers] This is a PERMISSION error - check PocketBase API Rules for 'users' collection"
+        "[getAllUsers] Permission error - check PocketBase API Rules for 'users' collection"
       );
-      console.error("[getAllUsers] The 'List' rule needs to allow superadmins to see all users");
     }
 
     return [];
@@ -734,7 +750,7 @@ export const updateUserRole = async (id: string, role: User["role"]): Promise<Us
   if (user?.role !== "superadmin") return null;
 
   try {
-    const record = await pb.collection("users").update(id, { role });
+    const record = await pb.collection("users").update(sanitizeId(id), { role });
     return asType<User>(record);
   } catch (error) {
     console.error("Failed to update user role:", error);
@@ -750,7 +766,7 @@ export const updateUser = async (
   if (user?.role !== "superadmin") return null;
 
   try {
-    const record = await pb.collection("users").update(id, data);
+    const record = await pb.collection("users").update(sanitizeId(id), data);
     return asType<User>(record);
   } catch (error) {
     console.error("Failed to update user:", error);
@@ -763,7 +779,7 @@ export const deleteUser = async (id: string): Promise<boolean> => {
   if (user?.role !== "superadmin") return false;
 
   try {
-    await pb.collection("users").delete(id);
+    await pb.collection("users").delete(sanitizeId(id));
     return true;
   } catch (error) {
     console.error("Failed to delete user:", error);

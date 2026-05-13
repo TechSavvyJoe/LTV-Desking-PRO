@@ -328,8 +328,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     "Seed database with default inventory and lenders?"
                   )
                 ) {
-                  const { seedDatabase } = await import("../lib/seeder");
-                  await seedDatabase();
+                  try {
+                    const { seedDatabase } = await import("../lib/seeder");
+                    await seedDatabase();
+                    const { toast } = await import("../lib/toast");
+                    toast.success("Database seeded! Reloading application...");
+                    setTimeout(() => window.location.reload(), 1500);
+                  } catch (e) {
+                    console.error(e);
+                  }
                 }
               }}
             >

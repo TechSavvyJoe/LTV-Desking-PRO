@@ -228,7 +228,7 @@ const Header: React.FC<HeaderProps> = ({
             onClick={() => setIsShowroomMode(!isShowroomMode)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
               isShowroomMode
-                ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                ? "bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-400"
                 : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700"
             }`}
             title="Toggle Showroom Mode (Hides Profit/Cost)"

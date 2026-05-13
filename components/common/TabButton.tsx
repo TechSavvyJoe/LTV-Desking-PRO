@@ -32,10 +32,11 @@ export const TabButton: React.FC<TabButtonProps> = ({
     >
       {/* Active indicator bar with smooth slide animation */}
       <span
-        className={`
-            : "text-slate-400 dark:text-slate-500"
-        }
-      `}
+        className={`flex items-center justify-center transition-colors ${
+          active
+            ? "text-blue-600 dark:text-blue-400"
+            : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+        }`}
       >
         {icon}
       </span>
@@ -65,7 +66,7 @@ export const TabButton: React.FC<TabButtonProps> = ({
       {/* Active indicator underline */}
       {active && (
         <span
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
+          className="absolute bottom-0 left-4 right-4 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-full shadow-[0_-2px_10px_rgba(59,130,246,0.5)]"
           aria-hidden="true"
         />
       )}

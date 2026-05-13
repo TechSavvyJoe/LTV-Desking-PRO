@@ -33,11 +33,12 @@ const renderComponentAsPdfBlob = async (
   const root = ReactDOM.createRoot(container);
 
   try {
-    // Render the component and wait for the next paint cycle to ensure it's in the DOM.
+    // Render the component and wait for it to be fully painted in the DOM.
     await new Promise<void>((resolve) => {
       root.render(component);
-      // Using requestAnimationFrame is more reliable than a fixed timeout
-      requestAnimationFrame(() => resolve());
+      // Use setTimeout to wait for the next event loop tick + paint
+      // requestAnimationFrame fires before paint, so it's unreliable here
+      setTimeout(() => resolve(), 50);
     });
 
     // A small extra delay can help with complex layouts or web fonts.
@@ -84,11 +85,6 @@ const renderComponentAsPdfBlob = async (
     return pdf.output("blob");
   } catch (error) {
     console.error("PDF Generation Error:", error);
-    // Clean up even on error
-    try {
-      root.unmount();
-      document.body.removeChild(container);
-    } catch {}
     throw new Error(
       "Failed to create the PDF. Please check the console for details."
     );

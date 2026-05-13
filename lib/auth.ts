@@ -1,5 +1,6 @@
 import { pb, User, Dealer, clearSuperadminDealerOverride } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
+import { escapeFilterString } from "./typeGuards";
 
 // Helper for type-safe casting
 const asType = <T>(record: RecordModel | null | undefined): T | null =>
@@ -48,7 +49,7 @@ export const register = async (
   try {
     // First, find the dealer by code
     const dealers = await pb.collection("dealers").getList(1, 1, {
-      filter: `code = "${dealerCode}"`,
+      filter: `code = "${escapeFilterString(dealerCode)}"`,
     });
 
     if (dealers.items.length === 0) {
@@ -91,6 +92,8 @@ export const logout = (): void => {
   clearSuperadminDealerOverride(); // Clear any superadmin dealer override
   sessionStorage.removeItem('superadmin_view_mode'); // Clear view mode
   pb.authStore.clear();
+  // Reload to clear all cached data (inventory, deals, lender profiles) from the previous session
+  window.location.reload();
 };
 
 /**

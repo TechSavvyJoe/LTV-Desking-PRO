@@ -745,8 +745,15 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                 >
                   <td className="p-3 font-medium text-white">{profile.name}</td>
                   <td className="p-3">{getRange(profile.tiers, "minFico")}</td>
-                  <td className="p-3 text-green-400 font-medium">
-                    {getRange(profile.tiers, "maxLtv")}%
+                  <td className="p-3">
+                    {(() => {
+                      const range = getRange(profile.tiers, "maxLtv");
+                      return range === "N/A" ? (
+                        <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">--</span>
+                      ) : (
+                        <span className="text-green-600 dark:text-green-400 font-medium">{range}%</span>
+                      );
+                    })()}
                   </td>
                   <td className="p-3">{getRange(profile.tiers, "minYear")}</td>
                   <td className="p-3">
@@ -782,27 +789,29 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                     </span>
                   </td>
                   <td className="p-3">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                    <div className="flex gap-1 justify-end">
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEdit(profile);
                         }}
+                        className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                        title="Edit Profile"
+                        aria-label="Edit Profile"
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
+                        <Icons.PencilIcon className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDelete(profile.id);
                         }}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                        title="Delete Profile"
+                        aria-label="Delete Profile"
                       >
-                        Delete
-                      </Button>
+                        <Icons.TrashIcon className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>

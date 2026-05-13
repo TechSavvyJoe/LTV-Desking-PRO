@@ -946,12 +946,6 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
 ].map((v, i) => ({
   ...v,
   stock: `STK${1000 + i}`,
-  vin: `${Math.random()
-    .toString(36)
-    .substring(2, 11)
-    .toUpperCase()}${Math.random()
-    .toString(36)
-    .substring(2, 10)
-    .toUpperCase()}`,
+  vin: `SAMPLE${String(i + 1).padStart(2, '0')}AAAA${String(1000 + i)}`,
   baseOutTheDoorPrice: "N/A",
 }));

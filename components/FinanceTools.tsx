@@ -91,14 +91,14 @@ const InputGroup: React.FC<{
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-3 py-2 text-sm bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-sm"
+    className="w-full px-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
   />
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
     {...props}
-    className="w-full px-3 py-2 text-sm bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-sm"
+    className="w-full px-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
   />
 );
 

@@ -1,4 +1,5 @@
 import PocketBase from "pocketbase";
+import type { LenderTier } from "../types";
 
 // PocketBase client singleton
 const POCKETBASE_URL =
@@ -140,7 +141,7 @@ export interface LenderProfile {
   dealer: string;
   name: string;
   active: boolean;
-  tiers: any[]; // Allow complex tier objects from app
+  tiers: LenderTier[];
   bookValueSource?: "Trade" | "Retail";
   minIncome?: number;
   maxPti?: number;
@@ -198,14 +199,16 @@ export interface DealerSettings {
 // Helper to get current user
 export const getCurrentUser = (): User | null => {
   const model = pb.authStore.model as User | null;
-  console.log(
-    "[PocketBase] getCurrentUser:",
-    model?.email,
-    "dealer:",
-    model?.dealer,
-    "role:",
-    model?.role
-  );
+  if (import.meta.env.DEV) {
+    console.log(
+      "[PocketBase] getCurrentUser:",
+      model?.email,
+      "dealer:",
+      model?.dealer,
+      "role:",
+      model?.role
+    );
+  }
   return model;
 };
 
@@ -216,12 +219,16 @@ export const getCurrentDealerId = (): string | null => {
   // If user is superadmin, check for override from sessionStorage
   const override = getSuperadminDealerOverride();
   if (user?.role === "superadmin" && override) {
-    console.log("[PocketBase] Using superadmin override dealer:", override);
+    if (import.meta.env.DEV) {
+      console.log("[PocketBase] Using superadmin override dealer:", override);
+    }
     return override;
   }
 
   const dealerId = user?.dealer || null;
-  console.log("[PocketBase] getCurrentDealerId returning:", dealerId);
+  if (import.meta.env.DEV) {
+    console.log("[PocketBase] getCurrentDealerId returning:", dealerId);
+  }
   return dealerId;
 };
 

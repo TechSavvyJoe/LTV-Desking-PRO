@@ -23,12 +23,16 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
 
     setLoading(true);
     try {
-      await login(email, password);
-      toast.success("Welcome back!");
-      onSuccess();
+      const result = await login(email, password);
+      if (result.success) {
+        toast.success("Welcome back!");
+        onSuccess();
+      } else {
+        toast.error(result.error || "Invalid email or password");
+      }
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Invalid email or password");
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }

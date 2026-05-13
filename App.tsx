@@ -40,6 +40,7 @@ import BackgroundUploadIndicator from "./components/BackgroundUploadIndicator";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
 import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
+import { toast } from "./lib/toast";
 
 const MainLayout: React.FC = () => {
   const {
@@ -98,6 +99,20 @@ const MainLayout: React.FC = () => {
   } = useDealContext();
 
   const { theme, toggleTheme } = useTheme();
+
+  // Bridge the message state to the global toast system
+  useEffect(() => {
+    if (message) {
+      if (message.type === "success") {
+        toast.success(message.text);
+      } else {
+        toast.error(message.text);
+      }
+      // Clear after dispatching so the same message can be set again
+      setMessage(null);
+    }
+  }, [message, setMessage]);
+
   const [activeTab, setActiveTab] = useState<
     "inventory" | "lenders" | "saved" | "scratchpad"
   >("inventory");
@@ -385,8 +400,8 @@ const MainLayout: React.FC = () => {
       customerName,
       salespersonName,
       vehicle: vehicleToSave.id, // Assuming calculated vehicle has ID matching inventory
-      vehicleData: vehicleToSave, // Store snapshot
-      dealData: { ...dealData },
+      vehicleData: vehicleToSave as unknown as Record<string, unknown>, // Serialized to JSON in PocketBase
+      dealData: { ...dealData } as unknown as Record<string, unknown>,
       customerFilters: {
         creditScore: filters.creditScore,
         monthlyIncome: filters.monthlyIncome,
@@ -500,7 +515,7 @@ const MainLayout: React.FC = () => {
       const blob = await generateFavoritesPdf(pdfData, settings);
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
       setMessage({ type: "success", text: "Favorites PDF generated." });
     } catch (err) {
       console.error("PDF generation failed", err);
@@ -596,8 +611,10 @@ const MainLayout: React.FC = () => {
                 variant="secondary"
                 className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700"
               >
-                <Icons.CloudArrowDownIcon className="w-4 h-4 mr-2" />
-                Import
+                <div className="flex flex-col items-start leading-tight text-left">
+                  <span className="flex items-center"><Icons.CloudArrowDownIcon className="w-4 h-4 mr-2" />Import</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">CSV / Excel</span>
+                </div>
               </Button>
 
               <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
@@ -613,6 +630,7 @@ const MainLayout: React.FC = () => {
 
               <Button
                 title="Download Sample CSV"
+                aria-label="Download Sample CSV"
                 variant="ghost"
                 size="icon"
                 className="text-slate-400 hover:text-blue-500"

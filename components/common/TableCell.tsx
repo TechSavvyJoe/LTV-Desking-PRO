@@ -88,7 +88,7 @@ export const LtvCell: React.FC<LtvCellProps> = ({ value }) => {
   };
 
   if (typeof value !== "number") {
-    return <span className="text-red-500 font-semibold">{value}</span>;
+    return <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">--</span>;
   }
   let colorClass = "text-green-400";
   if (value >= critical) colorClass = "text-red-500";
@@ -113,7 +113,7 @@ export const OtdLtvCell: React.FC<LtvCellProps> = ({ value }) => {
   };
 
   if (typeof value !== "number") {
-    return <span className="text-red-500 font-semibold">{value}</span>;
+    return <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">--</span>;
   }
   let colorClass = "text-green-500";
   if (value >= critical) colorClass = "text-red-500";
@@ -133,7 +133,11 @@ interface GrossCellProps {
   value: number | "Error" | "N/A";
 }
 export const GrossCell: React.FC<GrossCellProps> = ({ value }) => {
-  const isNegative = typeof value === "number" && value < 0;
+  if (typeof value !== "number") {
+    return <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">--</span>;
+  }
+
+  const isNegative = value < 0;
   const colorClass = isNegative
     ? "text-red-400 bg-red-900/30"
     : "text-green-400 bg-green-900/30";

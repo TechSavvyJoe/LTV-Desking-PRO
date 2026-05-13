@@ -198,14 +198,20 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Effects
   // Load initial data from PocketBase
   useEffect(() => {
-    console.log("[DealContext] useEffect running, isAuthenticated:", isAuthenticated());
+    if (import.meta.env.DEV) {
+      console.log("[DealContext] useEffect running, isAuthenticated:", isAuthenticated());
+    }
     if (!isAuthenticated()) {
-      console.log("[DealContext] Not authenticated, skipping data load");
+      if (import.meta.env.DEV) {
+        console.log("[DealContext] Not authenticated, skipping data load");
+      }
       return;
     }
 
     const loadData = async () => {
-      console.log("[DealContext] loadData starting...");
+      if (import.meta.env.DEV) {
+        console.log("[DealContext] loadData starting...");
+      }
       try {
         const [inv, lenders, deals, dealerSettings] = await Promise.all([
           getInventory(), // Returns InventoryItem[]
@@ -214,12 +220,14 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
           getDealerSettings(),
         ]);
 
-        console.log("[DealContext] Data loaded:", {
-          inventory: inv.length,
-          lenders: lenders.length,
-          deals: deals.length,
-          settings: !!dealerSettings,
-        });
+        if (import.meta.env.DEV) {
+          console.log("[DealContext] Data loaded:", {
+            inventory: inv.length,
+            lenders: lenders.length,
+            deals: deals.length,
+            settings: !!dealerSettings,
+          });
+        }
 
         // Map InventoryItem -> Vehicle
         const mappedInventory: Vehicle[] = inv.map((i) => ({
@@ -242,7 +250,9 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Map LenderProfile (PB) -> LenderProfile (App)
         // Always set lender profiles (even if empty, to clear stale data)
-        console.log("[DealContext] Setting lender profiles:", lenders.length);
+        if (import.meta.env.DEV) {
+          console.log("[DealContext] Setting lender profiles:", lenders.length);
+        }
         setLenderProfiles(lenders as unknown as import("../types").LenderProfile[]);
 
         // Map SavedDeal (PB) -> SavedDeal (App)
@@ -320,7 +330,9 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for dealer override changes (superadmin switching dealers)
     const handleDealerChange = () => {
-      console.log("[DealContext] Dealer override changed, reloading data...");
+      if (import.meta.env.DEV) {
+        console.log("[DealContext] Dealer override changed, reloading data...");
+      }
       loadData();
     };
     window.addEventListener("dealerOverrideChanged", handleDealerChange);
@@ -412,8 +424,9 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!inventorySort.key) return filteredInventory;
     const sorted = [...filteredInventory];
     sorted.sort((a, b) => {
-      const valA = a[inventorySort.key!];
-      const valB = b[inventorySort.key!];
+      const sortKey = inventorySort.key as keyof CalculatedVehicle;
+      const valA = a[sortKey];
+      const valB = b[sortKey];
 
       const isAInvalid = valA === null || valA === "Error" || valA === "N/A" || valA === undefined;
       const isBInvalid = valB === null || valB === "Error" || valB === "N/A" || valB === undefined;

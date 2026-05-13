@@ -29,6 +29,11 @@ const PERPLEXITY_MODEL = "sonar-pro"; // Best reasoning + real-time internet sea
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000; // 1 second base delay
 
+// DEV-only logging to keep production console clean
+const devLog = (...args: unknown[]) => {
+  if (import.meta.env.DEV) console.log(...args);
+};
+
 /**
  * Retry a function with exponential backoff
  * Delays: 1s, 2s, 4s for retries 1, 2, 3
@@ -519,7 +524,7 @@ const searchWithPerplexity = async (
   lenderName: string,
   existingData: Partial<LenderProfile>
 ): Promise<Partial<LenderProfile> | null> => {
-  console.log(`[Perplexity Sonar] Searching for: ${lenderName}`);
+  devLog(`[Perplexity Sonar] Searching for: ${lenderName}`);
 
   const systemPrompt = `You are an expert automotive finance researcher specializing in indirect auto lending programs. Your job is to find accurate, current lending program details for auto lenders.
 
@@ -650,9 +655,9 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
       return null;
     }
 
-    console.log(`[Perplexity Sonar] Got response with ${data.citations?.length || 0} citations`);
+    devLog(`[Perplexity Sonar] Got response with ${data.citations?.length || 0} citations`);
     if (data.citations && data.citations.length > 0) {
-      console.log("[Perplexity Sonar] Sources:", data.citations.slice(0, 3));
+      devLog("[Perplexity Sonar] Sources:", data.citations.slice(0, 3));
     }
 
     // Extract JSON from the response (it might be wrapped in markdown)
@@ -670,13 +675,13 @@ Return ONLY a valid JSON object with the lender data - no explanatory text.`;
 
     try {
       const parsed = JSON.parse(jsonStr);
-      console.log(
+      devLog(
         `[Perplexity Sonar] Successfully parsed lender data for: ${parsed.name || lenderName}`
       );
       return parsed;
     } catch (parseError) {
       console.error("[Perplexity Sonar] Failed to parse JSON:", parseError);
-      console.log("[Perplexity Sonar] Raw content:", content.substring(0, 500));
+      devLog("[Perplexity Sonar] Raw content:", content.substring(0, 500));
       return null;
     }
   } catch (error) {
@@ -1276,8 +1281,8 @@ export const processLenderSheet = async (
       currentFile: file.name,
     });
 
-    console.log(`[AI Lender Upload] Starting extraction with model: ${PRIMARY_MODEL}`);
-    console.log(`[AI Lender Upload] File: ${file.name}, Size: ${(file.size / 1024).toFixed(1)}KB`);
+    devLog(`[AI Lender Upload] Starting extraction with model: ${PRIMARY_MODEL}`);
+    devLog(`[AI Lender Upload] File: ${file.name}, Size: ${(file.size / 1024).toFixed(1)}KB`);
 
     const response = await retryWithBackoff(
       async () =>
@@ -1314,14 +1319,14 @@ export const processLenderSheet = async (
       parsed = JSON.parse(text);
     } catch (e) {
       // Fallback: extract JSON from markdown code blocks or surrounding text
-      console.log("[AI] Direct parse failed, attempting extraction...");
+      devLog("[AI] Direct parse failed, attempting extraction...");
 
       // Try to extract JSON from markdown code blocks
       const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonBlockMatch?.[1]) {
         try {
           parsed = JSON.parse(jsonBlockMatch[1].trim());
-          console.log("[AI] Successfully extracted JSON from code block");
+          devLog("[AI] Successfully extracted JSON from code block");
         } catch (e2) {
           // Continue to next fallback
         }
@@ -1333,7 +1338,7 @@ export const processLenderSheet = async (
         if (jsonMatch?.[0]) {
           try {
             parsed = JSON.parse(jsonMatch[0]);
-            console.log("[AI] Successfully extracted JSON object");
+            devLog("[AI] Successfully extracted JSON object");
           } catch (e3) {
             // Continue to next fallback
           }
@@ -1347,7 +1352,7 @@ export const processLenderSheet = async (
           try {
             const arr = JSON.parse(arrayMatch[0]);
             parsed = { lenders: arr };
-            console.log("[AI] Successfully extracted JSON array as lenders");
+            devLog("[AI] Successfully extracted JSON array as lenders");
           } catch (e4) {
             // All fallbacks failed
           }
@@ -1366,14 +1371,14 @@ export const processLenderSheet = async (
       console.warn("[AI] Response was not a valid lenders array:", parsed);
       // Fallback: if response is a single lender object, wrap it
       if (parsed && parsed.name) {
-        console.log("[AI] Wrapping single lender object in array");
+        devLog("[AI] Wrapping single lender object in array");
         parsed = { lenders: [parsed] };
       } else {
         throw new Error("No valid lender data structure found in the response.");
       }
     }
 
-    console.log(`[AI] Successfully extracted ${parsed.lenders.length} raw lender profiles.`);
+    devLog(`[AI] Successfully extracted ${parsed.lenders.length} raw lender profiles.`);
 
     // Stage 3: Validate and normalize
     onProgress?.({
@@ -1413,7 +1418,7 @@ export const processLenderSheet = async (
         }
 
         const lenderName = lender.name || "Unknown";
-        console.log(`[AI Lender Upload] Enhancing lender: ${lenderName}`);
+        devLog(`[AI Lender Upload] Enhancing lender: ${lenderName}`);
 
         // STEP 1: Try Perplexity Sonar first (faster, dedicated search)
         onProgress?.({
@@ -1429,14 +1434,14 @@ export const processLenderSheet = async (
           enhancedData = await searchWithPerplexity(lenderName, lender);
 
           if (enhancedData && enhancedData.tiers && enhancedData.tiers.length > 0) {
-            console.log(`[AI Lender Upload] Perplexity found data for: ${lenderName}`);
+            devLog(`[AI Lender Upload] Perplexity found data for: ${lenderName}`);
 
             // Merge Perplexity data with original - cast to full LenderProfile since lender comes from normalized list
             const mergedLender = mergeLenderData(lender as LenderProfile, enhancedData);
 
             // Check if we got enough data from Perplexity
             if (!profileNeedsEnhancement(mergedLender)) {
-              console.log(
+              devLog(
                 `[AI Lender Upload] Perplexity provided sufficient data for: ${lenderName}`
               );
               return mergedLender;
@@ -1462,7 +1467,7 @@ export const processLenderSheet = async (
           });
 
           try {
-            console.log(
+            devLog(
               `[AI Lender Upload] Falling back to Google Search grounding for: ${lenderName}`
             );
 
@@ -1487,7 +1492,7 @@ export const processLenderSheet = async (
             if (enhanceText) {
               try {
                 const googleData = JSON.parse(enhanceText);
-                console.log(`[AI Lender Upload] Google found data for: ${lenderName}`);
+                devLog(`[AI Lender Upload] Google found data for: ${lenderName}`);
                 return mergeLenderData(lender as LenderProfile, googleData);
               } catch {
                 console.warn(
@@ -1556,7 +1561,7 @@ export const processLenderSheet = async (
       };
     });
 
-    console.log("Extraction quality summary:", qualitySummary);
+    devLog("Extraction quality summary:", qualitySummary);
 
     onProgress?.({
       stage: "complete",
@@ -1674,7 +1679,7 @@ export const analyzeDealWithAi = async (
     `;
 
   try {
-    console.log(`[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`);
+    devLog(`[AI Deal Assistant] Analyzing deal with model: ${PRIMARY_MODEL}`);
     const response = await retryWithBackoff(
       async () =>
         ai.models.generateContent({

@@ -25,6 +25,11 @@ import {
 import CopyToClipboard from "./common/CopyToClipboard";
 import * as Icons from "./common/Icons";
 
+// Extended CalculatedVehicle with bank matching info for favorites view
+interface FavoritesVehicle extends CalculatedVehicle {
+  bankMatches: string;
+}
+
 const ChevronIcon = ({ className = "" }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -176,7 +181,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       return {
         ...calculated,
         bankMatches: bankMatches.length > 0 ? bankMatches.join(", ") : "None",
-      };
+      } as FavoritesVehicle;
     });
   }, [favorites, dealData, lenderProfiles, customerFilters, settings]);
 
@@ -184,8 +189,9 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
     if (!sortConfig.key) return processedFavorites;
     const sorted = [...processedFavorites];
     sorted.sort((a, b) => {
-      const valA = (a as any)[sortConfig.key!];
-      const valB = (b as any)[sortConfig.key!];
+      const key = sortConfig.key as keyof FavoritesVehicle;
+      const valA = a[key];
+      const valB = b[key];
 
       const isAInvalid = valA === null || valA === "Error" || valA === "N/A";
       const isBInvalid = valB === null || valB === "Error" || valB === "N/A";
@@ -207,7 +213,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
     return sorted;
   }, [processedFavorites, sortConfig]);
 
-  const handleSort = (key: keyof CalculatedVehicle) => {
+  const handleSort = (key: keyof FavoritesVehicle) => {
     setSortConfig((prev) => {
       if (prev.key === key) {
         return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
@@ -672,7 +678,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
         columns={columns}
         data={sortedFavorites}
         sortConfig={sortConfig}
-        onSort={handleSort}
+        onSort={handleSort as (key: keyof FavoritesVehicle) => void}
         emptyMessage="No favorites added yet."
         rowKey="vin"
         expandedRows={expandedRows}
