@@ -452,24 +452,29 @@ const MainLayout: React.FC = () => {
       return;
     }
     try {
-      const pdfData = safeFavorites.map((vehicle) => {
-        // Calculate financials for the favorite vehicle if not already done
-        const calculatedVehicle = calculateFinancials(vehicle, dealData, settings);
+      const pdfData = safeFavorites
+        .map((vehicle) => {
+          const calculatedVehicle = calculateFinancials(vehicle, dealData, settings);
 
-        const lenderEligibility = safeLenderProfiles.map((bank) => ({
-          name: bank.name,
-          ...checkBankEligibility(calculatedVehicle, { ...dealData, ...filters }, bank),
-        }));
+          const lenderEligibility = safeLenderProfiles.map((bank) => ({
+            name: bank.name,
+            ...checkBankEligibility(calculatedVehicle, { ...dealData, ...filters }, bank),
+          }));
 
-        return {
-          vehicle: calculatedVehicle,
-          dealData,
-          customerFilters: filters,
-          customerName,
-          salespersonName,
-          lenderEligibility,
-        };
-      });
+          return {
+            vehicle: calculatedVehicle,
+            dealData,
+            customerFilters: filters,
+            customerName,
+            salespersonName,
+            lenderEligibility,
+          };
+        })
+        .sort((a, b) => {
+          const aOk = a.lenderEligibility.filter((l) => l.eligible).length;
+          const bOk = b.lenderEligibility.filter((l) => l.eligible).length;
+          return bOk - aOk;
+        });
 
       const blob = await generateFavoritesPdf(pdfData, settings);
       const url = URL.createObjectURL(blob);

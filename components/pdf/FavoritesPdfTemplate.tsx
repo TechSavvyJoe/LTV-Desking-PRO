@@ -1,5 +1,5 @@
 import React from "react";
-import type { DealPdfData, Settings } from "../../types";
+import type { DealPdfData, Settings, LenderEligibilityStatus } from "../../types";
 import { formatCurrency, formatNumber, formatPercentage } from "../common/TableCell";
 
 const el = React.createElement;
@@ -16,7 +16,7 @@ const styles = `
         background-color: #fff;
         color: #1f2937;
         -webkit-print-color-adjust: exact;
-        font-size: 8pt;
+        font-size: 9pt;
     }
     .page {
         width: 210mm;
@@ -24,199 +24,580 @@ const styles = `
         padding: 1cm;
         box-sizing: border-box;
         background-color: white;
+        display: flex;
+        flex-direction: column;
         position: relative;
+        page-break-after: always;
     }
+    .page:last-child { page-break-after: auto; }
     .watermark {
         position: absolute;
         inset: 1cm;
         opacity: 0.04;
-        font-size: 70pt;
+        font-size: 72pt;
         font-weight: 800;
         color: #0ea5e9;
-        letter-spacing: 3px;
+        letter-spacing: 4px;
         transform: rotate(-18deg);
         pointer-events: none;
         user-select: none;
     }
     .header {
-        text-align: center;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding-bottom: 0.5cm;
+        border-bottom: 2px solid #374151;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    }
+    .header h1 { font-size: 18pt; font-weight: 700; margin: 0; color: #111827; }
+    .header p { font-size: 9pt; color: #4b5563; margin: 0; text-align: right; }
+    .vehicle-counter {
+        background: #e0f2fe;
+        color: #075985;
+        padding: 4px 10px;
+        border-radius: 99px;
+        font-size: 9pt;
+        font-weight: 600;
+        display: inline-block;
+        margin-top: 4px;
+    }
+    .content { flex-grow: 1; padding: 0.75cm 0; }
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75cm;
         margin-bottom: 0.75cm;
     }
-    .header h1 {
-        font-size: 16pt;
-        font-weight: 700;
-        margin: 0 0 8px 0;
+    .section-title {
+        font-size: 11pt;
+        font-weight: 600;
+        margin: 0 0 0.4cm 0;
+        padding-bottom: 0.2cm;
+        border-bottom: 1px solid #e5e7eb;
+        color: #111827;
     }
-    .header p {
+    .info-list { margin: 0; padding: 0; list-style: none; }
+    .info-list li {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
         font-size: 9pt;
-        color: #4b5563;
-        margin: 0 auto;
-        border-top: 1px solid #e5e7eb;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 8px 0;
-        max-width: 90%;
     }
-    .header strong { color: #374151; }
-    
-    .summary-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 8pt;
+    .info-list .label { color: #6b7280; }
+    .info-list .value { font-weight: 500; color: #1f2937; }
+
+    .financials-table { width: 100%; border-collapse: collapse; }
+    .financials-table td { padding: 5px 0; font-size: 9pt; }
+    .financials-table .label { color: #6b7280; }
+    .financials-table .value { text-align: right; font-weight: 500; }
+    .financials-table .separator-row td { border-top: 1px solid #e5e7eb; padding-top: 8px; }
+    .financials-table .total-row td { font-weight: 700; border-top: 2px solid #4b5563; padding-top: 8px; font-size: 10pt; }
+
+    .payment-summary {
+        margin: 0.5cm 0;
+        padding: 0.4cm;
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 6px 12px rgba(59,130,246,0.18);
     }
-    .summary-table th, .summary-table td {
-        border-bottom: 1px solid #e5e7eb;
-        padding: 8px 4px;
-        text-align: left;
-        vertical-align: middle;
+    .payment-summary .label { font-size: 10pt; color: #1e40af; }
+    .payment-summary .value { font-size: 20pt; font-weight: 700; color: #1e3a8a; }
+
+    .lender-section { margin-top: 0.5cm; }
+    .lender-list {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.4cm;
+    }
+    .lender-item {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #10b981;
+        border-radius: 4px;
+        padding: 0.35cm;
         page-break-inside: avoid;
     }
-    .summary-table th {
+    .lender-item .name { font-weight: 600; font-size: 9pt; margin: 0; }
+    .lender-item .tier { font-size: 7.5pt; color: #6b7280; margin: 2px 0 0 0; }
+    .lender-item.no-match { border-left-color: #ef4444; opacity: 0.7; }
+    .no-lender-banner {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 0.4cm;
+        border-radius: 6px;
+        font-size: 9pt;
+        text-align: center;
+    }
+
+    .footer {
+        margin-top: auto;
+        padding-top: 0.4cm;
+        border-top: 1px solid #e5e7eb;
+        font-size: 8pt;
+        color: #6b7280;
+    }
+
+    /* Cover page */
+    .cover-hero {
+        text-align: center;
+        padding: 1.5cm 0 1cm 0;
+        border-bottom: 2px solid #374151;
+        margin-bottom: 0.75cm;
+    }
+    .cover-hero img { width: 56px; margin-bottom: 8px; }
+    .cover-hero h1 { font-size: 22pt; font-weight: 700; margin: 0; color: #111827; }
+    .cover-hero p { font-size: 10pt; color: #4b5563; margin: 6px 0 0 0; }
+    .customer-card {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.4cm 0.75cm;
+        padding: 0.5cm;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 0.5cm;
+    }
+    .customer-card .field .label { font-size: 7.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+    .customer-card .field .value { font-size: 10pt; font-weight: 600; color: #111827; }
+
+    .overview-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    .overview-table th, .overview-table td {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 8px 6px;
+        text-align: left;
+        vertical-align: middle;
+    }
+    .overview-table th {
         background-color: #f9fafb;
         font-weight: 600;
         color: #4b5563;
-        font-size: 7pt;
+        font-size: 7.5pt;
         text-transform: uppercase;
     }
-    .summary-table .vehicle-name {
-        font-weight: 600;
-        font-size: 9pt;
-        color: #111827;
-    }
-    .summary-table .vehicle-details {
-        font-size: 7.5pt;
-        color: #6b7280;
-    }
-    .summary-table .lender-list {
-        margin: 0;
-        padding: 0;
-        list-style: none;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-    }
-    .summary-table .lender-list li {
-        background-color: #e0e7ff;
-        color: #3730a3;
-        padding: 2px 6px;
+    .overview-table .text-right { text-align: right; }
+    .overview-table .vehicle-name { font-weight: 600; color: #111827; font-size: 9pt; }
+    .overview-table .vehicle-sub { font-size: 7.5pt; color: #6b7280; }
+    .overview-table .strong { font-weight: 700; color: #1e3a8a; }
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
         border-radius: 99px;
-        font-size: 7pt;
-        font-weight: 500;
+        font-size: 7.5pt;
+        font-weight: 600;
     }
-    .text-right { text-align: right; }
-    .strong { font-weight: 600; color: #1e3a8a; }
+    .badge-eligible { background: #dcfce7; color: #166534; }
+    .badge-noeligible { background: #fee2e2; color: #991b1b; }
 `;
 
-export const FavoritesPdfTemplate: React.FC<{ deals: DealPdfData[]; settings: Settings }> = ({
-  deals,
-}) => {
-  // Defensive check for deals array
-  const safeDeals = Array.isArray(deals) ? deals : [];
-  const mainDealInfo = safeDeals[0];
+const InfoListItem = (label: string, value: React.ReactNode) =>
+  el(
+    "li",
+    null,
+    el("span", { className: "label" }, label),
+    el("span", { className: "value" }, value)
+  );
+
+const FinancialsRow = (label: string, value: string, isTotal = false, isSeparator = false) => {
+  let className = "";
+  if (isTotal) className = "total-row";
+  else if (isSeparator) className = "separator-row";
+  return el(
+    "tr",
+    { className },
+    el("td", { className: "label" }, label),
+    el("td", { className: "value" }, value)
+  );
+};
+
+const countEligible = (eligibility: LenderEligibilityStatus[] | undefined) =>
+  Array.isArray(eligibility) ? eligibility.filter((l) => l && l.eligible).length : 0;
+
+const CoverPage: React.FC<{
+  deals: DealPdfData[];
+  customerName: string;
+  salespersonName: string;
+  creditScore: number | null;
+  loanTerm: number;
+  apr: number;
+  downPayment: number;
+}> = ({ deals, customerName, salespersonName, creditScore, loanTerm, apr, downPayment }) => {
+  const eligibleCount = deals.filter((d) => countEligible(d.lenderEligibility) > 0).length;
 
   return el(
     "div",
     { className: "page" },
-    el("style", null, styles),
     el("div", { className: "watermark" }, "OSHIP"),
     el(
-      "header",
-      { className: "header" },
-      el("img", {
-        src: `data:image/svg+xml,${logoSvg}`,
-        alt: "OSHIP",
-        style: { width: "32px", marginBottom: "6px" },
-      }),
-      el("h1", null, "OSHIP Vehicle Comparison Report"),
-      mainDealInfo &&
-        el(
-          "p",
-          null,
-          `Customer: `,
-          el("strong", null, mainDealInfo.customerName || "N/A"),
-          ` | `,
-          `Salesperson: `,
-          el("strong", null, mainDealInfo.salespersonName || "N/A"),
-          ` | `,
-          `Credit Score: `,
-          el(
-            "strong",
-            null,
-            (mainDealInfo.customerFilters && mainDealInfo.customerFilters.creditScore) || "N/A"
-          ),
-          ` | `,
-          `Down Payment: `,
-          el("strong", null, formatCurrency(mainDealInfo.dealData?.downPayment || 0)),
-          ` | `,
-          `Term: `,
-          el("strong", null, `${mainDealInfo.dealData?.loanTerm || 0}mo`),
-          ` @ `,
-          el("strong", null, `${mainDealInfo.dealData?.interestRate || 0}% APR`)
-        )
+      "div",
+      { className: "cover-hero" },
+      el("img", { src: `data:image/svg+xml,${logoSvg}`, alt: "OSHIP" }),
+      el("h1", null, "Vehicle Deal Comparison"),
+      el(
+        "p",
+        null,
+        `${deals.length} favorited vehicle${deals.length === 1 ? "" : "s"} · ${eligibleCount} with eligible lender${eligibleCount === 1 ? "" : "s"}`
+      ),
+      el(
+        "p",
+        { style: { fontSize: "8.5pt", color: "#9ca3af", marginTop: "2px" } },
+        `Generated ${new Date().toLocaleDateString()}`
+      )
     ),
     el(
+      "div",
+      { className: "customer-card" },
+      el(
+        "div",
+        { className: "field" },
+        el("div", { className: "label" }, "Customer"),
+        el("div", { className: "value" }, customerName || "—")
+      ),
+      el(
+        "div",
+        { className: "field" },
+        el("div", { className: "label" }, "Salesperson"),
+        el("div", { className: "value" }, salespersonName || "—")
+      ),
+      el(
+        "div",
+        { className: "field" },
+        el("div", { className: "label" }, "Credit Score"),
+        el("div", { className: "value" }, creditScore ?? "—")
+      ),
+      el(
+        "div",
+        { className: "field" },
+        el("div", { className: "label" }, "Down Payment"),
+        el("div", { className: "value" }, formatCurrency(downPayment))
+      ),
+      el(
+        "div",
+        { className: "field" },
+        el("div", { className: "label" }, "Loan Term"),
+        el("div", { className: "value" }, `${loanTerm} mo`)
+      ),
+      el(
+        "div",
+        { className: "field" },
+        el("div", { className: "label" }, "APR"),
+        el("div", { className: "value" }, `${apr.toFixed(2)}%`)
+      )
+    ),
+    el("h2", { className: "section-title" }, "Vehicles in this Report"),
+    el(
       "table",
-      { className: "summary-table" },
+      { className: "overview-table" },
       el(
         "thead",
         null,
         el(
           "tr",
           null,
-          el("th", { style: { width: "28%" } }, "Vehicle"),
+          el("th", { style: { width: "5%" } }, "#"),
+          el("th", { style: { width: "30%" } }, "Vehicle"),
           el("th", { className: "text-right" }, "Price"),
-          el("th", { className: "text-right" }, "Amt. to Fin."),
           el("th", { className: "text-right" }, "Payment"),
           el("th", { className: "text-right" }, "OTD LTV"),
-          el("th", { style: { width: "25%" } }, "Eligible Lenders")
+          el("th", { className: "text-right" }, "Lenders"),
+          el("th", null, "Status")
         )
       ),
       el(
         "tbody",
         null,
-        ...safeDeals.map((deal) => {
-          // Extra defensive checks for nested objects
-          const eligibility = Array.isArray(deal?.lenderEligibility) ? deal.lenderEligibility : [];
-          const eligibleBanks = eligibility.filter((l) => l && l.eligible);
-
+        ...deals.map((deal, idx) => {
+          const eligible = countEligible(deal.lenderEligibility);
           return el(
             "tr",
-            { key: deal.vehicle?.vin || Math.random().toString() },
+            { key: deal.vehicle?.vin || idx },
+            el("td", null, String(idx + 1)),
             el(
               "td",
               null,
               el("div", { className: "vehicle-name" }, deal.vehicle?.vehicle || "Unknown Vehicle"),
               el(
                 "div",
-                { className: "vehicle-details" },
-                `Stock: ${deal.vehicle?.stock || "N/A"} | Miles: ${formatNumber(deal.vehicle?.mileage || 0)}`
+                { className: "vehicle-sub" },
+                `Stock ${deal.vehicle?.stock || "—"} · ${formatNumber(deal.vehicle?.mileage || 0)} mi`
               )
             ),
             el("td", { className: "text-right" }, formatCurrency(deal.vehicle?.price)),
             el(
               "td",
               { className: "text-right strong" },
-              formatCurrency(deal.vehicle?.amountToFinance)
-            ),
-            el(
-              "td",
-              { className: "text-right strong" },
               formatCurrency(deal.vehicle?.monthlyPayment)
             ),
-            el("td", { className: "text-right strong" }, formatPercentage(deal.vehicle?.otdLtv)),
+            el("td", { className: "text-right" }, formatPercentage(deal.vehicle?.otdLtv)),
+            el("td", { className: "text-right" }, `${eligible}`),
             el(
               "td",
               null,
               el(
-                "ul",
-                { className: "lender-list" },
-                eligibleBanks.length > 0
-                  ? eligibleBanks.map((lender) => el("li", { key: lender.name }, lender.name))
-                  : el("li", { style: { background: "none", color: "#9ca3af" } }, "None")
+                "span",
+                {
+                  className: `badge ${eligible > 0 ? "badge-eligible" : "badge-noeligible"}`,
+                },
+                eligible > 0 ? "Eligible" : "No match"
               )
             )
           );
         })
       )
+    ),
+    el(
+      "div",
+      { className: "footer" },
+      el(
+        "p",
+        null,
+        "Each vehicle's full deal details follow on the next pages. All figures are estimates and subject to lender approval."
+      )
+    )
+  );
+};
+
+const VehiclePage: React.FC<{
+  data: DealPdfData;
+  settings: Settings;
+  index: number;
+  total: number;
+}> = ({ data, settings, index, total }) => {
+  const { vehicle, dealData, customerFilters, customerName, salespersonName, lenderEligibility } =
+    data;
+  const netTradeIn = dealData.tradeInValue - dealData.tradeInPayoff;
+  const totalDown = dealData.downPayment + netTradeIn;
+  const safeEligibility = Array.isArray(lenderEligibility) ? lenderEligibility : [];
+  const eligibleLenders = safeEligibility.filter((l) => l && l.eligible);
+
+  return el(
+    "div",
+    { className: "page" },
+    el("div", { className: "watermark" }, "OSHIP"),
+    el(
+      "header",
+      { className: "header" },
+      el(
+        "div",
+        { className: "brand" },
+        el("img", {
+          src: `data:image/svg+xml,${logoSvg}`,
+          alt: "OSHIP",
+          style: { width: "34px", height: "34px" },
+        }),
+        el(
+          "div",
+          null,
+          el("h1", null, vehicle?.vehicle || "Vehicle"),
+          el(
+            "div",
+            { className: "vehicle-counter" },
+            `Vehicle ${index + 1} of ${total} · ${customerName || "Customer"}`
+          )
+        )
+      ),
+      el(
+        "div",
+        { style: { textAlign: "right" } },
+        el("p", null, `Date: ${new Date().toLocaleDateString()}`),
+        dealData?.notes && el("p", { style: { marginTop: "4px" } }, `Notes: ${dealData.notes}`)
+      )
+    ),
+    el(
+      "div",
+      { className: "content" },
+      el(
+        "div",
+        { className: "grid" },
+        el(
+          "div",
+          null,
+          el("h2", { className: "section-title" }, "Vehicle Details"),
+          el(
+            "ul",
+            { className: "info-list" },
+            InfoListItem("Vehicle", el("strong", null, vehicle?.vehicle)),
+            InfoListItem("Stock #", vehicle?.stock),
+            InfoListItem("VIN", vehicle?.vin),
+            InfoListItem("Mileage", formatNumber(vehicle?.mileage)),
+            InfoListItem("JD Power (Trade)", formatCurrency(vehicle?.jdPower)),
+            InfoListItem("JD Power (Retail)", formatCurrency(vehicle?.jdPowerRetail))
+          )
+        ),
+        el(
+          "div",
+          null,
+          el("h2", { className: "section-title" }, "Customer & Deal Terms"),
+          el(
+            "ul",
+            { className: "info-list" },
+            InfoListItem("Customer", customerName || "N/A"),
+            InfoListItem("Salesperson", salespersonName || "N/A"),
+            InfoListItem("Credit Score", customerFilters?.creditScore || "N/A"),
+            InfoListItem("Loan Term", `${dealData?.loanTerm} Months`),
+            InfoListItem("Interest Rate", `${dealData?.interestRate?.toFixed(2)}% APR`),
+            InfoListItem("Front-End Gross", formatCurrency(vehicle?.frontEndGross))
+          )
+        )
+      ),
+      el(
+        "div",
+        null,
+        el("h2", { className: "section-title" }, "Financial Breakdown"),
+        el(
+          "table",
+          { className: "financials-table" },
+          el(
+            "tbody",
+            null,
+            FinancialsRow("Selling Price", formatCurrency(vehicle?.price)),
+            FinancialsRow("Doc Fee", `+ ${formatCurrency(settings.docFee)}`),
+            FinancialsRow("CVR Fee", `+ ${formatCurrency(settings.cvrFee)}`),
+            FinancialsRow("State/Title Fees", `+ ${formatCurrency(dealData?.stateFees)}`),
+            FinancialsRow("Sales Tax", `+ ${formatCurrency(vehicle?.salesTax)}`),
+            FinancialsRow("Total OTD Price", formatCurrency(vehicle?.baseOutTheDoorPrice), true),
+            FinancialsRow("Cash Down", `- ${formatCurrency(dealData?.downPayment)}`, false, true),
+            FinancialsRow("Net Trade-In", `- ${formatCurrency(netTradeIn)}`),
+            FinancialsRow(
+              "Sub-Total",
+              formatCurrency(
+                typeof vehicle?.baseOutTheDoorPrice === "number"
+                  ? vehicle.baseOutTheDoorPrice - totalDown
+                  : "Error"
+              ),
+              true
+            ),
+            FinancialsRow(
+              "Backend Products",
+              `+ ${formatCurrency(dealData?.backendProducts)}`,
+              false,
+              true
+            ),
+            FinancialsRow("Total Amount to Finance", formatCurrency(vehicle?.amountToFinance), true)
+          )
+        )
+      ),
+      el(
+        "div",
+        { className: "payment-summary" },
+        el("div", { className: "label" }, "Estimated Monthly Payment"),
+        el("div", { className: "value" }, formatCurrency(vehicle?.monthlyPayment))
+      ),
+      el(
+        "div",
+        { className: "lender-section" },
+        el(
+          "h2",
+          { className: "section-title" },
+          `Eligible Lenders (${eligibleLenders.length} of ${safeEligibility.length})`
+        ),
+        eligibleLenders.length > 0
+          ? el(
+              "div",
+              { className: "lender-list" },
+              ...eligibleLenders
+                .slice(0, 9)
+                .map((lender) =>
+                  el(
+                    "div",
+                    { key: lender.name, className: "lender-item" },
+                    el("p", { className: "name" }, lender.name),
+                    el("p", { className: "tier" }, lender.matchedTier?.name || "Eligible")
+                  )
+                ),
+              eligibleLenders.length > 9 &&
+                el(
+                  "div",
+                  {
+                    key: "more",
+                    className: "lender-item",
+                    style: {
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "#f3f4f6",
+                      borderStyle: "dashed",
+                    },
+                  },
+                  el(
+                    "p",
+                    {
+                      style: { fontSize: "8.5pt", color: "#6b7280", fontStyle: "italic", margin: 0 },
+                    },
+                    `+ ${eligibleLenders.length - 9} more eligible`
+                  )
+                )
+            )
+          : el(
+              "div",
+              { className: "no-lender-banner" },
+              "No lenders currently approve this vehicle for this customer based on credit, income, or LTV criteria."
+            )
+      )
+    ),
+    el(
+      "footer",
+      { className: "footer" },
+      el(
+        "p",
+        null,
+        "This is a preliminary proposal and not a final contract. All figures are estimates and subject to lender approval."
+      )
+    )
+  );
+};
+
+export const FavoritesPdfTemplate: React.FC<{ deals: DealPdfData[]; settings: Settings }> = ({
+  deals,
+  settings,
+}) => {
+  const safeDeals = Array.isArray(deals) ? deals.filter(Boolean) : [];
+  if (safeDeals.length === 0) {
+    return el(
+      "div",
+      { className: "page" },
+      el("style", null, styles),
+      el("h1", null, "No favorited vehicles to report.")
+    );
+  }
+
+  const first = safeDeals[0]!;
+  const customerName = first.customerName || "";
+  const salespersonName = first.salespersonName || "";
+  const creditScore = first.customerFilters?.creditScore ?? null;
+  const loanTerm = first.dealData?.loanTerm ?? 0;
+  const apr = first.dealData?.interestRate ?? 0;
+  const downPayment = first.dealData?.downPayment ?? 0;
+
+  return el(
+    React.Fragment,
+    null,
+    el("style", null, styles),
+    el(CoverPage, {
+      deals: safeDeals,
+      customerName,
+      salespersonName,
+      creditScore,
+      loanTerm,
+      apr,
+      downPayment,
+    }),
+    ...safeDeals.map((deal, idx) =>
+      el(VehiclePage, {
+        key: deal.vehicle?.vin || idx,
+        data: deal,
+        settings,
+        index: idx,
+        total: safeDeals.length,
+      })
     )
   );
 };
