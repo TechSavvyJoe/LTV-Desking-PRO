@@ -1,7 +1,6 @@
 import React, { forwardRef } from "react";
 
-interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   /** Error state styling */
   error?: boolean;
 }

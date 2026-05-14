@@ -1,5 +1,4 @@
-
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {
   children?: ReactNode;
@@ -15,7 +14,7 @@ class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
-    errorInfo: null
+    errorInfo: null,
   };
 
   public static getDerivedStateFromError(error: Error): State {
@@ -38,13 +37,13 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="text-gray-600 dark:text-gray-300 mb-6">
               The application encountered an unexpected error.
             </p>
-            
+
             <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg overflow-auto max-h-64 mb-6 border border-red-100 dark:border-red-800/50">
               <p className="font-mono text-sm text-red-700 dark:text-red-300 font-bold">
                 {this.state.error?.toString()}
               </p>
               <pre className="font-mono text-xs text-red-600/80 dark:text-red-400/80 mt-2 whitespace-pre-wrap">
-                  {this.state.errorInfo?.componentStack}
+                {this.state.errorInfo?.componentStack}
               </pre>
             </div>
 

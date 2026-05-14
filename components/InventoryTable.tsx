@@ -1,8 +1,5 @@
 import React, { useMemo } from "react";
-import type {
-  CalculatedVehicle,
-  SortConfig,
-} from "../types";
+import type { CalculatedVehicle, SortConfig } from "../types";
 import { useDealContext } from "../context/DealContext";
 import { useSafeData } from "../hooks/useSafeData";
 import { VirtualizedTable, VirtualizedColumn } from "./common/VirtualizedTable";
@@ -35,10 +32,7 @@ interface InventoryTableProps {
     currentPage: number;
     itemsPerPage: number;
   };
-  setPagination?: (pagination: {
-    currentPage: number;
-    itemsPerPage: number;
-  }) => void;
+  setPagination?: (pagination: { currentPage: number; itemsPerPage: number }) => void;
   totalRows?: number;
   isFavoritesView?: boolean;
   customHeight?: string;
@@ -118,11 +112,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 toggleFavorite(item.vin);
               }}
               className="group relative p-2 hover:bg-gradient-to-br hover:from-amber-50 hover:to-yellow-50 dark:hover:from-amber-900/20 dark:hover:to-yellow-900/20 rounded-lg transition-all duration-200 hover:scale-105"
-              title={
-                favoriteVins?.has(item.vin)
-                  ? "Remove from favorites"
-                  : "Add to favorites"
-              }
+              title={favoriteVins?.has(item.vin) ? "Remove from favorites" : "Add to favorites"}
             >
               {favoriteVins?.has(item.vin) ? (
                 <Icons.StarIcon className="w-5 h-5 text-yellow-500 fill-current drop-shadow-sm" />
@@ -223,9 +213,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         isNumeric: true,
         className: "text-right",
         width: "minmax(70px, 100px)",
-        render: (item: CalculatedVehicle) => (
-          <LtvCell value={item.frontEndLtv} />
-        ),
+        render: (item: CalculatedVehicle) => <LtvCell value={item.frontEndLtv} />,
       },
       {
         header: "Front Gross",
@@ -233,9 +221,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         isNumeric: true,
         className: "text-right",
         width: "minmax(80px, 110px)",
-        render: (item: CalculatedVehicle) => (
-          <GrossCell value={item.frontEndGross} />
-        ),
+        render: (item: CalculatedVehicle) => <GrossCell value={item.frontEndGross} />,
       },
       {
         header: "Amt to Fin",
@@ -245,9 +231,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         width: "minmax(95px, 130px)",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.amountToFinance}>
-            <span className="tabular-nums">
-              {formatCurrency(item.amountToFinance)}
-            </span>
+            <span className="tabular-nums">{formatCurrency(item.amountToFinance)}</span>
           </CopyToClipboard>
         ),
       },
@@ -265,9 +249,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         isNumeric: true,
         className: "text-right",
         width: "minmax(80px, 110px)",
-        render: (item: CalculatedVehicle) => (
-          <PaymentCell value={item.monthlyPayment} />
-        ),
+        render: (item: CalculatedVehicle) => <PaymentCell value={item.monthlyPayment} />,
       },
       {
         header: "VIN",
@@ -298,9 +280,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         emptyMessage={
           emptyMessage || (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
-              <p className="text-slate-500 dark:text-slate-400 text-lg">
-                No vehicles found.
-              </p>
+              <p className="text-slate-500 dark:text-slate-400 text-lg">No vehicles found.</p>
               {onLoadSampleData && (
                 <Button onClick={onLoadSampleData} variant="primary">
                   <Icons.CloudArrowDownIcon className="w-5 h-5 mr-2" />

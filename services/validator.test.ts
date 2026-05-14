@@ -36,24 +36,16 @@ describe("validateInput", () => {
     });
 
     it("rejects non-integer values", () => {
-      expect(validateInput("loanTerm", 60.5)).toBe(
-        "Term must be a positive whole number."
-      );
+      expect(validateInput("loanTerm", 60.5)).toBe("Term must be a positive whole number.");
     });
 
     it("rejects zero or negative", () => {
-      expect(validateInput("loanTerm", 0)).toBe(
-        "Term must be a positive whole number."
-      );
-      expect(validateInput("loanTerm", -12)).toBe(
-        "Term must be a positive whole number."
-      );
+      expect(validateInput("loanTerm", 0)).toBe("Term must be a positive whole number.");
+      expect(validateInput("loanTerm", -12)).toBe("Term must be a positive whole number.");
     });
 
     it("rejects terms over 120 months", () => {
-      expect(validateInput("loanTerm", 121)).toBe(
-        "Term is unusually high (max 120 mo)."
-      );
+      expect(validateInput("loanTerm", 121)).toBe("Term is unusually high (max 120 mo).");
     });
 
     it("allows 120 months", () => {
@@ -69,15 +61,11 @@ describe("validateInput", () => {
     });
 
     it("rejects negative rates", () => {
-      expect(validateInput("interestRate", -1)).toBe(
-        "Interest rate cannot be negative."
-      );
+      expect(validateInput("interestRate", -1)).toBe("Interest rate cannot be negative.");
     });
 
     it("rejects rates over 50%", () => {
-      expect(validateInput("interestRate", 51)).toBe(
-        "Interest rate seems high (max 50%)."
-      );
+      expect(validateInput("interestRate", 51)).toBe("Interest rate seems high (max 50%).");
     });
 
     it("allows 50%", () => {
@@ -97,21 +85,15 @@ describe("validateInput", () => {
     });
 
     it("rejects non-integer values", () => {
-      expect(validateInput("creditScore", 650.5)).toBe(
-        "Score must be a whole number."
-      );
+      expect(validateInput("creditScore", 650.5)).toBe("Score must be a whole number.");
     });
 
     it("rejects scores below 300", () => {
-      expect(validateInput("creditScore", 299)).toBe(
-        "Credit score must be between 300 and 850."
-      );
+      expect(validateInput("creditScore", 299)).toBe("Credit score must be between 300 and 850.");
     });
 
     it("rejects scores above 850", () => {
-      expect(validateInput("creditScore", 851)).toBe(
-        "Credit score must be between 300 and 850."
-      );
+      expect(validateInput("creditScore", 851)).toBe("Credit score must be between 300 and 850.");
     });
   });
 

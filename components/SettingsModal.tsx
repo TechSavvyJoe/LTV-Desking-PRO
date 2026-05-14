@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from "react";
 import type { Settings, AppState } from "../types";
 import Button from "./common/Button";
+import {
+  AI_MODEL_DOCS_VERIFIED_DATE,
+  AI_PROVIDER_ORDER,
+  getAiProviderLabel,
+  getDefaultModelForTask,
+  getModelsForTask,
+  normalizeAiSettings,
+  type AiModelRegistryResponse,
+  type AiProvider,
+  type AiTask,
+} from "../lib/aiModelRegistry";
+import { toast } from "../lib/toast";
+import { confirmAction } from "../lib/confirm";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -24,9 +37,7 @@ const InputGroup: React.FC<{
     </label>
     {children}
     {description && (
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-        {description}
-      </p>
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{description}</p>
     )}
   </div>
 );
@@ -45,21 +56,36 @@ const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   />
 );
 
-const SettingsModal: React.FC<SettingsModalProps> = ({
-  isOpen,
-  onClose,
-  settings,
-  onSave,
-}) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
   const [localSettings, setLocalSettings] = useState<Settings>(settings);
+  const [modelRegistry, setModelRegistry] = useState<AiModelRegistryResponse | null>(null);
 
   useEffect(() => {
-    setLocalSettings(settings);
+    setLocalSettings({
+      ...settings,
+      ai: normalizeAiSettings(settings.ai),
+    });
   }, [settings, isOpen]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let active = true;
+    fetch("/api/ai/models")
+      .then((response) => response.json() as Promise<AiModelRegistryResponse>)
+      .then((data) => {
+        if (active) setModelRegistry(data);
+      })
+      .catch(() => {
+        if (active) setModelRegistry(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     // Keep numeric fields non-negative and avoid NaN when clearing inputs.
     setLocalSettings((prev) => {
@@ -75,14 +101,48 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleSave = () => {
-    onSave(localSettings);
+    onSave({
+      ...localSettings,
+      ai: normalizeAiSettings(localSettings.ai),
+    });
     onClose();
   };
 
-  const handleResetAllData = () => {
-    const confirmed = window.confirm(
-      "This will clear saved inventory, favorites, deals, filters, and settings. Continue?"
-    );
+  const handleProviderChange = (provider: AiProvider) => {
+    setLocalSettings((prev) => ({
+      ...prev,
+      ai: {
+        provider,
+        lenderExtractModel: getDefaultModelForTask(provider, "lenderExtract"),
+        dealAnalysisModel: getDefaultModelForTask(provider, "dealAnalysis"),
+        quickModel: getDefaultModelForTask(provider, "quick"),
+      },
+    }));
+  };
+
+  const handleAiModelChange = (task: AiTask, model: string) => {
+    setLocalSettings((prev) => {
+      const ai = normalizeAiSettings(prev.ai);
+      return {
+        ...prev,
+        ai: {
+          ...ai,
+          ...(task === "lenderExtract" ? { lenderExtractModel: model } : {}),
+          ...(task === "dealAnalysis" ? { dealAnalysisModel: model } : {}),
+          ...(task === "quick" ? { quickModel: model } : {}),
+        },
+      };
+    });
+  };
+
+  const handleResetAllData = async () => {
+    const confirmed = await confirmAction({
+      title: "Reset all local data?",
+      message:
+        "This will clear saved inventory, favorites, deals, filters, and settings. Continue?",
+      confirmLabel: "Reset",
+      tone: "danger",
+    });
     if (!confirmed) return;
     const keys = [
       "ltvInventory_v2",
@@ -92,20 +152,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       "ltvBankProfiles_v2",
       "ltvSavedDeals_v2",
       "ltvScratchPad_v2",
-      "ltvAppSettings_v2",
+      "ltvSettings_v2",
     ];
     try {
       keys.forEach((k) => window.localStorage.removeItem(k));
       window.location.reload();
     } catch (err) {
       console.error("Failed to reset data", err);
-      alert(
-        "Could not reset data. Please clear site data manually in your browser."
-      );
+      toast.error("Could not reset data. Please clear site data manually in your browser.");
     }
   };
 
   if (!isOpen) return null;
+
+  const aiSettings = normalizeAiSettings(localSettings.ai);
+  const selectedProvider = modelRegistry?.providers.find(
+    (provider) => provider.id === aiSettings.provider
+  );
+  const selectedProviderConfigured = selectedProvider?.configured ?? false;
 
   return (
     <div
@@ -123,10 +187,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="p-4 border rounded-lg border-slate-800">
             <h3 className="text-lg font-bold mb-4">Deal Defaults</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputGroup
-                label="Default Loan Term (Months)"
-                htmlFor="defaultTerm"
-              >
+              <InputGroup label="Default Loan Term (Months)" htmlFor="defaultTerm">
                 <StyledInput
                   type="number"
                   name="defaultTerm"
@@ -135,10 +196,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={handleChange}
                 />
               </InputGroup>
-              <InputGroup
-                label="Default Interest Rate (APR %)"
-                htmlFor="defaultApr"
-              >
+              <InputGroup label="Default Interest Rate (APR %)" htmlFor="defaultApr">
                 <StyledInput
                   type="number"
                   name="defaultApr"
@@ -188,10 +246,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={handleChange}
                 />
               </InputGroup>
-              <InputGroup
-                label="Default State/Title Fees ($)"
-                htmlFor="defaultStateFees"
-              >
+              <InputGroup label="Default State/Title Fees ($)" htmlFor="defaultStateFees">
                 <StyledInput
                   type="number"
                   name="defaultStateFees"
@@ -232,6 +287,111 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                 </InputGroup>
               </div>
+            </div>
+          </div>
+
+          <div className="p-4 border rounded-lg border-slate-800">
+            <div className="flex flex-col gap-1 mb-4">
+              <h3 className="text-lg font-bold">AI Provider & Models</h3>
+              <p className="text-xs text-slate-400">
+                Model catalog verified from official docs on{" "}
+                {modelRegistry?.verifiedDate ?? AI_MODEL_DOCS_VERIFIED_DATE}.
+              </p>
+              {modelRegistry?.warnings.map((warning) => (
+                <p key={warning} className="text-xs text-amber-300">
+                  {warning}
+                </p>
+              ))}
+              {modelRegistry && !selectedProviderConfigured && (
+                <p className="text-xs text-amber-300">
+                  {getAiProviderLabel(aiSettings.provider)} is selected but its server key is not
+                  configured. Requests will use the first configured provider.
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InputGroup
+                label="Provider"
+                htmlFor="aiProvider"
+                description="Controls lender extraction, deal analysis, and fast validation defaults."
+              >
+                <StyledSelect
+                  id="aiProvider"
+                  value={aiSettings.provider}
+                  onChange={(event) => handleProviderChange(event.target.value as AiProvider)}
+                >
+                  {AI_PROVIDER_ORDER.map((provider) => {
+                    const providerState = modelRegistry?.providers.find(
+                      (item) => item.id === provider
+                    );
+                    return (
+                      <option key={provider} value={provider}>
+                        {getAiProviderLabel(provider)}
+                        {providerState?.configured ? " (configured)" : ""}
+                      </option>
+                    );
+                  })}
+                </StyledSelect>
+              </InputGroup>
+
+              <InputGroup
+                label="Lender PDF Extraction"
+                htmlFor="lenderExtractModel"
+                description="Uses the top PDF-capable model for rate sheets."
+              >
+                <StyledSelect
+                  id="lenderExtractModel"
+                  value={aiSettings.lenderExtractModel}
+                  onChange={(event) => handleAiModelChange("lenderExtract", event.target.value)}
+                >
+                  {getModelsForTask(aiSettings.provider, "lenderExtract").map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                      {model.isPreview ? " (preview)" : ""}
+                    </option>
+                  ))}
+                </StyledSelect>
+              </InputGroup>
+
+              <InputGroup
+                label="Deal Assistant"
+                htmlFor="dealAnalysisModel"
+                description="Balanced by default for desk manager suggestions."
+              >
+                <StyledSelect
+                  id="dealAnalysisModel"
+                  value={aiSettings.dealAnalysisModel}
+                  onChange={(event) => handleAiModelChange("dealAnalysis", event.target.value)}
+                >
+                  {getModelsForTask(aiSettings.provider, "dealAnalysis").map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                      {model.isAlias ? " (alias)" : ""}
+                      {model.isPreview ? " (preview)" : ""}
+                    </option>
+                  ))}
+                </StyledSelect>
+              </InputGroup>
+
+              <InputGroup
+                label="Fast Workflows"
+                htmlFor="quickModel"
+                description="Used for quick validation, summaries, and routing."
+              >
+                <StyledSelect
+                  id="quickModel"
+                  value={aiSettings.quickModel}
+                  onChange={(event) => handleAiModelChange("quick", event.target.value)}
+                >
+                  {getModelsForTask(aiSettings.provider, "quick").map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                      {model.isAlias ? " (alias)" : ""}
+                      {model.isPreview ? " (preview)" : ""}
+                    </option>
+                  ))}
+                </StyledSelect>
+              </InputGroup>
             </div>
           </div>
 
@@ -309,12 +469,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3 bg-slate-50 dark:bg-slate-900 sticky bottom-0 flex-wrap">
           <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="danger"
-              size="sm"
-              onClick={handleResetAllData}
-            >
+            <Button type="button" variant="danger" size="sm" onClick={handleResetAllData}>
               Reset All Data
             </Button>
             {/* Temporary Seed Button */}
@@ -324,14 +479,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               size="sm"
               onClick={async () => {
                 if (
-                  window.confirm(
-                    "Seed database with default inventory and lenders?"
-                  )
+                  await confirmAction({
+                    title: "Seed database?",
+                    message: "Seed database with default inventory and lenders?",
+                    confirmLabel: "Seed",
+                  })
                 ) {
                   try {
                     const { seedDatabase } = await import("../lib/seeder");
                     await seedDatabase();
-                    const { toast } = await import("../lib/toast");
                     toast.success("Database seeded! Reloading application...");
                     setTimeout(() => window.location.reload(), 1500);
                   } catch (e) {

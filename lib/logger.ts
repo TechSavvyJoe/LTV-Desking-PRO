@@ -92,11 +92,14 @@ class Logger {
 
     const errorContext = {
       ...context,
-      error: error instanceof Error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      } : error,
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : error,
     };
 
     const formatted = this.format("ERROR", message, errorContext);
@@ -132,13 +135,16 @@ class Logger {
    */
   child(defaultContext: LogContext): Logger {
     const childLogger = new Logger();
-    const parentLogger = this;
+    const debug = this.debug.bind(this);
+    const info = this.info.bind(this);
+    const warn = this.warn.bind(this);
+    const error = this.error.bind(this);
 
     // Override methods to include default context
-    childLogger.debug = (msg, ctx) => parentLogger.debug(msg, { ...defaultContext, ...ctx });
-    childLogger.info = (msg, ctx) => parentLogger.info(msg, { ...defaultContext, ...ctx });
-    childLogger.warn = (msg, ctx) => parentLogger.warn(msg, { ...defaultContext, ...ctx });
-    childLogger.error = (msg, err, ctx) => parentLogger.error(msg, err, { ...defaultContext, ...ctx });
+    childLogger.debug = (msg, ctx) => debug(msg, { ...defaultContext, ...ctx });
+    childLogger.info = (msg, ctx) => info(msg, { ...defaultContext, ...ctx });
+    childLogger.warn = (msg, ctx) => warn(msg, { ...defaultContext, ...ctx });
+    childLogger.error = (msg, err, ctx) => error(msg, err, { ...defaultContext, ...ctx });
 
     return childLogger;
   }
@@ -159,12 +165,7 @@ export const createLogger = (module: string): Logger => {
 /**
  * Helper to log API calls
  */
-export const logApiCall = (
-  endpoint: string,
-  method: string,
-  duration?: number,
-  error?: Error
-) => {
+export const logApiCall = (endpoint: string, method: string, duration?: number, error?: Error) => {
   const context = {
     endpoint,
     method,

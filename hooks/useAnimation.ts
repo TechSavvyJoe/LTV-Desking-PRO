@@ -32,21 +32,22 @@ export const useStaggerAnimation = (
   baseDelay: number = 0,
   staggerDelay: number = 50
 ): boolean[] => {
-  const [visibleItems, setVisibleItems] = useState<boolean[]>(
-    new Array(itemCount).fill(false)
-  );
+  const [visibleItems, setVisibleItems] = useState<boolean[]>(new Array(itemCount).fill(false));
 
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
 
     for (let i = 0; i < itemCount; i++) {
-      const timer = setTimeout(() => {
-        setVisibleItems((prev) => {
-          const next = [...prev];
-          next[i] = true;
-          return next;
-        });
-      }, baseDelay + i * staggerDelay);
+      const timer = setTimeout(
+        () => {
+          setVisibleItems((prev) => {
+            const next = [...prev];
+            next[i] = true;
+            return next;
+          });
+        },
+        baseDelay + i * staggerDelay
+      );
 
       timers.push(timer);
     }

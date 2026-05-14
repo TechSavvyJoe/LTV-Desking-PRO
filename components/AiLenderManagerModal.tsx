@@ -1,9 +1,6 @@
 import React, { useState, useCallback, useRef } from "react";
-import type { LenderProfile } from "../types";
-import {
-  processLenderSheet,
-  type ProcessingProgress,
-} from "../services/aiProcessor";
+import type { LenderProfile, Settings } from "../types";
+import { processLenderSheet, type ProcessingProgress } from "../services/aiProcessor";
 import { saveLenderProfile, updateLenderProfile } from "../lib/api";
 import Button from "./common/Button";
 
@@ -14,6 +11,7 @@ interface AiLenderManagerModalProps {
   onUpdateProfiles: React.Dispatch<React.SetStateAction<LenderProfile[]>>;
   onMinimize?: () => void;
   isMinimized?: boolean;
+  settings: Settings;
 }
 
 type AiResult = {
@@ -79,13 +77,12 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
   onUpdateProfiles,
   onMinimize,
   isMinimized,
+  settings,
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<AiResult[]>([]);
-  const [fileProgresses, setFileProgresses] = useState<
-    Map<string, ProcessingProgress>
-  >(new Map());
+  const [fileProgresses, setFileProgresses] = useState<Map<string, ProcessingProgress>>(new Map());
   const [overallProgress, setOverallProgress] = useState(0);
   const [currentStage, setCurrentStage] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,44 +162,39 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
       const fileWeight = 100 / totalFiles;
 
       try {
-        const lenders = await processLenderSheet(file, (progress) => {
-          // Update individual file progress
-          setFileProgresses((prev) => {
-            const newMap = new Map(prev);
-            newMap.set(file.name, progress);
-            return newMap;
-          });
+        const lenders = await processLenderSheet(
+          file,
+          (progress) => {
+            // Update individual file progress
+            setFileProgresses((prev) => {
+              const newMap = new Map(prev);
+              newMap.set(file.name, progress);
+              return newMap;
+            });
 
-          // Update current stage message
-          setCurrentStage(
-            `${getStageIcon(progress.stage)} ${progress.message}`
-          );
+            // Update current stage message
+            setCurrentStage(`${getStageIcon(progress.stage)} ${progress.message}`);
 
-          // Calculate overall progress
-          const fileProgress = (progress.progress / 100) * fileWeight;
-          setOverallProgress(Math.round(baseProgress + fileProgress));
-        });
+            // Calculate overall progress
+            const fileProgress = (progress.progress / 100) * fileWeight;
+            setOverallProgress(Math.round(baseProgress + fileProgress));
+          },
+          settings.ai
+        );
 
         // Calculate data quality score
-        const totalTiers = lenders.reduce(
-          (acc, l) => acc + (l.tiers?.length || 0),
-          0
-        );
+        const totalTiers = lenders.reduce((acc, l) => acc + (l.tiers?.length || 0), 0);
         const tiersWithLtv = lenders.reduce(
-          (acc, l) =>
-            acc + (l.tiers?.filter((t) => t.maxLtv !== undefined).length || 0),
+          (acc, l) => acc + (l.tiers?.filter((t) => t.maxLtv !== undefined).length || 0),
           0
         );
         const tiersWithTerm = lenders.reduce(
-          (acc, l) =>
-            acc + (l.tiers?.filter((t) => t.maxTerm !== undefined).length || 0),
+          (acc, l) => acc + (l.tiers?.filter((t) => t.maxTerm !== undefined).length || 0),
           0
         );
         const dataQuality =
           totalTiers > 0
-            ? Math.round(
-                ((tiersWithLtv + tiersWithTerm) / (totalTiers * 2)) * 100
-              )
+            ? Math.round(((tiersWithLtv + tiersWithTerm) / (totalTiers * 2)) * 100)
             : 0;
 
         newResults.push({
@@ -215,10 +207,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         newResults.push({
           fileName: file.name,
           status: "error",
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unknown processing error.",
+          error: error instanceof Error ? error.message : "Unknown processing error.",
         });
       }
     }
@@ -233,11 +222,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
     // Flatten all lenders from all successful results
     const allLenders: Partial<LenderProfile>[] = [];
     results.forEach((result) => {
-      if (
-        result.status === "success" &&
-        result.lenders &&
-        result.lenders.length > 0
-      ) {
+      if (result.status === "success" && result.lenders && result.lenders.length > 0) {
         allLenders.push(...result.lenders);
       }
     });
@@ -272,9 +257,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             // Update local state
             onUpdateProfiles((prev) =>
               prev.map((p) =>
-                p.id === existingProfile.id
-                  ? (updatedProfile as unknown as LenderProfile)
-                  : p
+                p.id === existingProfile.id ? (updatedProfile as unknown as LenderProfile) : p
               )
             );
             updatedCount++;
@@ -293,10 +276,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
           if (savedProfile) {
             // Add to local state
-            onUpdateProfiles((prev) => [
-              ...prev,
-              savedProfile as unknown as LenderProfile,
-            ]);
+            onUpdateProfiles((prev) => [...prev, savedProfile as unknown as LenderProfile]);
             savedCount++;
           } else {
             errorCount++;
@@ -349,12 +329,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
       {/* Overall progress bar */}
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-x-text-primary">
-            Overall Progress
-          </span>
-          <span className="text-sm font-bold text-x-blue">
-            {overallProgress}%
-          </span>
+          <span className="text-sm font-medium text-x-text-primary">Overall Progress</span>
+          <span className="text-sm font-bold text-x-blue">{overallProgress}%</span>
         </div>
         <div className="w-full bg-x-hover-dark rounded-full h-3 overflow-hidden">
           <div
@@ -367,9 +343,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
       {/* Current stage message */}
       {currentStage && (
         <div className="text-center py-2">
-          <p className="text-sm text-x-text-secondary animate-pulse">
-            {currentStage}
-          </p>
+          <p className="text-sm text-x-text-secondary animate-pulse">{currentStage}</p>
         </div>
       )}
 
@@ -389,9 +363,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                     {file.name}
                   </span>
                 </div>
-                <span
-                  className={`text-xs font-semibold ${getStageColor(stage)}`}
-                >
+                <span className={`text-xs font-semibold ${getStageColor(stage)}`}>
                   {stage.charAt(0).toUpperCase() + stage.slice(1)}
                 </span>
               </div>
@@ -401,16 +373,14 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                     stage === "error"
                       ? "bg-red-500"
                       : stage === "complete"
-                      ? "bg-green-500"
-                      : "bg-gradient-to-r from-blue-500 to-purple-500"
+                        ? "bg-green-500"
+                        : "bg-gradient-to-r from-blue-500 to-purple-500"
                   }`}
                   style={{ width: `${stageProgress}%` }}
                 />
               </div>
               {progress?.message && (
-                <p className="text-xs text-x-text-secondary mt-1 truncate">
-                  {progress.message}
-                </p>
+                <p className="text-xs text-x-text-secondary mt-1 truncate">{progress.message}</p>
               )}
             </div>
           );
@@ -448,9 +418,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 flex justify-between items-center border-b border-x-border">
-          <h2 className="text-xl font-bold text-x-text-primary">
-            AI Lender Upload
-          </h2>
+          <h2 className="text-xl font-bold text-x-text-primary">AI Lender Upload</h2>
           <div className="flex items-center gap-2">
             {isLoading && onMinimize && (
               <button
@@ -493,17 +461,13 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                 />
                 <UploadIcon />
                 <p className="mt-2 text-sm text-x-text-secondary">
-                  <span className="font-semibold text-x-blue">
-                    Click to upload
-                  </span>{" "}
-                  or drag and drop PDF rate sheets.
+                  <span className="font-semibold text-x-blue">Click to upload</span> or drag and
+                  drop PDF rate sheets.
                 </p>
               </div>
               {files.length > 0 && (
                 <div className="mt-4">
-                  <h4 className="font-semibold text-x-text-primary mb-2">
-                    Selected Files:
-                  </h4>
+                  <h4 className="font-semibold text-x-text-primary mb-2">Selected Files:</h4>
                   <ul className="space-y-1 text-sm list-disc list-inside text-x-text-secondary">
                     {files.map((file, i) => (
                       <li key={i}>{file.name}</li>
@@ -514,9 +478,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             </>
           ) : (
             <div>
-              <h3 className="text-lg font-semibold text-x-text-primary mb-3">
-                Analysis Results
-              </h3>
+              <h3 className="text-lg font-semibold text-x-text-primary mb-3">Analysis Results</h3>
               <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {results.map((res, i) => (
                   <div
@@ -534,10 +496,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                       <div className="space-y-3">
                         <p className="text-xs text-green-300">
                           ✓ Successfully extracted{" "}
-                          <strong className="font-bold">
-                            {res.lenders.length}
-                          </strong>{" "}
-                          lender(s)
+                          <strong className="font-bold">{res.lenders.length}</strong> lender(s)
                         </p>
                         {res.lenders.map((lender, j) => (
                           <div
@@ -550,8 +509,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                             {lender.tiers && lender.tiers.length > 0 ? (
                               <div className="space-y-2">
                                 <p className="text-xs text-x-text-secondary">
-                                  {lender.tiers.length} credit tier(s)
-                                  extracted:
+                                  {lender.tiers.length} credit tier(s) extracted:
                                 </p>
                                 <div className="grid gap-2">
                                   {lender.tiers.slice(0, 4).map((tier, k) => {
@@ -575,10 +533,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                     );
 
                                     return (
-                                      <div
-                                        key={k}
-                                        className="bg-x-hover-dark rounded p-2 text-xs"
-                                      >
+                                      <div key={k} className="bg-x-hover-dark rounded p-2 text-xs">
                                         <div className="flex justify-between items-center mb-1">
                                           <span className="font-medium text-x-blue">
                                             {tier.tierName || `Tier ${k + 1}`}
@@ -588,8 +543,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                               completeness >= 80
                                                 ? "bg-green-500/20 text-green-300"
                                                 : completeness >= 50
-                                                ? "bg-yellow-500/20 text-yellow-300"
-                                                : "bg-red-500/20 text-red-300"
+                                                  ? "bg-yellow-500/20 text-yellow-300"
+                                                  : "bg-red-500/20 text-red-300"
                                             }`}
                                           >
                                             {completeness}% complete
@@ -599,8 +554,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                           {tier.minFico !== undefined &&
                                             tier.maxFico !== undefined && (
                                               <span>
-                                                FICO: {tier.minFico}-
-                                                {tier.maxFico}
+                                                FICO: {tier.minFico}-{tier.maxFico}
                                               </span>
                                             )}
                                           {tier.maxLtv !== undefined && (
@@ -609,21 +563,18 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                           {tier.minYear !== undefined &&
                                             tier.maxYear !== undefined && (
                                               <span>
-                                                Years: {tier.minYear}-
-                                                {tier.maxYear}
+                                                Years: {tier.minYear}-{tier.maxYear}
                                               </span>
                                             )}
                                           {tier.minTerm !== undefined &&
                                             tier.maxTerm !== undefined && (
                                               <span>
-                                                Terms: {tier.minTerm}-
-                                                {tier.maxTerm}mo
+                                                Terms: {tier.minTerm}-{tier.maxTerm}mo
                                               </span>
                                             )}
                                           {tier.maxMileage !== undefined && (
                                             <span>
-                                              Max Miles:{" "}
-                                              {tier.maxMileage.toLocaleString()}
+                                              Max Miles: {tier.maxMileage.toLocaleString()}
                                             </span>
                                           )}
                                         </div>
@@ -646,9 +597,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-red-300">
-                        ❌ Error: {res.error}
-                      </p>
+                      <p className="text-xs text-red-300">❌ Error: {res.error}</p>
                     )}
                   </div>
                 ))}
@@ -662,8 +611,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             {isLoading
               ? "AI is analyzing documents... please wait."
               : results.length > 0
-              ? "Review the results above and confirm."
-              : `${files.length} file(s) ready for analysis.`}
+                ? "Review the results above and confirm."
+                : `${files.length} file(s) ready for analysis.`}
           </p>
           <div className="flex gap-3">
             <Button type="button" variant="secondary" onClick={handleClose}>
@@ -672,17 +621,12 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             {results.length > 0 ? (
               <Button
                 onClick={handleConfirm}
-                disabled={
-                  isLoading || results.every((r) => r.status === "error")
-                }
+                disabled={isLoading || results.every((r) => r.status === "error")}
               >
                 Confirm and Update
               </Button>
             ) : (
-              <Button
-                onClick={handleAnalyze}
-                disabled={isLoading || files.length === 0}
-              >
+              <Button onClick={handleAnalyze} disabled={isLoading || files.length === 0}>
                 Analyze
               </Button>
             )}

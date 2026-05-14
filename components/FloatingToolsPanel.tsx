@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useMemo,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import type {
   CalculatedVehicle,
   DealData,
@@ -13,10 +7,7 @@ import type {
   Settings,
   Vehicle,
 } from "../types";
-import {
-  calculateMonthlyPayment,
-  calculateLoanAmount,
-} from "../services/calculator";
+import { calculateMonthlyPayment, calculateLoanAmount } from "../services/calculator";
 import { checkBankEligibility } from "../services/lenderMatcher";
 import { formatCurrency, formatNumber } from "./common/TableCell";
 import Button from "./common/Button";
@@ -72,9 +63,7 @@ const ToolContentWrapper: React.FC<{
   children: React.ReactNode;
 }> = ({ title, children }) => (
   <div>
-    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-6">
-      {title}
-    </h3>
+    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-6">{title}</h3>
     {children}
   </div>
 );
@@ -95,8 +84,7 @@ const ToolInventorySearch = ({
   const [query, setQuery] = useState("");
   // Safe access for favorites
   const favoriteVins = useMemo(
-    () =>
-      new Set((Array.isArray(favorites) ? favorites : []).map((f) => f.vin)),
+    () => new Set((Array.isArray(favorites) ? favorites : []).map((f) => f.vin)),
     [favorites]
   );
 
@@ -177,22 +165,14 @@ const LenderEligibility = ({
   const eligibilityResults = useMemo(() => {
     // Defensive check: ensure lenderProfiles is an array
     const safeProfiles = Array.isArray(lenderProfiles) ? lenderProfiles : [];
-    if (
-      !activeVehicle ||
-      !customerFilters.creditScore ||
-      safeProfiles.length === 0
-    ) {
+    if (!activeVehicle || !customerFilters.creditScore || safeProfiles.length === 0) {
       return [];
     }
     // Defensive filtering of potential null profiles
     const validProfiles = safeProfiles.filter(Boolean);
     return validProfiles.map((bank) => ({
       name: bank.name,
-      ...checkBankEligibility(
-        activeVehicle,
-        { ...dealData, ...customerFilters },
-        bank
-      ),
+      ...checkBankEligibility(activeVehicle, { ...dealData, ...customerFilters }, bank),
     }));
   }, [activeVehicle, dealData, customerFilters, lenderProfiles]);
 
@@ -201,8 +181,7 @@ const LenderEligibility = ({
       <ToolContentWrapper title="Lender Eligibility">
         <div className="text-center text-slate-500 dark:text-slate-400 p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg">
           <p>
-            Select a vehicle from the inventory by clicking "Structure" to check
-            lender eligibility.
+            Select a vehicle from the inventory by clicking "Structure" to check lender eligibility.
           </p>
         </div>
       </ToolContentWrapper>
@@ -211,30 +190,22 @@ const LenderEligibility = ({
 
   if (!customerFilters.creditScore) {
     return (
-      <ToolContentWrapper
-        title={`Lender Eligibility for ${activeVehicle.vehicle}`}
-      >
+      <ToolContentWrapper title={`Lender Eligibility for ${activeVehicle.vehicle}`}>
         <div className="text-center text-slate-500 dark:text-slate-400 p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg">
-          <p>
-            Enter a customer credit score in the main controls to see results.
-          </p>
+          <p>Enter a customer credit score in the main controls to see results.</p>
         </div>
       </ToolContentWrapper>
     );
   }
 
   return (
-    <ToolContentWrapper
-      title={`Lender Eligibility for ${activeVehicle.vehicle}`}
-    >
+    <ToolContentWrapper title={`Lender Eligibility for ${activeVehicle.vehicle}`}>
       <div className="space-y-3 max-h-[80vh] overflow-y-auto pr-2">
         {eligibilityResults.map((result) => (
           <div
             key={result.name}
             className={`p-4 rounded-lg border-l-4 ${
-              result.eligible
-                ? "bg-green-500/10 border-green-500"
-                : "bg-red-500/10 border-red-500"
+              result.eligible ? "bg-green-500/10 border-green-500" : "bg-red-500/10 border-red-500"
             }`}
           >
             <div className="flex justify-between items-center">
@@ -254,10 +225,7 @@ const LenderEligibility = ({
             <div className="mt-2 text-sm">
               {result.eligible ? (
                 <p className="text-green-600 dark:text-green-400">
-                  Matched Tier:{" "}
-                  <span className="font-semibold">
-                    {result.matchedTier?.name}
-                  </span>
+                  Matched Tier: <span className="font-semibold">{result.matchedTier?.name}</span>
                 </p>
               ) : (
                 <ul className="list-disc list-inside text-red-600 dark:text-red-400 space-y-1">
@@ -286,24 +254,13 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
     setUnitCost(typeof vehicle.unitCost === "number" ? vehicle.unitCost : "");
   };
 
-  const frontEndGross = useMemo(
-    () => Number(salePrice) - Number(unitCost),
-    [salePrice, unitCost]
-  );
+  const frontEndGross = useMemo(() => Number(salePrice) - Number(unitCost), [salePrice, unitCost]);
   const backEndGross = useMemo(
-    () =>
-      products.reduce(
-        (total, p) => total + (Number(p.price) - Number(p.cost)),
-        0
-      ),
+    () => products.reduce((total, p) => total + (Number(p.price) - Number(p.cost)), 0),
     [products]
   );
 
-  const handleProductChange = (
-    index: number,
-    field: "name" | "price" | "cost",
-    value: string
-  ) => {
+  const handleProductChange = (index: number, field: "name" | "price" | "cost", value: string) => {
     const newProducts = [...products];
     const existingProduct = newProducts[index];
     if (existingProduct) {
@@ -316,10 +273,8 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
     }
   };
 
-  const addProduct = () =>
-    setProducts([...products, { name: "", price: "", cost: "" }]);
-  const removeProduct = (index: number) =>
-    setProducts(products.filter((_, i) => i !== index));
+  const addProduct = () => setProducts([...products, { name: "", price: "", cost: "" }]);
+  const removeProduct = (index: number) => setProducts(products.filter((_, i) => i !== index));
 
   return (
     <ToolContentWrapper title="Gross Profit Breakdown">
@@ -331,39 +286,27 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
           toggleFavorite={toggleFavorite}
         />
         <div>
-          <h4 className="font-semibold mb-2 text-slate-800 dark:text-slate-100">
-            Front-End
-          </h4>
+          <h4 className="font-semibold mb-2 text-slate-800 dark:text-slate-100">Front-End</h4>
           <div className="grid grid-cols-2 gap-4">
             <InputGroup label="Sale Price ($)">
               <StyledInput
                 type="number"
                 value={salePrice}
-                onChange={(e) =>
-                  setSalePrice(
-                    e.target.value === "" ? "" : Number(e.target.value)
-                  )
-                }
+                onChange={(e) => setSalePrice(e.target.value === "" ? "" : Number(e.target.value))}
               />
             </InputGroup>
             <InputGroup label="Unit Cost ($)">
               <StyledInput
                 type="number"
                 value={unitCost}
-                onChange={(e) =>
-                  setUnitCost(
-                    e.target.value === "" ? "" : Number(e.target.value)
-                  )
-                }
+                onChange={(e) => setUnitCost(e.target.value === "" ? "" : Number(e.target.value))}
               />
             </InputGroup>
           </div>
         </div>
         <div>
           <div className="flex justify-between items-center mb-2">
-            <h4 className="font-semibold text-slate-800 dark:text-slate-100">
-              Back-End (F&I)
-            </h4>
+            <h4 className="font-semibold text-slate-800 dark:text-slate-100">Back-End (F&I)</h4>
             <Button size="sm" variant="secondary" onClick={addProduct}>
               <Icons.PlusIcon /> Add Product
             </Button>
@@ -375,27 +318,21 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
                   className="col-span-4"
                   placeholder="Product Name"
                   value={p.name}
-                  onChange={(e) =>
-                    handleProductChange(i, "name", e.target.value)
-                  }
+                  onChange={(e) => handleProductChange(i, "name", e.target.value)}
                 />
                 <StyledInput
                   className="col-span-2"
                   type="number"
                   placeholder="Price"
                   value={p.price}
-                  onChange={(e) =>
-                    handleProductChange(i, "price", e.target.value)
-                  }
+                  onChange={(e) => handleProductChange(i, "price", e.target.value)}
                 />
                 <StyledInput
                   className="col-span-2"
                   type="number"
                   placeholder="Cost"
                   value={p.cost}
-                  onChange={(e) =>
-                    handleProductChange(i, "cost", e.target.value)
-                  }
+                  onChange={(e) => handleProductChange(i, "cost", e.target.value)}
                 />
                 <div className="col-span-2 flex items-center gap-2">
                   <span className="text-sm font-medium text-green-600 dark:text-green-400">
@@ -437,9 +374,7 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
             label="Total Gross"
             value={formatCurrency(frontEndGross + backEndGross)}
             valueColorClass={
-              frontEndGross + backEndGross > 0
-                ? "text-blue-600 dark:text-blue-400"
-                : "text-red-500"
+              frontEndGross + backEndGross > 0 ? "text-blue-600 dark:text-blue-400" : "text-red-500"
             }
           />
         </div>
@@ -448,11 +383,7 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
   );
 };
 
-const DealComparison = ({
-  activeVehicle,
-  dealData,
-  onDealDataChange,
-}: ToolProps) => {
+const DealComparison = ({ activeVehicle, dealData, onDealDataChange }: ToolProps) => {
   const [dealA, setDealA] = useState<DealData>(dealData);
   const [dealB, setDealB] = useState<DealData>(dealData);
 
@@ -475,11 +406,7 @@ const DealComparison = ({
       tempDeal.backendProducts +
       tempDeal.stateFees +
       304; // Rough tax/fee estimate
-    const payment = calculateMonthlyPayment(
-      principal,
-      tempDeal.interestRate,
-      tempDeal.loanTerm
-    );
+    const payment = calculateMonthlyPayment(principal, tempDeal.interestRate, tempDeal.loanTerm);
     return { monthlyPayment: payment };
   }, [activeVehicle, dealA]);
 
@@ -497,21 +424,13 @@ const DealComparison = ({
       tempDeal.backendProducts +
       tempDeal.stateFees +
       304; // Rough tax/fee estimate
-    const payment = calculateMonthlyPayment(
-      principal,
-      tempDeal.interestRate,
-      tempDeal.loanTerm
-    );
+    const payment = calculateMonthlyPayment(principal, tempDeal.interestRate, tempDeal.loanTerm);
     return { monthlyPayment: payment };
   }, [activeVehicle, dealB]);
 
-  const handleAChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) =>
+  const handleAChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setDealA((prev) => ({ ...prev, [e.target.name]: Number(e.target.value) }));
-  const handleBChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) =>
+  const handleBChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setDealB((prev) => ({ ...prev, [e.target.name]: Number(e.target.value) }));
 
   const copyToGlobal = (deal: DealData) => onDealDataChange(deal);
@@ -541,12 +460,7 @@ const DealComparison = ({
     <div className="space-y-2 p-3 bg-slate-100 dark:bg-slate-900 rounded-lg">
       <h4 className="font-bold text-center text-lg">{title}</h4>
       <InputGroup label="Down">
-        <StyledInput
-          name="downPayment"
-          type="number"
-          value={deal.downPayment}
-          onChange={handler}
-        />
+        <StyledInput name="downPayment" type="number" value={deal.downPayment} onChange={handler} />
       </InputGroup>
       <InputGroup label="Term">
         <StyledSelect name="loanTerm" value={deal.loanTerm} onChange={handler}>
@@ -615,8 +529,7 @@ const LenderReference = ({ lenderProfiles }: ToolProps) => {
   const filteredProfiles = useMemo(
     () =>
       (Array.isArray(lenderProfiles) ? lenderProfiles : []).filter(
-        (p) =>
-          p && p.name && p.name.toLowerCase().includes(search.toLowerCase())
+        (p) => p && p.name && p.name.toLowerCase().includes(search.toLowerCase())
       ),
     [lenderProfiles, search]
   );
@@ -630,10 +543,7 @@ const LenderReference = ({ lenderProfiles }: ToolProps) => {
       />
       <div className="mt-4 space-y-2 max-h-[70vh] overflow-y-auto">
         {filteredProfiles.map((p) => (
-          <div
-            key={p.id}
-            className="border border-slate-200 dark:border-x-border rounded-lg"
-          >
+          <div key={p.id} className="border border-slate-200 dark:border-x-border rounded-lg">
             <button
               onClick={() => setExpanded(expanded === p.id ? null : p.id)}
               className="w-full p-3 text-left font-semibold flex justify-between items-center hover:bg-slate-100 dark:hover:bg-x-hover-dark"
@@ -648,30 +558,21 @@ const LenderReference = ({ lenderProfiles }: ToolProps) => {
 
                   const tierDetails = [
                     tier.minFico !== undefined &&
-                      `FICO: ${tier.minFico}${
-                        tier.maxFico ? `-${tier.maxFico}` : "+"
-                      }`,
+                      `FICO: ${tier.minFico}${tier.maxFico ? `-${tier.maxFico}` : "+"}`,
                     tier.maxLtv !== undefined && `Max LTV: ${tier.maxLtv}%`,
                     tier.maxTerm !== undefined && `Max Term: ${tier.maxTerm}mo`,
                     tier.maxMileage !== undefined &&
                       `Max Miles: ${tier.maxMileage.toLocaleString()}`,
                     tier.minYear !== undefined &&
-                      `Year: ${tier.minYear}${
-                        tier.maxYear ? `-${tier.maxYear}` : "+"
-                      }`,
+                      `Year: ${tier.minYear}${tier.maxYear ? `-${tier.maxYear}` : "+"}`,
                   ]
                     .filter(Boolean)
                     .join(" | ");
 
                   return (
-                    <div
-                      key={i}
-                      className="p-1.5 bg-slate-100 dark:bg-slate-900 rounded-md"
-                    >
+                    <div key={i} className="p-1.5 bg-slate-100 dark:bg-slate-900 rounded-md">
                       <p className="font-bold">{tier.name}</p>
-                      <p className="text-slate-500 dark:text-slate-400">
-                        {tierDetails}
-                      </p>
+                      <p className="text-slate-500 dark:text-slate-400">{tierDetails}</p>
                     </div>
                   );
                 })}
@@ -781,9 +682,7 @@ const FloatingToolsPanel: React.FC<ToolProps> = (props) => {
   // Defensive Prop Wrapping
   const safeProps = {
     ...props,
-    lenderProfiles: Array.isArray(props.lenderProfiles)
-      ? props.lenderProfiles
-      : [],
+    lenderProfiles: Array.isArray(props.lenderProfiles) ? props.lenderProfiles : [],
     inventory: Array.isArray(props.inventory) ? props.inventory : [],
     favorites: Array.isArray(props.favorites) ? props.favorites : [],
   };
@@ -806,9 +705,7 @@ const FloatingToolsPanel: React.FC<ToolProps> = (props) => {
               className="w-20 h-20 p-2 rounded-md flex flex-col items-center justify-center text-center text-slate-300 hover:bg-slate-800"
             >
               <Icons.ChevronRightIcon />
-              <span className="text-[11px] mt-1 font-semibold leading-tight">
-                Close
-              </span>
+              <span className="text-[11px] mt-1 font-semibold leading-tight">Close</span>
             </button>
             {tools.map((tool) => (
               <button
@@ -822,9 +719,7 @@ const FloatingToolsPanel: React.FC<ToolProps> = (props) => {
                 }`}
               >
                 {tool.icon}
-                <span className="text-[11px] mt-1 font-semibold leading-tight">
-                  {tool.name}
-                </span>
+                <span className="text-[11px] mt-1 font-semibold leading-tight">{tool.name}</span>
               </button>
             ))}
           </div>

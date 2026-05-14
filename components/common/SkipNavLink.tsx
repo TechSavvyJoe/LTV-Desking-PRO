@@ -5,9 +5,7 @@ import React from "react";
  * Allows keyboard users to skip past navigation to main content
  * Only visible when focused
  */
-const SkipNavLink: React.FC<{ href?: string }> = ({
-  href = "#main-content",
-}) => {
+const SkipNavLink: React.FC<{ href?: string }> = ({ href = "#main-content" }) => {
   return (
     <a
       href={href}

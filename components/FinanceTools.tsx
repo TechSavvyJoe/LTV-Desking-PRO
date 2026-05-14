@@ -1,8 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import {
-  calculateMonthlyPayment,
-  calculateLoanAmount,
-} from "../services/calculator";
+import { calculateMonthlyPayment, calculateLoanAmount } from "../services/calculator";
 import { formatCurrency } from "./common/TableCell";
 import * as Icons from "./common/Icons";
 import { PaymentBreakdownChart, LenderComparisonChart } from "./DealCharts";
@@ -115,13 +112,9 @@ const ResultDisplay = ({
 }) => (
   <div className="flex justify-between items-center p-4 bg-white/50 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
     <div className="flex flex-col">
-      <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
-        {label}
-      </span>
+      <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{label}</span>
       {subLabel && (
-        <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          {subLabel}
-        </span>
+        <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subLabel}</span>
       )}
     </div>
     <span className={`font-bold text-xl ${valueColorClass}`}>{value}</span>
@@ -144,8 +137,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const [activeTab, setActiveTab] = useState<ToolTab>("reserve");
 
   // --- Defaults from Props ---
-  const defaultPrice =
-    typeof activeVehicle?.price === "number" ? activeVehicle.price : 30000;
+  const defaultPrice = typeof activeVehicle?.price === "number" ? activeVehicle.price : 30000;
   const defaultRate = dealData?.interestRate || 7.99;
   const defaultTermVal = dealData?.loanTerm || 72;
 
@@ -195,8 +187,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   // --- Sync with Deal Data Effect ---
   useEffect(() => {
     if (dealData && activeVehicle) {
-      const price =
-        typeof activeVehicle.price === "number" ? activeVehicle.price : 30000;
+      const price = typeof activeVehicle.price === "number" ? activeVehicle.price : 30000;
       const rate = dealData.interestRate;
       const term = dealData.loanTerm;
 
@@ -209,8 +200,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
 
   const handleSyncToDeal = () => {
     if (!dealData || !activeVehicle) return;
-    const price =
-      typeof activeVehicle.price === "number" ? activeVehicle.price : 30000;
+    const price = typeof activeVehicle.price === "number" ? activeVehicle.price : 30000;
     const rate = dealData.interestRate;
     const term = dealData.loanTerm;
 
@@ -239,8 +229,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     const split = Number(splitPercent) || 0;
     const flat = Number(flatPercent) || 0;
 
-    if (principal <= 0 || t <= 0)
-      return { totalReserve: 0, dealerSplit: 0, flatFee: 0 };
+    if (principal <= 0 || t <= 0) return { totalReserve: 0, dealerSplit: 0, flatFee: 0 };
 
     const paymentBuy = calculateMonthlyPayment(principal, buy, t);
     const paymentSell = calculateMonthlyPayment(principal, sell, t);
@@ -371,12 +360,8 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
       {/* Sidebar */}
       <div className="w-64 bg-slate-50/50 dark:bg-slate-950/50 border-r border-slate-200/50 dark:border-slate-800/50 flex flex-col backdrop-blur-sm">
         <div className="p-4 border-b border-slate-200/50 dark:border-slate-800/50">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Finance Tools
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Calculators & Utilities
-          </p>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Finance Tools</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Calculators & Utilities</p>
         </div>
         <nav className="flex-1 p-2 space-y-1">
           {navItems.map((item) => (
@@ -416,8 +401,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 {navItems.find((n) => n.id === activeTab)?.label}
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                {activeTab === "reserve" &&
-                  "Calculate dealer reserve and splits."}
+                {activeTab === "reserve" && "Calculate dealer reserve and splits."}
                 {activeTab === "payment" && "Estimate monthly payments."}
                 {activeTab === "budget" && "Find max loan from monthly budget."}
                 {activeTab === "compare" && "Compare terms side-by-side."}
@@ -458,9 +442,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={resAmount}
                       onChange={(e) =>
-                        setResAmount(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setResAmount(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -482,9 +464,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       step="0.01"
                       value={buyRate}
                       onChange={(e) =>
-                        setBuyRate(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setBuyRate(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -494,9 +474,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       step="0.01"
                       value={sellRate}
                       onChange={(e) =>
-                        setSellRate(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setSellRate(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -505,9 +483,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={splitPercent}
                       onChange={(e) =>
-                        setSplitPercent(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setSplitPercent(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -517,9 +493,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       step="0.1"
                       value={flatPercent}
                       onChange={(e) =>
-                        setFlatPercent(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setFlatPercent(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -584,9 +558,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={payAmount}
                       onChange={(e) =>
-                        setPayAmount(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setPayAmount(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -597,9 +569,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                         step="0.1"
                         value={payRate}
                         onChange={(e) =>
-                          setPayRate(
-                            e.target.value === "" ? "" : Number(e.target.value)
-                          )
+                          setPayRate(e.target.value === "" ? "" : Number(e.target.value))
                         }
                       />
                     </InputGroup>
@@ -633,9 +603,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     type="number"
                     value={budgetPmt}
                     onChange={(e) =>
-                      setBudgetPmt(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
+                      setBudgetPmt(e.target.value === "" ? "" : Number(e.target.value))
                     }
                   />
                 </InputGroup>
@@ -646,9 +614,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       step="0.1"
                       value={budgetRate}
                       onChange={(e) =>
-                        setBudgetRate(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setBudgetRate(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -670,9 +636,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     type="number"
                     value={budgetDown}
                     onChange={(e) =>
-                      setBudgetDown(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
+                      setBudgetDown(e.target.value === "" ? "" : Number(e.target.value))
                     }
                   />
                 </InputGroup>
@@ -699,9 +663,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={compAmount}
                       onChange={(e) =>
-                        setCompAmount(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setCompAmount(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -711,9 +673,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       step="0.1"
                       value={compRate}
                       onChange={(e) =>
-                        setCompRate(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setCompRate(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -742,9 +702,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     type="number"
                     value={qualPmt}
                     onChange={(e) =>
-                      setQualPmt(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
+                      setQualPmt(e.target.value === "" ? "" : Number(e.target.value))
                     }
                   />
                 </InputGroup>
@@ -754,9 +712,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={qualIncome}
                       onChange={(e) =>
-                        setQualIncome(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setQualIncome(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                     <button
@@ -782,9 +738,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     type="number"
                     value={qualLimit}
                     onChange={(e) =>
-                      setQualLimit(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
+                      setQualLimit(e.target.value === "" ? "" : Number(e.target.value))
                     }
                   />
                 </InputGroup>
@@ -809,9 +763,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     type="number"
                     value={maxAppAmount}
                     onChange={(e) =>
-                      setMaxAppAmount(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
+                      setMaxAppAmount(e.target.value === "" ? "" : Number(e.target.value))
                     }
                   />
                 </InputGroup>
@@ -822,9 +774,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       step="0.1"
                       value={maxAppTax}
                       onChange={(e) =>
-                        setMaxAppTax(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setMaxAppTax(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -833,9 +783,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={maxAppFees}
                       onChange={(e) =>
-                        setMaxAppFees(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setMaxAppFees(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -846,9 +794,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={maxAppDown}
                       onChange={(e) =>
-                        setMaxAppDown(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setMaxAppDown(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -857,9 +803,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={maxAppTradeEq}
                       onChange={(e) =>
-                        setMaxAppTradeEq(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setMaxAppTradeEq(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -882,9 +826,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       type="number"
                       value={warrCostMo}
                       onChange={(e) =>
-                        setWarrCostMo(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
+                        setWarrCostMo(e.target.value === "" ? "" : Number(e.target.value))
                       }
                     />
                   </InputGroup>
@@ -906,9 +848,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     type="number"
                     value={warrRepairCost}
                     onChange={(e) =>
-                      setWarrRepairCost(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
+                      setWarrRepairCost(e.target.value === "" ? "" : Number(e.target.value))
                     }
                     placeholder="e.g. 4000 (Engine/Trans)"
                   />
@@ -931,8 +871,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                           width: `${Math.min(
                             100,
                             (warrantyAnalysis.totalWarrantyCost /
-                              (warrantyAnalysis.totalWarrantyCost +
-                                Number(warrRepairCost))) *
+                              (warrantyAnalysis.totalWarrantyCost + Number(warrRepairCost))) *
                               100
                           )}%`,
                         }}
@@ -942,9 +881,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
 
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Est. Repair Risk
-                      </span>
+                      <span className="text-slate-600 dark:text-slate-400">Est. Repair Risk</span>
                       <span className="text-slate-900 dark:text-white">
                         {formatCurrency(Number(warrRepairCost))}
                       </span>
@@ -956,8 +893,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                           width: `${Math.min(
                             100,
                             (Number(warrRepairCost) /
-                              (warrantyAnalysis.totalWarrantyCost +
-                                Number(warrRepairCost))) *
+                              (warrantyAnalysis.totalWarrantyCost + Number(warrRepairCost))) *
                               100
                           )}%`,
                         }}

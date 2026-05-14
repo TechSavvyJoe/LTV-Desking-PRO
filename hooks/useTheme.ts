@@ -7,9 +7,7 @@ const getInitialTheme = (): Theme => {
   if (typeof window === "undefined") return "dark";
   const stored = window.localStorage.getItem(STORAGE_KEYS.THEME);
   if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
-    ? "dark"
-    : "light";
+  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
 };
 
 export function useTheme() {
@@ -18,7 +16,7 @@ export function useTheme() {
   useEffect(() => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
-    
+
     // Apply theme class
     if (theme === "dark") {
       root.classList.add("dark");
@@ -27,7 +25,7 @@ export function useTheme() {
       root.classList.add("light");
       root.classList.remove("dark");
     }
-    
+
     // Persist to local storage
     window.localStorage.setItem(STORAGE_KEYS.THEME, theme);
   }, [theme]);

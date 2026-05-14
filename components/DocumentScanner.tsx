@@ -8,10 +8,7 @@ interface DocumentScannerProps {
   onClose: () => void;
 }
 
-export const DocumentScanner: React.FC<DocumentScannerProps> = ({
-  onIncomeExtracted,
-  onClose,
-}) => {
+export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtracted, onClose }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -51,9 +48,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({
         onIncomeExtracted(income);
         onClose();
       } else {
-        setError(
-          "Could not detect income automatically. Please enter manually."
-        );
+        setError("Could not detect income automatically. Please enter manually.");
       }
     } catch (err) {
       console.error("OCR Error:", err);
@@ -111,9 +106,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({
               <Icons.CameraIcon className="w-12 h-12 text-slate-400 mx-auto mb-2" />
             )}
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {isScanning
-                ? "Scanning document..."
-                : "Click to upload or take a photo"}
+              {isScanning ? "Scanning document..." : "Click to upload or take a photo"}
             </p>
           </div>
 
@@ -125,9 +118,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-center text-slate-500">
-                Processing... {progress}%
-              </p>
+              <p className="text-xs text-center text-slate-500">Processing... {progress}%</p>
             </div>
           )}
 

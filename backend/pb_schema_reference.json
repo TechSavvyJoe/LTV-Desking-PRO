@@ -99,14 +99,7 @@
         "name": "status",
         "type": "select",
         "options": {
-          "values": [
-            "draft",
-            "pending",
-            "submitted",
-            "approved",
-            "funded",
-            "cancelled"
-          ]
+          "values": ["draft", "pending", "submitted", "approved", "funded", "cancelled"]
         }
       },
       { "name": "notes", "type": "text" }

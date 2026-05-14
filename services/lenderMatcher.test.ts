@@ -1,16 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { checkBankEligibility } from "./lenderMatcher";
-import type {
-  CalculatedVehicle,
-  LenderProfile,
-  DealData,
-  FilterData,
-} from "../types";
+import type { CalculatedVehicle, LenderProfile, DealData, FilterData } from "../types";
 
 // Helper to create a mock vehicle
-const mockVehicle = (
-  overrides: Partial<CalculatedVehicle> = {}
-): CalculatedVehicle => ({
+const mockVehicle = (overrides: Partial<CalculatedVehicle> = {}): CalculatedVehicle => ({
   vehicle: "2021 Toyota Camry",
   stock: "123",
   vin: "TEST123",
@@ -31,9 +24,7 @@ const mockVehicle = (
 });
 
 // Helper to create mock deal+filter data
-const mockDeal = (
-  overrides: Partial<DealData & FilterData> = {}
-): DealData & FilterData => ({
+const mockDeal = (overrides: Partial<DealData & FilterData> = {}): DealData & FilterData => ({
   downPayment: 2000,
   tradeInValue: 0,
   tradeInPayoff: 0,
@@ -182,9 +173,7 @@ describe("checkBankEligibility", () => {
       );
 
       expect(result.eligible).toBe(false);
-      expect(result.reasons.some((r) => r.includes("Income too low"))).toBe(
-        true
-      );
+      expect(result.reasons.some((r) => r.includes("Income too low"))).toBe(true);
     });
 
     it("rejects when PTI exceeds maximum", () => {
@@ -223,11 +212,7 @@ describe("checkBankEligibility", () => {
     });
 
     it("handles empty tiers array", () => {
-      const result = checkBankEligibility(
-        mockVehicle(),
-        mockDeal(),
-        mockLender({ tiers: [] })
-      );
+      const result = checkBankEligibility(mockVehicle(), mockDeal(), mockLender({ tiers: [] }));
 
       expect(result.eligible).toBe(false);
     });

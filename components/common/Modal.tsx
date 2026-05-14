@@ -93,9 +93,7 @@ const Modal: React.FC<ModalProps> = ({
           transform transition-all duration-300 cubic-bezier(0.16, 1, 0.3, 1)
           flex flex-col max-h-[calc(100vh-3rem)]
           ${
-            isAnimating
-              ? "opacity-100 scale-100 translate-y-0"
-              : "opacity-0 scale-95 translate-y-4"
+            isAnimating ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
           }
         `}
         role="dialog"
@@ -112,9 +110,7 @@ const Modal: React.FC<ModalProps> = ({
               {title}
             </h3>
             {description && (
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                {description}
-              </p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
             )}
           </div>
           <button
@@ -132,9 +128,7 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content - Scrollable */}
-        <div className="px-6 py-6 overflow-y-auto custom-scrollbar flex-1">
-          {children}
-        </div>
+        <div className="px-6 py-6 overflow-y-auto custom-scrollbar flex-1">{children}</div>
 
         {/* Footer */}
         {footer && (

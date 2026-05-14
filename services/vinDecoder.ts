@@ -40,9 +40,7 @@ export const decodeVin = async (vin: string): Promise<VinDetails> => {
     // However, sometimes a valid VIN returns a non-zero code (e.g., "1" for a partial match) but still provides useful data.
     // As a fallback, we check if the 'Make' field exists. If it does, we proceed even with a non-zero ErrorCode.
     if (result.ErrorCode !== "0" && !result.Make) {
-      throw new Error(
-        `VIN lookup failed: ${result.ErrorText || "No data returned."}`
-      );
+      throw new Error(`VIN lookup failed: ${result.ErrorText || "No data returned."}`);
     }
 
     const make = result.Make;
@@ -57,9 +55,7 @@ export const decodeVin = async (vin: string): Promise<VinDetails> => {
     return { make, model, year, trim };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        "VIN lookup timed out. Please check your connection and try again."
-      );
+      throw new Error("VIN lookup timed out. Please check your connection and try again.");
     }
     if (error instanceof Error) {
       // Re-throw known errors to be displayed in the UI.

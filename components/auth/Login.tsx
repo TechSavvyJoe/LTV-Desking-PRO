@@ -41,12 +41,8 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
   return (
     <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
-          Welcome Back
-        </h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">
-          Sign in to access your deals
-        </p>
+        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
+        <p className="mt-2 text-slate-600 dark:text-slate-400">Sign in to access your deals</p>
       </div>
 
       <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -105,9 +101,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
               className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
               onClick={(e) => {
                 e.preventDefault();
-                toast.info(
-                  "Please contact your administrator to reset password."
-                );
+                toast.info("Please contact your administrator to reset password.");
               }}
             >
               Forgot your password?
@@ -120,11 +114,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
           disabled={loading}
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? (
-            <Icons.SpinnerIcon className="animate-spin h-5 w-5" />
-          ) : (
-            "Sign in"
-          )}
+          {loading ? <Icons.SpinnerIcon className="animate-spin h-5 w-5" /> : "Sign in"}
         </Button>
       </form>
 

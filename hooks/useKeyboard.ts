@@ -14,10 +14,7 @@ type KeyMap = Record<string, KeyHandler>;
  *   'ctrl+shift+p': () => togglePanel(),
  * });
  */
-export const useKeyboardShortcuts = (
-  keyMap: KeyMap,
-  enabled: boolean = true
-) => {
+export const useKeyboardShortcuts = (keyMap: KeyMap, enabled: boolean = true) => {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!enabled) return;
@@ -39,19 +36,9 @@ export const useKeyboardShortcuts = (
 
       // Also check without modifiers for simple keys like 'escape'
       const simpleHandler = keyMap[event.key.toLowerCase()];
-      if (
-        simpleHandler &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.shiftKey &&
-        !event.altKey
-      ) {
+      if (simpleHandler && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
         // Only prevent default for escape and similar, not for regular typing
-        if (
-          ["escape", "f1", "f2", "f3", "f4", "f5"].includes(
-            event.key.toLowerCase()
-          )
-        ) {
+        if (["escape", "f1", "f2", "f3", "f4", "f5"].includes(event.key.toLowerCase())) {
           event.preventDefault();
           simpleHandler(event);
         }

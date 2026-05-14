@@ -20,9 +20,7 @@
  * }
  * ```
  */
-export type Result<T, E = Error> =
-  | { success: true; data: T }
-  | { success: false; error: E };
+export type Result<T, E = Error> = { success: true; data: T } | { success: false; error: E };
 
 /**
  * Helper to create a successful result
@@ -54,10 +52,7 @@ export const unwrap = <T, E>(result: Result<T, E>): T => {
 /**
  * Map over a successful result
  */
-export const map = <T, U, E>(
-  result: Result<T, E>,
-  fn: (data: T) => U
-): Result<U, E> => {
+export const map = <T, U, E>(result: Result<T, E>, fn: (data: T) => U): Result<U, E> => {
   if (result.success) {
     return ok(fn(result.data));
   }
@@ -90,9 +85,7 @@ export const orElse = <T, E>(result: Result<T, E>, defaultValue: T): T => {
 /**
  * Convert a promise to a Result
  */
-export const fromPromise = async <T>(
-  promise: Promise<T>
-): Promise<Result<T, Error>> => {
+export const fromPromise = async <T>(promise: Promise<T>): Promise<Result<T, Error>> => {
   try {
     const data = await promise;
     return ok(data);

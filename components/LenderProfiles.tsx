@@ -1,19 +1,18 @@
 import React, { useState, useCallback } from "react";
-import type { LenderProfile, LenderTier } from "../types";
+import type { LenderProfile, LenderTier, Settings } from "../types";
 import Button from "./common/Button";
 import LenderProfileModal from "./LenderProfileModal";
 import { generateLenderCheatSheetPdf } from "../services/pdfGenerator";
 import { processLenderSheet } from "../services/aiProcessor";
 import * as Icons from "./common/Icons";
-import {
-  saveLenderProfile,
-  updateLenderProfile,
-  deleteLenderProfile,
-} from "../lib/api";
+import { saveLenderProfile, updateLenderProfile, deleteLenderProfile } from "../lib/api";
+import { toast } from "../lib/toast";
+import { confirmAction } from "../lib/confirm";
 
 interface LenderProfilesProps {
   profiles: LenderProfile[];
   onUpdate: React.Dispatch<React.SetStateAction<LenderProfile[]>>;
+  settings: Settings;
 }
 
 const getRange = (tiers: LenderTier[], key: keyof LenderTier): string => {
@@ -69,13 +68,7 @@ const TierDetail = ({
 };
 
 // Premium section header for tier cards
-const TierSection = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => (
+const TierSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="space-y-2">
     <h5 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-700 pb-1">
       {title}
@@ -84,14 +77,9 @@ const TierSection = ({
   </div>
 );
 
-const LenderProfiles: React.FC<LenderProfilesProps> = ({
-  profiles,
-  onUpdate,
-}) => {
+const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, settings }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<LenderProfile | null>(
-    null
-  );
+  const [editingProfile, setEditingProfile] = useState<LenderProfile | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
   const [targetLenderId, setTargetLenderId] = useState<string>("auto");
@@ -131,34 +119,34 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
         }
       } else {
         // Update
-        const updated = await updateLenderProfile(
-          profileToSave.id,
-          apiProfile as any
-        );
+        const updated = await updateLenderProfile(profileToSave.id, apiProfile as any);
         if (updated) {
           onUpdate((prev) =>
-            prev.map((p) =>
-              p.id === updated.id ? (updated as unknown as LenderProfile) : p
-            )
+            prev.map((p) => (p.id === updated.id ? (updated as unknown as LenderProfile) : p))
           );
         }
       }
       setIsModalOpen(false);
     } catch (error) {
       console.error("Failed to save lender profile", error);
-      alert("Failed to save profile.");
+      toast.error("Failed to save profile.");
     }
   };
 
   const handleDelete = async (id: string) => {
     if (
-      window.confirm("Are you sure you want to delete this lender profile?")
+      await confirmAction({
+        title: "Delete lender profile?",
+        message: "Are you sure you want to delete this lender profile?",
+        confirmLabel: "Delete",
+        tone: "danger",
+      })
     ) {
       const success = await deleteLenderProfile(id);
       if (success) {
         onUpdate((prev) => prev.filter((p) => p.id !== id));
       } else {
-        alert("Failed to delete profile.");
+        toast.error("Failed to delete profile.");
       }
     }
   };
@@ -177,7 +165,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
 
   const handleDownloadCheatSheet = async () => {
     if (profiles.length === 0) {
-      alert("No lender profiles to generate a cheat sheet for.");
+      toast.info("No lender profiles to generate a cheat sheet for.");
       return;
     }
     try {
@@ -187,15 +175,11 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (error) {
       console.error("Failed to generate lender cheat sheet PDF:", error);
-      alert(
-        "Sorry, there was an error creating the cheat sheet. Please try again."
-      );
+      toast.error("Sorry, there was an error creating the cheat sheet. Please try again.");
     }
   };
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -218,16 +202,11 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
             id: existingProfile.id,
             tiers: extractedData.tiers || existingProfile.tiers,
           };
-          const updated = await updateLenderProfile(
-            existingProfile.id,
-            mergedData as any
-          );
+          const updated = await updateLenderProfile(existingProfile.id, mergedData as any);
           if (updated) {
             onUpdate((prev) =>
               prev.map((p) =>
-                p.id === existingProfile.id
-                  ? (updated as unknown as LenderProfile)
-                  : p
+                p.id === existingProfile.id ? (updated as unknown as LenderProfile) : p
               )
             );
             updatedCount++;
@@ -261,7 +240,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
 
         try {
           // processLenderSheet now returns an array of lenders
-          const extractedLenders = await processLenderSheet(file);
+          const extractedLenders = await processLenderSheet(file, undefined, settings.ai);
 
           if (!extractedLenders || extractedLenders.length === 0) {
             errors.push(`Could not extract any lender data from ${file.name}`);
@@ -280,12 +259,8 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
             if (targetId === "auto") {
               const match = profiles.find(
                 (p) =>
-                  p.name
-                    .toLowerCase()
-                    .includes(extractedData.name!.toLowerCase()) ||
-                  extractedData
-                    .name!.toLowerCase()
-                    .includes(p.name.toLowerCase())
+                  p.name.toLowerCase().includes(extractedData.name!.toLowerCase()) ||
+                  extractedData.name!.toLowerCase().includes(p.name.toLowerCase())
               );
               if (match) {
                 targetId = match.id;
@@ -299,10 +274,8 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
             } else {
               // Auto-detect: check if lender already exists by name
               existingProfile =
-                profiles.find(
-                  (p) =>
-                    p.name.toLowerCase() === extractedData.name!.toLowerCase()
-                ) || null;
+                profiles.find((p) => p.name.toLowerCase() === extractedData.name!.toLowerCase()) ||
+                null;
             }
 
             // Persist to PocketBase and update local state
@@ -318,14 +291,17 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
 
       let message = `Processed ${files.length} file(s).\n`;
       if (updatedCount > 0) message += `Updated ${updatedCount} lender(s).\n`;
-      if (createdCount > 0)
-        message += `Created ${createdCount} new lender(s).\n`;
+      if (createdCount > 0) message += `Created ${createdCount} new lender(s).\n`;
       if (errors.length > 0) message += `\nErrors:\n${errors.join("\n")}`;
 
-      alert(message);
+      if (errors.length > 0) {
+        toast.warning(message);
+      } else {
+        toast.success(message);
+      }
     } catch (error: any) {
       console.error("Upload failed:", error);
-      alert(error.message || "Failed to process files.");
+      toast.error(error.message || "Failed to process files.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -335,8 +311,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
   };
 
   const ExpandedRow = ({ profile }: { profile: LenderProfile }) => {
-    const tiers =
-      profile?.tiers && Array.isArray(profile.tiers) ? profile.tiers : [];
+    const tiers = profile?.tiers && Array.isArray(profile.tiers) ? profile.tiers : [];
 
     return (
       <td colSpan={9} className="p-0">
@@ -348,9 +323,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                 <Icons.BuildingLibraryIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h4 className="text-xl font-bold text-slate-900 dark:text-white">
-                  {profile.name}
-                </h4>
+                <h4 className="text-xl font-bold text-slate-900 dark:text-white">{profile.name}</h4>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {tiers.length} {tiers.length === 1 ? "tier" : "tiers"} •
                   {profile.bookValueSource || "Trade"} Book •
@@ -396,8 +369,8 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                               tier.vehicleType === "new"
                                 ? "bg-emerald-500 text-white"
                                 : tier.vehicleType === "certified"
-                                ? "bg-blue-500 text-white"
-                                : "bg-slate-600 text-slate-200"
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-slate-600 text-slate-200"
                             }`}
                           >
                             {tier.vehicleType}
@@ -411,12 +384,10 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                           <span className="text-xs text-slate-300 font-medium">
                             FICO:{" "}
                             {tier.minFico
-                              ? `${tier.minFico}${
-                                  tier.maxFico ? `-${tier.maxFico}` : "+"
-                                }`
+                              ? `${tier.minFico}${tier.maxFico ? `-${tier.maxFico}` : "+"}`
                               : tier.maxFico
-                              ? `≤${tier.maxFico}`
-                              : "Any"}
+                                ? `≤${tier.maxFico}`
+                                : "Any"}
                           </span>
                         </div>
                       )}
@@ -439,43 +410,32 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                             label="OTD LTV"
                             value={`${tier.otdLtv}%`}
                             highlight={tier.otdLtv >= 130}
-                            icon={
-                              <Icons.ReceiptPercentIcon className="w-3 h-3" />
-                            }
+                            icon={<Icons.ReceiptPercentIcon className="w-3 h-3" />}
                           />
                         )}
                         {tier.maxAdvance && (
                           <TierDetail
                             label="Max Advance"
                             value={`$${tier.maxAdvance.toLocaleString()}`}
-                            icon={
-                              <Icons.CurrencyDollarIcon className="w-3 h-3" />
-                            }
+                            icon={<Icons.CurrencyDollarIcon className="w-3 h-3" />}
                           />
                         )}
                       </TierSection>
 
                       {/* Vehicle Requirements */}
-                      {(tier.minYear ||
-                        tier.maxYear ||
-                        tier.maxMileage ||
-                        tier.maxAge) && (
+                      {(tier.minYear || tier.maxYear || tier.maxMileage || tier.maxAge) && (
                         <TierSection title="Vehicle Requirements">
                           {(tier.minYear || tier.maxYear) && (
                             <TierDetail
                               label="Model Year"
                               value={
                                 tier.minYear
-                                  ? `${tier.minYear}${
-                                      tier.maxYear ? `-${tier.maxYear}` : "+"
-                                    }`
+                                  ? `${tier.minYear}${tier.maxYear ? `-${tier.maxYear}` : "+"}`
                                   : tier.maxYear
-                                  ? `≤${tier.maxYear}`
-                                  : null
+                                    ? `≤${tier.maxYear}`
+                                    : null
                               }
-                              icon={
-                                <Icons.CalendarDaysIcon className="w-3 h-3" />
-                              }
+                              icon={<Icons.CalendarDaysIcon className="w-3 h-3" />}
                             />
                           )}
                           {tier.maxMileage && (
@@ -489,9 +449,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                             <TierDetail
                               label="Max Age"
                               value={`${tier.maxAge} years`}
-                              icon={
-                                <Icons.DocumentTextIcon className="w-3 h-3" />
-                              }
+                              icon={<Icons.DocumentTextIcon className="w-3 h-3" />}
                             />
                           )}
                         </TierSection>
@@ -510,16 +468,13 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                                 tier.minTerm
                                   ? `${tier.minTerm}-${tier.maxTerm || "?"}mo`
                                   : tier.maxTerm
-                                  ? `Up to ${tier.maxTerm}mo`
-                                  : null
+                                    ? `Up to ${tier.maxTerm}mo`
+                                    : null
                               }
-                              icon={
-                                <Icons.DocumentTextIcon className="w-3 h-3" />
-                              }
+                              icon={<Icons.DocumentTextIcon className="w-3 h-3" />}
                             />
                           )}
-                          {(tier.minAmountFinanced ||
-                            tier.maxAmountFinanced) && (
+                          {(tier.minAmountFinanced || tier.maxAmountFinanced) && (
                             <TierDetail
                               label="Amount"
                               value={
@@ -530,8 +485,8 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                                         : "+"
                                     }`
                                   : tier.maxAmountFinanced
-                                  ? `Up to $${tier.maxAmountFinanced.toLocaleString()}`
-                                  : null
+                                    ? `Up to $${tier.maxAmountFinanced.toLocaleString()}`
+                                    : null
                               }
                               icon={<Icons.BanknotesIcon className="w-3 h-3" />}
                             />
@@ -540,17 +495,13 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                       )}
 
                       {/* Rate Info */}
-                      {(tier.baseInterestRate ||
-                        tier.rateAdder ||
-                        tier.maxRate) && (
+                      {(tier.baseInterestRate || tier.rateAdder || tier.maxRate) && (
                         <TierSection title="Rate Info">
                           {tier.baseInterestRate && (
                             <TierDetail
                               label="Buy Rate"
                               value={`${tier.baseInterestRate.toFixed(2)}%`}
-                              icon={
-                                <Icons.ReceiptPercentIcon className="w-3 h-3" />
-                              }
+                              icon={<Icons.ReceiptPercentIcon className="w-3 h-3" />}
                             />
                           )}
                           {tier.rateAdder && (
@@ -564,9 +515,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                             <TierDetail
                               label="Max Rate"
                               value={`${tier.maxRate.toFixed(2)}%`}
-                              icon={
-                                <Icons.ExclamationTriangleIcon className="w-3 h-3" />
-                              }
+                              icon={<Icons.ExclamationTriangleIcon className="w-3 h-3" />}
                             />
                           )}
                         </TierSection>
@@ -579,18 +528,14 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                             <TierDetail
                               label="Max Backend"
                               value={`$${tier.maxBackend.toLocaleString()}`}
-                              icon={
-                                <Icons.ShieldCheckIcon className="w-3 h-3" />
-                              }
+                              icon={<Icons.ShieldCheckIcon className="w-3 h-3" />}
                             />
                           )}
                           {tier.maxBackendPercent && (
                             <TierDetail
                               label="Backend %"
                               value={`${tier.maxBackendPercent}%`}
-                              icon={
-                                <Icons.ReceiptPercentIcon className="w-3 h-3" />
-                              }
+                              icon={<Icons.ReceiptPercentIcon className="w-3 h-3" />}
                             />
                           )}
                         </TierSection>
@@ -601,9 +546,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                     {tier.confidence !== undefined && (
                       <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
                         <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-400">
-                            Extraction Confidence
-                          </span>
+                          <span className="text-slate-400">Extraction Confidence</span>
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                               <div
@@ -611,8 +554,8 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                                   tier.confidence >= 0.8
                                     ? "bg-emerald-500"
                                     : tier.confidence >= 0.6
-                                    ? "bg-amber-500"
-                                    : "bg-red-500"
+                                      ? "bg-amber-500"
+                                      : "bg-red-500"
                                 }`}
                                 style={{
                                   width: `${(tier.confidence || 0) * 100}%`,
@@ -632,9 +575,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
             ) : (
               <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                 <Icons.DocumentTextIcon className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" />
-                <p className="text-slate-500 dark:text-slate-400 font-medium">
-                  No tiers defined
-                </p>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">No tiers defined</p>
                 <p className="text-slate-400 dark:text-slate-500 text-sm">
                   Upload a rate sheet to populate tier data
                 </p>
@@ -660,8 +601,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
             Lender Profiles
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {safeProfiles.length}{" "}
-            {safeProfiles.length === 1 ? "lender" : "lenders"} configured
+            {safeProfiles.length} {safeProfiles.length === 1 ? "lender" : "lenders"} configured
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -699,9 +639,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
             ) : (
               <Icons.CloudArrowDownIcon className="w-5 h-5 text-blue-400" />
             )}
-            <span className="ml-2">
-              {isUploading ? "Analyzing..." : "Upload Rate Sheet(s)"}
-            </span>
+            <span className="ml-2">{isUploading ? "Analyzing..." : "Upload Rate Sheet(s)"}</span>
           </Button>
           <Button variant="ghost" onClick={handleDownloadCheatSheet}>
             <Icons.PdfIcon />
@@ -749,25 +687,25 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                     {(() => {
                       const range = getRange(profile.tiers, "maxLtv");
                       return range === "N/A" ? (
-                        <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">--</span>
+                        <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">
+                          --
+                        </span>
                       ) : (
-                        <span className="text-green-600 dark:text-green-400 font-medium">{range}%</span>
+                        <span className="text-green-600 dark:text-green-400 font-medium">
+                          {range}%
+                        </span>
                       );
                     })()}
                   </td>
                   <td className="p-3">{getRange(profile.tiers, "minYear")}</td>
-                  <td className="p-3">
-                    {getRange(profile.tiers, "maxTerm")} mo
-                  </td>
+                  <td className="p-3">{getRange(profile.tiers, "maxTerm")} mo</td>
                   <td className="p-3">
                     {(() => {
                       const range = getRange(profile.tiers, "maxMileage");
                       if (range === "N/A") return range;
                       // Format mileage with commas for readability
                       const parts = range.split(" - ");
-                      return parts
-                        .map((p) => parseInt(p).toLocaleString())
-                        .join(" - ");
+                      return parts.map((p) => parseInt(p).toLocaleString()).join(" - ");
                     })()}
                   </td>
                   <td className="p-3">
@@ -783,9 +721,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({
                   </td>
                   <td className="p-3">
                     <span className="px-2 py-0.5 text-xs font-medium bg-purple-900/50 text-purple-300 rounded-full">
-                      {profile.tiers && Array.isArray(profile.tiers)
-                        ? profile.tiers.length
-                        : 0}
+                      {profile.tiers && Array.isArray(profile.tiers) ? profile.tiers.length : 0}
                     </span>
                   </td>
                   <td className="p-3">

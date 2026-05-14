@@ -1,10 +1,4 @@
-import type {
-  CalculatedVehicle,
-  LenderProfile,
-  DealData,
-  FilterData,
-  LenderTier,
-} from "../types";
+import type { CalculatedVehicle, LenderProfile, DealData, FilterData, LenderTier } from "../types";
 
 const formatCurrencySimple = (value: number | string | undefined): string => {
   if (typeof value !== "number") return String(value || "0");
@@ -65,19 +59,12 @@ export const checkBankEligibility = (
     const income = Number(monthlyIncome) || 0;
     if (income < bank.minIncome) {
       reasons.push(
-        `Income too low (${formatCurrencySimple(
-          income
-        )} < ${formatCurrencySimple(bank.minIncome)})`
+        `Income too low (${formatCurrencySimple(income)} < ${formatCurrencySimple(bank.minIncome)})`
       );
     }
   }
 
-  if (
-    bank.maxPti !== undefined &&
-    bank.maxPti > 0 &&
-    monthlyIncome &&
-    monthlyIncome > 0
-  ) {
+  if (bank.maxPti !== undefined && bank.maxPti > 0 && monthlyIncome && monthlyIncome > 0) {
     const pment = Number(monthlyPayment);
     if (pment > 0) {
       const pti = (pment / monthlyIncome) * 100;
@@ -106,9 +93,7 @@ export const checkBankEligibility = (
     // FICO Score Check
     if (
       tier.minFico !== undefined &&
-      (creditScore === null ||
-        creditScore === undefined ||
-        creditScore < tier.minFico)
+      (creditScore === null || creditScore === undefined || creditScore < tier.minFico)
     )
       continue;
     if (
@@ -121,35 +106,19 @@ export const checkBankEligibility = (
 
     // Vehicle Year Check
     const year = Number(modelYear);
-    if (tier.minYear !== undefined && (isNaN(year) || year < tier.minYear))
-      continue;
-    if (tier.maxYear !== undefined && (isNaN(year) || year > tier.maxYear))
-      continue;
+    if (tier.minYear !== undefined && (isNaN(year) || year < tier.minYear)) continue;
+    if (tier.maxYear !== undefined && (isNaN(year) || year > tier.maxYear)) continue;
 
     // Vehicle Mileage Check
     const miles = Number(mileage);
-    if (
-      tier.minMileage !== undefined &&
-      (isNaN(miles) || miles < tier.minMileage)
-    )
-      continue;
-    if (
-      tier.maxMileage !== undefined &&
-      (isNaN(miles) || miles > tier.maxMileage)
-    )
-      continue;
+    if (tier.minMileage !== undefined && (isNaN(miles) || miles < tier.minMileage)) continue;
+    if (tier.maxMileage !== undefined && (isNaN(miles) || miles > tier.maxMileage)) continue;
 
     // Amount Financed Check
     const amt = Number(amountToFinance);
-    if (
-      tier.minAmountFinanced !== undefined &&
-      (isNaN(amt) || amt < tier.minAmountFinanced)
-    )
+    if (tier.minAmountFinanced !== undefined && (isNaN(amt) || amt < tier.minAmountFinanced))
       continue;
-    if (
-      tier.maxAmountFinanced !== undefined &&
-      (isNaN(amt) || amt > tier.maxAmountFinanced)
-    )
+    if (tier.maxAmountFinanced !== undefined && (isNaN(amt) || amt > tier.maxAmountFinanced))
       continue;
 
     // Loan Term Check
@@ -160,13 +129,11 @@ export const checkBankEligibility = (
     if (tier.maxLtv !== undefined) {
       const bookValueSource = bank.bookValueSource || "Trade";
       const bookValue =
-        bookValueSource === "Retail" &&
-        typeof jdPowerRetail === "number" &&
-        jdPowerRetail > 0
+        bookValueSource === "Retail" && typeof jdPowerRetail === "number" && jdPowerRetail > 0
           ? jdPowerRetail
           : typeof jdPower === "number" && jdPower > 0
-          ? jdPower
-          : null;
+            ? jdPower
+            : null;
 
       if (bookValue === null) continue; // Cannot check LTV without a book value
       if (amt <= 0) continue;
@@ -180,8 +147,6 @@ export const checkBankEligibility = (
   }
 
   // If the loop completes without finding a matching tier.
-  reasons.push(
-    "No eligible lending tier found for this deal structure and vehicle."
-  );
+  reasons.push("No eligible lending tier found for this deal structure and vehicle.");
   return { eligible: false, reasons, matchedTier: null };
 };

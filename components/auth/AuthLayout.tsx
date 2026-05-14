@@ -16,17 +16,13 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
             <Icons.TruckIcon className="w-10 h-10 text-white" />
           </div>
         </div>
-        <h2 className="text-center text-3xl font-extrabold text-white mb-2">
-          LTV Desking PRO
-        </h2>
+        <h2 className="text-center text-3xl font-extrabold text-white mb-2">LTV Desking PRO</h2>
         <p className="text-center text-slate-300 text-sm">
           Advanced Deal Structuring & Finance Platform
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        {children}
-      </div>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">{children}</div>
     </div>
   );
 };

@@ -1,6 +1,5 @@
 import type { Vehicle } from "../types";
-
-declare const XLSX: any; // Assuming XLSX is available from CDN script
+import readXlsxFile from "read-excel-file/browser";
 
 const splitCsvIntoRows = (csvString: string): string[] => {
   if (csvString === undefined || csvString === null) return [];
@@ -62,15 +61,16 @@ const detectDelimiter = (headerLine: string): string => {
   if (!headerLine || typeof headerLine !== "string") return ",";
   const commaCount = (headerLine.match(/,/g) || []).length;
   const semicolonCount = (headerLine.match(/;/g) || []).length;
-  return semicolonCount > 0 &&
-    (commaCount === 0 || semicolonCount > commaCount * 2)
-    ? ";"
-    : ",";
+  return semicolonCount > 0 && (commaCount === 0 || semicolonCount > commaCount * 2) ? ";" : ",";
+};
+
+const toCsvCell = (value: unknown): string => {
+  const text = value instanceof Date ? value.toISOString() : String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
 };
 
 const parseNumber = (str: string | undefined): number | "N/A" => {
-  if (str === undefined || str === null || String(str).trim() === "")
-    return "N/A";
+  if (str === undefined || str === null || String(str).trim() === "") return "N/A";
   const cleaned = String(str).replace(/[^0-9.-]+/g, "");
   // Prevent multiple dots/dashes that would yield NaN.
   const isLikelyNumber = /^-?\d+(\.\d+)?$/.test(cleaned);
@@ -83,42 +83,21 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = e.target?.result;
         let csvContent: string;
-        const isExcel =
-          file.name.endsWith(".xls") || file.name.endsWith(".xlsx");
+        const isExcel = file.name.toLowerCase().endsWith(".xlsx");
 
         if (isExcel) {
-          if (typeof XLSX === "undefined") {
-            throw new Error(
-              "Excel parsing is unavailable. Please ensure the XLSX library is loaded or upload a CSV instead."
-            );
-          }
-          const workbook = XLSX.read(data, {
-            type: "array",
-            cellNF: false,
-            cellText: true,
-          });
-          if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-            throw new Error("The uploaded Excel file contains no sheets.");
-          }
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          csvContent = XLSX.utils.sheet_to_csv(worksheet, {
-            forceQuotes: true,
-          });
+          const sheets = await readXlsxFile(data as ArrayBuffer);
+          const rows = sheets[0]?.data ?? [];
+          csvContent = rows.map((row) => row.map(toCsvCell).join(",")).join("\n");
         } else {
-          csvContent = new TextDecoder("utf-8").decode(
-            new Uint8Array(data as ArrayBuffer)
-          );
+          csvContent = new TextDecoder("utf-8").decode(new Uint8Array(data as ArrayBuffer));
         }
 
-        if (
-          !csvContent ||
-          typeof csvContent !== "string" ||
-          csvContent.trim() === ""
-        ) {
+        if (!csvContent || typeof csvContent !== "string" || csvContent.trim() === "") {
           throw new Error("File content is empty or the first sheet is blank.");
         }
 
@@ -139,19 +118,12 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
           stock: headers.indexOf("Stock #"),
           vin: headers.indexOf("VIN"),
           price: headers.indexOf("Price"),
-          jdPower: headers.findIndex(
-            (h) => h.includes("J.D. Power") && h.includes("Trade In")
-          ),
-          jdPowerRetail: headers.findIndex(
-            (h) => h.includes("J.D. Power") && h.includes("Retail")
-          ),
+          jdPower: headers.findIndex((h) => h.includes("J.D. Power") && h.includes("Trade In")),
+          jdPowerRetail: headers.findIndex((h) => h.includes("J.D. Power") && h.includes("Retail")),
           unitCost: headers.indexOf("Unit Cost"),
-          modelYear: headers.findIndex(
-            (h) => h === "Model Year" || h === "Year"
-          ),
+          modelYear: headers.findIndex((h) => h === "Model Year" || h === "Year"),
           mileage: headers.findIndex(
-            (h) =>
-              h.toLowerCase() === "odometer" || h.toLowerCase() === "mileage"
+            (h) => h.toLowerCase() === "odometer" || h.toLowerCase() === "mileage"
           ),
         };
 
@@ -178,9 +150,7 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
           const missingMessage = `File is missing or has misnamed required columns: ${missingColumns.join(
             ", "
           )}.`;
-          const foundMessage = `The headers found in the file are: [${headers.join(
-            ", "
-          )}].`;
+          const foundMessage = `The headers found in the file are: [${headers.join(", ")}].`;
           const suggestion = `Please correct the column headers and try again.`;
           throw new Error(`${missingMessage}\n${foundMessage}\n${suggestion}`);
         }
@@ -192,15 +162,14 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
             const vals = parseCsvRow(rowString, delimiter);
             if (vals.length < headers.length) return null;
 
-            const make = idx.make !== -1 ? vals[idx.make] ?? "" : undefined;
-            const model = idx.model !== -1 ? vals[idx.model] ?? "" : undefined;
-            const trim = idx.trim !== -1 ? vals[idx.trim] ?? "" : undefined;
+            const make = idx.make !== -1 ? (vals[idx.make] ?? "") : undefined;
+            const model = idx.model !== -1 ? (vals[idx.model] ?? "") : undefined;
+            const trim = idx.trim !== -1 ? (vals[idx.trim] ?? "") : undefined;
 
             let modelYear = parseNumber(vals[idx.modelYear] ?? "");
 
             // Construct vehicle description if missing
-            let vehicleDescription: string =
-              idx.vehicle !== -1 ? vals[idx.vehicle] ?? "" : "";
+            let vehicleDescription: string = idx.vehicle !== -1 ? (vals[idx.vehicle] ?? "") : "";
             if (!vehicleDescription && make && model) {
               vehicleDescription = `${
                 modelYear !== "N/A" ? modelYear : ""
@@ -208,9 +177,7 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
             }
 
             if (modelYear === "N/A") {
-              const yearMatch = vehicleDescription.match(
-                /\b(19[89]\d|20\d{2})\b/
-              );
+              const yearMatch = vehicleDescription.match(/\b(19[89]\d|20\d{2})\b/);
               if (yearMatch) modelYear = parseInt(yearMatch[0], 10);
             }
 
@@ -228,20 +195,15 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
               stock: vals[idx.stock] ?? "N/A",
               vin:
                 vals[idx.vin] && (vals[idx.vin] ?? "").trim() !== ""
-                  ? vals[idx.vin] ?? ""
+                  ? (vals[idx.vin] ?? "")
                   : `VIN-${vals[idx.stock] ?? "ROW"}-${rowIndex}`,
               modelYear: modelYear,
               mileage,
               price,
               jdPower: parseNumber(vals[idx.jdPower] ?? ""),
               jdPowerRetail:
-                idx.jdPowerRetail !== -1
-                  ? parseNumber(vals[idx.jdPowerRetail] ?? "")
-                  : "N/A",
-              unitCost:
-                idx.unitCost !== -1
-                  ? parseNumber(vals[idx.unitCost] ?? "")
-                  : "N/A",
+                idx.jdPowerRetail !== -1 ? parseNumber(vals[idx.jdPowerRetail] ?? "") : "N/A",
+              unitCost: idx.unitCost !== -1 ? parseNumber(vals[idx.unitCost] ?? "") : "N/A",
               baseOutTheDoorPrice: "N/A", // will be calculated later
             };
           })
@@ -249,9 +211,7 @@ export const parseFile = (file: File): Promise<Vehicle[]> => {
 
         if (vehicles.length === 0) {
           reject(
-            new Error(
-              "No valid rows found. Ensure Price and Mileage are populated and numeric."
-            )
+            new Error("No valid rows found. Ensure Price and Mileage are populated and numeric.")
           );
           return;
         }

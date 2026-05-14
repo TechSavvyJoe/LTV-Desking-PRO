@@ -8,10 +8,7 @@
  * @param fallback - Fallback value if parsing fails (default: 0)
  * @returns Parsed number or fallback
  */
-export const safeParseNumber = (
-  value: unknown,
-  fallback: number = 0
-): number => {
+export const safeParseNumber = (value: unknown, fallback: number = 0): number => {
   if (typeof value === "number") {
     return isNaN(value) || !isFinite(value) ? fallback : value;
   }
@@ -30,10 +27,7 @@ export const safeParseNumber = (
  * @param fallback - Fallback value if parsing fails (default: false)
  * @returns Parsed boolean or fallback
  */
-export const safeParseBoolean = (
-  value: unknown,
-  fallback: boolean = false
-): boolean => {
+export const safeParseBoolean = (value: unknown, fallback: boolean = false): boolean => {
   if (typeof value === "boolean") {
     return value;
   }
@@ -63,8 +57,7 @@ export const formatCurrencySafe = (
 ): string => {
   if (value === "Error") return "Error";
   if (value === "N/A") return "N/A";
-  if (typeof value !== "number" || isNaN(value) || !isFinite(value))
-    return "N/A";
+  if (typeof value !== "number" || isNaN(value) || !isFinite(value)) return "N/A";
 
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -87,8 +80,7 @@ export const formatPercentageSafe = (
 ): string => {
   if (value === "Error") return "Error";
   if (value === "N/A") return "N/A";
-  if (typeof value !== "number" || isNaN(value) || !isFinite(value))
-    return "N/A";
+  if (typeof value !== "number" || isNaN(value) || !isFinite(value)) return "N/A";
 
   return `${value.toFixed(decimals)}%`;
 };

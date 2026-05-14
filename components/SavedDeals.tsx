@@ -21,8 +21,7 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
             No Saved Deals Yet
           </p>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Structure a deal and click "Save Deal" to preserve your work for
-            later.
+            Structure a deal and click "Save Deal" to preserve your work for later.
           </p>
         </div>
       </div>
@@ -33,9 +32,7 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Saved Deals
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Saved Deals</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {deals.length} {deals.length === 1 ? "deal" : "deals"} saved
           </p>
@@ -67,13 +64,14 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
                       </h3>
                       <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-1">
                         <Icons.CalendarDaysIcon className="w-4 h-4" />
-                        {new Date(
-                          deal.date || deal.createdAt || Date.now()
-                        ).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {new Date(deal.date || deal.createdAt || Date.now()).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }
+                        )}
                       </p>
                     </div>
                   </div>
@@ -83,12 +81,8 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
                       <Icons.CarIcon className="w-4 h-4 text-slate-400" />
                       <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {deal.vehicle?.modelYear ||
-                          deal.vehicleSnapshot?.modelYear ||
-                          "N/A"}{" "}
-                        {deal.vehicle?.vehicle ||
-                          deal.vehicleSnapshot?.vehicle ||
-                          ""}
+                        {deal.vehicle?.modelYear || deal.vehicleSnapshot?.modelYear || "N/A"}{" "}
+                        {deal.vehicle?.vehicle || deal.vehicleSnapshot?.vehicle || ""}
                       </span>
                     </div>
 

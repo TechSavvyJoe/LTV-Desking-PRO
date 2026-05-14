@@ -5,9 +5,7 @@ import { subscribe } from "../../lib/toast";
 export const Toast: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [message, setMessage] = useState("");
-  const [type, setType] = useState<"success" | "error" | "warning" | "info">(
-    "info"
-  );
+  const [type, setType] = useState<"success" | "error" | "warning" | "info">("info");
   const [progress, setProgress] = useState(100);
 
   useEffect(() => {
@@ -46,8 +44,7 @@ export const Toast: React.FC = () => {
   const variantStyles = {
     success:
       "bg-emerald-500/20 text-emerald-800 border-emerald-500 dark:bg-emerald-500/30 dark:text-emerald-200",
-    error:
-      "bg-red-500/20 text-red-800 border-red-500 dark:bg-red-500/30 dark:text-red-200",
+    error: "bg-red-500/20 text-red-800 border-red-500 dark:bg-red-500/30 dark:text-red-200",
     warning:
       "bg-amber-500/20 text-amber-800 border-amber-500 dark:bg-amber-500/30 dark:text-amber-200",
     info: "bg-blue-500/20 text-blue-800 border-blue-500 dark:bg-blue-500/30 dark:text-blue-200",
@@ -66,10 +63,7 @@ export const Toast: React.FC = () => {
   };
 
   return (
-    <div
-      className="fixed top-4 right-4 z-[200] max-w-md animate-slideIn"
-      role="alert"
-    >
+    <div className="fixed top-4 right-4 z-[200] max-w-md animate-slideIn" role="alert">
       <div
         className={`
           flex items-start gap-3 p-4 rounded-2xl shadow-2xl backdrop-blur-lg

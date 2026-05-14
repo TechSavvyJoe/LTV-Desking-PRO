@@ -8,13 +8,7 @@ interface TabButtonProps {
   count?: number;
 }
 
-export const TabButton: React.FC<TabButtonProps> = ({
-  active,
-  onClick,
-  icon,
-  label,
-  count,
-}) => {
+export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, label, count }) => {
   return (
     <button
       onClick={onClick}

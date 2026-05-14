@@ -185,9 +185,7 @@ export const safeParseNumber = (value: unknown): number | undefined => {
   }
   if (typeof value === "string") {
     const parsed = parseFloat(value);
-    return Number.isFinite(parsed) && !Number.isNaN(parsed)
-      ? parsed
-      : undefined;
+    return Number.isFinite(parsed) && !Number.isNaN(parsed) ? parsed : undefined;
   }
   return undefined;
 };

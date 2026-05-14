@@ -85,27 +85,21 @@ const renderComponentAsPdfBlob = async (
     return pdf.output("blob");
   } catch (error) {
     console.error("PDF Generation Error:", error);
-    throw new Error(
-      "Failed to create the PDF. Please check the console for details."
-    );
+    throw new Error("Failed to create the PDF. Please check the console for details.");
   } finally {
     // CRITICAL: Always clean up the DOM element and unmount the React component.
     try {
       root.unmount();
       document.body.removeChild(container);
-    } catch {}
+    } catch {
+      // Best-effort cleanup; the original PDF error is more useful to callers.
+    }
   }
 };
 
-export const generateDealPdf = async (
-  data: DealPdfData,
-  settings: Settings
-): Promise<Blob> => {
+export const generateDealPdf = async (data: DealPdfData, settings: Settings): Promise<Blob> => {
   const props = { ...data, settings };
-  return renderComponentAsPdfBlob(
-    React.createElement(PdfTemplate, props),
-    "portrait"
-  );
+  return renderComponentAsPdfBlob(React.createElement(PdfTemplate, props), "portrait");
 };
 
 export const generateFavoritesPdf = async (
@@ -113,15 +107,10 @@ export const generateFavoritesPdf = async (
   settings: Settings
 ): Promise<Blob> => {
   const props = { deals: data, settings };
-  return renderComponentAsPdfBlob(
-    React.createElement(FavoritesPdfTemplate, props),
-    "portrait"
-  );
+  return renderComponentAsPdfBlob(React.createElement(FavoritesPdfTemplate, props), "portrait");
 };
 
-export const generateLenderCheatSheetPdf = async (
-  profiles: LenderProfile[]
-): Promise<Blob> => {
+export const generateLenderCheatSheetPdf = async (profiles: LenderProfile[]): Promise<Blob> => {
   const props = { profiles };
   return renderComponentAsPdfBlob(
     React.createElement(LenderCheatSheetTemplate, props),

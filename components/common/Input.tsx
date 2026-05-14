@@ -13,15 +13,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
   (
-    {
-      error = false,
-      leftIcon,
-      rightIcon,
-      inputSize = "md",
-      className = "",
-      disabled,
-      ...props
-    },
+    { error = false, leftIcon, rightIcon, inputSize = "md", className = "", disabled, ...props },
     ref
   ) => {
     const sizeClasses = {

@@ -7,22 +7,13 @@ interface PaginationProps {
     currentPage: number;
     itemsPerPage: number;
   };
-  setPagination: (pagination: {
-    currentPage: number;
-    itemsPerPage: number;
-  }) => void;
+  setPagination: (pagination: { currentPage: number; itemsPerPage: number }) => void;
 }
 
-const Pagination: React.FC<PaginationProps> = ({
-  totalItems,
-  pagination,
-  setPagination,
-}) => {
+const Pagination: React.FC<PaginationProps> = ({ totalItems, pagination, setPagination }) => {
   const { currentPage, itemsPerPage } = pagination;
   const isShowAll = itemsPerPage === Infinity;
-  const totalPages = isShowAll
-    ? 1
-    : Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const totalPages = isShowAll ? 1 : Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
   const goToPage = (page: number) => {
     if (isShowAll) return;
@@ -30,18 +21,13 @@ const Pagination: React.FC<PaginationProps> = ({
     setPagination({ ...pagination, currentPage: page });
   };
 
-  const handleItemsPerPageChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
+  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value === "all" ? Infinity : Number(e.target.value);
     setPagination({ currentPage: 1, itemsPerPage: value });
   };
 
-  const startItem =
-    totalItems === 0 ? 0 : isShowAll ? 1 : (currentPage - 1) * itemsPerPage + 1;
-  const endItem = isShowAll
-    ? totalItems
-    : Math.min(currentPage * itemsPerPage, totalItems);
+  const startItem = totalItems === 0 ? 0 : isShowAll ? 1 : (currentPage - 1) * itemsPerPage + 1;
+  const endItem = isShowAll ? totalItems : Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between px-5 py-4 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -62,10 +48,7 @@ const Pagination: React.FC<PaginationProps> = ({
       <div className="flex flex-wrap items-center gap-4">
         {/* Rows per page */}
         <div className="flex items-center gap-2">
-          <label
-            htmlFor="rows-per-page"
-            className="text-sm text-slate-500 dark:text-slate-400"
-          >
+          <label htmlFor="rows-per-page" className="text-sm text-slate-500 dark:text-slate-400">
             Rows:
           </label>
           <select

@@ -1,10 +1,7 @@
 import { describe, it, expect } from "vitest";
-import {
-  calculateMonthlyPayment,
-  calculateLoanAmount,
-  calculateFinancials,
-} from "./calculator";
+import { calculateMonthlyPayment, calculateLoanAmount, calculateFinancials } from "./calculator";
 import { Vehicle, DealData, Settings } from "../types";
+import { DEFAULT_AI_SETTINGS } from "../lib/aiModelRegistry";
 
 describe("Calculator Service", () => {
   describe("calculateMonthlyPayment", () => {
@@ -80,14 +77,11 @@ describe("Calculator Service", () => {
       defaultApr: 7.99,
       defaultStateFees: 200,
       customTaxRate: null,
+      ai: DEFAULT_AI_SETTINGS,
     };
 
     it("should calculate full deal structure correctly", () => {
-      const result = calculateFinancials(
-        mockVehicle,
-        mockDealData,
-        mockSettings
-      );
+      const result = calculateFinancials(mockVehicle, mockDealData, mockSettings);
 
       // Taxable: 30000 + 250 (doc) + 25 (cvr) = 30275
       // Tax (MI 6%): 30275 * 0.06 = 1816.5
@@ -113,11 +107,7 @@ describe("Calculator Service", () => {
         tradeInValue: 10000,
         tradeInPayoff: 5000,
       };
-      const result = calculateFinancials(
-        mockVehicle,
-        dealWithTrade,
-        mockSettings
-      );
+      const result = calculateFinancials(mockVehicle, dealWithTrade, mockSettings);
 
       // Taxable: (30000 - 10000) + 250 + 25 = 20275
       // Tax: 20275 * 0.06 = 1216.5
@@ -128,11 +118,7 @@ describe("Calculator Service", () => {
     });
 
     it("should calculate LTV correctly", () => {
-      const result = calculateFinancials(
-        mockVehicle,
-        mockDealData,
-        mockSettings
-      );
+      const result = calculateFinancials(mockVehicle, mockDealData, mockSettings);
 
       // Front LTV: (OTD - taxes/fees) / Book? No, usually (Price - TradeEquity - Down) / Book
       // Logic in calculator.ts:

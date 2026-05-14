@@ -2,8 +2,7 @@ import PocketBase from "pocketbase";
 import type { LenderTier } from "../types";
 
 // PocketBase client singleton
-const POCKETBASE_URL =
-  import.meta.env.VITE_POCKETBASE_URL || "https://ltv-desking-pro-api.fly.dev";
+const POCKETBASE_URL = import.meta.env.VITE_POCKETBASE_URL || "https://ltv-desking-pro-api.fly.dev";
 
 export const pb = new PocketBase(POCKETBASE_URL);
 
@@ -34,10 +33,7 @@ export const setSuperadminDealerOverride = (dealerId: string | null): void => {
   try {
     if (dealerId) {
       sessionStorage.setItem(DEALER_OVERRIDE_KEY, dealerId);
-      console.log(
-        "[PocketBase] Saved dealer override to sessionStorage:",
-        dealerId
-      );
+      console.log("[PocketBase] Saved dealer override to sessionStorage:", dealerId);
     } else {
       sessionStorage.removeItem(DEALER_OVERRIDE_KEY);
       console.log("[PocketBase] Cleared dealer override from sessionStorage");
@@ -47,9 +43,7 @@ export const setSuperadminDealerOverride = (dealerId: string | null): void => {
   }
 
   // Dispatch a custom event so components can react to dealer changes
-  window.dispatchEvent(
-    new CustomEvent("dealerOverrideChanged", { detail: dealerId })
-  );
+  window.dispatchEvent(new CustomEvent("dealerOverrideChanged", { detail: dealerId }));
 };
 
 export const getSuperadminDealerOverride = (): string | null => {
@@ -72,9 +66,7 @@ export const clearSuperadminDealerOverride = (): void => {
   } catch {
     // Ignore
   }
-  window.dispatchEvent(
-    new CustomEvent("dealerOverrideChanged", { detail: null })
-  );
+  window.dispatchEvent(new CustomEvent("dealerOverrideChanged", { detail: null }));
 };
 
 // Types for our collections
@@ -164,13 +156,7 @@ export interface SavedDeal {
   vehicleData: Record<string, unknown>;
   dealData: Record<string, unknown>;
   calculatedData?: Record<string, unknown>;
-  status:
-    | "draft"
-    | "pending"
-    | "submitted"
-    | "approved"
-    | "funded"
-    | "cancelled";
+  status: "draft" | "pending" | "submitted" | "approved" | "funded" | "cancelled";
   notes?: string;
   created: string;
   updated: string;

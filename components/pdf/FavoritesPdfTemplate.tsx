@@ -1,10 +1,11 @@
-
-import React from 'react';
-import type { DealPdfData, Settings } from '../../types';
-import { formatCurrency, formatNumber, formatPercentage } from '../common/TableCell';
+import React from "react";
+import type { DealPdfData, Settings } from "../../types";
+import { formatCurrency, formatNumber, formatPercentage } from "../common/TableCell";
 
 const el = React.createElement;
-const logoSvg = encodeURIComponent(`<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="18" fill="url(#g)"/><path d="M26 49c0-10.5 8.5-19 19-19h6c10.5 0 19 8.5 19 19s-8.5 19-19 19h-6c-10.5 0-19-8.5-19-19Z" stroke="white" stroke-width="6"/><path d="M32 49c0-7.2 5.8-13 13-13h6c7.2 0 13 5.8 13 13s-5.8 13-13 13h-6c-7.2 0-13-5.8-13-13Z" stroke="white" stroke-width="6" opacity="0.6"/><defs><linearGradient id="g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs></svg>`);
+const logoSvg = encodeURIComponent(
+  `<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="18" fill="url(#g)"/><path d="M26 49c0-10.5 8.5-19 19-19h6c10.5 0 19 8.5 19 19s-8.5 19-19 19h-6c-10.5 0-19-8.5-19-19Z" stroke="white" stroke-width="6"/><path d="M32 49c0-7.2 5.8-13 13-13h6c7.2 0 13 5.8 13 13s-5.8 13-13 13h-6c-7.2 0-13-5.8-13-13Z" stroke="white" stroke-width="6" opacity="0.6"/><defs><linearGradient id="g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs></svg>`
+);
 
 const styles = `
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -105,61 +106,117 @@ const styles = `
     .strong { font-weight: 600; color: #1e3a8a; }
 `;
 
-export const FavoritesPdfTemplate: React.FC<{ deals: DealPdfData[], settings: Settings }> = ({ deals }) => {
-    // Defensive check for deals array
-    const safeDeals = Array.isArray(deals) ? deals : [];
-    const mainDealInfo = safeDeals[0];
+export const FavoritesPdfTemplate: React.FC<{ deals: DealPdfData[]; settings: Settings }> = ({
+  deals,
+}) => {
+  // Defensive check for deals array
+  const safeDeals = Array.isArray(deals) ? deals : [];
+  const mainDealInfo = safeDeals[0];
 
-    return el('div', { className: 'page' },
-        el('style', null, styles),
-        el('div', { className: 'watermark' }, 'OSHIP'),
-        el('header', { className: 'header' },
-            el('img', { src: `data:image/svg+xml,${logoSvg}`, alt: 'OSHIP', style: { width: '32px', marginBottom: '6px' } }),
-            el('h1', null, 'OSHIP Vehicle Comparison Report'),
-            mainDealInfo && el('p', null, 
-                `Customer: `, el('strong', null, mainDealInfo.customerName || 'N/A'), ` | `,
-                `Salesperson: `, el('strong', null, mainDealInfo.salespersonName || 'N/A'), ` | `,
-                `Credit Score: `, el('strong', null, (mainDealInfo.customerFilters && mainDealInfo.customerFilters.creditScore) || 'N/A'), ` | `,
-                `Down Payment: `, el('strong', null, formatCurrency(mainDealInfo.dealData?.downPayment || 0)), ` | `,
-                `Term: `, el('strong', null, `${mainDealInfo.dealData?.loanTerm || 0}mo`), ` @ `, el('strong', null, `${mainDealInfo.dealData?.interestRate || 0}% APR`)
-            )
-        ),
-        el('table', { className: 'summary-table' },
-            el('thead', null,
-                el('tr', null,
-                    el('th', { style: { width: '28%' } }, 'Vehicle'),
-                    el('th', { className: 'text-right' }, 'Price'),
-                    el('th', { className: 'text-right' }, 'Amt. to Fin.'),
-                    el('th', { className: 'text-right' }, 'Payment'),
-                    el('th', { className: 'text-right' }, 'OTD LTV'),
-                    el('th', { style: { width: '25%' } }, 'Eligible Lenders')
-                )
-            ),
-            el('tbody', null,
-                ...safeDeals.map(deal => {
-                    // Extra defensive checks for nested objects
-                    const eligibility = Array.isArray(deal?.lenderEligibility) ? deal.lenderEligibility : [];
-                    const eligibleBanks = eligibility.filter(l => l && l.eligible);
-
-                    return el('tr', { key: deal.vehicle?.vin || Math.random().toString() },
-                        el('td', null, 
-                            el('div', { className: 'vehicle-name' }, deal.vehicle?.vehicle || 'Unknown Vehicle'),
-                            el('div', { className: 'vehicle-details' }, `Stock: ${deal.vehicle?.stock || 'N/A'} | Miles: ${formatNumber(deal.vehicle?.mileage || 0)}`)
-                        ),
-                        el('td', { className: 'text-right' }, formatCurrency(deal.vehicle?.price)),
-                        el('td', { className: 'text-right strong' }, formatCurrency(deal.vehicle?.amountToFinance)),
-                        el('td', { className: 'text-right strong' }, formatCurrency(deal.vehicle?.monthlyPayment)),
-                        el('td', { className: 'text-right strong' }, formatPercentage(deal.vehicle?.otdLtv)),
-                        el('td', null, 
-                             el('ul', { className: 'lender-list' },
-                                eligibleBanks.length > 0
-                                    ? eligibleBanks.map(lender => el('li', { key: lender.name }, lender.name))
-                                    : el('li', { style: { background: 'none', color: '#9ca3af' } }, 'None')
-                             )
-                        )
-                    );
-                })
-            )
+  return el(
+    "div",
+    { className: "page" },
+    el("style", null, styles),
+    el("div", { className: "watermark" }, "OSHIP"),
+    el(
+      "header",
+      { className: "header" },
+      el("img", {
+        src: `data:image/svg+xml,${logoSvg}`,
+        alt: "OSHIP",
+        style: { width: "32px", marginBottom: "6px" },
+      }),
+      el("h1", null, "OSHIP Vehicle Comparison Report"),
+      mainDealInfo &&
+        el(
+          "p",
+          null,
+          `Customer: `,
+          el("strong", null, mainDealInfo.customerName || "N/A"),
+          ` | `,
+          `Salesperson: `,
+          el("strong", null, mainDealInfo.salespersonName || "N/A"),
+          ` | `,
+          `Credit Score: `,
+          el(
+            "strong",
+            null,
+            (mainDealInfo.customerFilters && mainDealInfo.customerFilters.creditScore) || "N/A"
+          ),
+          ` | `,
+          `Down Payment: `,
+          el("strong", null, formatCurrency(mainDealInfo.dealData?.downPayment || 0)),
+          ` | `,
+          `Term: `,
+          el("strong", null, `${mainDealInfo.dealData?.loanTerm || 0}mo`),
+          ` @ `,
+          el("strong", null, `${mainDealInfo.dealData?.interestRate || 0}% APR`)
         )
-    );
+    ),
+    el(
+      "table",
+      { className: "summary-table" },
+      el(
+        "thead",
+        null,
+        el(
+          "tr",
+          null,
+          el("th", { style: { width: "28%" } }, "Vehicle"),
+          el("th", { className: "text-right" }, "Price"),
+          el("th", { className: "text-right" }, "Amt. to Fin."),
+          el("th", { className: "text-right" }, "Payment"),
+          el("th", { className: "text-right" }, "OTD LTV"),
+          el("th", { style: { width: "25%" } }, "Eligible Lenders")
+        )
+      ),
+      el(
+        "tbody",
+        null,
+        ...safeDeals.map((deal) => {
+          // Extra defensive checks for nested objects
+          const eligibility = Array.isArray(deal?.lenderEligibility) ? deal.lenderEligibility : [];
+          const eligibleBanks = eligibility.filter((l) => l && l.eligible);
+
+          return el(
+            "tr",
+            { key: deal.vehicle?.vin || Math.random().toString() },
+            el(
+              "td",
+              null,
+              el("div", { className: "vehicle-name" }, deal.vehicle?.vehicle || "Unknown Vehicle"),
+              el(
+                "div",
+                { className: "vehicle-details" },
+                `Stock: ${deal.vehicle?.stock || "N/A"} | Miles: ${formatNumber(deal.vehicle?.mileage || 0)}`
+              )
+            ),
+            el("td", { className: "text-right" }, formatCurrency(deal.vehicle?.price)),
+            el(
+              "td",
+              { className: "text-right strong" },
+              formatCurrency(deal.vehicle?.amountToFinance)
+            ),
+            el(
+              "td",
+              { className: "text-right strong" },
+              formatCurrency(deal.vehicle?.monthlyPayment)
+            ),
+            el("td", { className: "text-right strong" }, formatPercentage(deal.vehicle?.otdLtv)),
+            el(
+              "td",
+              null,
+              el(
+                "ul",
+                { className: "lender-list" },
+                eligibleBanks.length > 0
+                  ? eligibleBanks.map((lender) => el("li", { key: lender.name }, lender.name))
+                  : el("li", { style: { background: "none", color: "#9ca3af" } }, "None")
+              )
+            )
+          );
+        })
+      )
+    )
+  );
 };

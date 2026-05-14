@@ -8,17 +8,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  (
-    {
-      error = false,
-      selectSize = "md",
-      className = "",
-      disabled,
-      children,
-      ...props
-    },
-    ref
-  ) => {
+  ({ error = false, selectSize = "md", className = "", disabled, children, ...props }, ref) => {
     const sizeClasses = {
       sm: "px-3 py-2 text-sm",
       md: "px-4 py-2.5 text-base",
@@ -60,18 +50,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
         {/* Custom Arrow */}
         <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-slate-500">
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </span>
       </div>

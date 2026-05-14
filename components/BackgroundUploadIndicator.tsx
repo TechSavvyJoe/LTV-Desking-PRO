@@ -24,11 +24,7 @@ const BackgroundUploadIndicator: React.FC<BackgroundUploadIndicatorProps> = ({
       title="Click to view upload progress"
     >
       <div className="relative w-8 h-8">
-        <svg
-          className="absolute inset-0 w-8 h-8 animate-spin"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
+        <svg className="absolute inset-0 w-8 h-8 animate-spin" viewBox="0 0 24 24" fill="none">
           <circle
             className="opacity-25"
             cx="12"
@@ -67,9 +63,7 @@ const BackgroundUploadIndicator: React.FC<BackgroundUploadIndicatorProps> = ({
       </div>
 
       <div className="flex flex-col items-start min-w-0">
-        <span className="text-sm font-semibold">
-          AI Processing {overallProgress}%
-        </span>
+        <span className="text-sm font-semibold">AI Processing {overallProgress}%</span>
         <span className="text-xs opacity-75 truncate max-w-[150px]">
           {currentStage || "Working..."}
         </span>

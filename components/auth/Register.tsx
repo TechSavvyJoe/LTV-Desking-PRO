@@ -9,10 +9,7 @@ interface RegisterProps {
   onLoginClick: () => void;
 }
 
-export const Register: React.FC<RegisterProps> = ({
-  onSuccess,
-  onLoginClick,
-}) => {
+export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -60,12 +57,8 @@ export const Register: React.FC<RegisterProps> = ({
   return (
     <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Create Account
-        </h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">
-          Join your dealership team
-        </p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Create Account</h2>
+        <p className="mt-2 text-slate-600 dark:text-slate-400">Join your dealership team</p>
       </div>
 
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
@@ -165,11 +158,7 @@ export const Register: React.FC<RegisterProps> = ({
           disabled={loading}
           className="w-full flex justify-center mt-6 py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
         >
-          {loading ? (
-            <Icons.SpinnerIcon className="animate-spin h-5 w-5" />
-          ) : (
-            "Create Account"
-          )}
+          {loading ? <Icons.SpinnerIcon className="animate-spin h-5 w-5" /> : "Create Account"}
         </Button>
       </form>
 

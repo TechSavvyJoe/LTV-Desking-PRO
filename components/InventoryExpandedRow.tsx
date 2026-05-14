@@ -1,11 +1,5 @@
 import React from "react";
-import type {
-  CalculatedVehicle,
-  DealData,
-  FilterData,
-  LenderProfile,
-  Settings,
-} from "../types";
+import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../types";
 import Button from "./common/Button";
 import * as Icons from "./common/Icons";
 import { checkBankEligibility } from "../services/lenderMatcher";
@@ -18,10 +12,7 @@ interface InventoryExpandedRowProps {
   lenderProfiles: LenderProfile[];
   dealData: DealData;
   setDealData: React.Dispatch<React.SetStateAction<DealData>>;
-  onInventoryUpdate: (
-    vin: string,
-    updatedData: Partial<CalculatedVehicle>
-  ) => void;
+  onInventoryUpdate: (vin: string, updatedData: Partial<CalculatedVehicle>) => void;
   customerFilters: FilterData;
   settings: Settings;
   onDownloadPdf: (e: React.MouseEvent, vehicle: CalculatedVehicle) => void;
@@ -47,9 +38,7 @@ const DetailItem = ({
         </span>
       </CopyToClipboard>
     ) : (
-      <span className="font-medium text-slate-900 dark:text-gray-100">
-        {value}
-      </span>
+      <span className="font-medium text-slate-900 dark:text-gray-100">{value}</span>
     )}
   </div>
 );
@@ -67,9 +56,7 @@ const EditableField = ({
   type?: string;
   step?: string;
 }) => {
-  const [currentValue, setCurrentValue] = React.useState(
-    value === "N/A" ? "" : value.toString()
-  );
+  const [currentValue, setCurrentValue] = React.useState(value === "N/A" ? "" : value.toString());
 
   React.useEffect(() => {
     setCurrentValue(value === "N/A" ? "" : value.toString());
@@ -84,10 +71,12 @@ const EditableField = ({
     }
   };
 
-  const inputId = `edit-${label.replace(/\s+/g, '-').toLowerCase()}`;
+  const inputId = `edit-${label.replace(/\s+/g, "-").toLowerCase()}`;
   return (
     <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800 last:border-0">
-      <label htmlFor={inputId} className="text-slate-500 dark:text-gray-400">{label}</label>
+      <label htmlFor={inputId} className="text-slate-500 dark:text-gray-400">
+        {label}
+      </label>
       <input
         id={inputId}
         type={type}
@@ -123,19 +112,15 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
   onSharePdf,
   isShareSupported,
 }) => {
-  const safeProfiles = (
-    Array.isArray(lenderProfiles) ? lenderProfiles : []
-  ).filter((p) => p && typeof p === "object");
+  const safeProfiles = (Array.isArray(lenderProfiles) ? lenderProfiles : []).filter(
+    (p) => p && typeof p === "object"
+  );
 
   const eligibilityDetails = safeProfiles.map((bank) => {
     try {
       return {
         name: bank.name,
-        ...checkBankEligibility(
-          item,
-          { ...dealData, ...customerFilters },
-          bank
-        ),
+        ...checkBankEligibility(item, { ...dealData, ...customerFilters }, bank),
       };
     } catch (err) {
       return {
@@ -147,8 +132,7 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
     }
   });
 
-  const hasCustomerData =
-    customerFilters.creditScore || customerFilters.monthlyIncome;
+  const hasCustomerData = customerFilters.creditScore || customerFilters.monthlyIncome;
 
   const { isShowroomMode } = useDealContext();
 
@@ -190,9 +174,7 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
               <EditableField
                 label="Selling Price ($)"
                 value={item.price}
-                onUpdate={(newPrice) =>
-                  onInventoryUpdate(item.vin, { price: newPrice })
-                }
+                onUpdate={(newPrice) => onInventoryUpdate(item.vin, { price: newPrice })}
               />
               <DetailItem
                 label="Doc Fee (Taxed)"
@@ -212,15 +194,11 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
               <EditableField
                 label="State/Title Fees ($)"
                 value={dealData.stateFees}
-                onUpdate={(newFees) =>
-                  setDealData((prev) => ({ ...prev, stateFees: newFees }))
-                }
+                onUpdate={(newFees) => setDealData((prev) => ({ ...prev, stateFees: newFees }))}
               />
 
               <div className="flex justify-between items-center font-bold text-base py-2 mt-2 border-t border-slate-200 dark:border-slate-700">
-                <span className="text-slate-900 dark:text-gray-100">
-                  Total OTD Price
-                </span>
+                <span className="text-slate-900 dark:text-gray-100">Total OTD Price</span>
                 <CopyToClipboard valueToCopy={item.baseOutTheDoorPrice}>
                   <span className="text-blue-600 dark:text-blue-400 cursor-pointer">
                     {formatCurrency(item.baseOutTheDoorPrice)}
@@ -267,23 +245,17 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
             <EditableField
               label="Down Payment ($)"
               value={dealData.downPayment}
-              onUpdate={(newValue) =>
-                setDealData((prev) => ({ ...prev, downPayment: newValue }))
-              }
+              onUpdate={(newValue) => setDealData((prev) => ({ ...prev, downPayment: newValue }))}
             />
             <EditableField
               label="Trade-In Value ($)"
               value={dealData.tradeInValue}
-              onUpdate={(newValue) =>
-                setDealData((prev) => ({ ...prev, tradeInValue: newValue }))
-              }
+              onUpdate={(newValue) => setDealData((prev) => ({ ...prev, tradeInValue: newValue }))}
             />
             <EditableField
               label="Trade-In Payoff ($)"
               value={dealData.tradeInPayoff}
-              onUpdate={(newValue) =>
-                setDealData((prev) => ({ ...prev, tradeInPayoff: newValue }))
-              }
+              onUpdate={(newValue) => setDealData((prev) => ({ ...prev, tradeInPayoff: newValue }))}
             />
             <EditableField
               label="Backend Products ($)"
@@ -295,16 +267,12 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
             <EditableField
               label="Interest Rate (APR %)"
               value={dealData.interestRate}
-              onUpdate={(newValue) =>
-                setDealData((prev) => ({ ...prev, interestRate: newValue }))
-              }
+              onUpdate={(newValue) => setDealData((prev) => ({ ...prev, interestRate: newValue }))}
               type="number"
               step="0.1"
             />
             <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800 last:border-0">
-              <label className="text-slate-500 dark:text-gray-400">
-                Loan Term (Months)
-              </label>
+              <label className="text-slate-500 dark:text-gray-400">Loan Term (Months)</label>
               <StyledSelect
                 value={dealData.loanTerm}
                 onChange={(e) => {
@@ -334,8 +302,7 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
           } flex flex-col`}
         >
           <h4 className="font-bold text-base mb-4 pb-2 border-b border-slate-100 dark:border-slate-800 text-slate-900 dark:text-gray-100 flex items-center gap-2">
-            <Icons.BanknotesIcon className="w-5 h-5 text-green-500" /> Lender
-            Eligibility
+            <Icons.BanknotesIcon className="w-5 h-5 text-green-500" /> Lender Eligibility
           </h4>
           {hasCustomerData ? (
             <div className="text-sm space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-grow max-h-[300px]">
@@ -359,8 +326,7 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
                     </span>
                   </div>
                 ))}
-              {eligibilityDetails.filter((detail) => detail.eligible).length ===
-                0 && (
+              {eligibilityDetails.filter((detail) => detail.eligible).length === 0 && (
                 <div className="text-center text-slate-500 dark:text-slate-400 py-4 italic">
                   No eligible lenders found for this structure.
                 </div>
@@ -370,8 +336,7 @@ export const InventoryExpandedRow: React.FC<InventoryExpandedRowProps> = ({
             <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 py-8">
               <Icons.SparklesIcon className="w-8 h-8 mb-2 opacity-50" />
               <p className="text-sm">
-                Enter customer credit score & income to see live lender
-                eligibility.
+                Enter customer credit score & income to see live lender eligibility.
               </p>
             </div>
           )}

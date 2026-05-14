@@ -41,7 +41,7 @@ export function safeParse<T extends z.ZodTypeAny>(
   }
 
   // Format error messages
-  const details = result.error.errors.map(
+  const details = result.error.issues.map(
     (e) => `${e.path.join(".")}${e.path.length > 0 ? ": " : ""}${e.message}`
   );
 

@@ -1,18 +1,8 @@
 import React, { useMemo, useState, useEffect } from "react";
-import type {
-  CalculatedVehicle,
-  DealData,
-  ValidationErrors,
-  Settings,
-} from "../types";
+import type { CalculatedVehicle, DealData, ValidationErrors, Settings } from "../types";
 import { calculateFinancials } from "../services/calculator";
 import { validateInput } from "../services/validator";
-import {
-  formatCurrency,
-  LtvCell,
-  OtdLtvCell,
-  formatPercentage,
-} from "./common/TableCell";
+import { formatCurrency, LtvCell, OtdLtvCell, formatPercentage } from "./common/TableCell";
 import CopyToClipboard from "./common/CopyToClipboard";
 import Modal from "./common/Modal";
 import Button from "./common/Button";
@@ -49,9 +39,7 @@ const SummaryRow = ({
 }) => (
   <div
     className={`flex justify-between items-center py-2 text-sm border-b border-slate-100 dark:border-slate-800/50 last:border-0 ${
-      isTotal
-        ? "bg-slate-50 dark:bg-slate-800/50 -mx-4 px-4 py-3 rounded-lg"
-        : ""
+      isTotal ? "bg-slate-50 dark:bg-slate-800/50 -mx-4 px-4 py-3 rounded-lg" : ""
     }`}
   >
     <span
@@ -63,9 +51,7 @@ const SummaryRow = ({
     >
       {label}
     </span>
-    {valueToCopy !== undefined &&
-    valueToCopy !== "N/A" &&
-    valueToCopy !== "Error" ? (
+    {valueToCopy !== undefined && valueToCopy !== "N/A" && valueToCopy !== "Error" ? (
       <CopyToClipboard valueToCopy={valueToCopy}>
         <span
           className={`font-medium cursor-pointer hover:text-blue-500 transition-colors ${
@@ -112,9 +98,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
   if (!vehicle || !dealData || !localCalculated) return null;
 
   const handleDealChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { id, value } = e.target;
 
@@ -147,10 +131,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
       )}.`,
     });
   }
-  if (
-    typeof localCalculated.otdLtv === "number" &&
-    localCalculated.otdLtv > 135
-  ) {
+  if (typeof localCalculated.otdLtv === "number" && localCalculated.otdLtv > 135) {
     warnings.push({
       type: "warning",
       message: `High OTD LTV: ${formatPercentage(
@@ -158,15 +139,10 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
       )}. Funding difficulty likely.`,
     });
   }
-  if (
-    typeof localCalculated.frontEndGross === "number" &&
-    localCalculated.frontEndGross < 500
-  ) {
+  if (typeof localCalculated.frontEndGross === "number" && localCalculated.frontEndGross < 500) {
     warnings.push({
       type: "warning",
-      message: `Low Profit: Deal gross is only ${formatCurrency(
-        localCalculated.frontEndGross
-      )}.`,
+      message: `Low Profit: Deal gross is only ${formatCurrency(localCalculated.frontEndGross)}.`,
     });
   }
 
@@ -199,11 +175,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
               Payments & Values
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputGroup
-                label="Down Payment ($)"
-                htmlFor="downPayment"
-                error={errors.downPayment}
-              >
+              <InputGroup label="Down Payment ($)" htmlFor="downPayment" error={errors.downPayment}>
                 <Input
                   type="number"
                   id="downPayment"
@@ -244,11 +216,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
                   error={!!errors.tradeInPayoff}
                 />
               </InputGroup>
-              <InputGroup
-                label="State/Title Fees ($)"
-                htmlFor="stateFees"
-                error={errors.stateFees}
-              >
+              <InputGroup label="State/Title Fees ($)" htmlFor="stateFees" error={errors.stateFees}>
                 <Input
                   type="number"
                   id="stateFees"
@@ -283,11 +251,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
                 />
               </InputGroup>
               <InputGroup label="Loan Term (Months)" htmlFor="loanTerm">
-                <Select
-                  id="loanTerm"
-                  value={dealData.loanTerm}
-                  onChange={handleDealChange}
-                >
+                <Select id="loanTerm" value={dealData.loanTerm} onChange={handleDealChange}>
                   <option value="36">36 Months</option>
                   <option value="48">48 Months</option>
                   <option value="60">60 Months</option>
@@ -385,9 +349,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
 
               <div className="my-6 space-y-3">
                 <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
-                  <div className="text-blue-100 text-sm font-medium mb-1">
-                    Monthly Payment
-                  </div>
+                  <div className="text-blue-100 text-sm font-medium mb-1">Monthly Payment</div>
                   <div className="flex justify-between items-end">
                     <div className="text-3xl font-bold">
                       {formatCurrency(localCalculated.monthlyPayment)}
@@ -407,9 +369,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
                   <LtvCell value={localCalculated.frontEndLtv} />
                 </div>
                 <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
-                    OTD LTV
-                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">OTD LTV</div>
                   <OtdLtvCell value={localCalculated.otdLtv} />
                 </div>
               </div>

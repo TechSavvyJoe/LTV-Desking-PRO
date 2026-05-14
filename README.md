@@ -6,19 +6,20 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **Frontend** | React 19, TypeScript, Vite |
-| **State** | TanStack React Query, React Context |
-| **Backend** | PocketBase (SQLite) on Fly.io |
-| **AI** | Google Gemini (rate sheet extraction), Perplexity Sonar (lender research) |
-| **PDF** | html2canvas + jsPDF (client-side) |
-| **Deploy** | Vercel (frontend), Fly.io (backend) |
+| Layer        | Technology                                                                |
+| ------------ | ------------------------------------------------------------------------- |
+| **Frontend** | React 19, TypeScript, Vite                                                |
+| **State**    | TanStack React Query, React Context                                       |
+| **Backend**  | PocketBase (SQLite) plus local Vite AI API routes                         |
+| **AI**       | Server-side OpenAI/ChatGPT, Anthropic Claude, and Google Gemini switching |
+| **PDF**      | html2canvas + jsPDF (client-side)                                         |
+| **Deploy**   | Vercel (frontend), Fly.io (backend)                                       |
 
 ## Features
 
 - **Real-time LTV Calculations** — Front-end LTV, OTD LTV, gross profit, and monthly payments update instantly as deal parameters change
-- **AI Lender Upload** — Upload PDF rate sheets and Gemini extracts all lender tiers, LTV limits, FICO ranges, and restrictions
+- **AI Lender Upload** — Upload PDF rate sheets and the selected server-side model extracts lender tiers, LTV limits, FICO ranges, and restrictions
+- **Model Switching** — Choose current top, balanced, and fast OpenAI/ChatGPT, Anthropic, and Gemini models per workflow
 - **Multi-Lender Matching** — See which lenders approve a deal based on credit score, income, vehicle age, and mileage
 - **Deal Structuring Modal** — Full deal worksheet with down payment, trade equity, backend products, and term selection
 - **Inventory Management** — CSV import, VIN lookup, inline editing, and favorites tracking
@@ -30,12 +31,13 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - PocketBase instance (local or hosted)
 
 ### Setup
 
 1. **Clone and install:**
+
    ```bash
    git clone <repo-url>
    cd LTV-Desking-PRO
@@ -43,17 +45,22 @@ Precision deal structuring, lender intelligence, and desking in one refined work
    ```
 
 2. **Configure environment:**
+
    ```bash
    cp .env.example .env.local
    ```
+
    Edit `.env.local` with your keys:
+
    ```env
-   VITE_GEMINI_API_KEY="your-gemini-key"
+   OPENAI_API_KEY="your-openai-key"
+   ANTHROPIC_API_KEY="your-anthropic-key"
+   GEMINI_API_KEY="your-gemini-key"
    VITE_POCKETBASE_URL="http://localhost:8090"
-   VITE_PERPLEXITY_API_KEY="your-perplexity-key"  # Optional
    ```
 
 3. **Start the backend** (if running locally):
+
    ```bash
    cd backend
    docker build -t ltv-pb .
@@ -86,13 +93,17 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 │   └── DealContext.tsx      # Global state: inventory, deals, settings
 ├── hooks/                   # useDebounce, useLocalStorage, useTheme, etc.
 ├── lib/
+│   ├── aiModelRegistry.ts   # Current provider/model catalog and defaults
 │   ├── api.ts               # PocketBase CRUD operations
 │   ├── auth.ts              # Login, register, password reset
+│   ├── confirm.ts           # App-native confirmation dialog bridge
 │   ├── pocketbase.ts        # PocketBase client & types
 │   ├── queryClient.ts       # TanStack Query configuration
 │   └── toast.ts             # Global toast notification system
+├── server/
+│   └── ai/                  # Local /api/ai routes, provider clients, tests
 ├── services/
-│   ├── aiProcessor.ts       # Gemini & Perplexity lender extraction
+│   ├── aiProcessor.ts       # Browser client for local server-side AI routes
 │   ├── calculator.ts        # Financial calculations engine
 │   ├── lenderMatcher.ts     # Lender eligibility matching
 │   ├── pdfGenerator.ts      # PDF generation
@@ -106,12 +117,14 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 
 ## Scripts
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm run type-check` | TypeScript strict check |
-| `npx vitest run` | Run test suite |
+| Command                | Description              |
+| ---------------------- | ------------------------ |
+| `npm run dev`          | Start development server |
+| `npm run build`        | Production build         |
+| `npm run lint`         | ESLint baseline          |
+| `npm run format:check` | Prettier format check    |
+| `npm run type-check`   | TypeScript strict check  |
+| `npm test -- --run`    | Run test suite           |
 
 ## Deployment
 

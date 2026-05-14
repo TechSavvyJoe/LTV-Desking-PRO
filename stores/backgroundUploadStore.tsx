@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  ReactNode,
-} from "react";
+import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import type { ProcessingProgress } from "../services/aiProcessor";
 import type { LenderProfile } from "../types";
 
@@ -41,12 +35,9 @@ const initialState: BackgroundUploadState = {
   isMinimized: false,
 };
 
-const BackgroundUploadContext =
-  createContext<BackgroundUploadContextValue | null>(null);
+const BackgroundUploadContext = createContext<BackgroundUploadContextValue | null>(null);
 
-export const BackgroundUploadProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const BackgroundUploadProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, setState] = useState<BackgroundUploadState>(initialState);
 
   const minimizeModal = useCallback(() => {

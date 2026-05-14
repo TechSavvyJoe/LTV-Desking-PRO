@@ -4,10 +4,7 @@ import { useLocalStorage } from "./useLocalStorage";
 import type { Settings } from "../types";
 import { INITIAL_SETTINGS, STORAGE_KEYS } from "../constants";
 
-export function useSettings(): [
-  Settings,
-  React.Dispatch<React.SetStateAction<Settings>>
-] {
+export function useSettings(): [Settings, React.Dispatch<React.SetStateAction<Settings>>] {
   const [settings, setSettings] = useLocalStorage<Settings>(
     STORAGE_KEYS.SETTINGS,
     INITIAL_SETTINGS

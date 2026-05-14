@@ -12,6 +12,7 @@ import type {
 import { calculateFinancials } from "../services/calculator";
 import { checkBankEligibility } from "../services/lenderMatcher";
 import { generateDealPdf } from "../services/pdfGenerator";
+import { toast } from "../lib/toast";
 import { Table } from "./common/Table";
 import Button from "./common/Button";
 import {
@@ -74,14 +75,10 @@ const DetailItem = ({
     <span className="text-slate-500 dark:text-slate-400">{label}</span>
     {valueToCopy !== undefined ? (
       <CopyToClipboard valueToCopy={valueToCopy}>
-        <span className="font-medium text-slate-900 dark:text-slate-100">
-          {value}
-        </span>
+        <span className="font-medium text-slate-900 dark:text-slate-100">{value}</span>
       </CopyToClipboard>
     ) : (
-      <span className="font-medium text-slate-900 dark:text-slate-100">
-        {value}
-      </span>
+      <span className="font-medium text-slate-900 dark:text-slate-100">{value}</span>
     )}
   </div>
 );
@@ -106,9 +103,7 @@ const EditableField = ({
   type?: string;
   step?: string;
 }) => {
-  const [currentValue, setCurrentValue] = useState(
-    value === "N/A" ? "" : value.toString()
-  );
+  const [currentValue, setCurrentValue] = useState(value === "N/A" ? "" : value.toString());
 
   useEffect(() => {
     setCurrentValue(value === "N/A" ? "" : value.toString());
@@ -155,8 +150,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
   settings,
 }) => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const isShareSupported =
-    typeof navigator !== "undefined" && !!navigator.share;
+  const isShareSupported = typeof navigator !== "undefined" && !!navigator.share;
 
   const processedFavorites = useMemo(() => {
     const safeFavorites = Array.isArray(favorites) ? favorites : [];
@@ -170,11 +164,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
         bankMatches = safeProfiles
           .filter(
             (bank) =>
-              checkBankEligibility(
-                calculated,
-                { ...dealData, ...customerFilters },
-                bank
-              ).eligible
+              checkBankEligibility(calculated, { ...dealData, ...customerFilters }, bank).eligible
           )
           .map((bank) => bank.name);
       }
@@ -204,9 +194,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
         return sortConfig.direction === "asc" ? valA - valB : valB - valA;
       }
       if (typeof valA === "string" && typeof valB === "string") {
-        return sortConfig.direction === "asc"
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA);
+        return sortConfig.direction === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
       }
       return 0;
     });
@@ -237,11 +225,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
     const safeProfiles = Array.isArray(lenderProfiles) ? lenderProfiles : [];
     const eligibilityDetails = safeProfiles.map((bank) => ({
       name: bank.name,
-      ...checkBankEligibility(
-        vehicle,
-        { ...dealData, ...customerFilters },
-        bank
-      ),
+      ...checkBankEligibility(vehicle, { ...dealData, ...customerFilters }, bank),
     }));
     return {
       vehicle,
@@ -256,10 +240,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
     };
   };
 
-  const handleDownloadPdf = async (
-    e: React.MouseEvent,
-    vehicle: CalculatedVehicle
-  ) => {
+  const handleDownloadPdf = async (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
     e.stopPropagation();
     try {
       const pdfData = preparePdfData(vehicle);
@@ -269,14 +250,11 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (error) {
       console.error("Error generating PDF:", error);
-      alert("Failed to generate PDF. Please check deal data.");
+      toast.error("Failed to generate PDF. Please check deal data.");
     }
   };
 
-  const handleSharePdf = async (
-    e: React.MouseEvent,
-    vehicle: CalculatedVehicle
-  ) => {
+  const handleSharePdf = async (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
     e.stopPropagation();
     try {
       const pdfData = preparePdfData(vehicle);
@@ -296,11 +274,11 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
           console.error("Error sharing:", error);
         }
       } else {
-        alert("Sharing of this file type is not supported on your device.");
+        toast.warning("Sharing of this file type is not supported on your device.");
       }
     } catch (error) {
       console.error("Error generating PDF:", error);
-      alert("Failed to generate PDF for sharing. Please try again.");
+      toast.error("Failed to generate PDF for sharing. Please try again.");
     }
   };
 
@@ -311,8 +289,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       ...checkBankEligibility(item, { ...dealData, ...customerFilters }, bank),
     }));
 
-    const hasCustomerData =
-      customerFilters.creditScore || customerFilters.monthlyIncome;
+    const hasCustomerData = customerFilters.creditScore || customerFilters.monthlyIncome;
 
     return (
       <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4">
@@ -322,19 +299,11 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
               Financial Breakdown
             </h4>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => handleDownloadPdf(e, item)}
-              >
+              <Button size="sm" variant="ghost" onClick={(e) => handleDownloadPdf(e, item)}>
                 <Icons.PdfIcon /> PDF
               </Button>
               {isShareSupported && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => handleSharePdf(e, item)}
-                >
+                <Button size="sm" variant="ghost" onClick={(e) => handleSharePdf(e, item)}>
                   <Icons.ShareIcon /> Share
                 </Button>
               )}
@@ -344,9 +313,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
             <EditableField
               label="Selling Price ($)"
               value={item.price}
-              onUpdate={(newPrice) =>
-                onInventoryUpdate(item.vin, { price: newPrice })
-              }
+              onUpdate={(newPrice) => onInventoryUpdate(item.vin, { price: newPrice })}
             />
             <DetailItem
               label="Doc Fee (Taxed)"
@@ -366,15 +333,11 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
             <EditableField
               label="State/Title Fees ($)"
               value={dealData.stateFees}
-              onUpdate={(newFees) =>
-                setDealData((prev) => ({ ...prev, stateFees: newFees }))
-              }
+              onUpdate={(newFees) => setDealData((prev) => ({ ...prev, stateFees: newFees }))}
             />
             <hr className="my-2 border-slate-200 dark:border-slate-800" />
             <div className="flex justify-between items-center font-bold text-base">
-              <span className="text-slate-900 dark:text-slate-100">
-                Total OTD Price
-              </span>
+              <span className="text-slate-900 dark:text-slate-100">Total OTD Price</span>
               <CopyToClipboard valueToCopy={item.baseOutTheDoorPrice}>
                 <span className="text-slate-900 dark:text-slate-100">
                   {formatCurrency(item.baseOutTheDoorPrice)}
@@ -387,10 +350,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
               value={formatCurrency(item.amountToFinance)}
               valueToCopy={item.amountToFinance}
             />
-            <DetailItem
-              label="Front-End Gross"
-              value={<GrossCell value={item.frontEndGross} />}
-            />
+            <DetailItem label="Front-End Gross" value={<GrossCell value={item.frontEndGross} />} />
             <hr className="my-2 border-slate-200 dark:border-slate-800" />
             <DetailItem
               label="JD Power (Trade)"
@@ -412,23 +372,17 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
             <EditableField
               label="Down Payment ($)"
               value={dealData.downPayment}
-              onUpdate={(newValue) =>
-                setDealData((prev) => ({ ...prev, downPayment: newValue }))
-              }
+              onUpdate={(newValue) => setDealData((prev) => ({ ...prev, downPayment: newValue }))}
             />
             <EditableField
               label="Trade-In Value ($)"
               value={dealData.tradeInValue}
-              onUpdate={(newValue) =>
-                setDealData((prev) => ({ ...prev, tradeInValue: newValue }))
-              }
+              onUpdate={(newValue) => setDealData((prev) => ({ ...prev, tradeInValue: newValue }))}
             />
             <EditableField
               label="Trade-In Payoff ($)"
               value={dealData.tradeInPayoff}
-              onUpdate={(newValue) =>
-                setDealData((prev) => ({ ...prev, tradeInPayoff: newValue }))
-              }
+              onUpdate={(newValue) => setDealData((prev) => ({ ...prev, tradeInPayoff: newValue }))}
             />
             <EditableField
               label="Backend Products ($)"
@@ -440,16 +394,12 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
             <EditableField
               label="Interest Rate (APR %)"
               value={dealData.interestRate}
-              onUpdate={(newValue) =>
-                setDealData((prev) => ({ ...prev, interestRate: newValue }))
-              }
+              onUpdate={(newValue) => setDealData((prev) => ({ ...prev, interestRate: newValue }))}
               type="number"
               step="0.1"
             />
             <div className="flex justify-between items-center text-sm">
-              <label className="text-slate-500 dark:text-slate-400">
-                Loan Term (Months)
-              </label>
+              <label className="text-slate-500 dark:text-slate-400">Loan Term (Months)</label>
               <StyledSelect
                 value={dealData.loanTerm}
                 onChange={(e) => {
@@ -477,10 +427,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
           {hasCustomerData ? (
             <div className="text-sm space-y-1.5 max-h-48 overflow-y-auto pr-2">
               {eligibilityDetails.map((detail) => (
-                <div
-                  key={detail.name}
-                  className="flex justify-between items-start text-sm gap-4"
-                >
+                <div key={detail.name} className="flex justify-between items-start text-sm gap-4">
                   <span className="font-medium text-slate-600 dark:text-slate-300">
                     {detail.name}
                   </span>
@@ -492,17 +439,14 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
                       </span>
                     </span>
                   ) : (
-                    <span className="text-red-500 text-right">
-                      {detail.reasons.join(", ")}
-                    </span>
+                    <span className="text-red-500 text-right">{detail.reasons.join(", ")}</span>
                   )}
                 </div>
               ))}
             </div>
           ) : (
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Enter customer credit score and/or income to see lender
-              eligibility.
+              Enter customer credit score and/or income to see lender eligibility.
             </p>
           )}
         </div>
@@ -518,9 +462,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
         const isExpanded = expandedRows.has(item.vin);
         return (
           <ChevronIcon
-            className={`transition-transform duration-200 ${
-              isExpanded ? "rotate-90" : ""
-            }`}
+            className={`transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
           />
         );
       },
@@ -572,9 +514,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       accessor: "modelYear" as const,
       isNumeric: true,
       render: (item: CalculatedVehicle) => (
-        <CopyToClipboard valueToCopy={item.modelYear}>
-          {item.modelYear}
-        </CopyToClipboard>
+        <CopyToClipboard valueToCopy={item.modelYear}>{item.modelYear}</CopyToClipboard>
       ),
     },
     {
@@ -582,9 +522,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       accessor: "mileage" as const,
       isNumeric: true,
       render: (item: CalculatedVehicle) => (
-        <CopyToClipboard valueToCopy={item.mileage}>
-          {formatNumber(item.mileage)}
-        </CopyToClipboard>
+        <CopyToClipboard valueToCopy={item.mileage}>{formatNumber(item.mileage)}</CopyToClipboard>
       ),
     },
     {
@@ -593,9 +531,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       isNumeric: true,
       className: "text-right",
       render: (item: CalculatedVehicle) => (
-        <CopyToClipboard valueToCopy={item.price}>
-          {formatCurrency(item.price)}
-        </CopyToClipboard>
+        <CopyToClipboard valueToCopy={item.price}>{formatCurrency(item.price)}</CopyToClipboard>
       ),
     },
     {
@@ -604,9 +540,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       isNumeric: true,
       className: "text-right",
       render: (item: CalculatedVehicle) => (
-        <CopyToClipboard valueToCopy={item.jdPower}>
-          {formatCurrency(item.jdPower)}
-        </CopyToClipboard>
+        <CopyToClipboard valueToCopy={item.jdPower}>{formatCurrency(item.jdPower)}</CopyToClipboard>
       ),
     },
     {
@@ -621,9 +555,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       accessor: "frontEndGross" as const,
       isNumeric: true,
       className: "text-right",
-      render: (item: CalculatedVehicle) => (
-        <GrossCell value={item.frontEndGross} />
-      ),
+      render: (item: CalculatedVehicle) => <GrossCell value={item.frontEndGross} />,
     },
     {
       header: "Amt to Fin",
@@ -648,9 +580,7 @@ const FavoritesTable: React.FC<FavoritesTableProps> = ({
       accessor: "monthlyPayment" as const,
       isNumeric: true,
       className: "text-right",
-      render: (item: CalculatedVehicle) => (
-        <PaymentCell value={item.monthlyPayment} />
-      ),
+      render: (item: CalculatedVehicle) => <PaymentCell value={item.monthlyPayment} />,
     },
     {
       header: "Bank Matches",

@@ -1,57 +1,64 @@
-
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 interface CopyToClipboardProps {
   children: React.ReactNode;
-  valueToCopy: string | number | 'N/A' | 'Error';
+  valueToCopy: string | number | "N/A" | "Error";
   className?: string;
 }
 
-const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ children, valueToCopy, className = '' }) => {
+const CopyToClipboard: React.FC<CopyToClipboardProps> = ({
+  children,
+  valueToCopy,
+  className = "",
+}) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.preventDefault(); // Essential to stop propagation to row
     e.stopPropagation();
-    
+
     // Validate value before processing
     if (
-        valueToCopy === 'N/A' || 
-        valueToCopy === 'Error' || 
-        valueToCopy === null || 
-        valueToCopy === undefined || 
-        Number.isNaN(valueToCopy)
-    ) return;
+      valueToCopy === "N/A" ||
+      valueToCopy === "Error" ||
+      valueToCopy === null ||
+      valueToCopy === undefined ||
+      Number.isNaN(valueToCopy)
+    )
+      return;
 
     const textToCopy =
-      typeof valueToCopy === 'number'
+      typeof valueToCopy === "number"
         ? String(valueToCopy)
-        : typeof valueToCopy === 'string'
-        ? valueToCopy
-        : String(valueToCopy);
-    if(textToCopy === '') return;
+        : typeof valueToCopy === "string"
+          ? valueToCopy
+          : String(valueToCopy);
+    if (textToCopy === "") return;
 
     // Gracefully skip if Clipboard API is unavailable (prevents crashes in unsupported browsers/iframes).
     if (!navigator?.clipboard?.writeText) {
-      console.warn('Clipboard API unavailable in this environment.');
+      console.warn("Clipboard API unavailable in this environment.");
       return;
     }
 
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
-    });
+    navigator.clipboard
+      .writeText(textToCopy)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch((err) => {
+        console.error("Failed to copy text: ", err);
+      });
   };
 
   return (
-    <div 
-        onClick={handleCopy} 
-        className={`relative cursor-pointer group inline-block ${className}`}
-        title="Click to copy value"
-        role="button"
-        tabIndex={0}
+    <div
+      onClick={handleCopy}
+      className={`relative cursor-pointer group inline-block ${className}`}
+      title="Click to copy value"
+      role="button"
+      tabIndex={0}
     >
       {children}
       {copied && (

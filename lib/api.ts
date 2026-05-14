@@ -226,7 +226,12 @@ export const getLenderProfiles = async (): Promise<LenderProfile[]> => {
       sort: "name",
     });
     if (import.meta.env.DEV) {
-      console.log("[API] getLenderProfiles - loaded", records.length, "lenders for dealer", dealerId);
+      console.log(
+        "[API] getLenderProfiles - loaded",
+        records.length,
+        "lenders for dealer",
+        dealerId
+      );
     }
     return asTypeArray<LenderProfile>(records);
   } catch (error) {

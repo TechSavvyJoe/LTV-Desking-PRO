@@ -134,9 +134,7 @@ const getTierValue = (
   formatter: (val: number) => string = (v) => v.toString()
 ): string => {
   if (!tiers || !Array.isArray(tiers)) return "-";
-  const values = tiers
-    .map((t) => t[key] as number)
-    .filter((v) => Number.isFinite(v));
+  const values = tiers.map((t) => t[key] as number).filter((v) => Number.isFinite(v));
   if (values.length === 0) return "-";
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -148,12 +146,8 @@ const getTierValue = (
 
 const getFicoRange = (tiers: LenderTier[] | undefined): string => {
   if (!tiers || !Array.isArray(tiers)) return "-";
-  const mins = tiers
-    .map((t) => t.minFico)
-    .filter((v): v is number => Number.isFinite(v));
-  const maxs = tiers
-    .map((t) => t.maxFico)
-    .filter((v): v is number => Number.isFinite(v));
+  const mins = tiers.map((t) => t.minFico).filter((v): v is number => Number.isFinite(v));
+  const maxs = tiers.map((t) => t.maxFico).filter((v): v is number => Number.isFinite(v));
   if (mins.length === 0 && maxs.length === 0) return "-";
   const overallMin = mins.length > 0 ? Math.min(...mins) : null;
   const overallMax = maxs.length > 0 ? Math.max(...maxs) : null;
@@ -166,12 +160,8 @@ const getFicoRange = (tiers: LenderTier[] | undefined): string => {
 
 const getYearRange = (tiers: LenderTier[] | undefined): string => {
   if (!tiers || !Array.isArray(tiers)) return "-";
-  const mins = tiers
-    .map((t) => t.minYear)
-    .filter((v): v is number => Number.isFinite(v));
-  const maxs = tiers
-    .map((t) => t.maxYear)
-    .filter((v): v is number => Number.isFinite(v));
+  const mins = tiers.map((t) => t.minYear).filter((v): v is number => Number.isFinite(v));
+  const maxs = tiers.map((t) => t.maxYear).filter((v): v is number => Number.isFinite(v));
   if (mins.length === 0 && maxs.length === 0) return "-";
   const overallMin = mins.length > 0 ? Math.min(...mins) : null;
   const overallMax = maxs.length > 0 ? Math.max(...maxs) : null;
@@ -186,9 +176,7 @@ interface LenderCheatSheetTemplateProps {
   profiles: LenderProfile[];
 }
 
-export const LenderCheatSheetTemplate: React.FC<
-  LenderCheatSheetTemplateProps
-> = ({ profiles }) => {
+export const LenderCheatSheetTemplate: React.FC<LenderCheatSheetTemplateProps> = ({ profiles }) => {
   const safeProfiles = Array.isArray(profiles)
     ? profiles.filter((p) => p && typeof p === "object")
     : [];
@@ -218,15 +206,8 @@ export const LenderCheatSheetTemplate: React.FC<
     maxBackend: getTierValue(profile.tiers, "maxBackend", "max", (v) =>
       v >= 1000 ? `$${Math.round(v / 1000)}K` : `$${v}`
     ),
-    baseRate: getTierValue(
-      profile.tiers,
-      "baseInterestRate",
-      "min",
-      (v) => `${v.toFixed(2)}%`
-    ),
-    incomeDisplay: profile.minIncome
-      ? `$${profile.minIncome.toLocaleString()}`
-      : "-",
+    baseRate: getTierValue(profile.tiers, "baseInterestRate", "min", (v) => `${v.toFixed(2)}%`),
+    incomeDisplay: profile.minIncome ? `$${profile.minIncome.toLocaleString()}` : "-",
     ptiDisplay: profile.maxPti ? `${profile.maxPti}%` : "-",
   }));
 
@@ -259,12 +240,7 @@ export const LenderCheatSheetTemplate: React.FC<
       el(
         "div",
         { className: "meta" },
-        el(
-          "div",
-          null,
-          el("strong", null, `${sortedProfiles.length}`),
-          " Lenders"
-        ),
+        el("div", null, el("strong", null, `${sortedProfiles.length}`), " Lenders"),
         el("div", null, dateStr)
       )
     ),
@@ -316,15 +292,7 @@ export const LenderCheatSheetTemplate: React.FC<
                 el(
                   "tr",
                   { key: p.id || p.name },
-                  el(
-                    "td",
-                    null,
-                    el(
-                      "div",
-                      { className: "lender-name", title: p.name },
-                      p.name
-                    )
-                  ),
+                  el("td", null, el("div", { className: "lender-name", title: p.name }, p.name)),
                   el("td", null, p.ficoRange),
                   el("td", null, p.yearRange),
                   el("td", null, p.maxMileage),
@@ -337,9 +305,7 @@ export const LenderCheatSheetTemplate: React.FC<
                     el(
                       "span",
                       {
-                        className: `badge badge-${(
-                          p.bookValueSource || "trade"
-                        ).toLowerCase()}`,
+                        className: `badge badge-${(p.bookValueSource || "trade").toLowerCase()}`,
                       },
                       (p.bookValueSource || "Trade").charAt(0)
                     )
@@ -365,11 +331,7 @@ export const LenderCheatSheetTemplate: React.FC<
         el("span", null, "OTD = Out-The-Door LTV (total)"),
         el("span", null, "T = Trade Book | R = Retail Book")
       ),
-      el(
-        "div",
-        null,
-        "Confidential • Verify with official rate sheets • LTV Desking PRO"
-      )
+      el("div", null, "Confidential • Verify with official rate sheets • LTV Desking PRO")
     )
   );
 };

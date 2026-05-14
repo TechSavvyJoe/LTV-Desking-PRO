@@ -35,6 +35,7 @@ import {
   INITIAL_SETTINGS,
 } from "../constants";
 import { calculateFinancials } from "../services/calculator";
+import { normalizeAiSettings } from "../lib/aiModelRegistry";
 
 interface DealContextType {
   // State
@@ -106,8 +107,31 @@ interface DealContextType {
 
 const DealContext = createContext<DealContextType | undefined>(undefined);
 
+const loadInitialSettings = (): Settings => {
+  if (typeof window === "undefined") return INITIAL_SETTINGS;
+
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (!stored) return INITIAL_SETTINGS;
+
+    const parsed = JSON.parse(stored) as Partial<Settings>;
+    return {
+      ...INITIAL_SETTINGS,
+      ...parsed,
+      ltvThresholds: {
+        ...INITIAL_SETTINGS.ltvThresholds,
+        ...parsed.ltvThresholds,
+      },
+      ai: normalizeAiSettings(parsed.ai),
+    };
+  } catch (error) {
+    console.warn("Failed to load stored settings", error);
+    return INITIAL_SETTINGS;
+  }
+};
+
 export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState<Settings>(loadInitialSettings);
 
   // Data State with PB sync
   const [inventory, setInventory] = useState<Vehicle[]>([]);
@@ -281,6 +305,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
             defaultState: dealerSettings.defaultState as any,
             outOfStateTransitFee: dealerSettings.outOfStateTransitFee,
             customTaxRate: dealerSettings.customTaxRate ?? null,
+            ai: normalizeAiSettings(prev.ai),
           }));
         }
       } catch (error) {
@@ -351,6 +376,12 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         typeof action === "function" ? (action as (prev: Settings) => Settings)(prev) : action;
 
       // Fire and forget update
+      try {
+        window.localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
+      } catch (error) {
+        console.warn("Failed to persist local settings", error);
+      }
+
       updateDealerSettings({
         defaultLoanTerm: newSettings.defaultTerm,
         defaultInterestRate: newSettings.defaultApr,

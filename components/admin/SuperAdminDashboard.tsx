@@ -16,6 +16,7 @@ import {
 import { logout } from "../../lib/auth";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
+import { confirmAction } from "../../lib/confirm";
 
 // ============================================
 // Helper Components
@@ -27,9 +28,7 @@ const StatCard: React.FC<{
   icon: React.ReactNode;
   color: string;
 }> = ({ label, value, icon, color }) => (
-  <div
-    className={`bg-gradient-to-br ${color} rounded-2xl p-6 text-white shadow-xl`}
-  >
+  <div className={`bg-gradient-to-br ${color} rounded-2xl p-6 text-white shadow-xl`}>
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium opacity-80">{label}</p>
@@ -123,9 +122,13 @@ const DealerManagement: React.FC<{
 
   const handleDelete = async (id: string) => {
     if (
-      confirm(
-        "Are you sure you want to delete this dealer? This will affect all associated users and data."
-      )
+      await confirmAction({
+        title: "Delete dealer?",
+        message:
+          "Are you sure you want to delete this dealer? This will affect all associated users and data.",
+        confirmLabel: "Delete",
+        tone: "danger",
+      })
     ) {
       await deleteDealer(id);
       onRefresh();
@@ -156,23 +159,17 @@ const DealerManagement: React.FC<{
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Name *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Name *</label>
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="Dealership Name"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Code *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Code *</label>
               <input
                 type="text"
                 value={formData.code}
@@ -188,51 +185,37 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="contact@dealer.com"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Phone
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="(555) 123-4567"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                City
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">City</label>
               <input
                 type="text"
                 value={formData.city}
-                onChange={(e) =>
-                  setFormData({ ...formData, city: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="Detroit"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                State
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">State</label>
               <input
                 type="text"
                 value={formData.state}
@@ -248,15 +231,11 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Address
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Address</label>
               <input
                 type="text"
                 value={formData.address}
-                onChange={(e) =>
-                  setFormData({ ...formData, address: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="123 Auto Drive"
               />
@@ -266,9 +245,7 @@ const DealerManagement: React.FC<{
                 type="checkbox"
                 id="active"
                 checked={formData.active}
-                onChange={(e) =>
-                  setFormData({ ...formData, active: e.target.checked })
-                }
+                onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
                 className="w-4 h-4 rounded"
               />
               <label htmlFor="active" className="text-sm text-slate-300">
@@ -280,10 +257,7 @@ const DealerManagement: React.FC<{
             <Button variant="secondary" onClick={resetForm}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!formData.name || !formData.code}
-            >
+            <Button onClick={handleSubmit} disabled={!formData.name || !formData.code}>
               {editingId ? "Save Changes" : "Create Dealer"}
             </Button>
           </div>
@@ -317,10 +291,7 @@ const DealerManagement: React.FC<{
           </thead>
           <tbody className="divide-y divide-slate-700">
             {dealers.map((dealer) => (
-              <tr
-                key={dealer.id}
-                className="hover:bg-slate-800/50 transition-colors"
-              >
+              <tr key={dealer.id} className="hover:bg-slate-800/50 transition-colors">
                 <td className="px-4 py-4">
                   <p className="font-medium text-white">{dealer.name}</p>
                 </td>
@@ -330,9 +301,7 @@ const DealerManagement: React.FC<{
                   </code>
                 </td>
                 <td className="px-4 py-4 text-slate-300">
-                  {dealer.city && dealer.state
-                    ? `${dealer.city}, ${dealer.state}`
-                    : "—"}
+                  {dealer.city && dealer.state ? `${dealer.city}, ${dealer.state}` : "—"}
                 </td>
                 <td className="px-4 py-4 text-slate-300 text-sm">
                   {dealer.email || dealer.phone || "—"}
@@ -371,10 +340,7 @@ const DealerManagement: React.FC<{
             ))}
             {dealers.length === 0 && (
               <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-12 text-center text-slate-500"
-                >
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
                   No dealers found. Click "Add Dealer" to create one.
                 </td>
               </tr>
@@ -486,7 +452,14 @@ const UserManagement: React.FC<{
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (confirm("Are you sure you want to delete this user?")) {
+    if (
+      await confirmAction({
+        title: "Delete user?",
+        message: "Are you sure you want to delete this user?",
+        confirmLabel: "Delete",
+        tone: "danger",
+      })
+    ) {
       await deleteUser(userId);
       onRefresh();
     }
@@ -561,70 +534,50 @@ const UserManagement: React.FC<{
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                First Name *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">First Name *</label>
               <input
                 type="text"
                 value={formData.firstName}
-                onChange={(e) =>
-                  setFormData({ ...formData, firstName: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="John"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Last Name *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Last Name *</label>
               <input
                 type="text"
                 value={formData.lastName}
-                onChange={(e) =>
-                  setFormData({ ...formData, lastName: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="Doe"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Email *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Email *</label>
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="john@dealer.com"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Phone
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                 placeholder="(555) 123-4567"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Dealer *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Dealer *</label>
               <select
                 value={formData.dealer}
-                onChange={(e) =>
-                  setFormData({ ...formData, dealer: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, dealer: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
               >
                 <option value="">Select Dealer</option>
@@ -636,14 +589,10 @@ const UserManagement: React.FC<{
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Role *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Role *</label>
               <select
                 value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value as User["role"] })
-                }
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as User["role"] })}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
               >
                 <option value="sales">Sales</option>
@@ -661,9 +610,7 @@ const UserManagement: React.FC<{
                   <input
                     type="password"
                     value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                     placeholder="Min 8 characters"
                   />
@@ -675,9 +622,7 @@ const UserManagement: React.FC<{
                   <input
                     type="password"
                     value={formData.passwordConfirm}
-                    onChange={(e) =>
-                      setFormData({ ...formData, passwordConfirm: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
                     placeholder="Re-enter password"
                   />
@@ -691,7 +636,13 @@ const UserManagement: React.FC<{
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.dealer || (!editingId && !formData.password)}
+              disabled={
+                !formData.firstName ||
+                !formData.lastName ||
+                !formData.email ||
+                !formData.dealer ||
+                (!editingId && !formData.password)
+              }
             >
               {editingId ? "Save Changes" : "Create User"}
             </Button>
@@ -726,10 +677,7 @@ const UserManagement: React.FC<{
           </thead>
           <tbody className="divide-y divide-slate-700">
             {filteredUsers.map((user) => (
-              <tr
-                key={user.id}
-                className="hover:bg-slate-800/50 transition-colors"
-              >
+              <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
@@ -741,18 +689,12 @@ const UserManagement: React.FC<{
                     </p>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-slate-300 text-sm">
-                  {user.email}
-                </td>
-                <td className="px-4 py-4 text-slate-300">
-                  {getDealerName(user.dealer)}
-                </td>
+                <td className="px-4 py-4 text-slate-300 text-sm">{user.email}</td>
+                <td className="px-4 py-4 text-slate-300">{getDealerName(user.dealer)}</td>
                 <td className="px-4 py-4 text-center">
                   <select
                     value={user.role}
-                    onChange={(e) =>
-                      handleRoleChange(user.id, e.target.value as User["role"])
-                    }
+                    onChange={(e) => handleRoleChange(user.id, e.target.value as User["role"])}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer ${getRoleBadgeColor(
                       user.role
                     )}`}
@@ -788,10 +730,7 @@ const UserManagement: React.FC<{
             ))}
             {filteredUsers.length === 0 && (
               <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-12 text-center text-slate-500"
-                >
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
                   No users found matching the filters.
                 </td>
               </tr>
@@ -811,12 +750,8 @@ interface SuperAdminDashboardProps {
   onSwitchToDealer?: () => void;
 }
 
-export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
-  onSwitchToDealer,
-}) => {
-  const [activeTab, setActiveTab] = useState<"overview" | "dealers" | "users">(
-    "overview"
-  );
+export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onSwitchToDealer }) => {
+  const [activeTab, setActiveTab] = useState<"overview" | "dealers" | "users">("overview");
   const [stats, setStats] = useState<SystemStats>({
     totalDealers: 0,
     activeDealers: 0,
@@ -867,18 +802,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
               </div>
               <div>
                 <h1 className="text-xl font-bold">Super Admin Console</h1>
-                <p className="text-sm text-slate-400">
-                  LTV Desking PRO Management
-                </p>
+                <p className="text-sm text-slate-400">LTV Desking PRO Management</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               {onSwitchToDealer && (
-                <Button
-                  variant="secondary"
-                  onClick={onSwitchToDealer}
-                  size="sm"
-                >
+                <Button variant="secondary" onClick={onSwitchToDealer} size="sm">
                   <Icons.ChevronLeftIcon className="w-4 h-4 mr-2" />
                   Dealer View
                 </Button>
@@ -991,9 +920,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                     </div>
                   ))}
                   {dealers.length === 0 && (
-                    <p className="text-slate-500 text-center py-4">
-                      No dealers yet
-                    </p>
+                    <p className="text-slate-500 text-center py-4">No dealers yet</p>
                   )}
                 </div>
               </div>
@@ -1028,9 +955,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                     </div>
                   ))}
                   {users.length === 0 && (
-                    <p className="text-slate-500 text-center py-4">
-                      No users yet
-                    </p>
+                    <p className="text-slate-500 text-center py-4">No users yet</p>
                   )}
                 </div>
               </div>
@@ -1038,16 +963,10 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           </div>
         )}
 
-        {activeTab === "dealers" && (
-          <DealerManagement dealers={dealers} onRefresh={loadData} />
-        )}
+        {activeTab === "dealers" && <DealerManagement dealers={dealers} onRefresh={loadData} />}
 
         {activeTab === "users" && (
-          <UserManagement
-            users={users}
-            dealers={dealers}
-            onRefresh={loadData}
-          />
+          <UserManagement users={users} dealers={dealers} onRefresh={loadData} />
         )}
       </div>
     </div>

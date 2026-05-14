@@ -15,14 +15,9 @@ export interface AuthResult {
 /**
  * Login with email and password
  */
-export const login = async (
-  email: string,
-  password: string
-): Promise<AuthResult> => {
+export const login = async (email: string, password: string): Promise<AuthResult> => {
   try {
-    const authData = await pb
-      .collection("users")
-      .authWithPassword(email, password);
+    const authData = await pb.collection("users").authWithPassword(email, password);
     return {
       success: true,
       user: asType<User>(authData.record) ?? undefined,
@@ -90,7 +85,7 @@ export const register = async (
  */
 export const logout = (): void => {
   clearSuperadminDealerOverride(); // Clear any superadmin dealer override
-  sessionStorage.removeItem('superadmin_view_mode'); // Clear view mode
+  sessionStorage.removeItem("superadmin_view_mode"); // Clear view mode
   pb.authStore.clear();
   // Reload to clear all cached data (inventory, deals, lender profiles) from the previous session
   window.location.reload();
@@ -128,9 +123,7 @@ export const updateProfile = async (
 /**
  * Subscribe to auth state changes
  */
-export const onAuthStateChange = (
-  callback: (user: User | null) => void
-): (() => void) => {
+export const onAuthStateChange = (callback: (user: User | null) => void): (() => void) => {
   // Initial call
   callback(asType<User>(pb.authStore.model));
 

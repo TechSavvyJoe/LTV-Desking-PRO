@@ -26,9 +26,7 @@ interface HeaderProps {
 }
 
 // Dealer Switcher Component for SuperAdmins
-const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({
-  onDealerChange,
-}) => {
+const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerChange }) => {
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [selectedDealerId, setSelectedDealerId] = useState<string | null>(
     getSuperadminDealerOverride()
@@ -57,10 +55,7 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -103,9 +98,7 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({
           {selectedDealer?.name || "Select Dealer"}
         </span>
         <Icons.ChevronDownIcon
-          className={`w-4 h-4 transition-transform ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -129,9 +122,7 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({
           {/* Dealer List */}
           <div className="max-h-64 overflow-y-auto">
             {filteredDealers.length === 0 ? (
-              <div className="p-4 text-center text-slate-400 text-sm">
-                No dealers found
-              </div>
+              <div className="p-4 text-center text-slate-400 text-sm">No dealers found</div>
             ) : (
               filteredDealers.map((dealer) => (
                 <button
@@ -147,9 +138,7 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({
                     {dealer.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white truncate">
-                      {dealer.name}
-                    </div>
+                    <div className="text-sm font-medium text-white truncate">{dealer.name}</div>
                     <div className="text-xs text-slate-400">
                       {dealer.code && <span>Code: {dealer.code}</span>}
                       {dealer.city && dealer.state && (
@@ -201,12 +190,9 @@ const Header: React.FC<HeaderProps> = ({
       <div className="flex flex-wrap justify-between items-center gap-4 py-4">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              LTV & Desking Pro
-            </h1>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">LTV & Desking Pro</h1>
             <p className="mt-1 text-sm sm:text-base text-slate-200/80">
-              Precision deal structuring, lender intelligence, and desking in
-              one refined workspace.
+              Precision deal structuring, lender intelligence, and desking in one refined workspace.
             </p>
           </div>
 
@@ -215,9 +201,7 @@ const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-3 ml-4 pl-4 border-l border-slate-700">
               <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-600/30 rounded-lg">
                 <Icons.ShieldCheckIcon className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-medium text-purple-300">
-                  Super Admin
-                </span>
+                <span className="text-xs font-medium text-purple-300">Super Admin</span>
               </div>
               <DealerSwitcher onDealerChange={onDealerChange} />
             </div>
@@ -264,9 +248,7 @@ const Header: React.FC<HeaderProps> = ({
                   style={{
                     background: `conic-gradient(from 0deg, rgba(168, 85, 247, 0.8) ${
                       (uploadProgress || 0) * 3.6
-                    }deg, rgba(236, 72, 153, 0.2) ${
-                      (uploadProgress || 0) * 3.6
-                    }deg)`,
+                    }deg, rgba(236, 72, 153, 0.2) ${(uploadProgress || 0) * 3.6}deg)`,
                   }}
                 />
                 {/* Spinning glow effect */}
@@ -294,19 +276,13 @@ const Header: React.FC<HeaderProps> = ({
               }`}
               title={
                 isUploading && isUploadMinimized
-                  ? `Uploading: ${uploadProgress || 0}% - ${
-                      uploadStage || "Processing..."
-                    }`
+                  ? `Uploading: ${uploadProgress || 0}% - ${uploadStage || "Processing..."}`
                   : "AI Lender Upload"
               }
             >
               {isUploading && isUploadMinimized ? (
                 <>
-                  <svg
-                    className="w-4 h-4 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle
                       className="opacity-25"
                       cx="12"

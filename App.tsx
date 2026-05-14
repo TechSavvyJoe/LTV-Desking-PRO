@@ -1,16 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import {
-  isAuthenticated,
-  onAuthStateChange,
-  logout,
-  getCurrentUser,
-} from "./lib/auth";
-import {
-  saveDeal,
-  deleteDeal,
-  updateInventoryItem,
-  syncInventory,
-} from "./lib/api";
+import { isAuthenticated, onAuthStateChange, logout, getCurrentUser } from "./lib/auth";
+import { saveDeal, deleteDeal, updateInventoryItem, syncInventory } from "./lib/api";
 import { Login } from "./components/auth/Login";
 import { Register } from "./components/auth/Register";
 import { AuthLayout } from "./components/auth/AuthLayout";
@@ -28,6 +18,7 @@ import SettingsModal from "./components/SettingsModal";
 import FinanceTools from "./components/FinanceTools";
 import ActionBar from "./components/ActionBar";
 import { Toast } from "./components/common/Toast";
+import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { TabButton } from "./components/common/TabButton";
 import { calculateFinancials } from "./services/calculator";
 import { generateFavoritesPdf } from "./services/pdfGenerator";
@@ -41,6 +32,7 @@ import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
 import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
 import { toast } from "./lib/toast";
+import { confirmAction } from "./lib/confirm";
 
 const MainLayout: React.FC = () => {
   const {
@@ -113,14 +105,12 @@ const MainLayout: React.FC = () => {
     }
   }, [message, setMessage]);
 
-  const [activeTab, setActiveTab] = useState<
-    "inventory" | "lenders" | "saved" | "scratchpad"
-  >("inventory");
+  const [activeTab, setActiveTab] = useState<"inventory" | "lenders" | "saved" | "scratchpad">(
+    "inventory"
+  );
 
   // Handler to change tabs and scroll to top
-  const handleTabChange = (
-    tab: "inventory" | "lenders" | "saved" | "scratchpad"
-  ) => {
+  const handleTabChange = (tab: "inventory" | "lenders" | "saved" | "scratchpad") => {
     setActiveTab(tab);
     // Scroll to top of page when changing tabs
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -147,8 +137,7 @@ const MainLayout: React.FC = () => {
   }, [safeFavorites]);
 
   // PDF and share handlers for expanded rows
-  const isShareSupported =
-    typeof navigator !== "undefined" && "share" in navigator;
+  const isShareSupported = typeof navigator !== "undefined" && "share" in navigator;
 
   const downloadPdf = (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
     e.stopPropagation();
@@ -182,19 +171,18 @@ const MainLayout: React.FC = () => {
       return;
     }
 
-    // Validate file type (CSV and Excel only)
+    // Validate file type (CSV and modern Excel only)
     const allowedTypes = [
       "text/csv",
-      "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
-    const allowedExtensions = [".csv", ".xls", ".xlsx"];
+    const allowedExtensions = [".csv", ".xlsx"];
     const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
 
     if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
       setMessage({
         type: "error",
-        text: "Invalid file type. Please upload a CSV or Excel file (.csv, .xls, .xlsx).",
+        text: "Invalid file type. Please upload a CSV or Excel workbook (.csv, .xlsx).",
       });
       // Reset file input
       if (fileInputRef.current) {
@@ -237,10 +225,7 @@ const MainLayout: React.FC = () => {
       const itemsToSync = data.map((v) => ({
         vin: v.vin,
         stockNumber: v.stock !== "N/A" ? v.stock : undefined,
-        year:
-          typeof v.modelYear === "number"
-            ? v.modelYear
-            : new Date().getFullYear(),
+        year: typeof v.modelYear === "number" ? v.modelYear : new Date().getFullYear(),
         make: v.make || "",
         model: v.model || "",
         trim: v.trim,
@@ -248,8 +233,7 @@ const MainLayout: React.FC = () => {
         price: typeof v.price === "number" ? v.price : 0,
         unitCost: typeof v.unitCost === "number" ? v.unitCost : undefined,
         jdPower: typeof v.jdPower === "number" ? v.jdPower : undefined,
-        jdPowerRetail:
-          typeof v.jdPowerRetail === "number" ? v.jdPowerRetail : undefined,
+        jdPowerRetail: typeof v.jdPowerRetail === "number" ? v.jdPowerRetail : undefined,
       }));
 
       // Wait for sync to complete before updating UI
@@ -314,10 +298,7 @@ const MainLayout: React.FC = () => {
             make: newVehicle.make || "",
             model: newVehicle.model || "",
             trim: newVehicle.trim,
-            mileage:
-              typeof newVehicle.mileage === "number"
-                ? newVehicle.mileage
-                : undefined,
+            mileage: typeof newVehicle.mileage === "number" ? newVehicle.mileage : undefined,
             price: typeof newVehicle.price === "number" ? newVehicle.price : 0,
           },
         ])
@@ -436,10 +417,7 @@ const MainLayout: React.FC = () => {
     });
   };
 
-  const handleRowSelect = (
-    vin: string,
-    fallbackVehicles: CalculatedVehicle[]
-  ) => {
+  const handleRowSelect = (vin: string, fallbackVehicles: CalculatedVehicle[]) => {
     const candidate =
       processedInventory.find(
         (v) =>
@@ -459,10 +437,7 @@ const MainLayout: React.FC = () => {
     toggleInventoryRowExpansion(vin);
   };
 
-  const handleFavoriteRowSelect = (
-    vin: string,
-    fallbackVehicles: CalculatedVehicle[]
-  ) => {
+  const handleFavoriteRowSelect = (vin: string, fallbackVehicles: CalculatedVehicle[]) => {
     const candidate = fallbackVehicles.find(
       (v) =>
         v.vin === vin ||
@@ -487,19 +462,11 @@ const MainLayout: React.FC = () => {
     try {
       const pdfData = safeFavorites.map((vehicle) => {
         // Calculate financials for the favorite vehicle if not already done
-        const calculatedVehicle = calculateFinancials(
-          vehicle,
-          dealData,
-          settings
-        );
+        const calculatedVehicle = calculateFinancials(vehicle, dealData, settings);
 
         const lenderEligibility = safeLenderProfiles.map((bank) => ({
           name: bank.name,
-          ...checkBankEligibility(
-            calculatedVehicle,
-            { ...dealData, ...filters },
-            bank
-          ),
+          ...checkBankEligibility(calculatedVehicle, { ...dealData, ...filters }, bank),
         }));
 
         return {
@@ -566,9 +533,7 @@ const MainLayout: React.FC = () => {
                 onDownloadFavorites={handleDownloadFavorites}
                 onSaveDeal={() => handleSaveDeal()}
                 canSave={
-                  !!activeVehicle &&
-                  typeof activeVehicle.price === "number" &&
-                  !!customerName
+                  !!activeVehicle && typeof activeVehicle.price === "number" && !!customerName
                 }
               />
             </div>
@@ -600,7 +565,7 @@ const MainLayout: React.FC = () => {
             <div className="flex items-center gap-3 flex-1 min-w-[280px]">
               <input
                 type="file"
-                accept=".csv,.xlsx,.xls"
+                accept=".csv,.xlsx"
                 onChange={handleFileUpload}
                 className="hidden"
                 ref={fileInputRef}
@@ -612,8 +577,13 @@ const MainLayout: React.FC = () => {
                 className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700"
               >
                 <div className="flex flex-col items-start leading-tight text-left">
-                  <span className="flex items-center"><Icons.CloudArrowDownIcon className="w-4 h-4 mr-2" />Import</span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">CSV / Excel</span>
+                  <span className="flex items-center">
+                    <Icons.CloudArrowDownIcon className="w-4 h-4 mr-2" />
+                    Import
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">
+                    CSV / Excel
+                  </span>
                 </div>
               </Button>
 
@@ -701,11 +671,7 @@ const MainLayout: React.FC = () => {
                 disabled={isVinLoading || vinLookup.length < 11}
                 className="shrink-0"
               >
-                {isVinLoading ? (
-                  <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Decode"
-                )}
+                {isVinLoading ? <Icons.SpinnerIcon className="w-4 h-4 animate-spin" /> : "Decode"}
               </Button>
             </div>
           </div>
@@ -792,9 +758,7 @@ const MainLayout: React.FC = () => {
                           setFavSort((prev) => ({
                             key,
                             direction:
-                              prev.key === key && prev.direction === "asc"
-                                ? "desc"
-                                : "asc",
+                              prev.key === key && prev.direction === "asc" ? "desc" : "asc",
                           }))
                         }
                         expandedRows={expandedFavoriteRows}
@@ -843,16 +807,11 @@ const MainLayout: React.FC = () => {
                     onSort={(key) =>
                       setInventorySort((prev) => ({
                         key,
-                        direction:
-                          prev.key === key && prev.direction === "asc"
-                            ? "desc"
-                            : "asc",
+                        direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
                       }))
                     }
                     expandedRows={expandedInventoryRows}
-                    onRowClick={(vin) =>
-                      handleRowSelect(vin, paginatedInventory)
-                    }
+                    onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
                     onStructureDeal={handleSelectVehicle}
                     favoriteVins={favoriteVins}
                     toggleFavorite={toggleFavorite}
@@ -864,14 +823,8 @@ const MainLayout: React.FC = () => {
                       safeInventory.length > 0 ? (
                         <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
                           <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                          <p className="text-slate-500">
-                            No vehicles match your filters.
-                          </p>
-                          <Button
-                            onClick={clearDealAndFilters}
-                            variant="secondary"
-                            size="sm"
-                          >
+                          <p className="text-slate-500">No vehicles match your filters.</p>
+                          <Button onClick={clearDealAndFilters} variant="secondary" size="sm">
                             Clear Filters
                           </Button>
                         </div>
@@ -879,11 +832,7 @@ const MainLayout: React.FC = () => {
                         <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
                           <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
                           <p className="text-slate-500">Inventory is empty.</p>
-                          <Button
-                            onClick={loadSampleData}
-                            variant="primary"
-                            size="sm"
-                          >
+                          <Button onClick={loadSampleData} variant="primary" size="sm">
                             Load Sample Data
                           </Button>
                         </div>
@@ -912,6 +861,7 @@ const MainLayout: React.FC = () => {
               <LenderProfiles
                 profiles={safeLenderProfiles}
                 onUpdate={setLenderProfiles}
+                settings={settings}
               />
             )}
 
@@ -937,14 +887,16 @@ const MainLayout: React.FC = () => {
                   });
                 }}
                 onDelete={(id) => {
-                  if (
-                    window.confirm("Are you sure you want to delete this deal?")
-                  ) {
+                  confirmAction({
+                    title: "Delete deal?",
+                    message: "Are you sure you want to delete this deal?",
+                    confirmLabel: "Delete",
+                    tone: "danger",
+                  }).then((confirmed) => {
+                    if (!confirmed) return;
                     deleteDeal(id).then((success) => {
                       if (success) {
-                        setSavedDeals(
-                          safeSavedDeals.filter((d) => d.id !== id)
-                        );
+                        setSavedDeals(safeSavedDeals.filter((d) => d.id !== id));
                         setMessage({
                           type: "success",
                           text: "Deal deleted.",
@@ -956,7 +908,7 @@ const MainLayout: React.FC = () => {
                         });
                       }
                     });
-                  }
+                  });
                 }}
               />
             )}
@@ -1006,12 +958,14 @@ const MainLayout: React.FC = () => {
         onUpdateProfiles={setLenderProfiles}
         onMinimize={() => setIsAiMinimized(true)}
         isMinimized={isAiMinimized}
+        settings={settings}
       />
 
       {/* Background Upload Indicator - now integrated into Header button */}
 
       {/* Global Toast */}
       <Toast />
+      <ConfirmDialog />
     </div>
   );
 };
@@ -1062,15 +1016,9 @@ const App: React.FC = () => {
     return (
       <AuthLayout>
         {view === "login" ? (
-          <Login
-            onSuccess={() => setIsAuth(true)}
-            onRegisterClick={() => setView("register")}
-          />
+          <Login onSuccess={() => setIsAuth(true)} onRegisterClick={() => setView("register")} />
         ) : (
-          <Register
-            onSuccess={() => setView("login")}
-            onLoginClick={() => setView("login")}
-          />
+          <Register onSuccess={() => setView("login")} onLoginClick={() => setView("login")} />
         )}
       </AuthLayout>
     );
@@ -1078,9 +1026,7 @@ const App: React.FC = () => {
 
   // SuperAdmin role-based routing
   if (isSuperAdmin && viewMode === "auto") {
-    return (
-      <SuperAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />
-    );
+    return <SuperAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />;
   }
 
   return (

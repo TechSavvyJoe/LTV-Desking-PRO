@@ -1,10 +1,4 @@
-import type {
-  Vehicle,
-  DealData,
-  CalculatedVehicle,
-  Settings,
-  AppState,
-} from "../types";
+import type { Vehicle, DealData, CalculatedVehicle, Settings, AppState } from "../types";
 
 export const calculateMonthlyPayment = (
   principal: number,
@@ -35,9 +29,7 @@ export const calculateLoanAmount = (
   if (annualRate === 0) return monthlyPayment * termMonths;
 
   const monthlyRate = annualRate / 100 / 12;
-  const principal =
-    monthlyPayment *
-    ((1 - Math.pow(1 + monthlyRate, -termMonths)) / monthlyRate);
+  const principal = monthlyPayment * ((1 - Math.pow(1 + monthlyRate, -termMonths)) / monthlyRate);
 
   if (isNaN(principal) || !isFinite(principal)) return "Error";
 
@@ -49,8 +41,7 @@ const calculateSalesTax = (
   tradeInValue: number,
   settings: Settings
 ): { tax: number; extraFees: number } => {
-  const { docFee, cvrFee, defaultState, outOfStateTransitFee, customTaxRate } =
-    settings;
+  const { docFee, cvrFee, defaultState, outOfStateTransitFee, customTaxRate } = settings;
 
   const TAX_RATES: Record<string, number> = {
     MI: 0.06,
@@ -97,8 +88,7 @@ export const calculateFinancials = (
 
   const price = typeof vehicle.price === "number" ? vehicle.price : 0;
   const jdPower = typeof vehicle.jdPower === "number" ? vehicle.jdPower : 0;
-  const jdPowerRetail =
-    typeof vehicle.jdPowerRetail === "number" ? vehicle.jdPowerRetail : 0;
+  const jdPowerRetail = typeof vehicle.jdPowerRetail === "number" ? vehicle.jdPowerRetail : 0;
   const unitCost = typeof vehicle.unitCost === "number" ? vehicle.unitCost : 0;
 
   const { docFee, cvrFee } = settings;
@@ -118,33 +108,22 @@ export const calculateFinancials = (
     const { tax, extraFees } = calculateSalesTax(price, tradeInValue, settings);
     salesTax = tax;
 
-    baseOutTheDoorPrice =
-      price + docFee + cvrFee + stateFees + salesTax + extraFees;
+    baseOutTheDoorPrice = price + docFee + cvrFee + stateFees + salesTax + extraFees;
 
     if (typeof vehicle.unitCost === "number") {
       frontEndGross = price - unitCost;
     }
 
-    amountToFinance =
-      baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn;
+    amountToFinance = baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn;
 
-    monthlyPayment = calculateMonthlyPayment(
-      amountToFinance,
-      interestRate,
-      loanTerm
-    );
+    monthlyPayment = calculateMonthlyPayment(amountToFinance, interestRate, loanTerm);
 
     // LTV Logic: Prefer Trade Book, fallback to Retail Book
-    const bookValue =
-      jdPower > 0 ? jdPower : jdPowerRetail > 0 ? jdPowerRetail : 0;
+    const bookValue = jdPower > 0 ? jdPower : jdPowerRetail > 0 ? jdPowerRetail : 0;
 
     if (bookValue > 0) {
-      const frontEndAmountToFinance =
-        baseOutTheDoorPrice - downPayment - netTradeIn;
-      frontEndLtv =
-        frontEndAmountToFinance >= 0
-          ? (frontEndAmountToFinance / bookValue) * 100
-          : 0;
+      const frontEndAmountToFinance = baseOutTheDoorPrice - downPayment - netTradeIn;
+      frontEndLtv = frontEndAmountToFinance >= 0 ? (frontEndAmountToFinance / bookValue) * 100 : 0;
       otdLtv = amountToFinance >= 0 ? (amountToFinance / bookValue) * 100 : 0;
     } else {
       frontEndLtv = "Error";

@@ -4,12 +4,7 @@ import Button from "./common/Button";
 import * as Icons from "./common/Icons";
 import { formatCurrency, formatDateTime } from "./common/TableCell";
 
-type SortKey =
-  | "date"
-  | "customerName"
-  | "vehicle.vehicle"
-  | "vehicle.monthlyPayment"
-  | "createdAt";
+type SortKey = "date" | "customerName" | "vehicle.vehicle" | "vehicle.monthlyPayment" | "createdAt";
 
 const sortOptions: { label: string; value: SortKey }[] = [
   { label: "Date", value: "date" },
@@ -27,16 +22,10 @@ interface DealHistoryPanelProps {
 
 const getNestedValue = (obj: any, path: string) => {
   if (!obj || !path) return undefined;
-  return path
-    .split(".")
-    .reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
+  return path.split(".").reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
 };
 
-const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
-  deals,
-  onLoadDeal,
-  onDeleteDeal,
-}) => {
+const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, onDeleteDeal }) => {
   const [isOpen, setIsOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const safeDeals = Array.isArray(deals) ? deals : [];
@@ -64,9 +53,7 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
   }>({ key: "createdAt", direction: "desc" });
 
   const salespersons = useMemo(() => {
-    const names = new Set(
-      safeDeals.map((d) => d?.salespersonName).filter(Boolean)
-    );
+    const names = new Set(safeDeals.map((d) => d?.salespersonName).filter(Boolean));
     return ["all", ...Array.from(names)];
   }, [safeDeals]);
 
@@ -76,20 +63,15 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
 
       // General Search
       const query = (searchQuery || "").toLowerCase().trim();
-      const custName = deal.customerName
-        ? String(deal.customerName).toLowerCase()
-        : "";
-      const vehicleLabel =
-        deal.vehicle?.vehicle || deal.vehicleSnapshot?.vehicle || "";
+      const custName = deal.customerName ? String(deal.customerName).toLowerCase() : "";
+      const vehicleLabel = deal.vehicle?.vehicle || deal.vehicleSnapshot?.vehicle || "";
       const vehName = vehicleLabel.toLowerCase();
 
-      const searchMatch =
-        !query || custName.includes(query) || vehName.includes(query);
+      const searchMatch = !query || custName.includes(query) || vehName.includes(query);
 
       // Salesperson Filter
       const salespersonMatch =
-        salespersonFilter === "all" ||
-        deal.salespersonName === salespersonFilter;
+        salespersonFilter === "all" || deal.salespersonName === salespersonFilter;
 
       // Date Filter
       let dateMatch = true;
@@ -113,25 +95,14 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
     filtered.sort((a, b) => {
       const valA =
         getNestedValue(a, sortConfig.key) ??
-        getNestedValue(
-          a,
-          sortConfig.key.replace("vehicle.", "vehicleSnapshot.")
-        );
+        getNestedValue(a, sortConfig.key.replace("vehicle.", "vehicleSnapshot."));
       const valB =
         getNestedValue(b, sortConfig.key) ??
-        getNestedValue(
-          b,
-          sortConfig.key.replace("vehicle.", "vehicleSnapshot.")
-        );
+        getNestedValue(b, sortConfig.key.replace("vehicle.", "vehicleSnapshot."));
 
-      const isDateKey =
-        sortConfig.key === "date" || sortConfig.key === "createdAt";
-      const resolvedA = isDateKey
-        ? new Date(valA || a.date || a.createdAt || 0).getTime()
-        : valA;
-      const resolvedB = isDateKey
-        ? new Date(valB || b.date || b.createdAt || 0).getTime()
-        : valB;
+      const isDateKey = sortConfig.key === "date" || sortConfig.key === "createdAt";
+      const resolvedA = isDateKey ? new Date(valA || a.date || a.createdAt || 0).getTime() : valA;
+      const resolvedB = isDateKey ? new Date(valB || b.date || b.createdAt || 0).getTime() : valB;
 
       if (resolvedA === undefined || resolvedA === null) return 1;
       if (resolvedB === undefined || resolvedB === null) return -1;
@@ -140,11 +111,9 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
       if (typeof resolvedA === "number" && typeof resolvedB === "number") {
         comparison = resolvedA - resolvedB;
       } else {
-        comparison = String(resolvedA).localeCompare(
-          String(resolvedB),
-          undefined,
-          { sensitivity: "base" }
-        );
+        comparison = String(resolvedA).localeCompare(String(resolvedB), undefined, {
+          sensitivity: "base",
+        });
       }
 
       return sortConfig.direction === "asc" ? comparison : -comparison;
@@ -236,9 +205,7 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
               <input
                 type="date"
                 value={dateFilter.start}
-                onChange={(e) =>
-                  setDateFilter((p) => ({ ...p, start: e.target.value }))
-                }
+                onChange={(e) => setDateFilter((p) => ({ ...p, start: e.target.value }))}
                 className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0"
                 title="Start date filter"
                 aria-label="Filter deals from start date"
@@ -246,20 +213,13 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
               <input
                 type="date"
                 value={dateFilter.end}
-                onChange={(e) =>
-                  setDateFilter((p) => ({ ...p, end: e.target.value }))
-                }
+                onChange={(e) => setDateFilter((p) => ({ ...p, end: e.target.value }))}
                 className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-sky-400 focus:ring-0"
                 title="End date filter"
                 aria-label="Filter deals to end date"
               />
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="w-full"
-              onClick={clearFilters}
-            >
+            <Button size="sm" variant="ghost" className="w-full" onClick={clearFilters}>
               Clear All Filters
             </Button>
           </div>
@@ -267,9 +227,7 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
           <div className="p-4 flex-grow overflow-y-auto">
             {filteredAndSortedDeals.length === 0 ? (
               <p className="text-center text-slate-500 dark:text-slate-400 mt-8">
-                {safeDeals.length > 0
-                  ? "No deals match your search."
-                  : "No deals saved yet."}
+                {safeDeals.length > 0 ? "No deals match your search." : "No deals saved yet."}
               </p>
             ) : (
               <div className="space-y-3">
@@ -313,37 +271,27 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
                     </div>
                     <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                       <div>
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Customer:
-                        </span>{" "}
+                        <span className="text-slate-500 dark:text-slate-400">Customer:</span>{" "}
                         <span className="font-medium text-slate-700 dark:text-slate-100">
                           {deal.customerName || "N/A"}
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Salesperson:
-                        </span>{" "}
+                        <span className="text-slate-500 dark:text-slate-400">Salesperson:</span>{" "}
                         <span className="font-medium text-slate-700 dark:text-slate-100">
                           {deal.salespersonName || "N/A"}
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Payment:
-                        </span>{" "}
+                        <span className="text-slate-500 dark:text-slate-400">Payment:</span>{" "}
                         <span className="font-medium text-green-600 dark:text-green-400">
                           {formatCurrency(deal.vehicleSnapshot?.monthlyPayment)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Amt Financed:
-                        </span>{" "}
+                        <span className="text-slate-500 dark:text-slate-400">Amt Financed:</span>{" "}
                         <span className="font-medium text-slate-700 dark:text-slate-100">
-                          {formatCurrency(
-                            deal.vehicleSnapshot?.amountToFinance
-                          )}
+                          {formatCurrency(deal.vehicleSnapshot?.amountToFinance)}
                         </span>
                       </div>
                     </div>
@@ -363,9 +311,7 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({
       >
         <div className="flex flex-col items-center gap-2">
           <Icons.HistoryIcon />
-          <span className="font-bold text-sm [writing-mode:vertical-rl] rotate-180">
-            History
-          </span>
+          <span className="font-bold text-sm [writing-mode:vertical-rl] rotate-180">History</span>
         </div>
       </div>
     </div>

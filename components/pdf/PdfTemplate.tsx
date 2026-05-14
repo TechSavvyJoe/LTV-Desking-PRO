@@ -1,10 +1,6 @@
 import React from "react";
 import type { DealPdfData, Settings } from "../../types";
-import {
-  formatCurrency,
-  formatNumber,
-  formatPercentage,
-} from "../common/TableCell";
+import { formatCurrency, formatNumber, formatPercentage } from "../common/TableCell";
 
 const el = React.createElement;
 const logoSvg = encodeURIComponent(
@@ -175,12 +171,7 @@ const InfoListItem = (label: string, value: React.ReactNode) =>
     el("span", { className: "value" }, value)
   );
 
-const FinancialsRow = (
-  label: string,
-  value: string,
-  isTotal = false,
-  isSeparator = false
-) => {
+const FinancialsRow = (label: string, value: string, isTotal = false, isSeparator = false) => {
   let className = "";
   if (isTotal) className = "total-row";
   else if (isSeparator) className = "separator-row";
@@ -205,9 +196,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
   const totalDown = dealData.downPayment + netTradeIn;
 
   // Defensive check to prevent crash if lenderEligibility is undefined
-  const safeEligibility = Array.isArray(lenderEligibility)
-    ? lenderEligibility
-    : [];
+  const safeEligibility = Array.isArray(lenderEligibility) ? lenderEligibility : [];
   const eligibleLenders = safeEligibility.filter((l) => l && l.eligible);
 
   return el(
@@ -244,8 +233,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
           "div",
           { style: { textAlign: "right", fontSize: "9pt", color: "#4b5563" } },
           el("p", null, `Date: ${new Date().toLocaleDateString()}`),
-          dealData.notes &&
-            el("p", { style: { marginTop: "4px" } }, `Notes: ${dealData.notes}`)
+          dealData.notes && el("p", { style: { marginTop: "4px" } }, `Notes: ${dealData.notes}`)
         )
       ),
       el(
@@ -266,10 +254,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
               InfoListItem("VIN", vehicle.vin),
               InfoListItem("Mileage", formatNumber(vehicle.mileage)),
               InfoListItem("JD Power (Trade)", formatCurrency(vehicle.jdPower)),
-              InfoListItem(
-                "JD Power (Retail)",
-                formatCurrency(vehicle.jdPowerRetail)
-              )
+              InfoListItem("JD Power (Retail)", formatCurrency(vehicle.jdPowerRetail))
             )
           ),
           el(
@@ -281,19 +266,10 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
               { className: "info-list" },
               InfoListItem("Customer", customerName || "N/A"),
               InfoListItem("Salesperson", salespersonName || "N/A"),
-              InfoListItem(
-                "Credit Score",
-                customerFilters.creditScore || "N/A"
-              ),
+              InfoListItem("Credit Score", customerFilters.creditScore || "N/A"),
               InfoListItem("Loan Term", `${dealData.loanTerm} Months`),
-              InfoListItem(
-                "Interest Rate",
-                `${dealData.interestRate.toFixed(2)}% APR`
-              ),
-              InfoListItem(
-                "Front-End Gross",
-                formatCurrency(vehicle.frontEndGross)
-              )
+              InfoListItem("Interest Rate", `${dealData.interestRate.toFixed(2)}% APR`),
+              InfoListItem("Front-End Gross", formatCurrency(vehicle.frontEndGross))
             )
           )
         ),
@@ -310,26 +286,15 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
               FinancialsRow("Selling Price", formatCurrency(vehicle.price)),
               FinancialsRow("Doc Fee", `+ ${formatCurrency(settings.docFee)}`),
               FinancialsRow("CVR Fee", `+ ${formatCurrency(settings.cvrFee)}`),
-              FinancialsRow(
-                "State/Title Fees",
-                `+ ${formatCurrency(dealData.stateFees)}`
-              ),
-              FinancialsRow(
-                "Sales Tax",
-                `+ ${formatCurrency(vehicle.salesTax)}`
-              ),
+              FinancialsRow("State/Title Fees", `+ ${formatCurrency(dealData.stateFees)}`),
+              FinancialsRow("Sales Tax", `+ ${formatCurrency(vehicle.salesTax)}`),
               FinancialsRow(
                 "Total OTD Price",
                 formatCurrency(vehicle.baseOutTheDoorPrice),
                 true,
                 false
               ),
-              FinancialsRow(
-                "Cash Down",
-                `- ${formatCurrency(dealData.downPayment)}`,
-                false,
-                true
-              ),
+              FinancialsRow("Cash Down", `- ${formatCurrency(dealData.downPayment)}`, false, true),
               FinancialsRow("Net Trade-In", `- ${formatCurrency(netTradeIn)}`),
               FinancialsRow(
                 "Sub-Total",
@@ -360,11 +325,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
           "div",
           { className: "payment-summary" },
           el("div", { className: "label" }, "Estimated Monthly Payment"),
-          el(
-            "div",
-            { className: "value" },
-            formatCurrency(vehicle.monthlyPayment)
-          )
+          el("div", { className: "value" }, formatCurrency(vehicle.monthlyPayment))
         ),
         el(
           "div",
@@ -382,11 +343,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
                         "div",
                         { key: lender.name, className: "lender-item" },
                         el("p", { className: "name" }, lender.name),
-                        el(
-                          "p",
-                          { className: "tier" },
-                          lender.matchedTier?.name || "Eligible"
-                        )
+                        el("p", { className: "tier" }, lender.matchedTier?.name || "Eligible")
                       )
                     ),
                   eligibleLenders.length > 9 &&

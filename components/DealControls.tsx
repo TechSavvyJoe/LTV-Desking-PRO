@@ -60,9 +60,7 @@ const DealControls: React.FC<DealControlsProps> = ({
 
       const errorMsg = validateInput(key, numVal);
       setErrors((prev) =>
-        errorMsg
-          ? { ...prev, [key]: errorMsg }
-          : (({ [key]: _, ...rest }) => rest)(prev)
+        errorMsg ? { ...prev, [key]: errorMsg } : (({ [key]: _, ...rest }) => rest)(prev)
       );
     }
   };
@@ -76,9 +74,7 @@ const DealControls: React.FC<DealControlsProps> = ({
       // Validation
       const error = validateInput(id, val);
       setErrors((prev) =>
-        error
-          ? { ...prev, [id]: error }
-          : (({ [id]: _, ...rest }) => rest)(prev)
+        error ? { ...prev, [id]: error } : (({ [id]: _, ...rest }) => rest)(prev)
       );
     } else {
       // Text inputs (VIN, vehicle name)
@@ -90,9 +86,7 @@ const DealControls: React.FC<DealControlsProps> = ({
     }
   };
 
-  const handleDealChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleDealChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
 
     if (value === "") {
@@ -104,9 +98,7 @@ const DealControls: React.FC<DealControlsProps> = ({
 
     const errorMessage = validateInput(id, numValue);
     setErrors((prev) =>
-      errorMessage
-        ? { ...prev, [id]: errorMessage }
-        : (({ [id]: _, ...rest }) => rest)(prev)
+      errorMessage ? { ...prev, [id]: errorMessage } : (({ [id]: _, ...rest }) => rest)(prev)
     );
 
     setDealData((prev) => ({ ...prev, [id]: numValue }));
@@ -126,11 +118,7 @@ const DealControls: React.FC<DealControlsProps> = ({
           Customer & Deal Info
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-4 gap-4">
-          <InputGroup
-            label="Customer Name"
-            htmlFor="customerName"
-            className="lg:col-span-1"
-          >
+          <InputGroup label="Customer Name" htmlFor="customerName" className="lg:col-span-1">
             <Input
               type="text"
               id="customerName"
@@ -139,11 +127,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               placeholder="e.g., John Doe"
             />
           </InputGroup>
-          <InputGroup
-            label="Salesperson Name"
-            htmlFor="salespersonName"
-            className="lg:col-span-1"
-          >
+          <InputGroup label="Salesperson Name" htmlFor="salespersonName" className="lg:col-span-1">
             <Input
               type="text"
               id="salespersonName"
@@ -152,11 +136,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               placeholder="e.g., Jane Smith"
             />
           </InputGroup>
-          <InputGroup
-            label="Credit Score"
-            htmlFor="creditScore"
-            error={errors.creditScore}
-          >
+          <InputGroup label="Credit Score" htmlFor="creditScore" error={errors.creditScore}>
             <Input
               type="number"
               id="creditScore"
@@ -201,9 +181,7 @@ const DealControls: React.FC<DealControlsProps> = ({
                 )}
               </div>
               {vinLookupResult && (
-                <p className={`mt-1 text-xs ${vinResultColor}`}>
-                  {vinLookupResult}
-                </p>
+                <p className={`mt-1 text-xs ${vinResultColor}`}>{vinLookupResult}</p>
               )}
             </InputGroup>
           </div>
@@ -220,11 +198,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               placeholder="e.g., Ford Escape"
             />
           </InputGroup>
-          <InputGroup
-            label="Max Price ($)"
-            htmlFor="maxPrice"
-            error={errors.maxPrice}
-          >
+          <InputGroup label="Max Price ($)" htmlFor="maxPrice" error={errors.maxPrice}>
             <Input
               type="number"
               id="maxPrice"
@@ -235,11 +209,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               error={!!errors.maxPrice}
             />
           </InputGroup>
-          <InputGroup
-            label="Max Payment ($)"
-            htmlFor="maxPayment"
-            error={errors.maxPayment}
-          >
+          <InputGroup label="Max Payment ($)" htmlFor="maxPayment" error={errors.maxPayment}>
             <Input
               type="number"
               id="maxPayment"
@@ -250,11 +220,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               error={!!errors.maxPayment}
             />
           </InputGroup>
-          <InputGroup
-            label="Max Miles"
-            htmlFor="maxMiles"
-            error={errors.maxMiles}
-          >
+          <InputGroup label="Max Miles" htmlFor="maxMiles" error={errors.maxMiles}>
             <Input
               type="number"
               id="maxMiles"
@@ -265,11 +231,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               error={!!errors.maxMiles}
             />
           </InputGroup>
-          <InputGroup
-            label="Max OTD LTV (%)"
-            htmlFor="maxOtdLtv"
-            error={errors.maxOtdLtv}
-          >
+          <InputGroup label="Max OTD LTV (%)" htmlFor="maxOtdLtv" error={errors.maxOtdLtv}>
             <Input
               type="number"
               id="maxOtdLtv"
@@ -292,11 +254,7 @@ const DealControls: React.FC<DealControlsProps> = ({
           Global Deal Structure
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 2xl:grid-cols-4 gap-4">
-          <InputGroup
-            label="Down Pmt ($)"
-            htmlFor="downPayment"
-            error={errors.downPayment}
-          >
+          <InputGroup label="Down Pmt ($)" htmlFor="downPayment" error={errors.downPayment}>
             <Input
               type="number"
               id="downPayment"
@@ -308,11 +266,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               placeholder="0"
             />
           </InputGroup>
-          <InputGroup
-            label="Trade Value ($)"
-            htmlFor="tradeInValue"
-            error={errors.tradeInValue}
-          >
+          <InputGroup label="Trade Value ($)" htmlFor="tradeInValue" error={errors.tradeInValue}>
             <Input
               type="number"
               id="tradeInValue"
@@ -324,11 +278,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               placeholder="0"
             />
           </InputGroup>
-          <InputGroup
-            label="Trade Payoff ($)"
-            htmlFor="tradeInPayoff"
-            error={errors.tradeInPayoff}
-          >
+          <InputGroup label="Trade Payoff ($)" htmlFor="tradeInPayoff" error={errors.tradeInPayoff}>
             <Input
               type="number"
               id="tradeInPayoff"
@@ -340,17 +290,11 @@ const DealControls: React.FC<DealControlsProps> = ({
               placeholder="0"
             />
           </InputGroup>
-          <InputGroup
-            label="Backend ($)"
-            htmlFor="backendProducts"
-            error={errors.backendProducts}
-          >
+          <InputGroup label="Backend ($)" htmlFor="backendProducts" error={errors.backendProducts}>
             <Input
               type="number"
               id="backendProducts"
-              value={
-                dealData.backendProducts === 0 ? "" : dealData.backendProducts
-              }
+              value={dealData.backendProducts === 0 ? "" : dealData.backendProducts}
               onChange={handleDealChange}
               min="0"
               step="50"
@@ -358,11 +302,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               placeholder="0"
             />
           </InputGroup>
-          <InputGroup
-            label="State Fees ($)"
-            htmlFor="stateFees"
-            error={errors.stateFees}
-          >
+          <InputGroup label="State Fees ($)" htmlFor="stateFees" error={errors.stateFees}>
             <Input
               type="number"
               id="stateFees"
@@ -375,11 +315,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             />
           </InputGroup>
           <InputGroup label="Term (Mo)" htmlFor="loanTerm">
-            <Select
-              id="loanTerm"
-              value={dealData.loanTerm}
-              onChange={handleDealChange}
-            >
+            <Select id="loanTerm" value={dealData.loanTerm} onChange={handleDealChange}>
               <option value="36">36</option>
               <option value="48">48</option>
               <option value="54">54</option>
@@ -390,11 +326,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               <option value="84">84</option>
             </Select>
           </InputGroup>
-          <InputGroup
-            label="APR (%)"
-            htmlFor="interestRate"
-            error={errors.interestRate}
-          >
+          <InputGroup label="APR (%)" htmlFor="interestRate" error={errors.interestRate}>
             <Input
               type="number"
               id="interestRate"

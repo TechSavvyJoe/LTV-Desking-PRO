@@ -33,9 +33,7 @@ const InputGroup: React.FC<InputGroupProps> = ({
     </label>
     {children}
     {description && (
-      <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-        {description}
-      </p>
+      <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>
     )}
     {error && (
       <p className="mt-1.5 text-xs font-medium text-red-500 dark:text-red-400 flex items-center gap-1">

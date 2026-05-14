@@ -1,9 +1,4 @@
-import {
-  addInventoryItem,
-  saveLenderProfile,
-  getInventory,
-  getLenderProfiles,
-} from "./api";
+import { addInventoryItem, saveLenderProfile, getInventory, getLenderProfiles } from "./api";
 import { SAMPLE_INVENTORY, DEFAULT_LENDER_PROFILES } from "../constants";
 import { toast } from "./toast";
 

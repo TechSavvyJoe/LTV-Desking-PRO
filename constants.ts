@@ -1,10 +1,5 @@
-import type {
-  DealData,
-  FilterData,
-  LenderProfile,
-  Vehicle,
-  Settings,
-} from "./types";
+import type { DealData, FilterData, LenderProfile, Vehicle, Settings } from "./types";
+import { DEFAULT_AI_SETTINGS } from "./lib/aiModelRegistry";
 
 // ============================================================================
 // LOCAL STORAGE KEYS
@@ -38,6 +33,7 @@ export const INITIAL_SETTINGS: Settings = {
     danger: 125,
     critical: 135,
   },
+  ai: DEFAULT_AI_SETTINGS,
 };
 
 export const INITIAL_DEAL_DATA: DealData = {
@@ -946,6 +942,6 @@ export const SAMPLE_INVENTORY: Vehicle[] = [
 ].map((v, i) => ({
   ...v,
   stock: `STK${1000 + i}`,
-  vin: `SAMPLE${String(i + 1).padStart(2, '0')}AAAA${String(1000 + i)}`,
+  vin: `SAMPLE${String(i + 1).padStart(2, "0")}AAAA${String(1000 + i)}`,
   baseOutTheDoorPrice: "N/A",
 }));

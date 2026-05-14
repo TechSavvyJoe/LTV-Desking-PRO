@@ -81,10 +81,8 @@ const Button: React.FC<ButtonProps> = ({
   };
 
   // Warn in development if icon button has no aria-label
-  if (process.env.NODE_ENV === "development" && size === "icon" && !ariaLabel) {
-    console.warn(
-      "Button: Icon-only buttons should have an aria-label for accessibility."
-    );
+  if (import.meta.env.DEV && size === "icon" && !ariaLabel) {
+    console.warn("Button: Icon-only buttons should have an aria-label for accessibility.");
   }
 
   return (
@@ -95,11 +93,7 @@ const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {isLoading && <SpinnerIcon className="w-4 h-4 animate-spin absolute" />}
-      <span
-        className={
-          isLoading ? "opacity-0" : "inline-flex items-center gap-inherit"
-        }
-      >
+      <span className={isLoading ? "opacity-0" : "inline-flex items-center gap-inherit"}>
         {children}
       </span>
     </button>

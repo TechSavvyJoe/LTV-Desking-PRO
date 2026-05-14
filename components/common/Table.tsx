@@ -32,19 +32,11 @@ const SortIcon = ({ direction }: { direction: "asc" | "desc" | null }) => {
     `}
     >
       {direction === "asc" ? (
-        <svg
-          className="w-3.5 h-3.5 text-blue-500"
-          fill="currentColor"
-          viewBox="0 0 16 16"
-        >
+        <svg className="w-3.5 h-3.5 text-blue-500" fill="currentColor" viewBox="0 0 16 16">
           <path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" />
         </svg>
       ) : direction === "desc" ? (
-        <svg
-          className="w-3.5 h-3.5 text-blue-500"
-          fill="currentColor"
-          viewBox="0 0 16 16"
-        >
+        <svg className="w-3.5 h-3.5 text-blue-500" fill="currentColor" viewBox="0 0 16 16">
           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
         </svg>
       ) : (
@@ -111,11 +103,7 @@ export const Table = <T extends { [key: string]: any }>({
                   <span>{col.header}</span>
                   {col.accessor && (
                     <SortIcon
-                      direction={
-                        sortConfig.key === col.accessor
-                          ? sortConfig.direction
-                          : null
-                      }
+                      direction={sortConfig.key === col.accessor ? sortConfig.direction : null}
                     />
                   )}
                 </div>
@@ -142,8 +130,7 @@ export const Table = <T extends { [key: string]: any }>({
               if (!item) return null;
 
               // SAFE KEY GENERATION: If rowKey is missing, use rowIndex (less safe for React but prevents crash)
-              const key =
-                item[rowKey] !== undefined ? item[rowKey] : `row-${rowIndex}`;
+              const key = item[rowKey] !== undefined ? item[rowKey] : `row-${rowIndex}`;
 
               // Ensure expandedRows exists before checking
               const isExpanded = expandedRows ? expandedRows.has(key) : false;
@@ -169,19 +156,11 @@ export const Table = <T extends { [key: string]: any }>({
                         className={`
                           px-4 py-3.5
                           text-slate-700 dark:text-slate-300
-                          ${
-                            col.isNumeric
-                              ? "text-right tabular-nums"
-                              : "text-left"
-                          }
+                          ${col.isNumeric ? "text-right tabular-nums" : "text-left"}
                           ${col.className || ""}
                         `}
                       >
-                        {col.render
-                          ? col.render(item)
-                          : col.accessor
-                          ? item[col.accessor]
-                          : null}
+                        {col.render ? col.render(item) : col.accessor ? item[col.accessor] : null}
                       </td>
                     ))}
                   </tr>

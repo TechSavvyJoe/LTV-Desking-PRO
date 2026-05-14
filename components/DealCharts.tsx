@@ -22,25 +22,16 @@ interface DealChartsProps {
 
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
 
-export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({
-  dealData,
-  activeVehicle,
-}) => {
+export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({ dealData, activeVehicle }) => {
   const data = useMemo(() => {
     if (!activeVehicle) return [];
 
     const principal =
-      typeof activeVehicle.amountToFinance === "number"
-        ? activeVehicle.amountToFinance
-        : 0;
+      typeof activeVehicle.amountToFinance === "number" ? activeVehicle.amountToFinance : 0;
     const interestRate = dealData.interestRate || 0;
     const term = dealData.loanTerm || 72;
 
-    const monthlyPayment = calculateMonthlyPayment(
-      principal,
-      interestRate,
-      term
-    );
+    const monthlyPayment = calculateMonthlyPayment(principal, interestRate, term);
 
     if (monthlyPayment === "Error") {
       return [
@@ -85,18 +76,15 @@ export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({
             dataKey="value"
           >
             {data.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={COLORS[index % COLORS.length]}
-              />
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
           <Tooltip
-            formatter={(value: number) =>
+            formatter={(value) =>
               new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: "USD",
-              }).format(value)
+              }).format(typeof value === "number" ? value : Number(value ?? 0))
             }
             contentStyle={{
               backgroundColor: "rgba(255, 255, 255, 0.9)",
@@ -112,10 +100,7 @@ export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({
   );
 };
 
-export const LenderComparisonChart: React.FC<DealChartsProps> = ({
-  dealData,
-  activeVehicle,
-}) => {
+export const LenderComparisonChart: React.FC<DealChartsProps> = ({ dealData, activeVehicle }) => {
   // Mock data for now - in a real app, this would come from the LenderMatcher service
   const data = useMemo(() => {
     if (!activeVehicle) return [];
@@ -143,11 +128,7 @@ export const LenderComparisonChart: React.FC<DealChartsProps> = ({
             bottom: 5,
           }}
         >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            vertical={false}
-            stroke="#e2e8f0"
-          />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
           <XAxis dataKey="name" axisLine={false} tickLine={false} />
           <YAxis hide />
           <Tooltip
@@ -159,12 +140,7 @@ export const LenderComparisonChart: React.FC<DealChartsProps> = ({
               boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
             }}
           />
-          <Bar
-            dataKey="payment"
-            fill="#3b82f6"
-            radius={[4, 4, 0, 0]}
-            name="Monthly Payment"
-          />
+          <Bar dataKey="payment" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Monthly Payment" />
         </BarChart>
       </ResponsiveContainer>
     </div>

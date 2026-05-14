@@ -105,21 +105,15 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     setActiveTierIndex(null);
   }, [profile, isOpen]);
 
-  const handleGeneralChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === "number" ? (value === "" ? undefined : Number(value)) : value,
+      [name]: type === "number" ? (value === "" ? undefined : Number(value)) : value,
     }));
   };
 
-  const handleTierChange = (
-    index: number,
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleTierChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     const tiers = [...(formData.tiers || [])];
     if (tiers[index]) {
@@ -199,9 +193,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
               <Icons.BuildingLibraryIcon className="w-5 h-5" />
               Lender Settings
             </h4>
-            <p className="text-blue-100 text-xs mt-0.5">
-              Required fields and global parameters
-            </p>
+            <p className="text-blue-100 text-xs mt-0.5">Required fields and global parameters</p>
           </div>
           <div className="p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -265,8 +257,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                 Credit Tiers
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Define credit tiers with specific LTV, term, and eligibility
-                requirements
+                Define credit tiers with specific LTV, term, and eligibility requirements
               </p>
             </div>
             <Button type="button" variant="primary" size="sm" onClick={addTier}>
@@ -289,9 +280,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                 {/* Tier Header */}
                 <div
                   className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700 cursor-pointer"
-                  onClick={() =>
-                    setActiveTierIndex(activeTierIndex === index ? null : index)
-                  }
+                  onClick={() => setActiveTierIndex(activeTierIndex === index ? null : index)}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div
@@ -299,10 +288,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         index === 0
                           ? "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white"
                           : index === 1
-                          ? "bg-gradient-to-br from-blue-400 to-blue-600 text-white"
-                          : index === 2
-                          ? "bg-gradient-to-br from-purple-400 to-purple-600 text-white"
-                          : "bg-gradient-to-br from-slate-400 to-slate-600 text-white"
+                            ? "bg-gradient-to-br from-blue-400 to-blue-600 text-white"
+                            : index === 2
+                              ? "bg-gradient-to-br from-purple-400 to-purple-600 text-white"
+                              : "bg-gradient-to-br from-slate-400 to-slate-600 text-white"
                       }`}
                     >
                       {index + 1}
@@ -329,9 +318,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                           </span>
                         )}
                         {tier.maxTerm && (
-                          <span className="text-[10px] text-slate-500">
-                            {tier.maxTerm}mo
-                          </span>
+                          <span className="text-[10px] text-slate-500">{tier.maxTerm}mo</span>
                         )}
                       </div>
                     </div>
@@ -506,18 +493,11 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
           {(formData.tiers?.length || 0) === 0 && (
             <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
               <Icons.DocumentTextIcon className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-              <p className="text-slate-500 dark:text-slate-400 font-medium">
-                No tiers defined
-              </p>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">No tiers defined</p>
               <p className="text-slate-400 dark:text-slate-500 text-sm mb-4">
                 Add at least one credit tier
               </p>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={addTier}
-              >
+              <Button type="button" variant="primary" size="sm" onClick={addTier}>
                 <Icons.PlusIcon className="w-4 h-4 mr-1" />
                 Add First Tier
               </Button>

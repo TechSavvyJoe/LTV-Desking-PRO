@@ -27,11 +27,7 @@ interface VirtualizedTableProps<T> {
 const SortIcon = ({ direction }: { direction: "asc" | "desc" | null }) => {
   if (!direction)
     return (
-      <svg
-        className="w-4 h-4 opacity-30"
-        fill="currentColor"
-        viewBox="0 0 16 16"
-      >
+      <svg className="w-4 h-4 opacity-30" fill="currentColor" viewBox="0 0 16 16">
         <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
       </svg>
     );
@@ -106,9 +102,7 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
   }, [expandedRowsArray.length, rowVirtualizer]);
 
   // CSS Grid Template
-  const gridTemplateColumns = safeColumns
-    .map((col) => col.width || "1fr")
-    .join(" ");
+  const gridTemplateColumns = safeColumns.map((col) => col.width || "1fr").join(" ");
 
   return (
     <div
@@ -130,18 +124,12 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
             key={index}
             className={`p-3 flex items-center gap-2 transition-colors duration-150 hover:text-slate-700 dark:hover:text-slate-200 ${
               col.accessor ? "cursor-pointer select-none" : ""
-            } ${col.isNumeric ? "justify-end" : "justify-start"} ${
-              col.className || ""
-            }`}
+            } ${col.isNumeric ? "justify-end" : "justify-start"} ${col.className || ""}`}
             onClick={() => col.accessor && onSort(col.accessor as keyof T)}
           >
             {col.header}
             {col.accessor && (
-              <SortIcon
-                direction={
-                  sortConfig.key === col.accessor ? sortConfig.direction : null
-                }
-              />
+              <SortIcon direction={sortConfig.key === col.accessor ? sortConfig.direction : null} />
             )}
           </div>
         ))}
@@ -174,19 +162,14 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
                   />
                 </svg>
               </div>
-              <div className="text-slate-500 dark:text-slate-400 font-medium">
-                {emptyMessage}
-              </div>
+              <div className="text-slate-500 dark:text-slate-400 font-medium">{emptyMessage}</div>
             </div>
           </div>
         ) : (
           rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const item = safeData[virtualRow.index];
             if (!item) return null;
-            const key =
-              item[rowKey] !== undefined
-                ? item[rowKey]
-                : `row-${virtualRow.index}`;
+            const key = item[rowKey] !== undefined ? item[rowKey] : `row-${virtualRow.index}`;
             const isExpanded = expandedRows ? expandedRows.has(key) : false;
 
             return (
@@ -220,11 +203,7 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
                         col.isNumeric ? "text-right" : "text-left"
                       } ${col.className || ""}`}
                     >
-                      {col.render
-                        ? col.render(item)
-                        : col.accessor
-                        ? item[col.accessor]
-                        : null}
+                      {col.render ? col.render(item) : col.accessor ? item[col.accessor] : null}
                     </div>
                   ))}
                 </div>

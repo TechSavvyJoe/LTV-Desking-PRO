@@ -84,10 +84,7 @@ export class AuthorizationError extends AppError {
  * Authentication errors (login, token refresh)
  */
 export class AuthenticationError extends AppError {
-  constructor(
-    message: string = "Authentication failed",
-    cause?: unknown
-  ) {
+  constructor(message: string = "Authentication failed", cause?: unknown) {
     super(message, cause, "AUTHENTICATION_ERROR");
   }
 }
@@ -96,10 +93,7 @@ export class AuthenticationError extends AppError {
  * Not found errors (404)
  */
 export class NotFoundError extends AppError {
-  constructor(
-    resource: string,
-    cause?: unknown
-  ) {
+  constructor(resource: string, cause?: unknown) {
     super(`${resource} not found`, cause, "NOT_FOUND_ERROR");
   }
 }

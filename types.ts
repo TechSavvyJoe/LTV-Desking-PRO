@@ -183,4 +183,5 @@ export interface Settings {
     danger: number;
     critical: number;
   };
+  ai: import("./lib/aiModelRegistry").AiSettings;
 }
