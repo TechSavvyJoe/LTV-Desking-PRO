@@ -1,4 +1,4 @@
-import type { Vehicle, DealData, CalculatedVehicle, Settings, AppState } from "../types";
+import type { Vehicle, DealData, CalculatedVehicle, Settings } from "../types";
 
 export const calculateMonthlyPayment = (
   principal: number,
@@ -48,6 +48,10 @@ const calculateSalesTax = (
     OH: 0.0575,
     IN: 0.07,
   };
+  const michiganTaxRate = TAX_RATES.MI;
+  if (michiganTaxRate === undefined) {
+    throw new Error("Michigan tax rate must be configured for reciprocal tax calculations.");
+  }
 
   let taxRate = 0.06;
   let extraFees = 0;
@@ -60,8 +64,8 @@ const calculateSalesTax = (
     taxRate = TAX_RATES[defaultState] ?? 0.06;
 
     if (defaultState !== "MI") {
-      // Cap tax at Michigan's rate for reciprocity
-      taxRate = Math.min(TAX_RATES.MI || 0.06, taxRate);
+      // Michigan reciprocity caps out-of-state tax at the Michigan statutory rate.
+      taxRate = Math.min(michiganTaxRate, taxRate);
       extraFees += outOfStateTransitFee;
     }
   }

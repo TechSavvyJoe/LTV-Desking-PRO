@@ -780,7 +780,6 @@ export const BriefcaseIcon = ({ className = "w-6 h-6" }: IconProps) => (
     stroke="currentColor"
     className={className}
   >
-    // ... existing code ...
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -798,7 +797,6 @@ export const ArrowRightStartOnRectangleIcon = ({ className = "w-6 h-6" }: IconPr
     stroke="currentColor"
     className={className}
   >
-    // ... existing code ...
     <path
       strokeLinecap="round"
       strokeLinejoin="round"

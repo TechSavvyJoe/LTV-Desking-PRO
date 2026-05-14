@@ -33,6 +33,13 @@ import SkipNavLink from "./components/common/SkipNavLink";
 import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
 import { toast } from "./lib/toast";
 import { confirmAction } from "./lib/confirm";
+import { mapPocketBaseSavedDeal } from "./lib/dealMappers";
+import type { SavedDeal as PocketBaseSavedDeal } from "./lib/pocketbase";
+
+type NewSavedDealPayload = Omit<
+  PocketBaseSavedDeal,
+  "id" | "dealer" | "user" | "created" | "updated"
+>;
 
 const MainLayout: React.FC = () => {
   const {
@@ -139,17 +146,12 @@ const MainLayout: React.FC = () => {
   // PDF and share handlers for expanded rows
   const isShareSupported = typeof navigator !== "undefined" && "share" in navigator;
 
-  const downloadPdf = (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
+  const downloadPdf = (e: React.MouseEvent, _vehicle: CalculatedVehicle) => {
     e.stopPropagation();
-    // PDF generation is handled elsewhere
-    console.log("Download PDF for:", vehicle.vin);
   };
 
-  const sharePdf = async (e: React.MouseEvent, vehicle: CalculatedVehicle) => {
+  const sharePdf = (e: React.MouseEvent, _vehicle: CalculatedVehicle) => {
     e.stopPropagation();
-    if (isShareSupported) {
-      console.log("Share PDF for:", vehicle.vin);
-    }
   };
 
   // File Upload Handler
@@ -303,7 +305,9 @@ const MainLayout: React.FC = () => {
           },
         ])
           .then(() => {
-            console.log("VIN lookup vehicle synced to PocketBase");
+            if (import.meta.env.DEV) {
+              console.log("VIN lookup vehicle synced to PocketBase");
+            }
           })
           .catch((err: unknown) => {
             console.error("Failed to sync VIN lookup to PocketBase:", err);
@@ -376,7 +380,7 @@ const MainLayout: React.FC = () => {
     }
 
     const now = new Date().toISOString();
-    const newDealData = {
+    const newDealData: NewSavedDealPayload = {
       name: `${now.split("T")[0]} - ${customerName}`, // Or ask for name
       customerName,
       salespersonName,
@@ -395,19 +399,7 @@ const MainLayout: React.FC = () => {
     // Let's call API and update state with result
     saveDeal(newDealData).then((saved) => {
       if (saved) {
-        // Map DB SavedDeal to App SavedDeal
-        const mappedSaved: SavedDeal = {
-          id: saved.id,
-          date: saved.created,
-          customerName: saved.customerName || "Unknown",
-          salespersonName: saved.salespersonName || "Unknown",
-          vehicle: saved.vehicleData as any,
-          dealData: saved.dealData as any,
-          customerFilters: {
-            creditScore: (saved.dealData as any)?.creditScore || null,
-            monthlyIncome: (saved.dealData as any)?.monthlyIncome || null,
-          },
-        };
+        const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
         setSavedDeals((prev) => [mappedSaved, ...prev]);
         setMessage({ type: "success", text: "Deal saved successfully." });
         setIsDealModalOpen(false);
@@ -790,7 +782,7 @@ const MainLayout: React.FC = () => {
                             customerFilters={filters}
                             settings={settings}
                             onDownloadPdf={downloadPdf}
-                            onSharePdf={() => console.log("Share PDF")} // Placeholder
+                            onSharePdf={(e) => sharePdf(e, vehicle)}
                             isShareSupported={isShareSupported}
                           />
                         )}
@@ -848,7 +840,7 @@ const MainLayout: React.FC = () => {
                         customerFilters={filters}
                         settings={settings}
                         onDownloadPdf={downloadPdf}
-                        onSharePdf={() => console.log("Share PDF")}
+                        onSharePdf={(e) => sharePdf(e, vehicle)}
                         isShareSupported={isShareSupported}
                       />
                     )}

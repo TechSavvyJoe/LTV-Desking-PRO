@@ -36,6 +36,7 @@ import {
 } from "../constants";
 import { calculateFinancials } from "../services/calculator";
 import { normalizeAiSettings } from "../lib/aiModelRegistry";
+import { mapPocketBaseSavedDeal, toAppState } from "../lib/dealMappers";
 
 interface DealContextType {
   // State
@@ -184,17 +185,18 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const safeLenderProfiles = useSafeData(lenderProfiles);
   const safeSavedDeals = useSafeData(savedDeals);
 
-  const normalizeSavedDeal = (deal: any): SavedDeal | null => {
+  const normalizeSavedDeal = (deal: Partial<SavedDeal>): SavedDeal | null => {
     if (!deal || typeof deal !== "object") return null;
-    const baseVehicle =
-      (deal.vehicle as CalculatedVehicle) || (deal.vehicleSnapshot as CalculatedVehicle);
-    const normalizedVehicle = baseVehicle
-      ? ({
+    const baseVehicle = deal.vehicle || deal.vehicleSnapshot;
+    const normalizedVehicle: CalculatedVehicle | null = baseVehicle
+      ? {
           ...baseVehicle,
           vehicle: baseVehicle.vehicle || `${baseVehicle.modelYear || ""}`,
           vin: baseVehicle.vin || `VIN-${baseVehicle.stock || ""}-${baseVehicle.modelYear || ""}`,
-        } as CalculatedVehicle)
+        }
       : null;
+
+    if (!normalizedVehicle) return null;
 
     return {
       id: String(deal.id || Date.now().toString()),
@@ -202,8 +204,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: deal.createdAt || deal.date || new Date().toISOString(),
       customerName: deal.customerName || "",
       salespersonName: deal.salespersonName || "",
-      vehicle: normalizedVehicle as CalculatedVehicle,
-      dealData: deal.dealData,
+      vehicle: normalizedVehicle,
+      dealData: deal.dealData || INITIAL_DEAL_DATA,
       customerFilters: {
         creditScore: deal.customerFilters?.creditScore ?? null,
         monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
@@ -272,26 +274,13 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }));
         setInventory(mappedInventory);
 
-        // Map LenderProfile (PB) -> LenderProfile (App)
         // Always set lender profiles (even if empty, to clear stale data)
         if (import.meta.env.DEV) {
           console.log("[DealContext] Setting lender profiles:", lenders.length);
         }
-        setLenderProfiles(lenders as unknown as import("../types").LenderProfile[]);
+        setLenderProfiles(lenders);
 
-        // Map SavedDeal (PB) -> SavedDeal (App)
-        const mappedDeals: SavedDeal[] = deals.map((d) => ({
-          id: d.id,
-          date: d.created, // Use created date as date
-          customerName: d.customerName || "Unknown",
-          salespersonName: d.salespersonName || "Unknown",
-          vehicle: d.vehicleData as any, // Cast from Record
-          dealData: d.dealData as any,
-          customerFilters: {
-            creditScore: (d.dealData as any)?.creditScore || null,
-            monthlyIncome: (d.dealData as any)?.monthlyIncome || null,
-          },
-        }));
+        const mappedDeals: SavedDeal[] = deals.map(mapPocketBaseSavedDeal);
         setSavedDeals(mappedDeals);
 
         if (dealerSettings) {
@@ -302,7 +291,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
             defaultStateFees: dealerSettings.defaultStateFees || prev.defaultStateFees,
             docFee: dealerSettings.docFee,
             cvrFee: dealerSettings.cvrFee,
-            defaultState: dealerSettings.defaultState as any,
+            defaultState: toAppState(dealerSettings.defaultState, prev.defaultState),
             outOfStateTransitFee: dealerSettings.outOfStateTransitFee,
             customTaxRate: dealerSettings.customTaxRate ?? null,
             ai: normalizeAiSettings(prev.ai),
@@ -337,19 +326,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInventory(mapped);
     });
     const unsubDeals = subscribeToSavedDeals((data) => {
-      // Map deals
-      const mapped: SavedDeal[] = data.map((d) => ({
-        id: d.id,
-        date: d.created,
-        customerName: d.customerName || "Unknown",
-        salespersonName: d.salespersonName || "Unknown",
-        vehicle: d.vehicleData as any,
-        dealData: d.dealData as any,
-        customerFilters: {
-          creditScore: (d.dealData as any)?.creditScore || null,
-          monthlyIncome: (d.dealData as any)?.monthlyIncome || null,
-        },
-      }));
+      const mapped: SavedDeal[] = data.map(mapPocketBaseSavedDeal);
       setSavedDeals(mapped);
     });
 

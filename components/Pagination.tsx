@@ -39,6 +39,7 @@ const Pagination: React.FC<PaginationProps> = ({ totalItems, pagination, setPagi
           variant="secondary"
           onClick={handlePrev}
           disabled={currentPage === 1 || totalItems === 0}
+          aria-label="Go to previous page"
         >
           Previous
         </Button>
@@ -47,6 +48,7 @@ const Pagination: React.FC<PaginationProps> = ({ totalItems, pagination, setPagi
           variant="secondary"
           onClick={handleNext}
           disabled={currentPage === totalPages || totalItems === 0}
+          aria-label="Go to next page"
         >
           Next
         </Button>

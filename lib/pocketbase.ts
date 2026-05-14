@@ -33,10 +33,14 @@ export const setSuperadminDealerOverride = (dealerId: string | null): void => {
   try {
     if (dealerId) {
       sessionStorage.setItem(DEALER_OVERRIDE_KEY, dealerId);
-      console.log("[PocketBase] Saved dealer override to sessionStorage:", dealerId);
+      if (import.meta.env.DEV) {
+        console.log("[PocketBase] Saved dealer override to sessionStorage:", dealerId);
+      }
     } else {
       sessionStorage.removeItem(DEALER_OVERRIDE_KEY);
-      console.log("[PocketBase] Cleared dealer override from sessionStorage");
+      if (import.meta.env.DEV) {
+        console.log("[PocketBase] Cleared dealer override from sessionStorage");
+      }
     }
   } catch (e) {
     console.warn("[PocketBase] Failed to persist dealer override:", e);
@@ -137,6 +141,12 @@ export interface LenderProfile {
   bookValueSource?: "Trade" | "Retail";
   minIncome?: number;
   maxPti?: number;
+  maxDti?: number;
+  maxBackend?: number;
+  minAmountFinanced?: number;
+  maxAmountFinanced?: number;
+  stipulations?: string;
+  effectiveDate?: string;
   notes?: string;
   contactName?: string;
   contactPhone?: string;
@@ -155,6 +165,10 @@ export interface SavedDeal {
   salespersonName?: string;
   vehicleData: Record<string, unknown>;
   dealData: Record<string, unknown>;
+  customerFilters?: {
+    creditScore: number | null;
+    monthlyIncome: number | null;
+  };
   calculatedData?: Record<string, unknown>;
   status: "draft" | "pending" | "submitted" | "approved" | "funded" | "cancelled";
   notes?: string;

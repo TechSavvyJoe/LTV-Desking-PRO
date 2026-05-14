@@ -8,6 +8,7 @@ import * as Icons from "./common/Icons";
 import { saveLenderProfile, updateLenderProfile, deleteLenderProfile } from "../lib/api";
 import { toast } from "../lib/toast";
 import { confirmAction } from "../lib/confirm";
+import type { LenderProfile as PocketBaseLenderProfile } from "../lib/pocketbase";
 
 interface LenderProfilesProps {
   profiles: LenderProfile[];
@@ -77,6 +78,62 @@ const TierSection = ({ title, children }: { title: string; children: React.React
   </div>
 );
 
+type EditableLenderProfilePayload = Omit<PocketBaseLenderProfile, "dealer" | "created" | "updated">;
+type NewLenderProfilePayload = Omit<EditableLenderProfilePayload, "id">;
+type NamedPartialLenderProfile = Partial<LenderProfile> & { name: string };
+
+const hasLenderName = (profile: Partial<LenderProfile>): profile is NamedPartialLenderProfile =>
+  typeof profile.name === "string" && profile.name.trim() !== "";
+
+const toEditableLenderProfilePayload = (profile: LenderProfile): EditableLenderProfilePayload => ({
+  id: profile.id,
+  name: profile.name,
+  active: profile.active ?? true,
+  tiers: profile.tiers ?? [],
+  bookValueSource: profile.bookValueSource,
+  minIncome: profile.minIncome,
+  maxPti: profile.maxPti,
+  maxDti: profile.maxDti,
+  maxBackend: profile.maxBackend,
+  minAmountFinanced: profile.minAmountFinanced,
+  maxAmountFinanced: profile.maxAmountFinanced,
+  stipulations: profile.stipulations,
+  effectiveDate: profile.effectiveDate,
+});
+
+const toNewLenderProfilePayload = (
+  profile: NamedPartialLenderProfile
+): NewLenderProfilePayload => ({
+  name: profile.name,
+  active: profile.active ?? true,
+  tiers: profile.tiers ?? [],
+  bookValueSource: profile.bookValueSource,
+  minIncome: profile.minIncome,
+  maxPti: profile.maxPti,
+  maxDti: profile.maxDti,
+  maxBackend: profile.maxBackend,
+  minAmountFinanced: profile.minAmountFinanced,
+  maxAmountFinanced: profile.maxAmountFinanced,
+  stipulations: profile.stipulations,
+  effectiveDate: profile.effectiveDate,
+});
+
+const toAppLenderProfile = (profile: PocketBaseLenderProfile): LenderProfile => ({
+  id: profile.id,
+  name: profile.name,
+  active: profile.active,
+  tiers: profile.tiers,
+  bookValueSource: profile.bookValueSource,
+  minIncome: profile.minIncome,
+  maxPti: profile.maxPti,
+  maxDti: profile.maxDti,
+  maxBackend: profile.maxBackend,
+  minAmountFinanced: profile.minAmountFinanced,
+  maxAmountFinanced: profile.maxAmountFinanced,
+  stipulations: profile.stipulations,
+  effectiveDate: profile.effectiveDate,
+});
+
 const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, settings }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<LenderProfile | null>(null);
@@ -102,33 +159,29 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
       profileToSave.id.startsWith("new_") ||
       profileToSave.id.startsWith("ai_");
 
-    const apiProfile = {
-      ...profileToSave,
-      active: profileToSave.active ?? true, // Default to true if undefined
-      tiers: profileToSave.tiers as any[], // Explicit cast for API
-    };
+    const apiProfile = toEditableLenderProfilePayload(profileToSave);
 
     try {
       if (isNew) {
-        // Create
-        // Omit id for creation
         const { id, ...createData } = apiProfile;
-        const saved = await saveLenderProfile(createData as any);
+        const saved = await saveLenderProfile(createData);
         if (saved) {
-          onUpdate((prev) => [...prev, saved as unknown as LenderProfile]);
+          onUpdate((prev) => [...prev, toAppLenderProfile(saved)]);
         }
       } else {
-        // Update
-        const updated = await updateLenderProfile(profileToSave.id, apiProfile as any);
+        const { id, ...updateData } = apiProfile;
+        const updated = await updateLenderProfile(id, updateData);
         if (updated) {
           onUpdate((prev) =>
-            prev.map((p) => (p.id === updated.id ? (updated as unknown as LenderProfile) : p))
+            prev.map((p) => (p.id === updated.id ? toAppLenderProfile(updated) : p))
           );
         }
       }
       setIsModalOpen(false);
     } catch (error) {
-      console.error("Failed to save lender profile", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to save lender profile", error);
+      }
       toast.error("Failed to save profile.");
     }
   };
@@ -174,7 +227,9 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
       window.open(url, "_blank");
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (error) {
-      console.error("Failed to generate lender cheat sheet PDF:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to generate lender cheat sheet PDF:", error);
+      }
       toast.error("Sorry, there was an error creating the cheat sheet. Please try again.");
     }
   };
@@ -196,39 +251,35 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
       try {
         if (existingProfile) {
           // Update existing lender in PocketBase
-          const mergedData = {
+          const mergedData: LenderProfile = {
             ...existingProfile,
             ...extractedData,
             id: existingProfile.id,
             tiers: extractedData.tiers || existingProfile.tiers,
           };
-          const updated = await updateLenderProfile(existingProfile.id, mergedData as any);
+          const { id, ...updateData } = toEditableLenderProfilePayload(mergedData);
+          const updated = await updateLenderProfile(id, updateData);
           if (updated) {
             onUpdate((prev) =>
-              prev.map((p) =>
-                p.id === existingProfile.id ? (updated as unknown as LenderProfile) : p
-              )
+              prev.map((p) => (p.id === existingProfile.id ? toAppLenderProfile(updated) : p))
             );
             updatedCount++;
             return true;
           }
         } else {
-          // Create new lender in PocketBase
-          const { id, ...createData } = extractedData as any;
-          const saved = await saveLenderProfile({
-            ...createData,
-            active: true,
-            tiers: createData.tiers || [],
-          } as any);
+          if (!hasLenderName(extractedData)) return false;
+          const saved = await saveLenderProfile(toNewLenderProfilePayload(extractedData));
           if (saved) {
-            onUpdate((prev) => [...prev, saved as unknown as LenderProfile]);
+            onUpdate((prev) => [...prev, toAppLenderProfile(saved)]);
             createdCount++;
             return true;
           }
         }
         return false;
       } catch (error) {
-        console.error("Failed to persist lender:", error);
+        if (import.meta.env.DEV) {
+          console.error("Failed to persist lender:", error);
+        }
         return false;
       }
     };
@@ -250,7 +301,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
           // Process each extracted lender
           for (let j = 0; j < extractedLenders.length; j++) {
             const extractedData = extractedLenders[j];
-            if (!extractedData || !extractedData.name) continue;
+            if (!extractedData || !hasLenderName(extractedData)) continue;
 
             // Determine target profile to update
             let targetId = targetLenderId;
@@ -259,8 +310,8 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
             if (targetId === "auto") {
               const match = profiles.find(
                 (p) =>
-                  p.name.toLowerCase().includes(extractedData.name!.toLowerCase()) ||
-                  extractedData.name!.toLowerCase().includes(p.name.toLowerCase())
+                  p.name.toLowerCase().includes(extractedData.name.toLowerCase()) ||
+                  extractedData.name.toLowerCase().includes(p.name.toLowerCase())
               );
               if (match) {
                 targetId = match.id;
@@ -274,7 +325,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
             } else {
               // Auto-detect: check if lender already exists by name
               existingProfile =
-                profiles.find((p) => p.name.toLowerCase() === extractedData.name!.toLowerCase()) ||
+                profiles.find((p) => p.name.toLowerCase() === extractedData.name.toLowerCase()) ||
                 null;
             }
 
@@ -284,8 +335,8 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
               errors.push(`Failed to save ${extractedData.name} to database`);
             }
           }
-        } catch (err: any) {
-          errors.push(`${file.name}: ${err.message}`);
+        } catch (err) {
+          errors.push(`${file.name}: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
       }
 
@@ -299,9 +350,11 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
       } else {
         toast.success(message);
       }
-    } catch (error: any) {
-      console.error("Upload failed:", error);
-      toast.error(error.message || "Failed to process files.");
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error("Upload failed:", error);
+      }
+      toast.error(error instanceof Error ? error.message : "Failed to process files.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

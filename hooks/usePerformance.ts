@@ -107,6 +107,7 @@ export function useDeepMemo<T>(factory: () => T, deps: React.DependencyList): T 
 
   const depsAreEqual = (a: React.DependencyList, b: React.DependencyList): boolean => {
     if (a.length !== b.length) return false;
+    // JSON comparison is acceptable here only for small config-style deps; avoid this for large rows or data sets.
     return a.every((dep, i) => JSON.stringify(dep) === JSON.stringify(b[i]));
   };
 
