@@ -63,7 +63,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 placeholder="you@example.com"
               />
               <Icons.EnvelopeIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
@@ -86,7 +86,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 placeholder="••••••••"
               />
               <Icons.LockClosedIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
