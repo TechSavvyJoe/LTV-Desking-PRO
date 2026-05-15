@@ -328,57 +328,79 @@ const CreateDealerWizard: React.FC<{
     onCreated();
   };
 
+  const Step = ({ n, label, state }: { n: number; label: string; state: "done" | "current" | "pending" }) => (
+    <div className="flex items-center gap-2">
+      <div
+        className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold ring-1 transition-colors ${
+          state === "current"
+            ? "bg-blue-500 ring-blue-400 text-white"
+            : state === "done"
+              ? "bg-emerald-500/20 ring-emerald-500/40 text-emerald-300"
+              : "bg-slate-800 ring-slate-700 text-slate-500"
+        }`}
+      >
+        {state === "done" ? <Icons.CheckCircleIcon className="w-4 h-4" /> : n}
+      </div>
+      <span
+        className={`text-xs font-medium ${
+          state === "current" ? "text-white" : state === "done" ? "text-emerald-300" : "text-slate-500"
+        }`}
+      >
+        {label}
+      </span>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
-          <h3 className="text-lg font-semibold text-white">
-            {step === "done" ? "Dealership ready" : "Add new dealership"}
-          </h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn">
+      <div className="w-full max-w-2xl bg-slate-900 ring-1 ring-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/40">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center ring-1 ring-white/10 shadow-lg shadow-blue-500/20">
+              <Icons.BuildingLibraryIcon className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-white">
+                {step === "done" ? "Dealership ready" : "Add new dealership"}
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                {step === "done"
+                  ? "Share the credentials below with the new admin."
+                  : "We'll create the dealer record and its first admin user."}
+              </p>
+            </div>
+          </div>
           {step !== "done" && (
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white"
+              className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               aria-label="Close"
             >
-              <Icons.XMarkIcon className="w-5 h-5" />
+              <Icons.XMarkIcon className="w-4 h-4" />
             </button>
           )}
         </div>
 
         {step !== "done" && (
-          <div className="px-6 pt-4 flex items-center gap-2 text-xs">
-            <span
-              className={`px-3 py-1 rounded-full font-medium ${
-                step === 1
-                  ? "bg-blue-600 text-white"
-                  : "bg-emerald-600/30 text-emerald-300"
-              }`}
-            >
-              1. Dealership
-            </span>
-            <span className="text-slate-600">›</span>
-            <span
-              className={`px-3 py-1 rounded-full font-medium ${
-                step === 2 ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-400"
-              }`}
-            >
-              2. First admin user
-            </span>
+          <div className="px-6 pt-5 pb-4 flex items-center gap-3 border-b border-slate-800/60">
+            <Step n={1} label="Dealership" state={step === 1 ? "current" : "done"} />
+            <div className="flex-1 h-px bg-slate-800" />
+            <Step n={2} label="First admin user" state={step === 2 ? "current" : "pending"} />
           </div>
         )}
 
         <div className="p-6 space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
-              {error}
+            <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-4 py-3 text-sm text-rose-200 flex items-start gap-2">
+              <Icons.ExclamationTriangleIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
           {step === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Name *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Name *</label>
                 <input
                   type="text"
                   value={dealerForm.name}
@@ -388,7 +410,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Code *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Code *</label>
                 <input
                   type="text"
                   value={dealerForm.code}
@@ -401,7 +423,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Email</label>
                 <input
                   type="email"
                   value={dealerForm.email}
@@ -411,7 +433,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Phone</label>
                 <input
                   type="tel"
                   value={dealerForm.phone}
@@ -421,7 +443,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-300 mb-1">Address</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Address</label>
                 <input
                   type="text"
                   value={dealerForm.address}
@@ -431,7 +453,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">City</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">City</label>
                 <input
                   type="text"
                   value={dealerForm.city}
@@ -441,7 +463,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">State</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">State</label>
                 <input
                   type="text"
                   value={dealerForm.state}
@@ -459,7 +481,7 @@ const CreateDealerWizard: React.FC<{
           {step === 2 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">First name *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">First name *</label>
                 <input
                   type="text"
                   value={adminForm.firstName}
@@ -469,7 +491,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Last name *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Last name *</label>
                 <input
                   type="text"
                   value={adminForm.lastName}
@@ -479,7 +501,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-300 mb-1">Email *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Email *</label>
                 <input
                   type="email"
                   value={adminForm.email}
@@ -489,7 +511,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Phone</label>
                 <input
                   type="tel"
                   value={adminForm.phone}
@@ -499,7 +521,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Password *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Password *</label>
                 <input
                   type="password"
                   value={adminForm.password}
@@ -509,7 +531,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
                   Confirm password *
                 </label>
                 <input
@@ -526,30 +548,48 @@ const CreateDealerWizard: React.FC<{
           )}
 
           {step === "done" && created && (
-            <div className="text-center py-6 space-y-4">
-              <div className="mx-auto w-14 h-14 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                <Icons.CheckCircleIcon className="w-8 h-8 text-emerald-400" />
+            <div className="text-center py-4 space-y-5">
+              <div className="relative mx-auto w-16 h-16">
+                <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
+                <div className="relative w-16 h-16 bg-emerald-500/20 ring-2 ring-emerald-500/40 rounded-full flex items-center justify-center">
+                  <Icons.CheckCircleIcon className="w-8 h-8 text-emerald-400" />
+                </div>
               </div>
               <div>
-                <h4 className="text-xl font-semibold text-white">
-                  {created.dealer.name} is ready
-                </h4>
+                <h4 className="text-xl font-semibold text-white">{created.dealer.name} is ready</h4>
                 <p className="text-slate-400 text-sm mt-1">
-                  Share these details with the new admin so they can sign in at <code>/</code>.
+                  Share these credentials with the new admin so they can sign in at{" "}
+                  <code className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono">/</code>.
                 </p>
               </div>
-              <div className="bg-slate-950 border border-slate-700 rounded-xl p-4 text-left space-y-2 max-w-md mx-auto">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Dealer code</span>
-                  <code className="font-mono text-blue-400 font-bold">{created.dealer.code}</code>
+              <div className="bg-slate-950 ring-1 ring-slate-800 rounded-xl divide-y divide-slate-800 max-w-md mx-auto text-left">
+                <div className="flex justify-between items-center px-4 py-3 text-sm">
+                  <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">
+                    Dealer code
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(created.dealer.code).catch(() => {});
+                    }}
+                    className="inline-flex items-center gap-2 font-mono text-blue-300 font-bold hover:text-blue-200"
+                    title="Click to copy"
+                  >
+                    {created.dealer.code}
+                    <Icons.ClipboardDocumentIcon className="w-3.5 h-3.5 opacity-60" />
+                  </button>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Admin email</span>
-                  <span className="text-white">{created.admin.email}</span>
+                <div className="flex justify-between items-center px-4 py-3 text-sm">
+                  <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">
+                    Admin email
+                  </span>
+                  <span className="text-slate-100">{created.admin.email}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Admin name</span>
-                  <span className="text-white">
+                <div className="flex justify-between items-center px-4 py-3 text-sm">
+                  <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">
+                    Admin name
+                  </span>
+                  <span className="text-slate-100">
                     {created.admin.firstName} {created.admin.lastName}
                   </span>
                 </div>
@@ -558,7 +598,7 @@ const CreateDealerWizard: React.FC<{
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-700">
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
           {step === 1 && (
             <>
               <Button variant="secondary" onClick={onClose}>
@@ -768,11 +808,19 @@ const DealerManagement: React.FC<{
 
       {/* Edit Form */}
       {editingId && (
-        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Edit Dealer</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-gradient-to-r from-slate-900 to-blue-950/30">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/15 ring-1 ring-blue-500/30 flex items-center justify-center">
+              <Icons.PencilIcon className="w-4 h-4 text-blue-300" />
+            </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Name *</label>
+              <h3 className="text-base font-semibold text-white">Edit dealership</h3>
+              <p className="text-[11px] text-slate-400">Code cannot be changed after creation.</p>
+            </div>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Name *</label>
               <input
                 type="text"
                 value={formData.name}
@@ -782,7 +830,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Code *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Code *</label>
               <input
                 type="text"
                 value={formData.code}
@@ -798,7 +846,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Email</label>
               <input
                 type="email"
                 value={formData.email}
@@ -808,7 +856,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
@@ -818,7 +866,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">City</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">City</label>
               <input
                 type="text"
                 value={formData.city}
@@ -828,7 +876,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">State</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">State</label>
               <input
                 type="text"
                 value={formData.state}
@@ -844,7 +892,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-sm font-medium text-slate-300 mb-1">Address</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Address</label>
               <input
                 type="text"
                 value={formData.address}
@@ -853,25 +901,25 @@ const DealerManagement: React.FC<{
                 placeholder="123 Auto Drive"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-7">
               <input
                 type="checkbox"
                 id="active"
                 checked={formData.active}
                 onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                className="w-4 h-4 rounded"
+                className="w-4 h-4 rounded accent-emerald-500"
               />
-              <label htmlFor="active" className="text-sm text-slate-300">
+              <label htmlFor="active" className="text-sm text-slate-200">
                 Active
               </label>
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-6">
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
             <Button variant="secondary" onClick={resetForm}>
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={!formData.name || !formData.code}>
-              Save Changes
+              Save changes
             </Button>
           </div>
         </div>
@@ -1252,13 +1300,25 @@ const UserManagement: React.FC<{
 
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
-        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            {editingId ? "Edit User" : "Create New User"}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-gradient-to-r from-slate-900 to-violet-950/30">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/15 ring-1 ring-violet-500/30 flex items-center justify-center">
+              <Icons.UserIcon className="w-4 h-4 text-violet-300" />
+            </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">First Name *</label>
+              <h3 className="text-base font-semibold text-white">
+                {editingId ? "Edit user" : "Add new user"}
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                {editingId
+                  ? "Email changes will require the user to sign in again."
+                  : "Assign the user to a dealership and set their role."}
+              </p>
+            </div>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">First Name *</label>
               <input
                 type="text"
                 value={formData.firstName}
@@ -1268,7 +1328,7 @@ const UserManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Last Name *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Last Name *</label>
               <input
                 type="text"
                 value={formData.lastName}
@@ -1278,7 +1338,7 @@ const UserManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Email *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Email *</label>
               <input
                 type="email"
                 value={formData.email}
@@ -1288,7 +1348,7 @@ const UserManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
@@ -1298,7 +1358,7 @@ const UserManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Dealer *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Dealer *</label>
               <select
                 value={formData.dealer}
                 onChange={(e) => setFormData({ ...formData, dealer: e.target.value })}
@@ -1313,7 +1373,7 @@ const UserManagement: React.FC<{
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Role *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Role *</label>
               <select
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as User["role"] })}
@@ -1328,7 +1388,7 @@ const UserManagement: React.FC<{
             {!editingId && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
                     Password *
                   </label>
                   <input
@@ -1340,7 +1400,7 @@ const UserManagement: React.FC<{
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
                     Confirm Password *
                   </label>
                   <input
@@ -1354,7 +1414,7 @@ const UserManagement: React.FC<{
               </>
             )}
           </div>
-          <div className="flex justify-end gap-3 mt-6">
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
             <Button variant="secondary" onClick={resetForm}>
               Cancel
             </Button>
@@ -1368,7 +1428,7 @@ const UserManagement: React.FC<{
                 (!editingId && !formData.password)
               }
             >
-              {editingId ? "Save Changes" : "Create User"}
+              {editingId ? "Save changes" : "Create user"}
             </Button>
           </div>
         </div>
