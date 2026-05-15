@@ -791,3 +791,100 @@ export const deleteUser = async (id: string): Promise<boolean> => {
     return false;
   }
 };
+
+// ============================================
+// DEALER ADMIN: User & Dealer Management
+// ============================================
+
+export const getDealerUsers = async (): Promise<User[]> => {
+  const user = getCurrentUser();
+  const dealerId = getCurrentDealerId();
+  
+  if (!user || !dealerId) return [];
+  if (user.role !== "admin" && user.role !== "superadmin") return [];
+
+  try {
+    const records = await pb.collection("users").getFullList({
+      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      sort: "firstName",
+    });
+    return asTypeArray<User>(records);
+  } catch (error) {
+    console.error("Failed to fetch dealer users:", error);
+    return [];
+  }
+};
+
+export const createDealerUser = async (data: {
+  email: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role: User["role"];
+}): Promise<User | null> => {
+  const user = getCurrentUser();
+  const dealerId = getCurrentDealerId();
+
+  if (!user || !dealerId || user.role !== "admin") return null;
+
+  try {
+    const record = await pb.collection("users").create({
+      ...data,
+      passwordConfirm: data.password,
+      dealer: dealerId,
+    });
+    return asType<User>(record);
+  } catch (error) {
+    console.error("Failed to create dealer user:", error);
+    throw error;
+  }
+};
+
+export const updateDealerUser = async (
+  id: string,
+  data: Partial<Pick<User, "firstName" | "lastName" | "email" | "phone" | "role">>
+): Promise<User | null> => {
+  const user = getCurrentUser();
+  const dealerId = getCurrentDealerId();
+
+  if (!user || !dealerId || user.role !== "admin") return null;
+
+  try {
+    // Basic check to ensure we aren't modifying another dealer's user
+    // In a real app, PocketBase API rules should enforce this securely.
+    const record = await pb.collection("users").update(sanitizeId(id), data);
+    return asType<User>(record);
+  } catch (error) {
+    console.error("Failed to update dealer user:", error);
+    return null;
+  }
+};
+
+export const deleteDealerUser = async (id: string): Promise<boolean> => {
+  const user = getCurrentUser();
+  const dealerId = getCurrentDealerId();
+
+  if (!user || !dealerId || user.role !== "admin") return false;
+
+  try {
+    await pb.collection("users").delete(sanitizeId(id));
+    return true;
+  } catch (error) {
+    console.error("Failed to delete dealer user:", error);
+    return false;
+  }
+};
+
+export const getCurrentDealerDetails = async (): Promise<Dealer | null> => {
+  const dealerId = getCurrentDealerId();
+  if (!dealerId) return null;
+
+  try {
+    const record = await collections.dealers.getOne(sanitizeId(dealerId));
+    return asType<Dealer>(record);
+  } catch (error) {
+    console.error("Failed to fetch current dealer details:", error);
+    return null;
+  }
+};

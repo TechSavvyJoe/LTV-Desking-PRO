@@ -31,6 +31,7 @@ import BackgroundUploadIndicator from "./components/BackgroundUploadIndicator";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
 import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
+import { DealerAdminDashboard } from "./components/admin/DealerAdminDashboard";
 import { toast } from "./lib/toast";
 import { confirmAction } from "./lib/confirm";
 import { mapPocketBaseSavedDeal } from "./lib/dealMappers";
@@ -985,6 +986,8 @@ const App: React.FC = () => {
 
   const currentUser = getCurrentUser();
   const isSuperAdmin = currentUser?.role === "superadmin";
+  const isDealerAdmin = currentUser?.role === "admin";
+  const hasAdminAccess = isSuperAdmin || isDealerAdmin;
 
   useEffect(() => {
     // Check initial auth state
@@ -1021,9 +1024,13 @@ const App: React.FC = () => {
     );
   }
 
-  // SuperAdmin role-based routing
+  // Admin role-based routing
   if (isSuperAdmin && viewMode === "auto") {
     return <SuperAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />;
+  }
+
+  if (isDealerAdmin && viewMode === "auto") {
+    return <DealerAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />;
   }
 
   return (
@@ -1031,12 +1038,12 @@ const App: React.FC = () => {
       <MainLayout />
       {/* Admin/Logout Controls */}
       <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
-        {isSuperAdmin && viewMode === "dealer" && (
+        {hasAdminAccess && viewMode === "dealer" && (
           <Button
             variant="secondary"
             size="sm"
             onClick={() => setViewMode("auto")}
-            className="shadow-lg bg-purple-600 border-purple-500 text-white hover:bg-purple-700"
+            className="shadow-lg bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
           >
             <Icons.Cog6ToothIcon className="w-4 h-4 mr-2" />
             Admin Console
