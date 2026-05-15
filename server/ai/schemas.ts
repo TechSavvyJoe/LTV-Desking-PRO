@@ -61,6 +61,12 @@ export const lenderExtractJsonSchema = {
           maxAmountFinanced: { type: "number" },
           stipulations: { type: "string" },
           effectiveDate: { type: "string" },
+          contactName: { type: "string" },
+          contactPhone: { type: "string" },
+          contactEmail: { type: "string" },
+          website: { type: "string" },
+          portalUrl: { type: "string" },
+          generalNotes: { type: "string" },
           tiers: { type: "array", items: lenderTierJsonSchema },
         },
         required: ["name", "tiers"],
@@ -68,6 +74,41 @@ export const lenderExtractJsonSchema = {
     },
   },
   required: ["lenders"],
+} as const;
+
+export const lenderEnrichJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    enrichment: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        contactName: { type: "string" },
+        contactPhone: { type: "string" },
+        contactEmail: { type: "string" },
+        website: { type: "string" },
+        portalUrl: { type: "string" },
+        mailingAddress: { type: "string" },
+        generalNotes: { type: "string" },
+        bookValueSource: { type: "string", enum: ["Trade", "Retail"] },
+      },
+    },
+    sources: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          url: { type: "string" },
+          title: { type: "string" },
+          fieldsCited: { type: "array", items: { type: "string" } },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  required: ["enrichment"],
 } as const;
 
 export const dealSuggestionJsonSchema = {
@@ -161,9 +202,41 @@ export const AiLenderProfileSchema = z
     maxAmountFinanced: optionalNumber,
     stipulations: z.string().optional(),
     effectiveDate: z.string().optional(),
+    contactName: z.string().optional(),
+    contactPhone: z.string().optional(),
+    contactEmail: z.string().optional(),
+    website: z.string().optional(),
+    portalUrl: z.string().optional(),
+    generalNotes: z.string().optional(),
     tiers: z.array(AiLenderTierSchema).default([]),
   })
   .passthrough();
+
+export const AiLenderEnrichmentSchema = z.object({
+  enrichment: z
+    .object({
+      contactName: z.string().optional(),
+      contactPhone: z.string().optional(),
+      contactEmail: z.string().optional(),
+      website: z.string().optional(),
+      portalUrl: z.string().optional(),
+      mailingAddress: z.string().optional(),
+      generalNotes: z.string().optional(),
+      bookValueSource: z.enum(["Trade", "Retail"]).optional(),
+    })
+    .default({}),
+  sources: z
+    .array(
+      z.object({
+        url: z.string(),
+        title: z.string().optional(),
+        fieldsCited: z.array(z.string()).optional(),
+      })
+    )
+    .default([]),
+});
+
+export type AiLenderEnrichment = z.infer<typeof AiLenderEnrichmentSchema>;
 
 export const AiLenderExtractResponseSchema = z.object({
   lenders: z.array(AiLenderProfileSchema).min(1),
@@ -251,7 +324,14 @@ export const normalizeTier = (tier: z.infer<typeof AiLenderTierSchema>): LenderT
 
 export const normalizeLender = (
   profile: z.infer<typeof AiLenderProfileSchema>
-): Partial<LenderProfile> =>
+): Partial<LenderProfile> & {
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  website?: string;
+  portalUrl?: string;
+  generalNotes?: string;
+} =>
   stripUndefined({
     id: profile.id ?? `ai_${Date.now()}_${profile.name.replace(/\W+/g, "_").toLowerCase()}`,
     name: profile.name,
@@ -265,8 +345,22 @@ export const normalizeLender = (
     maxAmountFinanced: normalizeNumber(profile.maxAmountFinanced),
     stipulations: profile.stipulations,
     effectiveDate: profile.effectiveDate,
+    contactName: profile.contactName,
+    contactPhone: profile.contactPhone,
+    contactEmail: profile.contactEmail,
+    website: profile.website,
+    portalUrl: profile.portalUrl,
+    generalNotes: profile.generalNotes,
     tiers: profile.tiers.map(normalizeTier),
   });
+
+export const parseLenderEnrichResponse = (value: unknown): AiLenderEnrichment => {
+  const parsed = AiLenderEnrichmentSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error(`AI returned invalid enrichment data: ${z.prettifyError(parsed.error)}`);
+  }
+  return parsed.data;
+};
 
 export const parseLenderExtractResponse = (value: unknown): Partial<LenderProfile>[] => {
   const parsed = AiLenderExtractResponseSchema.safeParse(value);

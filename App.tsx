@@ -1,5 +1,15 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { isAuthenticated, onAuthStateChange, logout, getCurrentUser } from "./lib/auth";
+import {
+  setSuperadminDealerOverride,
+  getSuperadminDealerOverride,
+  clearSuperadminDealerOverride,
+  collections,
+} from "./lib/pocketbase";
+import type { Dealer } from "./lib/pocketbase";
+import { OwnerLogin } from "./components/auth/OwnerLogin";
+import { AnnouncementBanner } from "./components/common/AnnouncementBanner";
 import { saveDeal, deleteDeal, updateInventoryItem, syncInventory } from "./lib/api";
 import { Login } from "./components/auth/Login";
 import { Register } from "./components/auth/Register";
@@ -968,10 +978,55 @@ const MainLayout: React.FC = () => {
   );
 };
 
+const ImpersonationBanner: React.FC<{ onExit: () => void }> = ({ onExit }) => {
+  const [dealer, setDealer] = useState<Dealer | null>(null);
+  const overrideId = getSuperadminDealerOverride();
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!overrideId) {
+      setDealer(null);
+      return;
+    }
+    collections.dealers
+      .getOne(overrideId)
+      .then((record) => {
+        if (!cancelled) setDealer(record as unknown as Dealer);
+      })
+      .catch(() => {
+        if (!cancelled) setDealer(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [overrideId]);
+
+  if (!overrideId) return null;
+
+  return (
+    <div className="sticky top-0 z-[60] bg-purple-600 text-white px-4 py-2 flex items-center justify-between text-sm shadow-md">
+      <div className="flex items-center gap-2">
+        <Icons.EyeIcon className="w-4 h-4" />
+        <span>
+          Viewing as <strong>{dealer?.name || "…"}</strong>
+          {dealer?.code ? ` (${dealer.code})` : ""}
+        </span>
+      </div>
+      <button
+        onClick={onExit}
+        className="px-3 py-1 bg-white/15 hover:bg-white/25 rounded-md font-medium transition-colors"
+      >
+        Exit impersonation
+      </button>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [isAuth, setIsAuth] = useState(isAuthenticated());
   const [view, setView] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(true);
+  const [, setImpersonationTick] = useState(0);
 
   // Persist viewMode in sessionStorage so it survives page reloads
   const [viewMode, setViewMode] = useState<"auto" | "dealer">(() => {
@@ -984,24 +1039,31 @@ const App: React.FC = () => {
     sessionStorage.setItem("superadmin_view_mode", viewMode);
   }, [viewMode]);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const currentUser = getCurrentUser();
   const isSuperAdmin = currentUser?.role === "superadmin";
   const isDealerAdmin = currentUser?.role === "admin";
   const hasAdminAccess = isSuperAdmin || isDealerAdmin;
+  const isAdminRoute = location.pathname === "/admin";
 
   useEffect(() => {
-    // Check initial auth state
     setIsAuth(isAuthenticated());
     setIsLoading(false);
 
-    // Subscribe to auth changes
     const unsubscribe = onAuthStateChange((user) => {
       setIsAuth(!!user);
     });
-
     return () => {
       unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setImpersonationTick((n) => n + 1);
+    window.addEventListener("dealerOverrideChanged", handler);
+    return () => window.removeEventListener("dealerOverrideChanged", handler);
   }, []);
 
   if (isLoading) {
@@ -1012,6 +1074,32 @@ const App: React.FC = () => {
     );
   }
 
+  // === OWNER (/admin) ROUTE ===
+  if (isAdminRoute) {
+    if (!isAuth) {
+      return <OwnerLogin onSuccess={() => setIsAuth(true)} />;
+    }
+    if (!isSuperAdmin) {
+      logout();
+      navigate("/", { replace: true });
+      return null;
+    }
+    return (
+      <SuperAdminDashboard
+        onSwitchToDealer={() => {
+          setViewMode("dealer");
+          navigate("/");
+        }}
+        onImpersonate={(dealerId) => {
+          setSuperadminDealerOverride(dealerId);
+          setViewMode("dealer");
+          navigate("/");
+        }}
+      />
+    );
+  }
+
+  // === DEFAULT (/) ROUTE ===
   if (!isAuth) {
     return (
       <AuthLayout>
@@ -1024,17 +1112,26 @@ const App: React.FC = () => {
     );
   }
 
-  // Admin role-based routing
-  if (isSuperAdmin && viewMode === "auto") {
-    return <SuperAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />;
+  // Superadmin on / without an active impersonation defaults to /admin
+  if (isSuperAdmin && viewMode === "auto" && !getSuperadminDealerOverride()) {
+    navigate("/admin", { replace: true });
+    return null;
   }
 
   if (isDealerAdmin && viewMode === "auto") {
     return <DealerAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />;
   }
 
+  const handleExitImpersonation = () => {
+    clearSuperadminDealerOverride();
+    setViewMode("auto");
+    navigate("/admin");
+  };
+
   return (
     <DealProvider>
+      <AnnouncementBanner />
+      <ImpersonationBanner onExit={handleExitImpersonation} />
       <MainLayout />
       {/* Admin/Logout Controls */}
       <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
@@ -1042,7 +1139,13 @@ const App: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setViewMode("auto")}
+            onClick={() => {
+              if (isSuperAdmin) {
+                navigate("/admin");
+              } else {
+                setViewMode("auto");
+              }
+            }}
             className="shadow-lg bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
           >
             <Icons.Cog6ToothIcon className="w-4 h-4 mr-2" />

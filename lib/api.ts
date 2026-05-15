@@ -566,6 +566,75 @@ export const subscribeToSavedDeals = (callback: (data: SavedDeal[]) => void): ((
 };
 
 // ============================================
+// SUPERADMIN: System Settings (global, singleton)
+// ============================================
+
+export interface SystemSettings {
+  id?: string;
+  supportEmail?: string;
+  announcementBanner?: string;
+  signupsEnabled?: boolean;
+  defaultLtvThresholds?: unknown;
+}
+
+const SYSTEM_SETTINGS_CACHE_KEY = "ltv_system_settings_cache";
+
+export const getSystemSettings = async (): Promise<SystemSettings> => {
+  try {
+    const list = await pb.collection("system_settings").getFullList({ sort: "created" });
+    const first = list[0];
+    if (!first) {
+      return { signupsEnabled: true };
+    }
+    const settings = asType<SystemSettings>(first);
+    try {
+      localStorage.setItem(SYSTEM_SETTINGS_CACHE_KEY, JSON.stringify(settings));
+    } catch {
+      // sessionStorage/localStorage may be unavailable
+    }
+    return settings;
+  } catch (error) {
+    console.warn("Failed to fetch system settings, using cache/defaults:", error);
+    try {
+      const cached = localStorage.getItem(SYSTEM_SETTINGS_CACHE_KEY);
+      if (cached) return JSON.parse(cached) as SystemSettings;
+    } catch {
+      // Ignore parse errors
+    }
+    return { signupsEnabled: true };
+  }
+};
+
+export const getCachedSystemSettings = (): SystemSettings | null => {
+  try {
+    const cached = localStorage.getItem(SYSTEM_SETTINGS_CACHE_KEY);
+    return cached ? (JSON.parse(cached) as SystemSettings) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const updateSystemSettings = async (
+  data: Omit<SystemSettings, "id">
+): Promise<SystemSettings> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") throw new Error("Owner access required");
+
+  const list = await pb.collection("system_settings").getFullList({ sort: "created" });
+  const existing = list[0];
+  const record = existing
+    ? await pb.collection("system_settings").update(existing.id, data)
+    : await pb.collection("system_settings").create(data);
+  const settings = asType<SystemSettings>(record);
+  try {
+    localStorage.setItem(SYSTEM_SETTINGS_CACHE_KEY, JSON.stringify(settings));
+  } catch {
+    // Ignore storage errors
+  }
+  return settings;
+};
+
+// ============================================
 // SUPERADMIN: System Stats
 // ============================================
 
@@ -647,6 +716,47 @@ export const createDealer = async (
   } catch (error) {
     console.error("Failed to create dealer:", error);
     return null;
+  }
+};
+
+export const createDealerWithAdmin = async (input: {
+  dealer: Omit<Dealer, "id" | "created" | "updated">;
+  admin: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+  };
+}): Promise<{ dealer: Dealer; admin: User }> => {
+  const current = getCurrentUser();
+  if (current?.role !== "superadmin") {
+    throw new Error("Owner access required");
+  }
+
+  const dealerRecord = await collections.dealers.create(input.dealer);
+  const newDealer = asType<Dealer>(dealerRecord);
+
+  try {
+    const userRecord = await pb.collection("users").create({
+      email: input.admin.email,
+      password: input.admin.password,
+      passwordConfirm: input.admin.password,
+      firstName: input.admin.firstName,
+      lastName: input.admin.lastName,
+      phone: input.admin.phone || "",
+      role: "admin",
+      dealer: newDealer.id,
+    });
+    return { dealer: newDealer, admin: asType<User>(userRecord) };
+  } catch (error) {
+    // Roll back the dealer if user creation fails
+    try {
+      await collections.dealers.delete(newDealer.id);
+    } catch (rollbackError) {
+      console.error("Failed to roll back dealer after user creation failure:", rollbackError);
+    }
+    throw error;
   }
 };
 
@@ -850,15 +960,14 @@ export const updateDealerUser = async (
 
   if (!user || !dealerId || user.role !== "admin") return null;
 
-  try {
-    // Basic check to ensure we aren't modifying another dealer's user
-    // In a real app, PocketBase API rules should enforce this securely.
-    const record = await pb.collection("users").update(sanitizeId(id), data);
-    return asType<User>(record);
-  } catch (error) {
-    console.error("Failed to update dealer user:", error);
-    return null;
+  const safeId = sanitizeId(id);
+  const target = await pb.collection("users").getOne(safeId);
+  if (target.dealer !== dealerId) {
+    throw new Error("Cannot modify user outside your dealership");
   }
+
+  const record = await pb.collection("users").update(safeId, data);
+  return asType<User>(record);
 };
 
 export const deleteDealerUser = async (id: string): Promise<boolean> => {
@@ -867,13 +976,14 @@ export const deleteDealerUser = async (id: string): Promise<boolean> => {
 
   if (!user || !dealerId || user.role !== "admin") return false;
 
-  try {
-    await pb.collection("users").delete(sanitizeId(id));
-    return true;
-  } catch (error) {
-    console.error("Failed to delete dealer user:", error);
-    return false;
+  const safeId = sanitizeId(id);
+  const target = await pb.collection("users").getOne(safeId);
+  if (target.dealer !== dealerId) {
+    throw new Error("Cannot delete user outside your dealership");
   }
+
+  await pb.collection("users").delete(safeId);
+  return true;
 };
 
 export const getCurrentDealerDetails = async (): Promise<Dealer | null> => {

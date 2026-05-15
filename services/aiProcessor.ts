@@ -1,6 +1,23 @@
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Vehicle } from "../types";
 import { DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings } from "../lib/aiModelRegistry";
 
+const ENRICHABLE_FIELDS = [
+  "contactName",
+  "contactPhone",
+  "contactEmail",
+  "website",
+  "portalUrl",
+  "generalNotes",
+  "bookValueSource",
+] as const;
+
+type EnrichableField = (typeof ENRICHABLE_FIELDS)[number];
+
+export interface LenderEnrichmentResult {
+  enrichment: Partial<Record<EnrichableField, string>>;
+  sources: { url: string; title?: string; fieldsCited?: string[] }[];
+}
+
 export type ProcessingProgress = {
   stage: "uploading" | "extracting" | "validating" | "enhancing" | "complete" | "error";
   progress: number;
@@ -112,14 +129,62 @@ const postAiRoute = async <T>(
   }
 };
 
+const findMissingEnrichableFields = (lender: Partial<LenderProfile>): EnrichableField[] =>
+  ENRICHABLE_FIELDS.filter((field) => {
+    const value = (lender as Record<string, unknown>)[field];
+    return value === undefined || value === null || value === "";
+  });
+
+export const enrichLenderProfile = async (
+  lenderName: string,
+  missingFields: EnrichableField[]
+): Promise<LenderEnrichmentResult | null> => {
+  if (missingFields.length === 0) return null;
+
+  const response = await postAiRoute<LenderEnrichmentResult>("/api/ai/lender-enrich", {
+    lenderName,
+    missingFields,
+  });
+
+  if (!response.ok) {
+    console.warn("[enrichLenderProfile] Enrichment failed:", response.error);
+    return null;
+  }
+
+  return response.data;
+};
+
+const applyEnrichment = (
+  lender: Partial<LenderProfile>,
+  enrichment: LenderEnrichmentResult
+): Partial<LenderProfile> => {
+  const merged: Partial<LenderProfile> = { ...lender };
+  for (const field of ENRICHABLE_FIELDS) {
+    const current = (merged as Record<string, unknown>)[field];
+    if (current !== undefined && current !== "" && current !== null) continue;
+
+    const incoming = enrichment.enrichment[field];
+    if (typeof incoming === "string" && incoming.trim()) {
+      (merged as Record<string, unknown>)[field] = incoming.trim();
+    }
+  }
+  if (enrichment.sources.length > 0) {
+    merged.enrichmentSources = enrichment.sources;
+  }
+  return merged;
+};
+
 export const processLenderSheet = async (
   file: File,
   onProgress?: ProgressCallback,
-  aiSettings?: AiSettings
+  aiSettings?: AiSettings,
+  options: { enrich?: boolean } = {}
 ): Promise<Partial<LenderProfile>[]> => {
+  const enrich = options.enrich !== false;
+
   onProgress?.({
     stage: "uploading",
-    progress: 10,
+    progress: 5,
     message: "Reading PDF file...",
     currentFile: file.name,
   });
@@ -133,7 +198,7 @@ export const processLenderSheet = async (
 
   onProgress?.({
     stage: "extracting",
-    progress: 35,
+    progress: 25,
     message: "Server AI is extracting lender tiers...",
     currentFile: file.name,
   });
@@ -159,20 +224,62 @@ export const processLenderSheet = async (
 
   onProgress?.({
     stage: "validating",
-    progress: 80,
+    progress: 55,
     message:
-      response.meta.warning ?? `Validated with ${response.meta.provider} ${response.meta.model}.`,
+      response.meta.warning ?? `Extracted with ${response.meta.provider} ${response.meta.model}.`,
     currentFile: file.name,
   });
+
+  let lenders = response.data;
+
+  if (enrich && lenders.length > 0) {
+    onProgress?.({
+      stage: "enhancing",
+      progress: 65,
+      message: "Searching the web for missing bank info...",
+      currentFile: file.name,
+    });
+
+    const enriched: Partial<LenderProfile>[] = [];
+    for (let i = 0; i < lenders.length; i++) {
+      const lender = lenders[i];
+      if (!lender || !lender.name) {
+        if (lender) enriched.push(lender);
+        continue;
+      }
+
+      const missing = findMissingEnrichableFields(lender);
+      if (missing.length === 0) {
+        enriched.push(lender);
+        continue;
+      }
+
+      onProgress?.({
+        stage: "enhancing",
+        progress: 65 + Math.round((i / lenders.length) * 25),
+        message: `Enriching ${lender.name} (${missing.length} missing field${missing.length === 1 ? "" : "s"})...`,
+        currentFile: file.name,
+      });
+
+      try {
+        const result = await enrichLenderProfile(lender.name, missing);
+        enriched.push(result ? applyEnrichment(lender, result) : lender);
+      } catch (error) {
+        console.warn(`[processLenderSheet] Enrichment failed for ${lender.name}:`, error);
+        enriched.push(lender);
+      }
+    }
+    lenders = enriched;
+  }
 
   onProgress?.({
     stage: "complete",
     progress: 100,
-    message: `Extracted ${response.data.length} lender profile(s).`,
+    message: `Extracted ${lenders.length} lender profile(s).`,
     currentFile: file.name,
   });
 
-  return response.data;
+  return lenders;
 };
 
 export const analyzeDealWithAi = async (

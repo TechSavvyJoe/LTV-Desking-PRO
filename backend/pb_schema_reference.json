@@ -66,7 +66,11 @@
       { "name": "notes", "type": "text" },
       { "name": "contactName", "type": "text" },
       { "name": "contactPhone", "type": "text" },
-      { "name": "contactEmail", "type": "email" }
+      { "name": "contactEmail", "type": "email" },
+      { "name": "website", "type": "url" },
+      { "name": "portalUrl", "type": "url" },
+      { "name": "generalNotes", "type": "text" },
+      { "name": "enrichmentSources", "type": "json" }
     ]
   },
   {
@@ -123,6 +127,17 @@
       { "name": "outOfStateTransitFee", "type": "number" },
       { "name": "customTaxRate", "type": "number" },
       { "name": "ltvThresholds", "type": "json" }
+    ]
+  },
+  {
+    "name": "system_settings",
+    "type": "base",
+    "note": "Singleton record. listRule + viewRule should be empty (public-readable) so login pages can render the announcement banner. createRule, updateRule, deleteRule should be '@request.auth.role = \"superadmin\"'.",
+    "schema": [
+      { "name": "supportEmail", "type": "email" },
+      { "name": "announcementBanner", "type": "text" },
+      { "name": "signupsEnabled", "type": "bool" },
+      { "name": "defaultLtvThresholds", "type": "json" }
     ]
   }
 ]

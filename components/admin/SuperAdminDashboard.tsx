@@ -3,7 +3,7 @@ import { getCurrentUser, User, Dealer } from "../../lib/pocketbase";
 import {
   getSystemStats,
   getAllDealers,
-  createDealer,
+  createDealerWithAdmin,
   updateDealer,
   deleteDealer,
   getAllUsers,
@@ -11,7 +11,10 @@ import {
   updateUserRole,
   updateUser,
   deleteUser,
+  getSystemSettings,
+  updateSystemSettings,
   SystemStats,
+  SystemSettings,
 } from "../../lib/api";
 import { logout } from "../../lib/auth";
 import Button from "../common/Button";
@@ -61,14 +64,341 @@ const TabButton: React.FC<{
 );
 
 // ============================================
+// Create Dealer Wizard
+// ============================================
+
+const CreateDealerWizard: React.FC<{
+  onClose: () => void;
+  onCreated: () => void;
+}> = ({ onClose, onCreated }) => {
+  const [step, setStep] = useState<1 | 2 | "done">(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ dealer: Dealer; admin: User } | null>(null);
+
+  const [dealerForm, setDealerForm] = useState({
+    name: "",
+    code: "",
+    address: "",
+    city: "",
+    state: "",
+    phone: "",
+    email: "",
+    active: true,
+  });
+
+  const [adminForm, setAdminForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+    passwordConfirm: "",
+  });
+
+  const canAdvanceStep1 = dealerForm.name.trim() && dealerForm.code.trim();
+  const canSubmit =
+    adminForm.firstName.trim() &&
+    adminForm.lastName.trim() &&
+    adminForm.email.trim() &&
+    adminForm.password.length >= 8 &&
+    adminForm.password === adminForm.passwordConfirm;
+
+  const handleSubmit = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const result = await createDealerWithAdmin({
+        dealer: { ...dealerForm, settings: undefined } as Omit<Dealer, "id" | "created" | "updated">,
+        admin: {
+          email: adminForm.email,
+          password: adminForm.password,
+          firstName: adminForm.firstName,
+          lastName: adminForm.lastName,
+          phone: adminForm.phone,
+        },
+      });
+      setCreated(result);
+      setStep("done");
+    } catch (e: any) {
+      setError(e?.message || "Failed to create dealer and admin user");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleFinish = () => {
+    onCreated();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
+          <h3 className="text-lg font-semibold text-white">
+            {step === "done" ? "Dealership ready" : "Add new dealership"}
+          </h3>
+          {step !== "done" && (
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white"
+              aria-label="Close"
+            >
+              <Icons.XMarkIcon className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {step !== "done" && (
+          <div className="px-6 pt-4 flex items-center gap-2 text-xs">
+            <span
+              className={`px-3 py-1 rounded-full font-medium ${
+                step === 1
+                  ? "bg-blue-600 text-white"
+                  : "bg-emerald-600/30 text-emerald-300"
+              }`}
+            >
+              1. Dealership
+            </span>
+            <span className="text-slate-600">›</span>
+            <span
+              className={`px-3 py-1 rounded-full font-medium ${
+                step === 2 ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-400"
+              }`}
+            >
+              2. First admin user
+            </span>
+          </div>
+        )}
+
+        <div className="p-6 space-y-4">
+          {error && (
+            <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Name *</label>
+                <input
+                  type="text"
+                  value={dealerForm.name}
+                  onChange={(e) => setDealerForm({ ...dealerForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="Acme Motors"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Code *</label>
+                <input
+                  type="text"
+                  value={dealerForm.code}
+                  onChange={(e) =>
+                    setDealerForm({ ...dealerForm, code: e.target.value.toUpperCase() })
+                  }
+                  maxLength={10}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white uppercase font-mono"
+                  placeholder="ACME01"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={dealerForm.email}
+                  onChange={(e) => setDealerForm({ ...dealerForm, email: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="contact@dealer.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={dealerForm.phone}
+                  onChange={(e) => setDealerForm({ ...dealerForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-300 mb-1">Address</label>
+                <input
+                  type="text"
+                  value={dealerForm.address}
+                  onChange={(e) => setDealerForm({ ...dealerForm, address: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="123 Auto Drive"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">City</label>
+                <input
+                  type="text"
+                  value={dealerForm.city}
+                  onChange={(e) => setDealerForm({ ...dealerForm, city: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="Detroit"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">State</label>
+                <input
+                  type="text"
+                  value={dealerForm.state}
+                  onChange={(e) =>
+                    setDealerForm({ ...dealerForm, state: e.target.value.toUpperCase() })
+                  }
+                  maxLength={2}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white uppercase"
+                  placeholder="MI"
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">First name *</label>
+                <input
+                  type="text"
+                  value={adminForm.firstName}
+                  onChange={(e) => setAdminForm({ ...adminForm, firstName: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="Jane"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Last name *</label>
+                <input
+                  type="text"
+                  value={adminForm.lastName}
+                  onChange={(e) => setAdminForm({ ...adminForm, lastName: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="Smith"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-300 mb-1">Email *</label>
+                <input
+                  type="email"
+                  value={adminForm.email}
+                  onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="jane@dealer.com"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={adminForm.phone}
+                  onChange={(e) => setAdminForm({ ...adminForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Password *</label>
+                <input
+                  type="password"
+                  value={adminForm.password}
+                  onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="Min 8 characters"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Confirm password *
+                </label>
+                <input
+                  type="password"
+                  value={adminForm.passwordConfirm}
+                  onChange={(e) =>
+                    setAdminForm({ ...adminForm, passwordConfirm: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  placeholder="Re-enter password"
+                />
+              </div>
+            </div>
+          )}
+
+          {step === "done" && created && (
+            <div className="text-center py-6 space-y-4">
+              <div className="mx-auto w-14 h-14 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                <Icons.CheckCircleIcon className="w-8 h-8 text-emerald-400" />
+              </div>
+              <div>
+                <h4 className="text-xl font-semibold text-white">
+                  {created.dealer.name} is ready
+                </h4>
+                <p className="text-slate-400 text-sm mt-1">
+                  Share these details with the new admin so they can sign in at <code>/</code>.
+                </p>
+              </div>
+              <div className="bg-slate-950 border border-slate-700 rounded-xl p-4 text-left space-y-2 max-w-md mx-auto">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Dealer code</span>
+                  <code className="font-mono text-blue-400 font-bold">{created.dealer.code}</code>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Admin email</span>
+                  <span className="text-white">{created.admin.email}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Admin name</span>
+                  <span className="text-white">
+                    {created.admin.firstName} {created.admin.lastName}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-700">
+          {step === 1 && (
+            <>
+              <Button variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={() => setStep(2)} disabled={!canAdvanceStep1}>
+                Next: Admin user
+              </Button>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <Button variant="secondary" onClick={() => setStep(1)} disabled={submitting}>
+                Back
+              </Button>
+              <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+                {submitting ? "Creating…" : "Create dealership"}
+              </Button>
+            </>
+          )}
+          {step === "done" && <Button onClick={handleFinish}>Done</Button>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // Dealer Management Component
 // ============================================
 
 const DealerManagement: React.FC<{
   dealers: Dealer[];
   onRefresh: () => void;
-}> = ({ dealers, onRefresh }) => {
-  const [isCreating, setIsCreating] = useState(false);
+  onImpersonate: (dealerId: string) => void;
+}> = ({ dealers, onRefresh, onImpersonate }) => {
+  const [showWizard, setShowWizard] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -92,18 +422,26 @@ const DealerManagement: React.FC<{
       email: "",
       active: true,
     });
-    setIsCreating(false);
     setEditingId(null);
   };
 
   const handleSubmit = async () => {
-    if (editingId) {
-      await updateDealer(editingId, formData);
-    } else {
-      await createDealer(formData);
-    }
+    if (!editingId) return;
+    await updateDealer(editingId, formData);
     resetForm();
     onRefresh();
+  };
+
+  const handleImpersonate = async (dealer: Dealer) => {
+    const ok = await confirmAction({
+      title: `View as ${dealer.name}?`,
+      message:
+        "You will see the app exactly as this dealership sees it. Use this only for support and demos. You can exit at any time from the banner at the top.",
+      confirmLabel: "Enter dealership",
+    });
+    if (ok) {
+      onImpersonate(dealer.id);
+    }
   };
 
   const handleEdit = (dealer: Dealer) => {
@@ -145,18 +483,26 @@ const DealerManagement: React.FC<{
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Dealership Management</h2>
-        <Button onClick={() => setIsCreating(true)} className="gap-2">
+        <Button onClick={() => setShowWizard(true)} className="gap-2">
           <Icons.PlusIcon className="w-4 h-4" />
           Add Dealer
         </Button>
       </div>
 
-      {/* Create/Edit Form */}
-      {(isCreating || editingId) && (
+      {showWizard && (
+        <CreateDealerWizard
+          onClose={() => setShowWizard(false)}
+          onCreated={() => {
+            setShowWizard(false);
+            onRefresh();
+          }}
+        />
+      )}
+
+      {/* Edit Form */}
+      {editingId && (
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            {editingId ? "Edit Dealer" : "Create New Dealer"}
-          </h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Edit Dealer</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Name *</label>
@@ -258,7 +604,7 @@ const DealerManagement: React.FC<{
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={!formData.name || !formData.code}>
-              {editingId ? "Save Changes" : "Create Dealer"}
+              Save Changes
             </Button>
           </div>
         </div>
@@ -320,6 +666,14 @@ const DealerManagement: React.FC<{
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => handleImpersonate(dealer)}
+                      className="p-2 text-slate-400 hover:text-purple-400 hover:bg-slate-700 rounded-lg transition-colors"
+                      title="View as this dealership"
+                      disabled={!dealer.active}
+                    >
+                      <Icons.EyeIcon className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleEdit(dealer)}
                       className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
@@ -743,15 +1097,186 @@ const UserManagement: React.FC<{
 };
 
 // ============================================
+// System Settings Panel
+// ============================================
+
+const SystemSettingsPanel: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [form, setForm] = useState<SystemSettings>({
+    supportEmail: "",
+    announcementBanner: "",
+    signupsEnabled: true,
+    defaultLtvThresholds: "",
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    getSystemSettings()
+      .then((s) => {
+        if (cancelled) return;
+        setForm({
+          supportEmail: s.supportEmail || "",
+          announcementBanner: s.announcementBanner || "",
+          signupsEnabled: s.signupsEnabled !== false,
+          defaultLtvThresholds:
+            typeof s.defaultLtvThresholds === "string"
+              ? s.defaultLtvThresholds
+              : JSON.stringify(s.defaultLtvThresholds ?? {}, null, 2),
+        });
+      })
+      .catch((e) => !cancelled && setError(e?.message || "Failed to load settings"))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    setError(null);
+    let thresholds: unknown = {};
+    if (form.defaultLtvThresholds && typeof form.defaultLtvThresholds === "string") {
+      try {
+        thresholds = JSON.parse(form.defaultLtvThresholds);
+      } catch {
+        setError("Default LTV thresholds must be valid JSON");
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      await updateSystemSettings({
+        supportEmail: form.supportEmail,
+        announcementBanner: form.announcementBanner,
+        signupsEnabled: form.signupsEnabled,
+        defaultLtvThresholds: thresholds,
+      });
+      setSavedAt(new Date());
+    } catch (e: any) {
+      setError(e?.message || "Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Icons.SpinnerIcon className="w-6 h-6 text-blue-400 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">System Settings</h2>
+        {savedAt && (
+          <span className="text-xs text-emerald-400">Saved {savedAt.toLocaleTimeString()}</span>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1">Support email</label>
+          <input
+            type="email"
+            value={form.supportEmail || ""}
+            onChange={(e) => setForm({ ...form, supportEmail: e.target.value })}
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+            placeholder="support@ltvdesking.com"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            Shown to dealers in error messages and help screens.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1">
+            Announcement banner
+          </label>
+          <textarea
+            value={form.announcementBanner || ""}
+            onChange={(e) => setForm({ ...form, announcementBanner: e.target.value })}
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white min-h-[60px]"
+            placeholder="Scheduled maintenance Friday 10pm ET…"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            Leave empty to hide. Displayed at the top of every page when set.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between p-4 bg-slate-950 border border-slate-700 rounded-xl">
+          <div>
+            <p className="text-sm font-medium text-white">Allow new dealer signups</p>
+            <p className="text-xs text-slate-500">
+              When off, the public registration form on / is disabled.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={form.signupsEnabled !== false}
+              onChange={(e) => setForm({ ...form, signupsEnabled: e.target.checked })}
+            />
+            <div className="w-11 h-6 bg-slate-700 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1">
+            Default LTV thresholds (JSON)
+          </label>
+          <textarea
+            value={
+              typeof form.defaultLtvThresholds === "string"
+                ? form.defaultLtvThresholds
+                : JSON.stringify(form.defaultLtvThresholds ?? {}, null, 2)
+            }
+            onChange={(e) => setForm({ ...form, defaultLtvThresholds: e.target.value })}
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-xs min-h-[140px]"
+            placeholder='{"700": 120, "650": 110}'
+            spellCheck={false}
+          />
+          <p className="text-xs text-slate-500 mt-1">Applied as the default for new dealerships.</p>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Saving…" : "Save settings"}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // Main SuperAdmin Dashboard
 // ============================================
 
 interface SuperAdminDashboardProps {
   onSwitchToDealer?: () => void;
+  onImpersonate?: (dealerId: string) => void;
 }
 
-export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onSwitchToDealer }) => {
-  const [activeTab, setActiveTab] = useState<"overview" | "dealers" | "users">("overview");
+export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
+  onSwitchToDealer,
+  onImpersonate,
+}) => {
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "dealers" | "users" | "settings"
+  >("overview");
   const [stats, setStats] = useState<SystemStats>({
     totalDealers: 0,
     activeDealers: 0,
@@ -854,6 +1379,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onSwit
             onClick={() => setActiveTab("users")}
             icon={<Icons.UserIcon className="w-5 h-5" />}
             label="Users"
+          />
+          <TabButton
+            active={activeTab === "settings"}
+            onClick={() => setActiveTab("settings")}
+            icon={<Icons.Cog6ToothIcon className="w-5 h-5" />}
+            label="Settings"
           />
         </div>
 
@@ -963,11 +1494,19 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onSwit
           </div>
         )}
 
-        {activeTab === "dealers" && <DealerManagement dealers={dealers} onRefresh={loadData} />}
+        {activeTab === "dealers" && (
+          <DealerManagement
+            dealers={dealers}
+            onRefresh={loadData}
+            onImpersonate={(dealerId) => onImpersonate?.(dealerId)}
+          />
+        )}
 
         {activeTab === "users" && (
           <UserManagement users={users} dealers={dealers} onRefresh={loadData} />
         )}
+
+        {activeTab === "settings" && <SystemSettingsPanel />}
       </div>
     </div>
   );

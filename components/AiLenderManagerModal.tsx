@@ -85,6 +85,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
   const [fileProgresses, setFileProgresses] = useState<Map<string, ProcessingProgress>>(new Map());
   const [overallProgress, setOverallProgress] = useState(0);
   const [currentStage, setCurrentStage] = useState<string>("");
+  const [enrichWithWebSearch, setEnrichWithWebSearch] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,7 +180,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             const fileProgress = (progress.progress / 100) * fileWeight;
             setOverallProgress(Math.round(baseProgress + fileProgress));
           },
-          settings.ai
+          settings.ai,
+          { enrich: enrichWithWebSearch }
         );
 
         // Calculate data quality score
@@ -475,6 +477,26 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                   </ul>
                 </div>
               )}
+
+              <div className="mt-4 flex items-start gap-3 p-3 rounded-lg bg-x-hover-dark border border-x-border">
+                <input
+                  id="enrich-toggle"
+                  type="checkbox"
+                  checked={enrichWithWebSearch}
+                  onChange={(e) => setEnrichWithWebSearch(e.target.checked)}
+                  className="mt-1 w-4 h-4 accent-blue-500"
+                />
+                <label htmlFor="enrich-toggle" className="text-sm cursor-pointer">
+                  <span className="font-medium text-x-text-primary">
+                    Enrich missing bank data via web search
+                  </span>
+                  <span className="block text-xs text-x-text-secondary mt-1">
+                    After extracting the rate sheet, search the web (Gemini grounding) to fill in any
+                    missing contact info, website, portal URL, or general bank notes. Sources are
+                    cited. Adds ~10–20s per file.
+                  </span>
+                </label>
+              </div>
             </>
           ) : (
             <div>
@@ -506,6 +528,88 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                             <p className="font-semibold text-x-text-primary text-sm mb-2">
                               🏦 {lender.name}
                             </p>
+                            {(lender.contactPhone ||
+                              lender.contactEmail ||
+                              lender.website ||
+                              lender.portalUrl ||
+                              lender.generalNotes) && (
+                              <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-x-text-secondary border-l-2 border-cyan-500/40 pl-3">
+                                {lender.contactName && (
+                                  <span>
+                                    <strong>Contact:</strong> {lender.contactName}
+                                  </span>
+                                )}
+                                {lender.contactPhone && (
+                                  <span>
+                                    <strong>Phone:</strong> {lender.contactPhone}
+                                  </span>
+                                )}
+                                {lender.contactEmail && (
+                                  <span className="truncate">
+                                    <strong>Email:</strong> {lender.contactEmail}
+                                  </span>
+                                )}
+                                {lender.website && (
+                                  <span className="truncate">
+                                    <strong>Site:</strong>{" "}
+                                    <a
+                                      href={lender.website}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-blue-400 hover:underline"
+                                    >
+                                      {lender.website}
+                                    </a>
+                                  </span>
+                                )}
+                                {lender.portalUrl && (
+                                  <span className="truncate">
+                                    <strong>Portal:</strong>{" "}
+                                    <a
+                                      href={lender.portalUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-blue-400 hover:underline"
+                                    >
+                                      {lender.portalUrl}
+                                    </a>
+                                  </span>
+                                )}
+                                {lender.generalNotes && (
+                                  <span className="sm:col-span-2 italic text-x-text-secondary/80">
+                                    {lender.generalNotes}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {lender.enrichmentSources && lender.enrichmentSources.length > 0 && (
+                              <div className="mb-3 flex flex-wrap gap-1.5 items-center text-[10px]">
+                                <span className="text-x-text-secondary">🔎 Sources:</span>
+                                {lender.enrichmentSources.slice(0, 5).map((src, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={src.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title={src.title || src.url}
+                                    className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 truncate max-w-[180px]"
+                                  >
+                                    {(() => {
+                                      try {
+                                        return new URL(src.url).hostname.replace(/^www\./, "");
+                                      } catch {
+                                        return src.url;
+                                      }
+                                    })()}
+                                  </a>
+                                ))}
+                                {lender.enrichmentSources.length > 5 && (
+                                  <span className="text-x-text-secondary">
+                                    +{lender.enrichmentSources.length - 5} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             {lender.tiers && lender.tiers.length > 0 ? (
                               <div className="space-y-2">
                                 <p className="text-xs text-x-text-secondary">

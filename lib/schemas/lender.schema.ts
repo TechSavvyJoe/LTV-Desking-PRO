@@ -124,6 +124,21 @@ export const LenderProfileSchema = z
     minIncome: z.number().min(0).optional(),
     maxPti: z.number().min(0).max(100).optional(),
     effectiveDate: z.string().optional(),
+    contactName: z.string().optional(),
+    contactPhone: z.string().optional(),
+    contactEmail: z.string().optional(),
+    website: z.string().optional(),
+    portalUrl: z.string().optional(),
+    generalNotes: z.string().optional(),
+    enrichmentSources: z
+      .array(
+        z.object({
+          url: z.string(),
+          title: z.string().optional(),
+          fieldsCited: z.array(z.string()).optional(),
+        })
+      )
+      .optional(),
     tiers: z.array(RateTierSchema).min(1, "At least one tier is required"),
   })
   .strict(); // Reject unknown fields

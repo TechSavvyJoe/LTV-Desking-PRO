@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "../../lib/toast";
 import { register } from "../../lib/auth";
+import { getSystemSettings, getCachedSystemSettings } from "../../lib/api";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
 
@@ -10,6 +11,24 @@ interface RegisterProps {
 }
 
 export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) => {
+  const [signupsEnabled, setSignupsEnabled] = useState<boolean>(() => {
+    const cached = getCachedSystemSettings();
+    return cached?.signupsEnabled !== false;
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    getSystemSettings()
+      .then((s) => {
+        if (!cancelled) setSignupsEnabled(s.signupsEnabled !== false);
+      })
+      .catch(() => {
+        // Silent — default to enabled if request fails
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -53,6 +72,24 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
+
+  if (!signupsEnabled) {
+    return (
+      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn text-center">
+        <Icons.LockClosedIcon className="w-10 h-10 mx-auto text-slate-400" />
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Signups disabled</h2>
+        <p className="text-slate-600 dark:text-slate-400 text-sm">
+          New dealership signups are temporarily turned off. Please contact your administrator.
+        </p>
+        <button
+          onClick={onLoginClick}
+          className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn">

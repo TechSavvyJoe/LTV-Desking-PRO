@@ -113,6 +113,13 @@ export interface LenderProfile {
   maxAmountFinanced?: number;
   stipulations?: string;
   effectiveDate?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  website?: string;
+  portalUrl?: string;
+  generalNotes?: string;
+  enrichmentSources?: { url: string; title?: string; fieldsCited?: string[] }[];
   tiers: LenderTier[];
 }
 

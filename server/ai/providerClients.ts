@@ -20,6 +20,25 @@ export interface AiJsonRequest {
   maxTokens?: number;
 }
 
+export interface GroundedSource {
+  url: string;
+  title?: string;
+}
+
+export interface GroundedAiJsonRequest {
+  apiKey: string;
+  model: string;
+  systemPrompt: string;
+  userPrompt: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export interface GroundedAiJsonResponse {
+  json: unknown;
+  sources: GroundedSource[];
+}
+
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 
@@ -200,3 +219,45 @@ export const callAiJson = async (request: AiJsonRequest): Promise<unknown> => {
 
   return withAiTimeout(operation);
 };
+
+const callGeminiGroundedJson = async (
+  request: GroundedAiJsonRequest
+): Promise<GroundedAiJsonResponse> => {
+  const ai = new GoogleGenAI({ apiKey: request.apiKey });
+  const response = await ai.models.generateContent({
+    model: request.model,
+    contents: { role: "user", parts: [{ text: request.userPrompt }] },
+    config: {
+      systemInstruction: request.systemPrompt,
+      temperature: request.temperature ?? 0.2,
+      tools: [{ googleSearch: {} }],
+    },
+  });
+
+  const text = response.text ?? "";
+  const json = extractJsonFromText(text);
+
+  const sources: GroundedSource[] = [];
+  const candidates = (response as unknown as { candidates?: unknown }).candidates;
+  if (Array.isArray(candidates)) {
+    for (const candidate of candidates) {
+      const meta = asRecord(asRecord(candidate).groundingMetadata);
+      const chunks = Array.isArray(meta.groundingChunks) ? meta.groundingChunks : [];
+      for (const chunk of chunks) {
+        const web = asRecord(asRecord(chunk).web);
+        if (typeof web.uri === "string") {
+          sources.push({
+            url: web.uri,
+            title: typeof web.title === "string" ? web.title : undefined,
+          });
+        }
+      }
+    }
+  }
+
+  return { json, sources };
+};
+
+export const callGroundedAiJson = async (
+  request: GroundedAiJsonRequest
+): Promise<GroundedAiJsonResponse> => withAiTimeout(callGeminiGroundedJson(request));

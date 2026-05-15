@@ -7,17 +7,21 @@ import {
 } from "../../lib/aiModelRegistry";
 import {
   buildDealAnalysisPrompt,
+  buildLenderEnrichmentPrompt,
   buildLenderExtractionPrompt,
+  LENDER_ENRICH_SYSTEM_PROMPT,
   LENDER_EXTRACTION_SYSTEM_PROMPT,
 } from "./prompts";
-import { callAiJson } from "./providerClients";
+import { callAiJson, callGroundedAiJson } from "./providerClients";
 import { getConfiguredProviders, getProviderKeys, resolveAiModel } from "./modelSelection";
 import {
   dealSuggestionJsonSchema,
   lenderExtractJsonSchema,
   parseDealSuggestionResponse,
+  parseLenderEnrichResponse,
   parseLenderExtractResponse,
 } from "./schemas";
+import { getDefaultModelForTask } from "../../lib/aiModelRegistry";
 
 const FilePayloadSchema = z.object({
   name: z.string().min(1),
@@ -37,6 +41,11 @@ const AiSettingsPayloadSchema = z
 const LenderExtractPayloadSchema = z.object({
   file: FilePayloadSchema,
   aiSettings: AiSettingsPayloadSchema,
+});
+
+const LenderEnrichPayloadSchema = z.object({
+  lenderName: z.string().min(1),
+  missingFields: z.array(z.string()).min(1),
 });
 
 const DealAnalysisPayloadSchema = z.object({
@@ -171,6 +180,46 @@ const handleLenderExtract = async (
   sendOk(response, lenders, resolved);
 };
 
+const handleLenderEnrich = async (
+  request: IncomingMessage,
+  response: ServerResponse
+): Promise<void> => {
+  const body = LenderEnrichPayloadSchema.parse(await readRequestBody(request));
+  const keys = getProviderKeys();
+  if (!keys.gemini) {
+    sendError(
+      response,
+      400,
+      "Lender enrichment requires GEMINI_API_KEY to be configured (Google Search grounding).",
+      { provider: "gemini" }
+    );
+    return;
+  }
+
+  const model = getDefaultModelForTask("gemini", "lenderExtract");
+  const grounded = await callGroundedAiJson({
+    apiKey: keys.gemini,
+    model,
+    systemPrompt: LENDER_ENRICH_SYSTEM_PROMPT,
+    userPrompt: buildLenderEnrichmentPrompt(body.lenderName, body.missingFields),
+    maxTokens: 2000,
+  });
+
+  const parsed = parseLenderEnrichResponse(grounded.json);
+  const mergedSources = [
+    ...parsed.sources,
+    ...grounded.sources
+      .filter((s) => !parsed.sources.some((ps) => ps.url === s.url))
+      .map((s) => ({ url: s.url, title: s.title })),
+  ];
+
+  sendOk(
+    response,
+    { enrichment: parsed.enrichment, sources: mergedSources },
+    { provider: "gemini", model }
+  );
+};
+
 const handleDealAnalysis = async (
   request: IncomingMessage,
   response: ServerResponse
@@ -214,6 +263,11 @@ export const handleAiRequest = async (
 
     if (method === "POST" && url.startsWith("/api/ai/lender-extract")) {
       await handleLenderExtract(request, response);
+      return;
+    }
+
+    if (method === "POST" && url.startsWith("/api/ai/lender-enrich")) {
+      await handleLenderEnrich(request, response);
       return;
     }
 

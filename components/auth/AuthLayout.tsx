@@ -1,5 +1,6 @@
 import React from "react";
 import * as Icons from "../common/Icons";
+import { AnnouncementBanner } from "../common/AnnouncementBanner";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,9 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80')] bg-cover bg-center bg-no-repeat bg-fixed relative">
       <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" />
+      <div className="absolute top-0 inset-x-0 z-20">
+        <AnnouncementBanner />
+      </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center mb-6">
