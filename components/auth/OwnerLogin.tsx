@@ -5,12 +5,14 @@ import Button from "../common/Button";
 import * as Icons from "../common/Icons";
 import { AnnouncementBanner } from "../common/AnnouncementBanner";
 import { toast } from "../../lib/toast";
+import { useForceDarkMode } from "../../hooks/useForceDarkMode";
 
 interface OwnerLoginProps {
   onSuccess: () => void;
 }
 
 export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
+  useForceDarkMode();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

@@ -21,6 +21,7 @@ import { logout } from "../../lib/auth";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
 import { confirmAction } from "../../lib/confirm";
+import { useForceDarkMode } from "../../hooks/useForceDarkMode";
 
 // ============================================
 // Helper Components
@@ -78,7 +79,9 @@ const StatCard: React.FC<{
           <p className={`text-3xl font-semibold mt-2 tabular-nums tracking-tight ${a.valueText}`}>
             {value.toLocaleString()}
           </p>
-          {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+          <p className={`text-xs mt-1 ${hint ? "text-slate-400" : "invisible select-none"}`}>
+            {hint || "·"}
+          </p>
         </div>
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${a.iconBg}`}>
           <span className={a.iconText}>{icon}</span>
@@ -107,8 +110,8 @@ const TabButton: React.FC<{
     <span>{label}</span>
     {typeof badge === "number" && (
       <span
-        className={`px-1.5 py-0.5 text-[10px] font-semibold tabular-nums rounded-full ${
-          active ? "bg-blue-500/20 text-blue-300" : "bg-slate-700 text-slate-300"
+        className={`px-1.5 py-0.5 text-[11px] font-semibold tabular-nums rounded-full ${
+          active ? "bg-blue-500/25 text-blue-200" : "bg-slate-700 text-slate-200"
         }`}
       >
         {badge}
@@ -163,7 +166,7 @@ const SortHeader: React.FC<{
   const isActive = current.field === field;
   return (
     <th
-      className={`px-4 py-3 text-${align} text-xs font-semibold text-slate-300 uppercase tracking-wider ${className}`}
+      className={`px-4 py-3 text-${align} text-xs font-semibold text-slate-200 uppercase tracking-wider ${className}`}
     >
       <button
         type="button"
@@ -173,7 +176,7 @@ const SortHeader: React.FC<{
         }`}
       >
         {label}
-        <span className="opacity-60">
+        <span className={isActive ? "text-blue-300" : "text-slate-400"}>
           {isActive ? (current.dir === "asc" ? "▲" : "▼") : "↕"}
         </span>
       </button>
@@ -331,19 +334,19 @@ const CreateDealerWizard: React.FC<{
   const Step = ({ n, label, state }: { n: number; label: string; state: "done" | "current" | "pending" }) => (
     <div className="flex items-center gap-2">
       <div
-        className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold ring-1 transition-colors ${
+        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ring-1 transition-colors ${
           state === "current"
             ? "bg-blue-500 ring-blue-400 text-white"
             : state === "done"
               ? "bg-emerald-500/20 ring-emerald-500/40 text-emerald-300"
-              : "bg-slate-800 ring-slate-700 text-slate-500"
+              : "bg-slate-800 ring-slate-600 text-slate-300"
         }`}
       >
         {state === "done" ? <Icons.CheckCircleIcon className="w-4 h-4" /> : n}
       </div>
       <span
         className={`text-xs font-medium ${
-          state === "current" ? "text-white" : state === "done" ? "text-emerald-300" : "text-slate-500"
+          state === "current" ? "text-white" : state === "done" ? "text-emerald-300" : "text-slate-300"
         }`}
       >
         {label}
@@ -363,7 +366,7 @@ const CreateDealerWizard: React.FC<{
               <h3 className="text-base font-semibold text-white">
                 {step === "done" ? "Dealership ready" : "Add new dealership"}
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-300">
                 {step === "done"
                   ? "Share the credentials below with the new admin."
                   : "We'll create the dealer record and its first admin user."}
@@ -815,7 +818,7 @@ const DealerManagement: React.FC<{
             </div>
             <div>
               <h3 className="text-base font-semibold text-white">Edit dealership</h3>
-              <p className="text-[11px] text-slate-400">Code cannot be changed after creation.</p>
+              <p className="text-xs text-slate-300">Code cannot be changed after creation.</p>
             </div>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -929,12 +932,12 @@ const DealerManagement: React.FC<{
       <div className="bg-slate-900/60 rounded-2xl ring-1 ring-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-900/80 sticky top-[112px] z-10 backdrop-blur">
+            <thead className="bg-slate-900/80 backdrop-blur">
               <tr className="border-b border-slate-800">
                 <SortHeader label="Dealer" field="name" current={sort} onSort={toggleSort} />
                 <SortHeader label="Code" field="code" current={sort} onSort={toggleSort} />
                 <SortHeader label="Location" field="location" current={sort} onSort={toggleSort} />
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-200 uppercase tracking-wider">
                   Contact
                 </th>
                 <SortHeader
@@ -951,7 +954,7 @@ const DealerManagement: React.FC<{
                   onSort={toggleSort}
                   align="center"
                 />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-200 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -986,7 +989,7 @@ const DealerManagement: React.FC<{
                       {dealer.city && dealer.state
                         ? `${dealer.city}, ${dealer.state}`
                         : dealer.state || dealer.city || (
-                            <span className="text-slate-500">—</span>
+                            <span className="text-slate-400">—</span>
                           )}
                     </td>
                     <td className="px-4 py-3 text-slate-200 text-sm">
@@ -995,7 +998,7 @@ const DealerManagement: React.FC<{
                       ) : dealer.phone ? (
                         dealer.phone
                       ) : (
-                        <span className="text-slate-500">—</span>
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -1003,7 +1006,7 @@ const DealerManagement: React.FC<{
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium tabular-nums ${
                           userCount > 0
                             ? "bg-slate-800 text-slate-100 ring-1 ring-inset ring-slate-700"
-                            : "text-slate-500"
+                            : "text-slate-400"
                         }`}
                       >
                         <Icons.UserIcon className="w-3 h-3 opacity-60" />
@@ -1309,7 +1312,7 @@ const UserManagement: React.FC<{
               <h3 className="text-base font-semibold text-white">
                 {editingId ? "Edit user" : "Add new user"}
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-300">
                 {editingId
                   ? "Email changes will require the user to sign in again."
                   : "Assign the user to a dealership and set their role."}
@@ -1457,7 +1460,7 @@ const UserManagement: React.FC<{
                   onSort={toggleSort}
                   align="center"
                 />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-200 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -1491,14 +1494,14 @@ const UserManagement: React.FC<{
                     {user.dealer ? (
                       getDealerName(user.dealer)
                     ) : (
-                      <span className="text-slate-500">—</span>
+                      <span className="text-slate-400">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <select
                       value={user.role}
                       onChange={(e) => handleRoleChange(user.id, e.target.value as User["role"])}
-                      className={`appearance-none px-2.5 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset cursor-pointer focus:outline-none focus:ring-2 ${
+                      className={`appearance-none px-2.5 py-1 rounded-full text-xs font-medium ring-1 ring-inset cursor-pointer focus:outline-none focus:ring-2 ${
                         user.role === "superadmin"
                           ? "bg-violet-500/15 text-violet-200 ring-violet-500/30"
                           : user.role === "admin"
@@ -1639,8 +1642,8 @@ const SystemSettingsPanel: React.FC = () => {
   }
 
   return (
-    <div className="space-y-5 max-w-3xl animate-fadeIn">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 animate-fadeIn">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-semibold text-white tracking-tight">System Settings</h2>
           <p className="text-xs text-slate-400 mt-0.5">Affects every dealership on the platform.</p>
@@ -1654,12 +1657,12 @@ const SystemSettingsPanel: React.FC = () => {
       </div>
 
       {error && (
-        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-4 py-3 text-sm text-rose-200">
+        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-4 py-3 text-sm text-rose-200 max-w-3xl">
           {error}
         </div>
       )}
 
-      <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-6">
+      <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-6">
         <div>
           <label className="block text-sm font-medium text-slate-200 mb-1.5">Support email</label>
           <input
@@ -1727,7 +1730,7 @@ const SystemSettingsPanel: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className="max-w-3xl flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
           {saving ? "Saving…" : "Save settings"}
         </Button>
@@ -1761,7 +1764,19 @@ const OverviewTab: React.FC<{
     .slice(0, 5);
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-5 animate-fadeIn">
+      {/* Page header (matches Dealers / Users / Settings) */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-white tracking-tight">Overview</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {stats.totalDealers.toLocaleString()} dealership{stats.totalDealers === 1 ? "" : "s"} ·{" "}
+            {stats.totalUsers.toLocaleString()} user{stats.totalUsers === 1 ? "" : "s"} ·{" "}
+            {stats.totalDeals.toLocaleString()} deal{stats.totalDeals === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -1928,7 +1943,7 @@ const OverviewTab: React.FC<{
                       <p className="text-xs text-slate-400 truncate">{user.email}</p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-slate-800 text-slate-200 ring-1 ring-inset ring-slate-700">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wider bg-slate-800 text-slate-100 ring-1 ring-inset ring-slate-600">
                     {user.role}
                   </span>
                 </li>
@@ -1954,6 +1969,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   onSwitchToDealer,
   onImpersonate,
 }) => {
+  useForceDarkMode();
   const [activeTab, setActiveTab] = useState<
     "overview" | "dealers" | "users" | "settings"
   >("overview");
@@ -2043,8 +2059,8 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
             </div>
           </div>
 
-          {/* Tabs (inside header) */}
-          <div className="mt-4 flex items-center gap-1.5 flex-wrap">
+          {/* Tabs (inside header) — single-line scroll on narrow viewports */}
+          <div className="mt-4 flex items-center gap-1.5 overflow-x-auto -mx-2 px-2 pb-1 sm:overflow-visible sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabButton
               active={activeTab === "overview"}
               onClick={() => setActiveTab("overview")}
@@ -2071,7 +2087,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
               icon={<Icons.Cog6ToothIcon className="w-4 h-4" />}
               label="Settings"
             />
-            <div className="ml-auto">
+            <div className="sm:ml-auto shrink-0">
               <RefreshBar
                 loading={isRefreshing}
                 lastUpdated={lastUpdated}
