@@ -25,43 +25,239 @@ import { confirmAction } from "../../lib/confirm";
 // Helper Components
 // ============================================
 
+type StatAccent = "blue" | "emerald" | "violet" | "amber";
+
+const STAT_ACCENTS: Record<
+  StatAccent,
+  { stripe: string; iconBg: string; iconText: string; valueText: string }
+> = {
+  blue: {
+    stripe: "from-blue-500/0 via-blue-500 to-blue-500/0",
+    iconBg: "bg-blue-500/10 ring-1 ring-blue-500/30",
+    iconText: "text-blue-300",
+    valueText: "text-white",
+  },
+  emerald: {
+    stripe: "from-emerald-500/0 via-emerald-500 to-emerald-500/0",
+    iconBg: "bg-emerald-500/10 ring-1 ring-emerald-500/30",
+    iconText: "text-emerald-300",
+    valueText: "text-white",
+  },
+  violet: {
+    stripe: "from-violet-500/0 via-violet-500 to-violet-500/0",
+    iconBg: "bg-violet-500/10 ring-1 ring-violet-500/30",
+    iconText: "text-violet-300",
+    valueText: "text-white",
+  },
+  amber: {
+    stripe: "from-amber-500/0 via-amber-500 to-amber-500/0",
+    iconBg: "bg-amber-500/10 ring-1 ring-amber-500/30",
+    iconText: "text-amber-300",
+    valueText: "text-white",
+  },
+};
+
 const StatCard: React.FC<{
   label: string;
   value: number;
+  hint?: string;
   icon: React.ReactNode;
-  color: string;
-}> = ({ label, value, icon, color }) => (
-  <div className={`bg-gradient-to-br ${color} rounded-2xl p-6 text-white shadow-xl`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium opacity-80">{label}</p>
-        <p className="text-4xl font-bold mt-1">{value.toLocaleString()}</p>
-      </div>
-      <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
-        {icon}
+  accent: StatAccent;
+}> = ({ label, value, hint, icon, accent }) => {
+  const a = STAT_ACCENTS[accent];
+  return (
+    <div className="relative overflow-hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg hover:border-slate-700 transition-colors">
+      <div
+        className={`absolute top-0 left-4 right-4 h-px bg-gradient-to-r ${a.stripe}`}
+        aria-hidden
+      />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
+          <p className={`text-3xl font-semibold mt-2 tabular-nums tracking-tight ${a.valueText}`}>
+            {value.toLocaleString()}
+          </p>
+          {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+        </div>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${a.iconBg}`}>
+          <span className={a.iconText}>{icon}</span>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const TabButton: React.FC<{
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
-}> = ({ active, onClick, icon, label }) => (
+  badge?: number;
+}> = ({ active, onClick, icon, label, badge }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${
+    className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
       active
-        ? "bg-blue-600 text-white shadow-lg"
-        : "text-slate-400 hover:text-white hover:bg-slate-800"
+        ? "bg-slate-800 text-white shadow-sm ring-1 ring-slate-700"
+        : "text-slate-300 hover:text-white hover:bg-slate-800/60"
     }`}
   >
-    {icon}
-    {label}
+    <span className={active ? "text-blue-400" : "text-slate-400"}>{icon}</span>
+    <span>{label}</span>
+    {typeof badge === "number" && (
+      <span
+        className={`px-1.5 py-0.5 text-[10px] font-semibold tabular-nums rounded-full ${
+          active ? "bg-blue-500/20 text-blue-300" : "bg-slate-700 text-slate-300"
+        }`}
+      >
+        {badge}
+      </span>
+    )}
+    {active && (
+      <span
+        className="absolute -bottom-px left-3 right-3 h-px bg-gradient-to-r from-transparent via-blue-400 to-transparent"
+        aria-hidden
+      />
+    )}
   </button>
 );
+
+const SearchInput: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+}> = ({ value, onChange, placeholder = "Search…", autoFocus }) => (
+  <div className="relative">
+    <Icons.MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      className="pl-9 pr-3 py-2 w-full sm:w-64 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500"
+    />
+    {value && (
+      <button
+        onClick={() => onChange("")}
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-200"
+        aria-label="Clear"
+        type="button"
+      >
+        <Icons.XMarkIcon className="w-4 h-4" />
+      </button>
+    )}
+  </div>
+);
+
+const SortHeader: React.FC<{
+  label: string;
+  field: string;
+  current: { field: string; dir: "asc" | "desc" };
+  onSort: (field: string) => void;
+  align?: "left" | "center" | "right";
+  className?: string;
+}> = ({ label, field, current, onSort, align = "left", className = "" }) => {
+  const isActive = current.field === field;
+  return (
+    <th
+      className={`px-4 py-3 text-${align} text-xs font-semibold text-slate-300 uppercase tracking-wider ${className}`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={`inline-flex items-center gap-1 hover:text-white focus:outline-none ${
+          isActive ? "text-white" : ""
+        }`}
+      >
+        {label}
+        <span className="opacity-60">
+          {isActive ? (current.dir === "asc" ? "▲" : "▼") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+};
+
+const RefreshBar: React.FC<{
+  loading: boolean;
+  lastUpdated: Date | null;
+  onRefresh: () => void;
+}> = ({ loading, lastUpdated, onRefresh }) => {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const relative = lastUpdated ? relativeTime(lastUpdated, tick) : null;
+
+  return (
+    <button
+      type="button"
+      onClick={onRefresh}
+      disabled={loading}
+      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 bg-slate-800/60 border border-slate-700 hover:bg-slate-800 hover:text-white transition-colors disabled:opacity-50"
+      title="Refresh data"
+    >
+      <Icons.ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+      <span>{loading ? "Refreshing…" : `Updated ${relative || "just now"}`}</span>
+    </button>
+  );
+};
+
+const EmptyState: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+}> = ({ icon, title, description, action }) => (
+  <div className="flex flex-col items-center justify-center text-center py-14 px-4">
+    <div className="w-12 h-12 rounded-2xl bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-slate-400 mb-3">
+      {icon}
+    </div>
+    <p className="text-sm font-semibold text-slate-100">{title}</p>
+    {description && <p className="text-xs text-slate-400 mt-1 max-w-sm">{description}</p>}
+    {action && <div className="mt-4">{action}</div>}
+  </div>
+);
+
+const StatusPill: React.FC<{ active: boolean; onClick?: () => void; title?: string }> = ({
+  active,
+  onClick,
+  title,
+}) => {
+  const cls = active
+    ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/25"
+    : "bg-rose-500/15 text-rose-300 ring-1 ring-inset ring-rose-500/30 hover:bg-rose-500/25";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${cls}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-emerald-400" : "bg-rose-400"}`} />
+      {active ? "Active" : "Inactive"}
+    </button>
+  );
+};
+
+const relativeTime = (date: Date, _tick: number): string => {
+  void _tick; // force re-render via tick prop
+  const diff = Math.max(0, Date.now() - date.getTime());
+  const sec = Math.floor(diff / 1000);
+  if (sec < 5) return "just now";
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  return date.toLocaleDateString();
+};
 
 // ============================================
 // Create Dealer Wizard
@@ -395,11 +591,69 @@ const CreateDealerWizard: React.FC<{
 
 const DealerManagement: React.FC<{
   dealers: Dealer[];
+  users: User[];
   onRefresh: () => void;
   onImpersonate: (dealerId: string) => void;
-}> = ({ dealers, onRefresh, onImpersonate }) => {
+}> = ({ dealers, users, onRefresh, onImpersonate }) => {
   const [showWizard, setShowWizard] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ field: string; dir: "asc" | "desc" }>({
+    field: "name",
+    dir: "asc",
+  });
+
+  const usersByDealer = users.reduce<Record<string, number>>((acc, u) => {
+    if (u.dealer) acc[u.dealer] = (acc[u.dealer] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const filteredDealers = (() => {
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? dealers.filter(
+          (d) =>
+            d.name.toLowerCase().includes(q) ||
+            d.code?.toLowerCase().includes(q) ||
+            d.city?.toLowerCase().includes(q) ||
+            d.state?.toLowerCase().includes(q) ||
+            d.email?.toLowerCase().includes(q)
+        )
+      : [...dealers];
+
+    filtered.sort((a, b) => {
+      const dir = sort.dir === "asc" ? 1 : -1;
+      const get = (d: Dealer): string | number => {
+        switch (sort.field) {
+          case "code":
+            return (d.code || "").toLowerCase();
+          case "location":
+            return `${d.state || ""}-${d.city || ""}`.toLowerCase();
+          case "users":
+            return usersByDealer[d.id] ?? 0;
+          case "status":
+            return d.active ? 1 : 0;
+          case "created":
+            return d.created || "";
+          default:
+            return d.name.toLowerCase();
+        }
+      };
+      const av = get(a);
+      const bv = get(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return filtered;
+  })();
+
+  const toggleSort = (field: string) =>
+    setSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { field, dir: "asc" }
+    );
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -479,14 +733,26 @@ const DealerManagement: React.FC<{
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 animate-fadeIn">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Dealership Management</h2>
-        <Button onClick={() => setShowWizard(true)} className="gap-2">
-          <Icons.PlusIcon className="w-4 h-4" />
-          Add Dealer
-        </Button>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-white tracking-tight">Dealerships</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {filteredDealers.length} of {dealers.length} dealers
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search name, code, city, state, email…"
+          />
+          <Button onClick={() => setShowWizard(true)} className="gap-2 whitespace-nowrap">
+            <Icons.PlusIcon className="w-4 h-4" />
+            Add Dealer
+          </Button>
+        </div>
       </div>
 
       {showWizard && (
@@ -510,7 +776,7 @@ const DealerManagement: React.FC<{
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="Dealership Name"
               />
             </div>
@@ -525,7 +791,7 @@ const DealerManagement: React.FC<{
                     code: e.target.value.toUpperCase(),
                   })
                 }
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white uppercase"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="DEALER01"
                 maxLength={10}
               />
@@ -536,7 +802,7 @@ const DealerManagement: React.FC<{
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="contact@dealer.com"
               />
             </div>
@@ -546,7 +812,7 @@ const DealerManagement: React.FC<{
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="(555) 123-4567"
               />
             </div>
@@ -556,7 +822,7 @@ const DealerManagement: React.FC<{
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="Detroit"
               />
             </div>
@@ -571,7 +837,7 @@ const DealerManagement: React.FC<{
                     state: e.target.value.toUpperCase(),
                   })
                 }
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white uppercase"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="MI"
                 maxLength={2}
               />
@@ -582,7 +848,7 @@ const DealerManagement: React.FC<{
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="123 Auto Drive"
               />
             </div>
@@ -611,96 +877,148 @@ const DealerManagement: React.FC<{
       )}
 
       {/* Dealers Table */}
-      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-slate-800">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
-                Name
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
-                Code
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
-                Location
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
-                Contact
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase">
-                Status
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700">
-            {dealers.map((dealer) => (
-              <tr key={dealer.id} className="hover:bg-slate-800/50 transition-colors">
-                <td className="px-4 py-4">
-                  <p className="font-medium text-white">{dealer.name}</p>
-                </td>
-                <td className="px-4 py-4">
-                  <code className="px-2 py-1 bg-slate-900 rounded text-blue-400 text-sm">
-                    {dealer.code}
-                  </code>
-                </td>
-                <td className="px-4 py-4 text-slate-300">
-                  {dealer.city && dealer.state ? `${dealer.city}, ${dealer.state}` : "—"}
-                </td>
-                <td className="px-4 py-4 text-slate-300 text-sm">
-                  {dealer.email || dealer.phone || "—"}
-                </td>
-                <td className="px-4 py-4 text-center">
-                  <button
-                    onClick={() => handleToggleActive(dealer)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      dealer.active
-                        ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-                        : "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                    }`}
+      <div className="bg-slate-900/60 rounded-2xl ring-1 ring-slate-800 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-900/80 sticky top-[112px] z-10 backdrop-blur">
+              <tr className="border-b border-slate-800">
+                <SortHeader label="Dealer" field="name" current={sort} onSort={toggleSort} />
+                <SortHeader label="Code" field="code" current={sort} onSort={toggleSort} />
+                <SortHeader label="Location" field="location" current={sort} onSort={toggleSort} />
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Contact
+                </th>
+                <SortHeader
+                  label="Users"
+                  field="users"
+                  current={sort}
+                  onSort={toggleSort}
+                  align="center"
+                />
+                <SortHeader
+                  label="Status"
+                  field="status"
+                  current={sort}
+                  onSort={toggleSort}
+                  align="center"
+                />
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {filteredDealers.map((dealer) => {
+                const userCount = usersByDealer[dealer.id] ?? 0;
+                return (
+                  <tr
+                    key={dealer.id}
+                    className="hover:bg-slate-800/40 transition-colors group"
                   >
-                    {dealer.active ? "Active" : "Inactive"}
-                  </button>
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => handleImpersonate(dealer)}
-                      className="p-2 text-slate-400 hover:text-purple-400 hover:bg-slate-700 rounded-lg transition-colors"
-                      title="View as this dealership"
-                      disabled={!dealer.active}
-                    >
-                      <Icons.EyeIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleEdit(dealer)}
-                      className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Icons.PencilIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(dealer.id)}
-                      className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Icons.TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {dealers.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
-                  No dealers found. Click "Add Dealer" to create one.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-blue-300 text-xs font-bold flex-shrink-0">
+                          {dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{dealer.name}</p>
+                          {dealer.address && (
+                            <p className="text-xs text-slate-400 truncate">{dealer.address}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <code className="px-2 py-1 bg-slate-800 ring-1 ring-slate-700 rounded-md text-blue-300 text-xs font-mono">
+                        {dealer.code || "—"}
+                      </code>
+                    </td>
+                    <td className="px-4 py-3 text-slate-200 text-sm">
+                      {dealer.city && dealer.state
+                        ? `${dealer.city}, ${dealer.state}`
+                        : dealer.state || dealer.city || (
+                            <span className="text-slate-500">—</span>
+                          )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-200 text-sm">
+                      {dealer.email ? (
+                        <span className="truncate block max-w-[200px]">{dealer.email}</span>
+                      ) : dealer.phone ? (
+                        dealer.phone
+                      ) : (
+                        <span className="text-slate-500">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium tabular-nums ${
+                          userCount > 0
+                            ? "bg-slate-800 text-slate-100 ring-1 ring-inset ring-slate-700"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        <Icons.UserIcon className="w-3 h-3 opacity-60" />
+                        {userCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <StatusPill
+                        active={dealer.active}
+                        onClick={() => handleToggleActive(dealer)}
+                        title={dealer.active ? "Click to deactivate" : "Click to activate"}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleImpersonate(dealer)}
+                          className="p-1.5 text-slate-400 hover:text-violet-300 hover:bg-violet-500/10 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={dealer.active ? "View as this dealership" : "Activate dealer first"}
+                          disabled={!dealer.active}
+                        >
+                          <Icons.EyeIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(dealer)}
+                          className="p-1.5 text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors"
+                          title="Edit"
+                        >
+                          <Icons.PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(dealer.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-md transition-colors"
+                          title="Delete"
+                        >
+                          <Icons.TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredDealers.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-0">
+                    <EmptyState
+                      icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
+                      title={
+                        search
+                          ? "No dealers match your search"
+                          : "No dealers yet"
+                      }
+                      description={
+                        search
+                          ? "Try a different search term."
+                          : "Click 'Add Dealer' to onboard your first dealership."
+                      }
+                    />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -717,6 +1035,11 @@ const UserManagement: React.FC<{
 }> = ({ users, dealers, onRefresh }) => {
   const [filterDealer, setFilterDealer] = useState<string>("");
   const [filterRole, setFilterRole] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ field: string; dir: "asc" | "desc" }>({
+    field: "created",
+    dir: "desc",
+  });
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -794,11 +1117,51 @@ const UserManagement: React.FC<{
     setError(null);
   };
 
-  const filteredUsers = users.filter((user) => {
-    if (filterDealer && user.dealer !== filterDealer) return false;
-    if (filterRole && user.role !== filterRole) return false;
-    return true;
-  });
+  const filteredUsers = (() => {
+    const q = search.trim().toLowerCase();
+    const result = users.filter((user) => {
+      if (filterDealer && user.dealer !== filterDealer) return false;
+      if (filterRole && user.role !== filterRole) return false;
+      if (q) {
+        const hay =
+          `${user.firstName} ${user.lastName} ${user.email} ${user.phone ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    const dealerName = (id: string) => dealers.find((d) => d.id === id)?.name || "";
+    result.sort((a, b) => {
+      const dir = sort.dir === "asc" ? 1 : -1;
+      const get = (u: User): string | number => {
+        switch (sort.field) {
+          case "name":
+            return `${u.firstName} ${u.lastName}`.toLowerCase();
+          case "email":
+            return u.email.toLowerCase();
+          case "role":
+            return u.role;
+          case "dealer":
+            return dealerName(u.dealer || "").toLowerCase();
+          case "created":
+          default:
+            return u.created || "";
+        }
+      };
+      const av = get(a);
+      const bv = get(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return result;
+  })();
+
+  const toggleSort = (field: string) =>
+    setSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { field, dir: "asc" }
+    );
 
   const handleRoleChange = async (userId: string, newRole: User["role"]) => {
     await updateUserRole(userId, newRole);
@@ -838,17 +1201,23 @@ const UserManagement: React.FC<{
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 animate-fadeIn">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h2 className="text-xl font-bold text-white">User Management</h2>
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-white tracking-tight">Users</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {filteredUsers.length} of {users.length} users
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search name, email…" />
           <select
             value={filterDealer}
             onChange={(e) => setFilterDealer(e.target.value)}
-            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm"
+            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           >
-            <option value="">All Dealers</option>
+            <option value="">All dealers</option>
             {dealers.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -858,15 +1227,15 @@ const UserManagement: React.FC<{
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm"
+            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           >
-            <option value="">All Roles</option>
+            <option value="">All roles</option>
             <option value="sales">Sales</option>
             <option value="manager">Manager</option>
             <option value="admin">Admin</option>
             <option value="superadmin">SuperAdmin</option>
           </select>
-          <Button onClick={() => setIsCreating(true)} className="gap-2">
+          <Button onClick={() => setIsCreating(true)} className="gap-2 whitespace-nowrap">
             <Icons.PlusIcon className="w-4 h-4" />
             Add User
           </Button>
@@ -875,7 +1244,7 @@ const UserManagement: React.FC<{
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-300">
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 text-sm text-rose-200">
           {error}
         </div>
       )}
@@ -893,7 +1262,7 @@ const UserManagement: React.FC<{
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="John"
               />
             </div>
@@ -903,7 +1272,7 @@ const UserManagement: React.FC<{
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="Doe"
               />
             </div>
@@ -913,7 +1282,7 @@ const UserManagement: React.FC<{
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="john@dealer.com"
               />
             </div>
@@ -923,7 +1292,7 @@ const UserManagement: React.FC<{
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                 placeholder="(555) 123-4567"
               />
             </div>
@@ -932,7 +1301,7 @@ const UserManagement: React.FC<{
               <select
                 value={formData.dealer}
                 onChange={(e) => setFormData({ ...formData, dealer: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
               >
                 <option value="">Select Dealer</option>
                 {dealers.map((d) => (
@@ -947,7 +1316,7 @@ const UserManagement: React.FC<{
               <select
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as User["role"] })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
               >
                 <option value="sales">Sales</option>
                 <option value="manager">Manager</option>
@@ -965,7 +1334,7 @@ const UserManagement: React.FC<{
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     placeholder="Min 8 characters"
                   />
                 </div>
@@ -977,7 +1346,7 @@ const UserManagement: React.FC<{
                     type="password"
                     value={formData.passwordConfirm}
                     onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     placeholder="Re-enter password"
                   />
                 </div>
@@ -1005,92 +1374,130 @@ const UserManagement: React.FC<{
       )}
 
       {/* Users Table */}
-      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-slate-800">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
-                User
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
-                Email
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
-                Dealer
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase">
-                Role
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase">
-                Created
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700">
-            {filteredUsers.map((user) => (
-              <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
-                      {user.firstName?.[0]}
-                      {user.lastName?.[0]}
+      <div className="bg-slate-900/60 rounded-2xl ring-1 ring-slate-800 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-900/80 backdrop-blur">
+              <tr className="border-b border-slate-800">
+                <SortHeader label="User" field="name" current={sort} onSort={toggleSort} />
+                <SortHeader label="Email" field="email" current={sort} onSort={toggleSort} />
+                <SortHeader label="Dealer" field="dealer" current={sort} onSort={toggleSort} />
+                <SortHeader
+                  label="Role"
+                  field="role"
+                  current={sort}
+                  onSort={toggleSort}
+                  align="center"
+                />
+                <SortHeader
+                  label="Created"
+                  field="created"
+                  current={sort}
+                  onSort={toggleSort}
+                  align="center"
+                />
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {filteredUsers.map((user) => (
+                <tr
+                  key={user.id}
+                  className="hover:bg-slate-800/40 transition-colors group"
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-violet-500 rounded-full flex items-center justify-center text-white text-xs font-semibold ring-2 ring-slate-900 flex-shrink-0">
+                        {user.firstName?.[0]}
+                        {user.lastName?.[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        {user.phone && (
+                          <p className="text-xs text-slate-400 truncate">{user.phone}</p>
+                        )}
+                      </div>
                     </div>
-                    <p className="font-medium text-white">
-                      {user.firstName} {user.lastName}
-                    </p>
-                  </div>
-                </td>
-                <td className="px-4 py-4 text-slate-300 text-sm">{user.email}</td>
-                <td className="px-4 py-4 text-slate-300">{getDealerName(user.dealer)}</td>
-                <td className="px-4 py-4 text-center">
-                  <select
-                    value={user.role}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value as User["role"])}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer ${getRoleBadgeColor(
-                      user.role
-                    )}`}
-                  >
-                    <option value="sales">Sales</option>
-                    <option value="manager">Manager</option>
-                    <option value="admin">Admin</option>
-                    <option value="superadmin">SuperAdmin</option>
-                  </select>
-                </td>
-                <td className="px-4 py-4 text-center text-slate-400 text-sm">
-                  {new Date(user.created).toLocaleDateString()}
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => handleEdit(user)}
-                      className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
-                      title="Edit"
+                  </td>
+                  <td className="px-4 py-3 text-slate-200 text-sm truncate max-w-[220px]">
+                    {user.email}
+                  </td>
+                  <td className="px-4 py-3 text-slate-200 text-sm">
+                    {user.dealer ? (
+                      getDealerName(user.dealer)
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value as User["role"])}
+                      className={`appearance-none px-2.5 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset cursor-pointer focus:outline-none focus:ring-2 ${
+                        user.role === "superadmin"
+                          ? "bg-violet-500/15 text-violet-200 ring-violet-500/30"
+                          : user.role === "admin"
+                            ? "bg-blue-500/15 text-blue-200 ring-blue-500/30"
+                            : user.role === "manager"
+                              ? "bg-amber-500/15 text-amber-200 ring-amber-500/30"
+                              : "bg-slate-700/50 text-slate-200 ring-slate-600"
+                      }`}
                     >
-                      <Icons.PencilIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(user.id)}
-                      className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Icons.TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filteredUsers.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
-                  No users found matching the filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                      <option value="sales">Sales</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                      <option value="superadmin">SuperAdmin</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3 text-center text-slate-400 text-xs tabular-nums">
+                    {new Date(user.created).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="p-1.5 text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors"
+                        title="Edit"
+                      >
+                        <Icons.PencilIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-md transition-colors"
+                        title="Delete"
+                      >
+                        <Icons.TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-0">
+                    <EmptyState
+                      icon={<Icons.UserIcon className="w-5 h-5" />}
+                      title={
+                        search || filterDealer || filterRole
+                          ? "No users match your filters"
+                          : "No users yet"
+                      }
+                      description={
+                        search || filterDealer || filterRole
+                          ? "Try clearing the filters or adjusting your search."
+                          : "Click 'Add User' to create your first user."
+                      }
+                    />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -1171,55 +1578,62 @@ const SystemSettingsPanel: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-5 max-w-3xl animate-fadeIn">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">System Settings</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-white tracking-tight">System Settings</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Affects every dealership on the platform.</p>
+        </div>
         {savedAt && (
-          <span className="text-xs text-emerald-400">Saved {savedAt.toLocaleTimeString()}</span>
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            Saved {savedAt.toLocaleTimeString()}
+          </span>
         )}
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-4 py-3 text-sm text-rose-200">
           {error}
         </div>
       )}
 
-      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 space-y-6">
+      <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Support email</label>
+          <label className="block text-sm font-medium text-slate-200 mb-1.5">Support email</label>
           <input
             type="email"
             value={form.supportEmail || ""}
             onChange={(e) => setForm({ ...form, supportEmail: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             placeholder="support@ltvdesking.com"
           />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-400 mt-1.5">
             Shown to dealers in error messages and help screens.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
+          <label className="block text-sm font-medium text-slate-200 mb-1.5">
             Announcement banner
           </label>
           <textarea
             value={form.announcementBanner || ""}
             onChange={(e) => setForm({ ...form, announcementBanner: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white min-h-[60px]"
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             placeholder="Scheduled maintenance Friday 10pm ET…"
           />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-400 mt-1.5">
             Leave empty to hide. Displayed at the top of every page when set.
           </p>
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-slate-950 border border-slate-700 rounded-xl">
+        <div className="flex items-center justify-between p-4 bg-slate-950 ring-1 ring-slate-800 rounded-xl">
           <div>
             <p className="text-sm font-medium text-white">Allow new dealer signups</p>
-            <p className="text-xs text-slate-500">
-              When off, the public registration form on / is disabled.
+            <p className="text-xs text-slate-400 mt-0.5">
+              When off, the public registration form on <code className="text-slate-300">/</code> is
+              disabled.
             </p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -1234,7 +1648,7 @@ const SystemSettingsPanel: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
+          <label className="block text-sm font-medium text-slate-200 mb-1.5">
             Default LTV thresholds (JSON)
           </label>
           <textarea
@@ -1244,11 +1658,11 @@ const SystemSettingsPanel: React.FC = () => {
                 : JSON.stringify(form.defaultLtvThresholds ?? {}, null, 2)
             }
             onChange={(e) => setForm({ ...form, defaultLtvThresholds: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-xs min-h-[140px]"
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 font-mono text-xs min-h-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             placeholder='{"700": 120, "650": 110}'
             spellCheck={false}
           />
-          <p className="text-xs text-slate-500 mt-1">Applied as the default for new dealerships.</p>
+          <p className="text-xs text-slate-400 mt-1.5">Applied as the default for new dealerships.</p>
         </div>
       </div>
 
@@ -1256,6 +1670,211 @@ const SystemSettingsPanel: React.FC = () => {
         <Button onClick={handleSave} disabled={saving}>
           {saving ? "Saving…" : "Save settings"}
         </Button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// Overview Tab
+// ============================================
+
+const OverviewTab: React.FC<{
+  stats: SystemStats;
+  dealers: Dealer[];
+  users: User[];
+  onJumpTab: (tab: "overview" | "dealers" | "users" | "settings") => void;
+  onImpersonate: (dealerId: string) => void;
+}> = ({ stats, dealers, users, onJumpTab, onImpersonate }) => {
+  const inactiveCount = Math.max(0, stats.totalDealers - stats.activeDealers);
+  const usersByRole = users.reduce<Record<string, number>>((acc, u) => {
+    acc[u.role] = (acc[u.role] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const recentDealers = [...dealers]
+    .sort((a, b) => (b.created || "").localeCompare(a.created || ""))
+    .slice(0, 5);
+  const recentUsers = [...users]
+    .sort((a, b) => (b.created || "").localeCompare(a.created || ""))
+    .slice(0, 5);
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Total Dealers"
+          value={stats.totalDealers}
+          hint={inactiveCount > 0 ? `${inactiveCount} inactive` : "All active"}
+          accent="blue"
+          icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Active Dealers"
+          value={stats.activeDealers}
+          hint={
+            stats.totalDealers > 0
+              ? `${Math.round((stats.activeDealers / stats.totalDealers) * 100)}% of total`
+              : undefined
+          }
+          accent="emerald"
+          icon={<Icons.CheckCircleIcon className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Total Users"
+          value={stats.totalUsers}
+          hint={
+            usersByRole.admin
+              ? `${usersByRole.admin} admin · ${usersByRole.sales ?? 0} sales`
+              : undefined
+          }
+          accent="violet"
+          icon={<Icons.UserIcon className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Total Deals"
+          value={stats.totalDeals}
+          hint={stats.totalInventory > 0 ? `${stats.totalInventory.toLocaleString()} in inventory` : undefined}
+          accent="amber"
+          icon={<Icons.ClipboardDocumentIcon className="w-5 h-5" />}
+        />
+      </div>
+
+      {/* Quick actions */}
+      <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-5">
+        <p className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-3">
+          Quick actions
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onJumpTab("dealers")}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500/15 text-blue-200 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/25 transition-colors"
+          >
+            <Icons.PlusIcon className="w-4 h-4" /> Onboard new dealer
+          </button>
+          <button
+            onClick={() => onJumpTab("users")}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-violet-500/15 text-violet-200 ring-1 ring-inset ring-violet-500/30 hover:bg-violet-500/25 transition-colors"
+          >
+            <Icons.UserIcon className="w-4 h-4" /> Manage users
+          </button>
+          <button
+            onClick={() => onJumpTab("settings")}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-700/50 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-700 transition-colors"
+          >
+            <Icons.Cog6ToothIcon className="w-4 h-4" /> System settings
+          </button>
+        </div>
+      </div>
+
+      {/* Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Icons.BuildingLibraryIcon className="w-4 h-4 text-blue-400" />
+              Recent dealers
+            </h3>
+            <button
+              onClick={() => onJumpTab("dealers")}
+              className="text-xs text-slate-300 hover:text-white"
+            >
+              View all →
+            </button>
+          </div>
+          {recentDealers.length === 0 ? (
+            <EmptyState
+              icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
+              title="No dealers yet"
+              description="Onboard your first dealership to get started."
+              action={
+                <button
+                  onClick={() => onJumpTab("dealers")}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500/15 text-blue-200 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/25"
+                >
+                  <Icons.PlusIcon className="w-4 h-4" /> Onboard new dealer
+                </button>
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-slate-800">
+              {recentDealers.map((dealer) => (
+                <li
+                  key={dealer.id}
+                  className="flex items-center justify-between py-2.5 group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-blue-300 text-xs font-bold">
+                      {dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-100 truncate">{dealer.name}</p>
+                      <p className="text-xs text-slate-400 truncate">
+                        {dealer.code}
+                        {dealer.city ? ` · ${dealer.city}${dealer.state ? `, ${dealer.state}` : ""}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusPill active={dealer.active} />
+                    <button
+                      onClick={() => onImpersonate(dealer.id)}
+                      className="opacity-0 group-hover:opacity-100 text-xs text-slate-300 hover:text-white px-2 py-1 rounded-md hover:bg-slate-800 transition"
+                      title="View as this dealership"
+                    >
+                      View as →
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Icons.UserIcon className="w-4 h-4 text-violet-400" />
+              Recent users
+            </h3>
+            <button
+              onClick={() => onJumpTab("users")}
+              className="text-xs text-slate-300 hover:text-white"
+            >
+              View all →
+            </button>
+          </div>
+          {recentUsers.length === 0 ? (
+            <EmptyState
+              icon={<Icons.UserIcon className="w-5 h-5" />}
+              title="No users yet"
+              description="Users will appear here as they are added to dealerships."
+            />
+          ) : (
+            <ul className="divide-y divide-slate-800">
+              {recentUsers.map((user) => (
+                <li key={user.id} className="flex items-center justify-between py-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center text-xs font-semibold text-white ring-2 ring-slate-900">
+                      {user.firstName?.[0]}
+                      {user.lastName?.[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-100 truncate">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-slate-800 text-slate-200 ring-1 ring-inset ring-slate-700">
+                    {user.role}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1287,11 +1906,14 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const currentUser = getCurrentUser();
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setIsRefreshing(true);
+    else setIsLoading(true);
     const [statsData, dealersData, usersData] = await Promise.all([
       getSystemStats(),
       getAllDealers(),
@@ -1300,7 +1922,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
     setStats(statsData);
     setDealers(dealersData);
     setUsers(usersData);
+    setLastUpdated(new Date());
     setIsLoading(false);
+    setIsRefreshing(false);
   }, []);
 
   useEffect(() => {
@@ -1310,193 +1934,111 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-blue-600 animate-spin" />
+        <Icons.SpinnerIcon className="w-8 h-8 text-blue-400 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(59,130,246,0.08),_transparent_50%),_radial-gradient(ellipse_at_bottom_right,_rgba(139,92,246,0.08),_transparent_50%)] bg-slate-950 text-white">
       {/* Header */}
-      <header className="bg-slate-900/80 backdrop-blur-lg border-b border-slate-800 sticky top-0 z-50">
+      <header className="bg-slate-900/70 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <Icons.Cog6ToothIcon className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
+                <Icons.Cog6ToothIcon className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">Super Admin Console</h1>
-                <p className="text-sm text-slate-400">LTV Desking PRO Management</p>
+                <h1 className="text-base font-semibold tracking-tight text-white">
+                  Owner Console
+                </h1>
+                <p className="text-xs text-slate-400">LTV Desking PRO</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               {onSwitchToDealer && (
                 <Button variant="secondary" onClick={onSwitchToDealer} size="sm">
                   <Icons.ChevronLeftIcon className="w-4 h-4 mr-2" />
-                  Dealer View
+                  Dealer view
                 </Button>
               )}
-              <div className="flex items-center gap-3 px-4 py-2 bg-slate-800 rounded-xl">
-                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-sm font-medium">
+              <div className="hidden md:flex items-center gap-2.5 pl-2 pr-3 py-1.5 bg-slate-800/70 ring-1 ring-slate-700 rounded-full">
+                <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-violet-500 rounded-full flex items-center justify-center text-xs font-semibold ring-2 ring-slate-900">
                   {currentUser?.firstName?.[0]}
                   {currentUser?.lastName?.[0]}
                 </div>
-                <span className="text-sm font-medium">
+                <span className="text-xs font-medium text-slate-200">
                   {currentUser?.firstName} {currentUser?.lastName}
                 </span>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
+              <button
                 onClick={logout}
-                className="text-red-400 hover:bg-red-500/10"
+                className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                title="Sign out"
               >
                 <Icons.ArrowRightStartOnRectangleIcon className="w-4 h-4" />
-              </Button>
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs (inside header) */}
+          <div className="mt-4 flex items-center gap-1.5 flex-wrap">
+            <TabButton
+              active={activeTab === "overview"}
+              onClick={() => setActiveTab("overview")}
+              icon={<Icons.ChartIcon className="w-4 h-4" />}
+              label="Overview"
+            />
+            <TabButton
+              active={activeTab === "dealers"}
+              onClick={() => setActiveTab("dealers")}
+              icon={<Icons.BuildingLibraryIcon className="w-4 h-4" />}
+              label="Dealers"
+              badge={stats.totalDealers}
+            />
+            <TabButton
+              active={activeTab === "users"}
+              onClick={() => setActiveTab("users")}
+              icon={<Icons.UserIcon className="w-4 h-4" />}
+              label="Users"
+              badge={stats.totalUsers}
+            />
+            <TabButton
+              active={activeTab === "settings"}
+              onClick={() => setActiveTab("settings")}
+              icon={<Icons.Cog6ToothIcon className="w-4 h-4" />}
+              label="Settings"
+            />
+            <div className="ml-auto">
+              <RefreshBar
+                loading={isRefreshing}
+                lastUpdated={lastUpdated}
+                onRefresh={() => loadData(true)}
+              />
             </div>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-8">
-          <TabButton
-            active={activeTab === "overview"}
-            onClick={() => setActiveTab("overview")}
-            icon={<Icons.ChartIcon className="w-5 h-5" />}
-            label="Overview"
-          />
-          <TabButton
-            active={activeTab === "dealers"}
-            onClick={() => setActiveTab("dealers")}
-            icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
-            label="Dealers"
-          />
-          <TabButton
-            active={activeTab === "users"}
-            onClick={() => setActiveTab("users")}
-            icon={<Icons.UserIcon className="w-5 h-5" />}
-            label="Users"
-          />
-          <TabButton
-            active={activeTab === "settings"}
-            onClick={() => setActiveTab("settings")}
-            icon={<Icons.Cog6ToothIcon className="w-5 h-5" />}
-            label="Settings"
-          />
-        </div>
+        {/* tabs moved into header */}
 
         {/* Content */}
         {activeTab === "overview" && (
-          <div className="space-y-8">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard
-                label="Total Dealers"
-                value={stats.totalDealers}
-                icon={<Icons.BuildingLibraryIcon className="w-7 h-7" />}
-                color="from-blue-600 to-blue-700"
-              />
-              <StatCard
-                label="Active Dealers"
-                value={stats.activeDealers}
-                icon={<Icons.CheckCircleIcon className="w-7 h-7" />}
-                color="from-emerald-600 to-emerald-700"
-              />
-              <StatCard
-                label="Total Users"
-                value={stats.totalUsers}
-                icon={<Icons.UserIcon className="w-7 h-7" />}
-                color="from-purple-600 to-purple-700"
-              />
-              <StatCard
-                label="Total Deals"
-                value={stats.totalDeals}
-                icon={<Icons.ClipboardDocumentIcon className="w-7 h-7" />}
-                color="from-amber-600 to-amber-700"
-              />
-            </div>
-
-            {/* Quick Info */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Dealers */}
-              <div className="bg-slate-900/50 rounded-2xl border border-slate-800 p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Icons.BuildingLibraryIcon className="w-5 h-5 text-blue-400" />
-                  Recent Dealers
-                </h3>
-                <div className="space-y-3">
-                  {dealers.slice(0, 5).map((dealer) => (
-                    <div
-                      key={dealer.id}
-                      className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl"
-                    >
-                      <div>
-                        <p className="font-medium">{dealer.name}</p>
-                        <p className="text-sm text-slate-400">
-                          {dealer.city}, {dealer.state}
-                        </p>
-                      </div>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          dealer.active
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : "bg-red-500/20 text-red-400"
-                        }`}
-                      >
-                        {dealer.active ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  ))}
-                  {dealers.length === 0 && (
-                    <p className="text-slate-500 text-center py-4">No dealers yet</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Recent Users */}
-              <div className="bg-slate-900/50 rounded-2xl border border-slate-800 p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Icons.UserIcon className="w-5 h-5 text-purple-400" />
-                  Recent Users
-                </h3>
-                <div className="space-y-3">
-                  {users.slice(0, 5).map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          {user.firstName?.[0]}
-                          {user.lastName?.[0]}
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {user.firstName} {user.lastName}
-                          </p>
-                          <p className="text-sm text-slate-400">{user.email}</p>
-                        </div>
-                      </div>
-                      <span className="px-2 py-1 rounded-full text-xs bg-slate-700 text-slate-300 capitalize">
-                        {user.role}
-                      </span>
-                    </div>
-                  ))}
-                  {users.length === 0 && (
-                    <p className="text-slate-500 text-center py-4">No users yet</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          <OverviewTab
+            stats={stats}
+            dealers={dealers}
+            users={users}
+            onJumpTab={setActiveTab}
+            onImpersonate={(id) => onImpersonate?.(id)}
+          />
         )}
 
         {activeTab === "dealers" && (
           <DealerManagement
             dealers={dealers}
+            users={users}
             onRefresh={loadData}
             onImpersonate={(dealerId) => onImpersonate?.(dealerId)}
           />
