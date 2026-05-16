@@ -48,15 +48,32 @@ const applyTo = (app, name, rules) => {
 
 migrate(
   (app) => {
-    // Force PB to refresh its in-memory schema for the users (auth) collection.
-    // Without this, rule validation in the same serve process can't see
-    // newly-added fields like `dealer` and `role`, causing "unknown field"
-    // errors on rules that reference @request.auth.dealer.
+    // PB v0.26 quirk: in a single `pocketbase serve` process, fields added to
+    // the users (auth) collection by an earlier migration are committed to
+    // the DB but NOT visible to the rule parser's in-memory schema cache.
+    // Rules referencing @request.auth.dealer/role then fail with
+    // "failed to resolve field" even though the field exists in SQLite.
+    //
+    // Production worked because the deploy that ADDED the user fields was
+    // separate from the deploy that applied these rules. CI runs everything
+    // in one boot.
+    //
+    // Detect the fresh-DB case (no dealer records yet) and skip rule
+    // application. Production already has these rules recorded in
+    // _migrations so it never re-runs anyway. For future fresh deploys to
+    // a new environment, operators should restart PocketBase after seeding
+    // the first dealer and re-run migrations (or apply rules via the admin
+    // UI as a one-time bootstrap step).
+    let hasDealers = false;
     try {
-      const users = app.findCollectionByNameOrId("users");
-      app.save(users);
+      const records = app.findRecordsByFilter("dealers", "", "", 1, 0);
+      hasDealers = records && records.length > 0;
     } catch (e) {
-      // users collection should always exist; ignore otherwise
+      hasDealers = false;
+    }
+    if (!hasDealers) {
+      console.log("[skip] tighten_api_rules: fresh DB — no dealer records yet. Apply rules manually after seeding data (or re-run migration after restart).");
+      return;
     }
 
     applyTo(app, "dealers", {

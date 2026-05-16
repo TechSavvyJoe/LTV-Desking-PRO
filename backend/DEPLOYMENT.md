@@ -111,9 +111,22 @@ Current migrations in this repo:
 
 | File | What it does |
 |---|---|
+| `1746999000`-`1746999005` baselines | Idempotent baseline migrations for `dealers`, `users` (field additions), `inventory`, `lender_profiles` (pre-enrichment), `saved_deals`, `dealer_settings`. Skip if the target collection already exists (production case); create from scratch on a fresh DB (CI case). Lets CI reproduce production schema from zero. |
 | `1747400000_create_system_settings.js` | Creates the singleton `system_settings` collection used by the Owner Console Settings tab. Public read, superadmin write. Seeds one default row. |
 | `1747400001_lender_profiles_enrichment_fields.js` | Adds `website`, `portalUrl`, `generalNotes`, `enrichmentSources` fields to `lender_profiles` so the AI rate-sheet enrichment pipeline can persist its output. |
 | `1747400002_tighten_api_rules.js` | Locks every dealer-scoped collection (`dealers`, `inventory`, `lender_profiles`, `saved_deals`, `dealer_settings`, `users`) so users only see their own dealership's data. Superadmin sees everything. |
+
+### Fresh-environment caveat for `1747400002_tighten_api_rules.js`
+
+PocketBase v0.26 has an in-process schema cache that doesn't see auth-collection fields added earlier in the same `pocketbase serve` boot. The first time a brand-new PB instance applies the user-fields baseline immediately followed by the rules migration, PB's rule parser will fail with `failed to resolve field "dealer"` even though the field exists in SQLite.
+
+To work around this, `1747400002_tighten_api_rules.js` skips itself when no `dealers` records exist (fresh-DB signal). If you ever bootstrap a new environment:
+
+1. Let the baseline migrations run on first boot.
+2. Seed at least one dealer record (e.g., create one through the PB Admin UI or via the app's onboarding wizard once a superadmin is set up).
+3. Restart PB. On the second boot, the rules migration will re-evaluate — but because it's already recorded in `_migrations`, it won't re-run. Manually apply the per-dealer rules through the PB Admin UI on each collection, OR temporarily clear the `_migrations` row for it and restart.
+
+Production was unaffected because the rules migration was deployed in a separate Fly release than the user-fields setup, so PB had restarted in between.
 
 ## Database Schema
 
