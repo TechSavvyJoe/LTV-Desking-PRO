@@ -88,6 +88,33 @@ In PocketBase Admin:
 
 ---
 
+## Applying Migrations
+
+PocketBase auto-runs any JS file in `pb_migrations/` on boot. Migrations are tracked in PocketBase's internal `_migrations` table — each file runs exactly once.
+
+After committing new migrations, redeploy the backend:
+
+```bash
+cd backend
+fly deploy
+```
+
+Watch the logs to confirm migrations applied:
+
+```bash
+fly logs -a ltv-desking-pro-api
+```
+
+You should see lines like `Applied X.js`. If a migration fails, PocketBase aborts startup — fix the file and redeploy.
+
+Current migrations in this repo:
+
+| File | What it does |
+|---|---|
+| `1747400000_create_system_settings.js` | Creates the singleton `system_settings` collection used by the Owner Console Settings tab. Public read, superadmin write. Seeds one default row. |
+| `1747400001_lender_profiles_enrichment_fields.js` | Adds `website`, `portalUrl`, `generalNotes`, `enrichmentSources` fields to `lender_profiles` so the AI rate-sheet enrichment pipeline can persist its output. |
+| `1747400002_tighten_api_rules.js` | Locks every dealer-scoped collection (`dealers`, `inventory`, `lender_profiles`, `saved_deals`, `dealer_settings`, `users`) so users only see their own dealership's data. Superadmin sees everything. |
+
 ## Database Schema
 
 | Collection      | Purpose                               |
