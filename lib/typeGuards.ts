@@ -38,8 +38,11 @@ export const sanitizeId = (id: string): string => {
 };
 
 /**
- * Escapes a string for safe use in PocketBase filter expressions.
- * Prevents filter injection attacks.
+ * @deprecated Use `pb.filter("field = {:name}", { name: value })` from the
+ * PocketBase SDK instead. The SDK handles backslash and quote escaping
+ * correctly via parameterized templates and is the recommended pattern in
+ * PocketBase docs. This helper is kept only for backward compatibility with
+ * any external caller that still imports it.
  */
 export const escapeFilterString = (value: string): string => {
   // Escape backslashes first, then double quotes

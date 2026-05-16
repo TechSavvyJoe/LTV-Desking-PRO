@@ -11,7 +11,7 @@ import {
   getCurrentUser,
 } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
-import { sanitizeId, escapeFilterString } from "./typeGuards";
+import { sanitizeId } from "./typeGuards";
 import { createLogger } from "./logger";
 
 // Create structured logger for API operations
@@ -31,7 +31,7 @@ export const getInventory = async (): Promise<InventoryItem[]> => {
 
   try {
     const records = await collections.inventory.getFullList({
-      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
       sort: "-created",
     });
     return asTypeArray<InventoryItem>(records);
@@ -108,7 +108,7 @@ export const syncInventory = async (
   try {
     // Get existing inventory for this dealer
     const existingRecords = await collections.inventory.getFullList({
-      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
     });
 
     const existingByVin = new Map<string, InventoryItem>();
@@ -222,7 +222,7 @@ export const getLenderProfiles = async (): Promise<LenderProfile[]> => {
 
   try {
     const records = await collections.lenderProfiles.getFullList({
-      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
       sort: "name",
     });
     if (import.meta.env.DEV) {
@@ -257,7 +257,10 @@ export const saveLenderProfile = async (
   try {
     // Check if lender(s) with the same name already exist for this dealer
     const existingRecords = await collections.lenderProfiles.getFullList({
-      filter: `dealer = "${sanitizeId(dealerId)}" && name ~ "${escapeFilterString(profile.name)}"`,
+      filter: pb.filter("dealer = {:dealer} && name ~ {:name}", {
+        dealer: sanitizeId(dealerId),
+        name: profile.name,
+      }),
       sort: "-updated", // Most recently updated first
     });
 
@@ -352,7 +355,7 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
   try {
     // Get all lender profiles for this dealer, sorted by name and then by updated date
     const allRecords = await collections.lenderProfiles.getFullList({
-      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
       sort: "name,-updated", // Group by name, newest first within each group
     });
 
@@ -431,7 +434,7 @@ export const getSavedDeals = async (): Promise<SavedDeal[]> => {
 
   try {
     const records = await collections.savedDeals.getFullList({
-      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
       sort: "-created",
       expand: "user,vehicle",
     });
@@ -495,7 +498,7 @@ export const getDealerSettings = async (): Promise<DealerSettings | null> => {
 
   try {
     const records = await collections.dealerSettings.getList(1, 1, {
-      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
     });
     return records.items[0] ? asType<DealerSettings>(records.items[0]) : null;
   } catch (error) {
@@ -813,9 +816,7 @@ export const updateAiProviderKeys = async (input: {
  * the model list from the provider using the stored key, records the result
  * in `lastTested`, and returns the outcome.
  */
-export const testAiProviderKey = async (
-  provider: AiProviderId
-): Promise<AiProviderKeyTest> => {
+export const testAiProviderKey = async (provider: AiProviderId): Promise<AiProviderKeyTest> => {
   const user = getCurrentUser();
   if (user?.role !== "superadmin") throw new Error("Owner access required");
 
@@ -1128,13 +1129,13 @@ export const deleteUser = async (id: string): Promise<boolean> => {
 export const getDealerUsers = async (): Promise<User[]> => {
   const user = getCurrentUser();
   const dealerId = getCurrentDealerId();
-  
+
   if (!user || !dealerId) return [];
   if (user.role !== "admin" && user.role !== "superadmin") return [];
 
   try {
     const records = await pb.collection("users").getFullList({
-      filter: `dealer = "${sanitizeId(dealerId)}"`,
+      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
       sort: "firstName",
     });
     return asTypeArray<User>(records);

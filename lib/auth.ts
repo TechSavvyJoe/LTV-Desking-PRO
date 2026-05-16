@@ -1,6 +1,5 @@
 import { pb, User, Dealer, clearSuperadminDealerOverride } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
-import { escapeFilterString } from "./typeGuards";
 
 // Helper for type-safe casting
 const asType = <T>(record: RecordModel | null | undefined): T | null =>
@@ -44,7 +43,7 @@ export const register = async (
   try {
     // First, find the dealer by code
     const dealers = await pb.collection("dealers").getList(1, 1, {
-      filter: `code = "${escapeFilterString(dealerCode)}"`,
+      filter: pb.filter("code = {:code}", { code: dealerCode }),
     });
 
     if (dealers.items.length === 0) {
