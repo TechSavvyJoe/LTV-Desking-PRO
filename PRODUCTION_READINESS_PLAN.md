@@ -10,9 +10,9 @@
 
 ## Executive summary
 
-LTV Desking PRO is a single-founder automotive-desking SaaS targeting US dealerships. The backend (PocketBase on Fly), frontend (React on Vercel), and AI proxy (Vercel serverless reading keys from PB) are all live. RBAC, audit logging, dealer-tenancy hardening, and a working Owner Console with AI provider key management have shipped this quarter. The next 90 days are about (a) closing the security/ops basics (Sentry, off-volume backups, memory bump, PR-gate CI) and (b) starting the UX uplift toward "looks credible to a dealer GM" — which is what unlocks first paying customers.
+LTV Desking PRO is a single-founder automotive-desking SaaS targeting US dealerships. The backend (PocketBase on Fly), frontend (React on Vercel), and AI proxy (Vercel serverless reading keys from PB) are all live. RBAC, audit logging, dealer-tenancy hardening, an Owner Console with AI provider key management, **Sentry error tracking, Litestream → R2 backups, PR-gate CI, and pre-commit hooks** have all shipped this quarter. The next 90 days are about (a) the remaining ops/legal pre-launch gates (restore drill, privacy/ToS, PostHog) and (b) starting the UX uplift toward "looks credible to a dealer GM" — which is what unlocks first paying customers.
 
-**Right now, this week (P0):** Sentry, PR-gate CI, off-volume backups, memory bump, pre-commit hooks, `pb.filter()` parameterization.
+**Right now, this week (P0):** First quarterly restore drill, kill `as any` escape hatches, PB slow-query hook, privacy/ToS pages, PostHog with 5 events. (Previous P0 set — Sentry, PR-gate CI, off-volume backups, memory bump, pre-commit hooks, `pb.filter()` — all shipped this past sprint.)
 
 **Money required:**
 
@@ -104,33 +104,34 @@ Used by §4 to justify the "God files" call-out.
 
 ### 2.1 Now — this week (P0)
 
-| Item                                               | Status | Effort | Cost                         | Success metric                                       | Depends on          |
-| -------------------------------------------------- | ------ | ------ | ---------------------------- | ---------------------------------------------------- | ------------------- |
-| **Sentry frontend errors**                         | 📋     | XS     | $0 (free tier; 5K events/mo) | Errors visible in Sentry dashboard                   | none                |
-| **PR-gate CI** (lint + type-check + test on PR)    | 📋     | XS     | $0                           | All PRs blocked by red CI                            | none                |
-| **Pre-commit hooks** (husky + lint-staged)         | 📋     | XS     | $0                           | Bad commits never reach the remote                   | none                |
-| **`pb.filter()` parameterization** (9+ call sites) | 📋     | S      | $0                           | Zero `escapeFilterString` references in `lib/api.ts` | none                |
-| **Off-volume PB backups → R2** (Litestream)        | 📋     | S      | <$5/mo                       | Daily-tested restore works                           | R2 bucket + secrets |
-| **Memory bump 512 MB → 1 GB Fly machine**          | 📋     | XS     | +$4/mo                       | OOM removed from incident hypothesis list            | none                |
+The original §2.1 set (Sentry, PR-gate CI, pre-commit, pb.filter, R2 backups, memory bump) **all shipped** — see §1. The next P0 priorities below were pulled from §2.2 and from operational learnings during the deploy sequence.
 
-> **🎯 If you only do one thing this week** — Sentry. Five minutes of wiring, and the next deploy regression surfaces in 30 seconds instead of when a customer emails.
+| Item                                                                             | Status | Effort | Cost            | Success metric                                                                                        | Depends on |
+| -------------------------------------------------------------------------------- | ------ | ------ | --------------- | ----------------------------------------------------------------------------------------------------- | ---------- |
+| **Quarterly restore drill — first run**                                          | 📋     | S      | $0              | Spin up scratch Fly app, `litestream restore`, confirm row counts match prod                          | none       |
+| **Kill `as any` / `@ts-ignore` escape hatches** (~10 sites, mostly `lib/api.ts`) | 📋     | XS     | $0              | `grep -rE 'as any\|@ts-ignore' lib/ api/` returns 0; one reviewed `asRecord<T>` helper                | none       |
+| **PB slow-query / 5xx hook** (`pb_hooks/log.pb.js`)                              | 📋     | S      | $0              | Slow + error logs in PB stdout with structured JSON                                                   | none       |
+| **Privacy policy + Terms of service** at `/privacy` + `/terms`                   | 📋     | XS     | $0–500 (Termly) | Pages live, linked from footer; clears launch-checklist legal gate                                    | none       |
+| **PostHog with 5 events**                                                        | 📋     | M      | $0 (free tier)  | `deal_saved`, `lender_matched`, `pdf_generated`, `inventory_uploaded`, `sample_loaded` firing in prod | none       |
+
+> **🎯 If you only do one thing this week** — the restore drill. Backups that haven't been restored aren't backups. Runbook in `docs/runbooks/r2-backup-setup.md` walks through it in ~15 min.
 
 ### 2.2 Next — this quarter (Q2 2026, P1)
 
-| Item                                                                                                                              | Status | Effort | Cost                  | Success metric                                      |
-| --------------------------------------------------------------------------------------------------------------------------------- | ------ | ------ | --------------------- | --------------------------------------------------- |
-| **Break up SuperAdminDashboard.tsx** (2,610 → ≤500 LOC per file)                                                                  | 📋     | L      | $7–10K                | No single component > 800 lines                     |
-| **DealContext / React Query consolidation** (kill duplication)                                                                    | 📋     | L      | $5–7K                 | One source of truth per server resource             |
-| **Drop hand-rolled `Icons.tsx`** → `lucide-react`                                                                                 | 📋     | S      | $0–7K                 | Bundle −50 KB; consistent stroke widths             |
-| **Kill `as any` / `@ts-ignore` escape hatches** (~10+)                                                                            | 📋     | XS     | $0                    | grep returns 0; one reviewed `asRecord<T>` helper   |
-| **PB slow-query / 5xx hook**                                                                                                      | 📋     | S      | $0                    | Slow + error logs in PB stdout with structured JSON |
-| **Sentry + PostHog wired** with 5 events (`deal_saved`, `lender_matched`, `pdf_generated`, `inventory_uploaded`, `sample_loaded`) | 📋     | M      | $0                    | Funnel visible; events firing in prod               |
-| **Public marketing landing at `/`** (move app to `/app`)                                                                          | 📋     | L      | $5–10K                | First organic signup attributable to landing        |
-| **Bundle splitting + lazy-load `jspdf` / `html2canvas` / `tesseract.js`**                                                         | 📋     | M      | $0                    | First-paint JS < 500 KB gzipped                     |
-| **shadcn/ui primitive layer migration (start)**                                                                                   | 📋     | XL     | $25–40K (eng)         | Button / Input / Dialog / Toast / Tabs migrated     |
-| **State primitives:** `<EmptyState>`, `<DataLoading>`, `<DataError>`                                                              | 📋     | M      | $5–8K                 | Used on every fetch path                            |
-| **Stripe billing wired**                                                                                                          | 📋     | M      | $0 (Stripe fees only) | First test charge clears in test mode               |
-| **Privacy policy + ToS** at `/privacy` and `/terms`                                                                               | 📋     | XS     | $0–500 (Termly)       | Pages live; linked from footer                      |
+| Item                                                                                                                     | Status | Effort | Cost                  | Success metric                                                   |
+| ------------------------------------------------------------------------------------------------------------------------ | ------ | ------ | --------------------- | ---------------------------------------------------------------- |
+| **Break up SuperAdminDashboard.tsx** (2,610 → ≤500 LOC per file)                                                         | 📋     | L      | $7–10K                | No single component > 800 lines                                  |
+| **DealContext / React Query consolidation** (kill duplication)                                                           | 📋     | L      | $5–7K                 | One source of truth per server resource                          |
+| **Drop hand-rolled `Icons.tsx`** → `lucide-react`                                                                        | 📋     | S      | $0–7K                 | Bundle −50 KB; consistent stroke widths                          |
+| **Kill `as any` / `@ts-ignore` escape hatches** (~10+)                                                                   | 📋     | XS     | $0                    | grep returns 0; one reviewed `asRecord<T>` helper                |
+| **PB slow-query / 5xx hook**                                                                                             | 📋     | S      | $0                    | Slow + error logs in PB stdout with structured JSON              |
+| **PostHog wired** with 5 events (`deal_saved`, `lender_matched`, `pdf_generated`, `inventory_uploaded`, `sample_loaded`) | 📋     | M      | $0                    | Funnel visible; events firing in prod. Sentry already live (§1). |
+| **Public marketing landing at `/`** (move app to `/app`)                                                                 | 📋     | L      | $5–10K                | First organic signup attributable to landing                     |
+| **Bundle splitting + lazy-load `jspdf` / `html2canvas` / `tesseract.js`**                                                | 📋     | M      | $0                    | First-paint JS < 500 KB gzipped                                  |
+| **shadcn/ui primitive layer migration (start)**                                                                          | 📋     | XL     | $25–40K (eng)         | Button / Input / Dialog / Toast / Tabs migrated                  |
+| **State primitives:** `<EmptyState>`, `<DataLoading>`, `<DataError>`                                                     | 📋     | M      | $5–8K                 | Used on every fetch path                                         |
+| **Stripe billing wired**                                                                                                 | 📋     | M      | $0 (Stripe fees only) | First test charge clears in test mode                            |
+| **Privacy policy + ToS** at `/privacy` and `/terms`                                                                      | 📋     | XS     | $0–500 (Termly)       | Pages live; linked from footer                                   |
 
 ### 2.3 Later — Q3 + Q4 2026 (P2)
 
@@ -217,13 +218,13 @@ Hire a UX writer for 3 weeks of voice + tone guide + pass over every visible str
 | Item                                                              | Status     | Effort       | Cost       | Notes                                                  |
 | ----------------------------------------------------------------- | ---------- | ------------ | ---------- | ------------------------------------------------------ |
 | Fly `/api/health` check                                           | ✅ shipped | —            | —          | 30 s interval, in `fly.toml`                           |
-| Memory 512 → 1024 MB                                              | 📋         | XS           | +$4/mo     | Removes "is this OOM?" from incident triage            |
-| Litestream replication → Cloudflare R2                            | 📋         | S            | <$5/mo     | Live WAL streaming; ~seconds of RPO                    |
+| Memory 512 → 1024 MB                                              | ✅ shipped | —            | +$4/mo     | Deploy 25970975192                                     |
+| Litestream replication → Cloudflare R2                            | ✅ shipped | —            | <$5/mo     | 10 s sync interval; first snapshot 31 KB in 176 ms     |
 | Two-machine warm standby (Litestream v0.5+ live SQLite-to-SQLite) | 📋         | L            | +$10–20/mo | Manual failover via anycast; not active-active         |
-| Slow-query / 5xx PB hook                                          | 📋         | S            | $0         | `pb_hooks/log.pb.js` — sibling to `dealer_guard.pb.js` |
+| Slow-query / 5xx PB hook                                          | 📋 P0      | S            | $0         | `pb_hooks/log.pb.js` — sibling to `dealer_guard.pb.js` |
 | Dealer write-guard hook                                           | ✅ shipped | —            | —          | `pb_hooks/dealer_guard.pb.js`                          |
-| `pb.filter()` parameterized queries                               | 📋         | S            | $0         | Replace 9+ `escapeFilterString` call sites             |
-| Scheduled backup-restore drill                                    | 📋         | XS quarterly | $0         | Quarterly calendar invite                              |
+| `pb.filter()` parameterized queries                               | ✅ shipped | —            | $0         | All 9 sites migrated; `escapeFilterString` deprecated  |
+| Scheduled backup-restore drill                                    | 📋 P0      | XS quarterly | $0         | First drill due this week — see §2.1                   |
 
 > **❌ Don't migrate to Postgres yet.** SQLite-on-Fly handles 10s of QPS comfortably and that's plenty of headroom. The day you outgrow it is a happy problem.
 
@@ -246,21 +247,23 @@ All complete this quarter. Documented in §1 and `backend/DEPLOYMENT.md`.
 
 ### 4.4 Observability
 
-| Item                                                                        | Status | Effort | Cost                                         | Notes                                                  |
-| --------------------------------------------------------------------------- | ------ | ------ | -------------------------------------------- | ------------------------------------------------------ |
-| Sentry frontend                                                             | 📋 P0  | XS     | $0 (5K events/mo free); $26/mo for Team plan | Wire in `index.tsx`                                    |
-| PostHog product analytics                                                   | 📋     | S      | $0 (1M events/mo free)                       | `posthog.identify(user.id, {dealer, role})` + 5 events |
-| Status page (instatus or statuspage.io)                                     | 📋     | XS     | $20–50/mo                                    | Subscribe-to-incidents required for enterprise         |
-| On-call (PagerDuty or Opsgenie)                                             | 📋     | XS     | $0–20/mo                                     | Sentry → page → phone                                  |
-| Runbooks (PB down / DB restore / customer locked out / OOM / AI rate-limit) | 📋     | M      | $0                                           | Five markdown files in `docs/runbooks/`                |
+| Item                                    | Status     | Effort | Cost                                         | Notes                                                                                     |
+| --------------------------------------- | ---------- | ------ | -------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Sentry frontend                         | ✅ shipped | —      | $0 (5K events/mo free); $26/mo for Team plan | `lib/sentry.ts` + ErrorBoundary capture; ingestion verified with real test event          |
+| PostHog product analytics               | 📋 P0      | M      | $0 (1M events/mo free)                       | `posthog.identify(user.id, {dealer, role})` + 5 events — see §2.1                         |
+| Status page (instatus or statuspage.io) | 📋         | XS     | $20–50/mo                                    | Subscribe-to-incidents required for enterprise                                            |
+| On-call (PagerDuty or Opsgenie)         | 📋         | XS     | $0–20/mo                                     | Sentry → page → phone                                                                     |
+| Runbooks                                | 🚧 partial | M      | $0                                           | `r2-backup-setup.md` shipped; still owe: PB down, customer locked out, OOM, AI rate-limit |
 
 ### 4.5 CI / DX
 
 | Item                                                           | Status     | Effort    | Cost |
 | -------------------------------------------------------------- | ---------- | --------- | ---- |
 | `validate-migrations` job                                      | ✅ shipped | —         | —    |
-| PR-gate CI (lint + type-check + test on `pull_request`)        | 📋 P0      | XS        | $0   |
-| Pre-commit hooks (husky + lint-staged)                         | 📋 P0      | XS        | $0   |
+| PR-gate CI (lint + type-check + test on `pull_request`)        | ✅ shipped | —         | $0   |
+| Pre-commit hooks (husky + lint-staged)                         | ✅ shipped | —         | $0   |
+| Fly diagnostics workflows (`fly-diag.yml`, `recover-fly.yml`)  | ✅ shipped | —         | $0   |
+| Fly secrets management via CI (`set-fly-secrets.yml`)          | ✅ shipped | —         | $0   |
 | Renovate or Dependabot with auto-merge for patches             | 📋         | XS        | $0   |
 | CODEOWNERS + PR template + Conventional Commits + `commitlint` | 📋         | S         | $0   |
 | ADR folder (`docs/adr/`)                                       | 📋         | S ongoing | $0   |
@@ -417,7 +420,7 @@ Many dealer groups own 5–50 stores under one umbrella. Today's `dealer` is one
 ### 7.2 Multi-tenancy
 
 - ✅ **Dealer write-guard hook** (`dealer_guard.pb.js`) — closed
-- 📋 **`pb.filter()` parameterized** queries (kill `escapeFilterString`)
+- ✅ **`pb.filter()` parameterized** queries (`escapeFilterString` now deprecated; all 9 sites migrated)
 - ✅ **Audit log** (`audit_log` append-only) — closed; extend `action` enum as needed
 - 📋 **PII inventory** — document everything stored about end customers and which collection holds it (GDPR/CCPA right-to-delete)
 
@@ -576,16 +579,16 @@ Concrete gates before charging customers. Every box must be ✅ before the first
 - [ ] Subprocessor list at `/subprocessors`
 - [ ] Email-verified signup (PB setting on)
 - [ ] Password policy enforced (min 12 chars + breach check)
-- [ ] Audit log live ✅
-- [ ] Dealer write-guard hook live ✅
+- [x] Audit log live
+- [x] Dealer write-guard hook live
 - [ ] Secrets rotation runbook documented
 - [ ] CSP header in place
 
 ### Reliability
 
-- [ ] At least one off-volume backup taken AND restored to a scratch Fly app
-- [ ] Sentry frontend wired ✅
-- [ ] Fly health check live ✅
+- [x] Off-volume backup chain live (Litestream → R2; first snapshot verified). Restore drill still owed.
+- [x] Sentry frontend wired (DSN baked, ingestion verified)
+- [x] Fly health check live
 - [ ] Status page live (instatus / statuspage.io)
 - [ ] Runbook for PB down, DB restore, customer locked out
 - [ ] On-call schedule (even if solo, email-to-phone via Sentry alerts)
@@ -600,7 +603,7 @@ Concrete gates before charging customers. Every box must be ✅ before the first
 - [ ] All forms have proper labels
 - [ ] All toasts have `aria-live="polite"` (or `assertive` for errors)
 - [ ] Skip nav works (keyboard tab from URL bar lands on `<main>`)
-- [ ] Tab state survives refresh ✅
+- [x] Tab state survives refresh
 - [ ] Tabular numerals on every financial column
 
 ### Commercial
@@ -613,10 +616,10 @@ Concrete gates before charging customers. Every box must be ✅ before the first
 
 ### Engineering
 
-- [ ] PR-gate CI green on `main`
-- [ ] Pre-commit hooks installed
+- [x] PR-gate CI runs on every PR
+- [x] Pre-commit hooks installed (husky + lint-staged)
 - [ ] No `as any` / `@ts-ignore` in `lib/api.ts`
-- [ ] `pb.filter()` parameterized throughout
+- [x] `pb.filter()` parameterized throughout
 - [ ] Renovate or Dependabot enabled
 
 ---
@@ -642,28 +645,43 @@ Concrete pass/fail. If all are true, you're at Linear-grade.
 
 ## §13 Risk register
 
-| Risk                                                           | Likelihood | Impact | Mitigation                                                                          | Status     |
-| -------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------- | ---------- |
-| Single-region Fly machine outage                               | M          | H      | Litestream + warm-standby in second region (§4.1)                                   | 📋         |
-| SuperAdminDashboard grows past maintainability                 | H          | M      | Break up this quarter (§4.2)                                                        | 📋         |
-| AI provider rate-limit during launch surge                     | M          | M      | Multi-provider fallback already in `aiDefaults`; Owner Console can switch           | ✅ partial |
-| AI key compromise via Vercel env leak                          | L          | H      | Keys in PB (not env); audit log on every change ✅; quarterly rotation              | ✅ partial |
-| F&I Sentinel becomes table-stakes Q3 2026                      | M          | H      | Schema ready; integration deferred (§6.4)                                           | 📋         |
-| TILA disclosure not stored immutably                           | M          | H      | Extend `audit_log` `action` enum (§6.3)                                             | 📋         |
-| SOC 2 demanded by first enterprise prospect before we're ready | M          | M      | Start Vanta/Drata when first 100-store conversation opens; ~$10–22 K                | 📋         |
-| Vercel function 4.5 MB body cap hit by large lender PDFs       | M          | M      | Client-side PDF compression first; Blob direct-upload if needed (§4.3)              | 📋         |
-| `escapeFilterString` injection (any future bug)                | L          | H      | Replace with `pb.filter()` (§7.2)                                                   | 📋         |
-| OOM on 512 MB Fly machine under AI proxy load                  | M          | M      | Bump to 1 GB (§2.1, +$4/mo)                                                         | 📋         |
-| Customer complains about missing F&I compliance feature        | M          | M      | Compliance consultant review before first paid customer                             | 📋         |
-| Lost laptop = lost flyctl auth = locked out of prod deploys    | L          | M      | GH Actions deploy workflow ✅; backup token in 1Password                            | ✅         |
-| All AI keys revoked simultaneously (unlikely but high-impact)  | L          | H      | Multi-provider; default-provider Owner Console switch; document recovery in runbook | 📋         |
-| Frontend ESM bundling regression breaks Vercel function        | L          | M      | Lesson documented in §4.3 + decision log; `.js` extensions required                 | ✅         |
+| Risk                                                                 | Likelihood | Impact | Mitigation                                                                                                 | Status     |
+| -------------------------------------------------------------------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------- | ---------- |
+| Single-region Fly machine outage                                     | M          | H      | Litestream → R2 backups live (10 s RPO) ✅; second-region warm standby still pending (§4.1)                | ✅ partial |
+| SuperAdminDashboard grows past maintainability                       | H          | M      | Break up this quarter (§4.2)                                                                               | 📋         |
+| AI provider rate-limit during launch surge                           | M          | M      | Multi-provider fallback already in `aiDefaults`; Owner Console can switch                                  | ✅ partial |
+| AI key compromise via Vercel env leak                                | L          | H      | Keys in PB (not env); audit log on every change ✅; quarterly rotation                                     | ✅ partial |
+| F&I Sentinel becomes table-stakes Q3 2026                            | M          | H      | Schema ready; integration deferred (§6.4)                                                                  | 📋         |
+| TILA disclosure not stored immutably                                 | M          | H      | Extend `audit_log` `action` enum (§6.3)                                                                    | 📋         |
+| SOC 2 demanded by first enterprise prospect before we're ready       | M          | M      | Start Vanta/Drata when first 100-store conversation opens; ~$10–22 K                                       | 📋         |
+| Vercel function 4.5 MB body cap hit by large lender PDFs             | M          | M      | Client-side PDF compression first; Blob direct-upload if needed (§4.3)                                     | 📋         |
+| `escapeFilterString` injection (any future bug)                      | L          | H      | All 9 sites migrated to `pb.filter()`; helper deprecated                                                   | ✅         |
+| OOM on 512 MB Fly machine under AI proxy load                        | M          | M      | Bumped to 1 GB                                                                                             | ✅         |
+| Production error visibility (silent failures)                        | M          | M      | Sentry frontend live; ingestion verified end-to-end                                                        | ✅         |
+| Customer complains about missing F&I compliance feature              | M          | M      | Compliance consultant review before first paid customer                                                    | 📋         |
+| Lost laptop = lost flyctl auth = locked out of prod deploys          | L          | M      | GH Actions deploy + `set-fly-secrets` + `recover-fly` + `fly-diag` workflows ✅; backup token in 1Password | ✅         |
+| All AI keys revoked simultaneously (unlikely but high-impact)        | L          | H      | Multi-provider; default-provider Owner Console switch; document recovery in runbook                        | 📋         |
+| Frontend ESM bundling regression breaks Vercel function              | L          | M      | Lesson documented in §4.3 + decision log; `.js` extensions required                                        | ✅         |
+| Backups untested — never actually restored                           | M          | H      | Quarterly restore drill scheduled (§2.1); runbook in `docs/runbooks/r2-backup-setup.md`                    | 📋 P0      |
+| Lint/type-check drift slips into `main` without local-run discipline | M          | M      | PR-gate CI + pre-commit hooks ✅                                                                           | ✅         |
 
 ---
 
 ## §14 Decision log
 
 Short ADR-style entries. Each captures the choice + rationale + tradeoff. New decisions go on top.
+
+### 2026-05-16 · Litestream wrapper bug — use absolute path, never bare `litestream`
+
+**Context.** First attempt at the Litestream wrapper deploy returned a 502 with `/pb/start.sh: exec: line 35: litestream: not found` in fly logs. The binary was at `/pb/litestream` but `start.sh` called it as bare `litestream`, which didn't resolve against the container's `$PATH`. Machine entered restart loop and hit `max restart count of 10`. Took down production for ~6 minutes until `recover-fly.yml` workflow unset the secrets and forced the fallback to plain PB.
+**Decision.** Always use absolute paths (`/pb/litestream`, `/pb/pocketbase`) in `start.sh`. Drop `set -e` (a non-fatal Litestream warning should never kill PB). Wrap `litestream restore` in `timeout 30s` so a hung lookup can't pin the container in init. Background Litestream as a child + run PB in the foreground (cleaner exit semantics than `litestream replicate -exec`).
+**Tradeoff.** Loses some "if env is weird, fail loud" safety. Acceptable — Litestream is a sidecar to the actual app, and the wrapper's primary job is "never block PB from starting."
+
+### 2026-05-16 · Wire scripts must validate derived values before submitting
+
+**Context.** `docs/runbooks/wire-sentry-and-r2.sh` reads a Cloudflare account ID from stdin and derives `LITESTREAM_ENDPOINT` from it. A doubled paste (32 hex chars stored as 64) produced an endpoint with the account ID concatenated twice, which silently passed `gh secret set` and only surfaced when Litestream's first DNS lookup failed.
+**Decision.** Derived values that have a known format get validated before they're stored. The script now asserts the account ID is exactly 32 hex characters and echoes the derived endpoint for visual verification before writing the secret.
+**Tradeoff.** Slightly more friction at run time. Acceptable — silent bad-secret bugs are much worse to debug.
 
 ### 2026-05-16 · Vercel function imports must use `.js` extensions
 
