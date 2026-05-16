@@ -29,8 +29,21 @@ read -rsp "R2 Secret Access Key:                          " R2_SECRET; echo
 read -rsp "Sentry DSN (https://...@sentry.io/...):        " SENTRY_DSN; echo
 echo
 
+# Sanity-check the account ID: must be exactly 32 hex chars. A doubled
+# paste (~64 chars) would silently break LITESTREAM_ENDPOINT downstream.
+if ! printf '%s' "$CF_ACCOUNT_ID" | grep -Eq '^[0-9a-f]{32}$'; then
+  echo "ERROR: Cloudflare account ID must be exactly 32 hex characters." >&2
+  echo "       Got: ${#CF_ACCOUNT_ID} chars. Aborting." >&2
+  exit 1
+fi
+
 # Derive the S3-compatible endpoint from the account ID
 R2_ENDPOINT="https://${CF_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+echo
+echo "Derived R2 endpoint: $R2_ENDPOINT"
+echo "(verify this looks right before continuing)"
+echo
 
 echo "Pushing 5 GitHub Actions secrets…"
 printf '%s' "ltv-desking-pro-backups" | gh secret set LITESTREAM_BUCKET --app actions
