@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import { handleAiRequest } from "./routes";
+import { handleAiRequest } from "../../api/_lib/ai/routes";
 
 export const aiRoutesPlugin = (): Plugin => ({
   name: "ltv-ai-routes",

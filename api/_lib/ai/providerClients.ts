@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import type { AiProvider } from "../../lib/aiModelRegistry";
+import type { AiProvider } from "../../../lib/aiModelRegistry";
 import { withAiTimeout } from "./timeout";
 
 export interface AiPdfInput {

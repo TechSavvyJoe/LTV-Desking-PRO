@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AI_MODELS, getDefaultModelForTask, getModelsForTask } from "../../lib/aiModelRegistry";
+import { AI_MODELS, getDefaultModelForTask, getModelsForTask } from "../../../lib/aiModelRegistry";
 import { resolveAiModel } from "./modelSelection";
 
 describe("AI model registry and selection", () => {

@@ -6,7 +6,7 @@ import {
   type AiProvider,
   type AiSettings,
   type AiTask,
-} from "../../lib/aiModelRegistry";
+} from "../../../lib/aiModelRegistry";
 
 export interface ProviderKeys {
   openai?: string;

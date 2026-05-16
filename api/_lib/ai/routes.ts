@@ -4,7 +4,7 @@ import {
   buildAiModelRegistryResponse,
   type AiSettings,
   type AiTask,
-} from "../../lib/aiModelRegistry";
+} from "../../../lib/aiModelRegistry";
 import {
   buildDealAnalysisPrompt,
   buildLenderEnrichmentPrompt,
@@ -23,7 +23,7 @@ import {
   parseLenderEnrichResponse,
   parseLenderExtractResponse,
 } from "./schemas";
-import { getDefaultModelForTask } from "../../lib/aiModelRegistry";
+import { getDefaultModelForTask } from "../../../lib/aiModelRegistry";
 
 const FilePayloadSchema = z.object({
   name: z.string().min(1),
