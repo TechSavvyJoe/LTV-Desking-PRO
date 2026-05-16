@@ -575,7 +575,39 @@ export interface SystemSettings {
   announcementBanner?: string;
   signupsEnabled?: boolean;
   defaultLtvThresholds?: unknown;
+  aiDefaults?: AiDefaults;
 }
+
+export interface AiDefaults {
+  provider?: "openai" | "anthropic" | "gemini";
+  lenderExtractModel?: string;
+  dealAnalysisModel?: string;
+  quickModel?: string;
+}
+
+export type AiProviderId = "openai" | "anthropic" | "gemini";
+
+export interface AiProviderKeyTest {
+  at: string;
+  ok: boolean;
+  error?: string;
+}
+
+export interface MaskedAiProviderKeys {
+  id?: string;
+  openaiApiKey?: string;
+  anthropicApiKey?: string;
+  geminiApiKey?: string;
+  configured: Record<AiProviderId, boolean>;
+  lastTested: Partial<Record<AiProviderId, AiProviderKeyTest>>;
+}
+
+const maskKey = (raw: string | undefined | null): string => {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  if (trimmed.length <= 8) return "•".repeat(trimmed.length);
+  return `${trimmed.slice(0, 4)}…${trimmed.slice(-4)}`;
+};
 
 const SYSTEM_SETTINGS_CACHE_KEY = "ltv_system_settings_cache";
 
@@ -632,6 +664,182 @@ export const updateSystemSettings = async (
     // Ignore storage errors
   }
   return settings;
+};
+
+// ============================================
+// SUPERADMIN: Audit Log
+// ============================================
+
+export interface AuditLogEntry {
+  id: string;
+  actor: string;
+  action: string;
+  target?: string;
+  details?: unknown;
+  created: string;
+  expand?: { actor?: { email?: string; firstName?: string; lastName?: string } };
+}
+
+const writeAuditLog = async (input: {
+  action: string;
+  target?: string;
+  details?: unknown;
+}): Promise<void> => {
+  const user = getCurrentUser();
+  if (!user?.id) return;
+  try {
+    await pb.collection("audit_log").create({
+      actor: user.id,
+      action: input.action,
+      target: input.target ?? "",
+      details: input.details ?? {},
+    });
+  } catch (error) {
+    // Audit logging must never break the user's action — just warn.
+    apiLogger.warn("audit log write failed", { error, action: input.action });
+  }
+};
+
+export const listAuditLog = async (limit = 25): Promise<AuditLogEntry[]> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") throw new Error("Owner access required");
+  const list = await pb.collection("audit_log").getList(1, limit, {
+    sort: "-created",
+    expand: "actor",
+  });
+  return list.items as unknown as AuditLogEntry[];
+};
+
+// ============================================
+// SUPERADMIN: AI Provider Keys (singleton)
+// ============================================
+
+/**
+ * Returns the singleton AI provider key record with keys masked (only last 4
+ * chars visible). The server-side AI proxy reads full keys directly from PB —
+ * the frontend should never see full keys.
+ */
+export const getMaskedAiProviderKeys = async (): Promise<MaskedAiProviderKeys> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") throw new Error("Owner access required");
+
+  const list = await pb.collection("ai_provider_keys").getFullList({ sort: "created" });
+  const first = list[0];
+  if (!first) {
+    return {
+      configured: { openai: false, anthropic: false, gemini: false },
+      lastTested: {},
+    };
+  }
+  const raw = first as unknown as {
+    id: string;
+    openaiApiKey?: string;
+    anthropicApiKey?: string;
+    geminiApiKey?: string;
+    lastTested?: Partial<Record<AiProviderId, AiProviderKeyTest>>;
+  };
+  return {
+    id: raw.id,
+    openaiApiKey: maskKey(raw.openaiApiKey),
+    anthropicApiKey: maskKey(raw.anthropicApiKey),
+    geminiApiKey: maskKey(raw.geminiApiKey),
+    configured: {
+      openai: Boolean(raw.openaiApiKey && raw.openaiApiKey.length > 0),
+      anthropic: Boolean(raw.anthropicApiKey && raw.anthropicApiKey.length > 0),
+      gemini: Boolean(raw.geminiApiKey && raw.geminiApiKey.length > 0),
+    },
+    lastTested: raw.lastTested ?? {},
+  };
+};
+
+/**
+ * Update one or more provider keys. Pass only the keys you want to change —
+ * empty / undefined values are ignored so you can't accidentally wipe a key
+ * by leaving the input blank in the UI.
+ *
+ * Use `clear: ["openai"]` to explicitly delete a stored key.
+ */
+export const updateAiProviderKeys = async (input: {
+  openaiApiKey?: string;
+  anthropicApiKey?: string;
+  geminiApiKey?: string;
+  clear?: AiProviderId[];
+}): Promise<MaskedAiProviderKeys> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") throw new Error("Owner access required");
+
+  const list = await pb.collection("ai_provider_keys").getFullList({ sort: "created" });
+  const existing = list[0];
+
+  const patch: Record<string, string> = {};
+  if (input.openaiApiKey && input.openaiApiKey.trim()) {
+    patch.openaiApiKey = input.openaiApiKey.trim();
+  }
+  if (input.anthropicApiKey && input.anthropicApiKey.trim()) {
+    patch.anthropicApiKey = input.anthropicApiKey.trim();
+  }
+  if (input.geminiApiKey && input.geminiApiKey.trim()) {
+    patch.geminiApiKey = input.geminiApiKey.trim();
+  }
+  for (const provider of input.clear ?? []) {
+    patch[`${provider}ApiKey`] = "";
+  }
+
+  if (existing) {
+    await pb.collection("ai_provider_keys").update(existing.id, patch);
+  } else {
+    await pb.collection("ai_provider_keys").create({
+      openaiApiKey: patch.openaiApiKey ?? "",
+      anthropicApiKey: patch.anthropicApiKey ?? "",
+      geminiApiKey: patch.geminiApiKey ?? "",
+      lastTested: {},
+    });
+  }
+
+  for (const provider of ["openai", "anthropic", "gemini"] as const) {
+    if (patch[`${provider}ApiKey`] && patch[`${provider}ApiKey`] !== "") {
+      await writeAuditLog({ action: "ai_key_updated", target: provider });
+    }
+  }
+  for (const provider of input.clear ?? []) {
+    await writeAuditLog({ action: "ai_key_cleared", target: provider });
+  }
+
+  return getMaskedAiProviderKeys();
+};
+
+/**
+ * Server-side liveness test for a stored provider key. The server fetches
+ * the model list from the provider using the stored key, records the result
+ * in `lastTested`, and returns the outcome.
+ */
+export const testAiProviderKey = async (
+  provider: AiProviderId
+): Promise<AiProviderKeyTest> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") throw new Error("Owner access required");
+
+  const response = await fetch(`/api/ai/test-key`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${pb.authStore.token}` },
+    body: JSON.stringify({ provider }),
+  });
+  const body = (await response.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+    at?: string;
+  };
+  const result: AiProviderKeyTest = {
+    at: body.at ?? new Date().toISOString(),
+    ok: Boolean(body.ok),
+    error: body.error,
+  };
+  await writeAuditLog({
+    action: "ai_key_tested",
+    target: provider,
+    details: { ok: result.ok, error: result.error },
+  });
+  return result;
 };
 
 // ============================================

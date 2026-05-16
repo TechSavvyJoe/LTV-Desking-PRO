@@ -115,6 +115,59 @@ Current migrations in this repo:
 | `1747400000_create_system_settings.js` | Creates the singleton `system_settings` collection used by the Owner Console Settings tab. Public read, superadmin write. Seeds one default row. |
 | `1747400001_lender_profiles_enrichment_fields.js` | Adds `website`, `portalUrl`, `generalNotes`, `enrichmentSources` fields to `lender_profiles` so the AI rate-sheet enrichment pipeline can persist its output. |
 | `1747400002_tighten_api_rules.js` | Locks every dealer-scoped collection (`dealers`, `inventory`, `lender_profiles`, `saved_deals`, `dealer_settings`, `users`) so users only see their own dealership's data. Superadmin sees everything. |
+| `1747500000_backfill_email_visibility.js` | Flips `emailVisibility=true` on every existing user record so the Owner Console can see emails. PB auth collections hide email by default. |
+| `1747600000_create_ai_provider_keys.js` | Creates the singleton `ai_provider_keys` collection (superadmin-only RBAC). Stores OpenAI / Anthropic / Gemini keys edited from the Owner Console. |
+| `1747600001_add_ai_defaults_to_system_settings.js` | Adds `aiDefaults` (default provider + per-task model) to `system_settings`. |
+| `1747600002_create_audit_log.js` | Creates append-only `audit_log` collection. Records every AI key update, removal, and test attempt (actor, action, target, details). Superadmin-only read. |
+
+## AI server architecture
+
+The AI proxy serves `/api/ai/*` and exists in two places:
+
+| Environment | Where the proxy runs | How it gets keys |
+|---|---|---|
+| Local dev (`npm run dev`) | Vite middleware (`server/ai/vitePlugin.ts`) | `keyResolver.ts` → PB `ai_provider_keys` collection if PB creds are set, else local `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` env vars. |
+| Production | Vercel serverless function at `api/ai/[...path].ts` | Same `keyResolver.ts` → PB. Authenticates to PB using a `_superusers` account via `PB_SERVICE_EMAIL` / `PB_SERVICE_PASSWORD` env vars on Vercel. |
+
+Both code paths share `server/ai/routes.ts` — the Vercel function is a thin wrapper. Keys live in PB at rest; the proxy reads them per-request (cached 60s).
+
+### Production setup
+
+1. Create a PocketBase `_superusers` row that the AI proxy will use:
+   - PB Admin UI → `_superusers` → New
+   - Set a strong password
+2. On Vercel, set the following Project Environment Variables (Production scope):
+   - `PB_INTERNAL_URL` = `https://ltv-desking-pro-api.fly.dev`
+   - `PB_SERVICE_EMAIL` = the superuser email above
+   - `PB_SERVICE_PASSWORD` = the superuser password
+3. Deploy the frontend. Vercel will auto-build `api/ai/[...path].ts` as a Node serverless function.
+4. In the Owner Console → Settings → AI Providers, add provider keys. Click **Test** on each to verify the key works against the provider.
+
+### Request size limit (Vercel)
+
+Vercel Node functions cap the request body at ~4.5 MB. Lender PDFs above ~3 MB (base64 expands ~33%) will fail the lender-extract route with HTTP 413.
+
+If you hit this:
+
+1. **Compress the PDF client-side first** — most rate sheets compress 60-80% via a single Ghostscript pass; could be wired into `AiLenderManagerModal.tsx`.
+2. **Direct upload to Vercel Blob, then pass a URL** — function downloads the file server-side, bypassing the request-body cap. Requires the `@vercel/blob` package + signed-upload endpoint.
+3. **Run the AI proxy as a Fly sidecar** — no platform body cap. Bigger lift; only worth it if (1) and (2) aren't enough.
+
+### Function timeout
+
+`api/ai/[...path].ts` sets `maxDuration: 300` (Fluid Compute default). Lender extract with Gemini grounding can take 60-120 s on large PDFs; this leaves headroom. Hobby plan tops out at 60s — production must be on Pro or higher.
+
+### Authentication
+
+Every `/api/ai/*` request except `GET /api/ai/models` requires a PocketBase bearer token in `Authorization: Bearer <token>`. The frontend's `services/aiProcessor.ts` attaches it automatically from `pb.authStore.token`. `/api/ai/test-key` additionally requires `role = "superadmin"`. Auth is validated via `pb.collection("users").authRefresh()` on every request (no caching — revocation must be honored).
+
+## PocketBase hooks
+
+JS hook files in `backend/pb_hooks/` are loaded by PocketBase on boot. Current hooks:
+
+| File | What it does |
+|---|---|
+| `dealer_guard.pb.js` | Defense-in-depth on writes. On every create/update of an `inventory`, `lender_profiles`, `saved_deals`, or `dealer_settings` record, the `dealer` field is overwritten with the auth user's `dealer`. Superadmins are exempt. Closes the gap where the read-side RBAC rules block cross-dealer reads but write rules trusted client-supplied `dealer` values. |
 
 ### Fresh-environment caveat for `1747400002_tighten_api_rules.js`
 

@@ -14,9 +14,21 @@ import {
   deleteUser,
   getSystemSettings,
   updateSystemSettings,
+  getMaskedAiProviderKeys,
+  updateAiProviderKeys,
+  testAiProviderKey,
+  listAuditLog,
+  AuditLogEntry,
   SystemStats,
   SystemSettings,
+  MaskedAiProviderKeys,
+  AiProviderId,
 } from "../../lib/api";
+import {
+  AI_MODELS,
+  AI_PROVIDER_ORDER,
+  DEFAULT_AI_SETTINGS,
+} from "../../lib/aiModelRegistry";
 import { logout } from "../../lib/auth";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
@@ -1571,6 +1583,466 @@ const UserManagement: React.FC<{
 // System Settings Panel
 // ============================================
 
+// ============================================
+// AI Provider Keys Card
+// ============================================
+
+const PROVIDER_META: { id: AiProviderId; label: string; placeholder: string }[] = [
+  { id: "openai", label: "OpenAI", placeholder: "sk-…" },
+  { id: "anthropic", label: "Anthropic", placeholder: "sk-ant-…" },
+  { id: "gemini", label: "Google Gemini", placeholder: "AIza…" },
+];
+
+const AiProvidersCard: React.FC = () => {
+  const [data, setData] = useState<MaskedAiProviderKeys | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<AiProviderId | null>(null);
+  const [draft, setDraft] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState<AiProviderId | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const next = await getMaskedAiProviderKeys();
+      setData(next);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load AI provider keys");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const startEdit = (provider: AiProviderId) => {
+    setEditing(provider);
+    setDraft("");
+    setError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setDraft("");
+  };
+
+  const saveKey = async (provider: AiProviderId) => {
+    if (!draft.trim()) {
+      setError("Paste a key before saving.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await updateAiProviderKeys({ [`${provider}ApiKey`]: draft.trim() });
+      setEditing(null);
+      setDraft("");
+      await refresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save key");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const clearKey = async (provider: AiProviderId) => {
+    const ok = await confirmAction({
+      title: "Remove provider key",
+      message: `Remove the ${provider} key? AI requests routed to this provider will start failing.`,
+      tone: "danger",
+      confirmLabel: "Remove",
+    });
+    if (!ok) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await updateAiProviderKeys({ clear: [provider] });
+      await refresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to clear key");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const testKey = async (provider: AiProviderId) => {
+    setTesting(provider);
+    setError(null);
+    try {
+      await testAiProviderKey(provider);
+      await refresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Test failed");
+    } finally {
+      setTesting(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6">
+        <Icons.SpinnerIcon className="w-5 h-5 text-blue-400 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-5">
+      <div>
+        <h3 className="text-base font-semibold text-white tracking-tight">AI Providers</h3>
+        <p className="text-xs text-slate-400 mt-0.5">
+          Keys are stored in your PocketBase backend and read by the AI proxy at request time.
+          The frontend never sees full keys.
+        </p>
+      </div>
+
+      {error && (
+        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-3 py-2 text-xs text-rose-200">
+          {error}
+        </div>
+      )}
+
+      <div className="divide-y divide-slate-800/80 -mx-2">
+        {PROVIDER_META.map((p) => {
+          const configured = data?.configured[p.id] ?? false;
+          const masked = (data?.[`${p.id}ApiKey` as const] as string | undefined) ?? "";
+          const lastTest = data?.lastTested[p.id];
+          const isEditing = editing === p.id;
+          return (
+            <div key={p.id} className="px-2 py-3 flex flex-wrap items-center gap-3">
+              <div className="min-w-[120px]">
+                <p className="text-sm font-medium text-slate-100">{p.label}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {configured ? "Configured" : "Not configured"}
+                </p>
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                {isEditing ? (
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder={p.placeholder}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  />
+                ) : (
+                  <span className="inline-block px-2 py-1 rounded bg-slate-950 ring-1 ring-slate-800 text-xs font-mono text-slate-300">
+                    {configured ? masked || "••••" : "—"}
+                  </span>
+                )}
+                {lastTest && !isEditing && (
+                  <p
+                    className={`text-[11px] mt-1 ${
+                      lastTest.ok ? "text-emerald-300" : "text-rose-300"
+                    }`}
+                  >
+                    {lastTest.ok ? "Live ✓" : "Failed ✗"} {" · "}
+                    {new Date(lastTest.at).toLocaleString()}
+                    {lastTest.error && !lastTest.ok && (
+                      <span className="text-rose-300/80"> — {lastTest.error}</span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {isEditing ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => saveKey(p.id)}
+                      disabled={saving}
+                      className="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-50"
+                    >
+                      {saving ? "Saving…" : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={saving}
+                      className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(p.id)}
+                      className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium"
+                    >
+                      {configured ? "Replace" : "Add key"}
+                    </button>
+                    {configured && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => testKey(p.id)}
+                          disabled={testing === p.id}
+                          className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium disabled:opacity-50"
+                        >
+                          {testing === p.id ? "Testing…" : "Test"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => clearKey(p.id)}
+                          disabled={saving}
+                          className="px-3 py-1.5 rounded-md bg-rose-500/10 hover:bg-rose-500/20 ring-1 ring-rose-500/40 text-rose-200 text-xs font-medium"
+                        >
+                          Remove
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// AI Defaults Card (provider + per-task model)
+// ============================================
+
+const AiDefaultsCard: React.FC = () => {
+  const [provider, setProvider] = useState<AiProviderId>(DEFAULT_AI_SETTINGS.provider);
+  const [lenderExtractModel, setLenderExtractModel] = useState(
+    DEFAULT_AI_SETTINGS.lenderExtractModel
+  );
+  const [dealAnalysisModel, setDealAnalysisModel] = useState(DEFAULT_AI_SETTINGS.dealAnalysisModel);
+  const [quickModel, setQuickModel] = useState(DEFAULT_AI_SETTINGS.quickModel);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getSystemSettings().then((s) => {
+      if (cancelled) return;
+      const ai = s.aiDefaults;
+      if (ai?.provider) setProvider(ai.provider);
+      if (ai?.lenderExtractModel) setLenderExtractModel(ai.lenderExtractModel);
+      if (ai?.dealAnalysisModel) setDealAnalysisModel(ai.dealAnalysisModel);
+      if (ai?.quickModel) setQuickModel(ai.quickModel);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const modelsFor = (task: "lenderExtract" | "dealAnalysis" | "quick") =>
+    AI_MODELS.filter((m) => m.provider === provider && m.tasks.includes(task));
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const current = await getSystemSettings();
+      await updateSystemSettings({
+        supportEmail: current.supportEmail,
+        announcementBanner: current.announcementBanner,
+        signupsEnabled: current.signupsEnabled,
+        defaultLtvThresholds: current.defaultLtvThresholds,
+        aiDefaults: { provider, lenderExtractModel, dealAnalysisModel, quickModel },
+      });
+      setSavedAt(new Date());
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save AI defaults");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="text-base font-semibold text-white tracking-tight">AI Defaults</h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Default provider and model per task. Dealer-level settings override these.
+          </p>
+        </div>
+        {savedAt && (
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            Saved {savedAt.toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-3 py-2 text-xs text-rose-200">
+          {error}
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-200 mb-1.5">Provider</label>
+          <select
+            value={provider}
+            onChange={(e) => {
+              const next = e.target.value as AiProviderId;
+              setProvider(next);
+              const first = (task: "lenderExtract" | "dealAnalysis" | "quick") =>
+                AI_MODELS.find((m) => m.provider === next && m.tasks.includes(task))?.id ?? "";
+              setLenderExtractModel(first("lenderExtract"));
+              setDealAnalysisModel(first("dealAnalysis"));
+              setQuickModel(first("quick"));
+            }}
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          >
+            {AI_PROVIDER_ORDER.map((id) => (
+              <option key={id} value={id}>
+                {id === "openai" ? "OpenAI" : id === "anthropic" ? "Anthropic" : "Google Gemini"}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {(
+          [
+            ["Lender extract", lenderExtractModel, setLenderExtractModel, "lenderExtract"],
+            ["Deal analysis", dealAnalysisModel, setDealAnalysisModel, "dealAnalysis"],
+            ["Quick tasks", quickModel, setQuickModel, "quick"],
+          ] as const
+        ).map(([label, value, setter, task]) => (
+          <div key={task}>
+            <label className="block text-sm font-medium text-slate-200 mb-1.5">{label}</label>
+            <select
+              value={value}
+              onChange={(e) => setter(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            >
+              {modelsFor(task).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label} {m.isPreview ? "(preview)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Saving…" : "Save AI defaults"}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// Audit Log Card
+// ============================================
+
+const formatAuditAction = (action: string): string => {
+  switch (action) {
+    case "ai_key_updated":
+      return "Updated key";
+    case "ai_key_cleared":
+      return "Removed key";
+    case "ai_key_tested":
+      return "Tested key";
+    default:
+      return action;
+  }
+};
+
+const AuditLogCard: React.FC = () => {
+  const [entries, setEntries] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const list = await listAuditLog(25);
+      setEntries(list);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load audit log");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return (
+    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="text-base font-semibold text-white tracking-tight">Audit Log</h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Most recent 25 entries. Append-only — entries cannot be edited or deleted.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={loading}
+          className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium disabled:opacity-50"
+        >
+          {loading ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-3 py-2 text-xs text-rose-200">
+          {error}
+        </div>
+      )}
+
+      {!loading && entries.length === 0 && !error && (
+        <p className="text-xs text-slate-400 italic">No entries yet.</p>
+      )}
+
+      {entries.length > 0 && (
+        <div className="divide-y divide-slate-800/80 -mx-2">
+          {entries.map((entry) => {
+            const actor = entry.expand?.actor;
+            const actorName = actor
+              ? `${actor.firstName ?? ""} ${actor.lastName ?? ""}`.trim() || actor.email || entry.actor
+              : entry.actor;
+            const details = entry.details as { ok?: boolean; error?: string } | null;
+            return (
+              <div key={entry.id} className="px-2 py-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="text-[11px] text-slate-400 tabular-nums">
+                  {new Date(entry.created).toLocaleString()}
+                </span>
+                <span className="text-xs font-medium text-slate-100">{actorName}</span>
+                <span className="text-xs text-slate-300">{formatAuditAction(entry.action)}</span>
+                {entry.target && (
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                    {entry.target}
+                  </span>
+                )}
+                {details?.ok === false && details?.error && (
+                  <span className="text-[11px] text-rose-300">— {details.error}</span>
+                )}
+                {details?.ok === true && (
+                  <span className="text-[11px] text-emerald-300">— live</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SystemSettingsPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1735,6 +2207,10 @@ const SystemSettingsPanel: React.FC = () => {
           {saving ? "Saving…" : "Save settings"}
         </Button>
       </div>
+
+      <AiProvidersCard />
+      <AiDefaultsCard />
+      <AuditLogCard />
     </div>
   );
 };

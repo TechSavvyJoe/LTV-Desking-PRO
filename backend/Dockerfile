@@ -16,14 +16,15 @@ RUN apk add --no-cache ca-certificates
 # Copy PocketBase binary
 COPY --from=build /pb/pocketbase /pb/pocketbase
 
-# Copy migrations (hooks dir is optional — created at runtime if missing)
+# Copy migrations and hooks. PocketBase loads JS hooks on boot from --hooksDir.
 COPY pb_migrations /pb/pb_migrations
+COPY pb_hooks /pb/pb_hooks
 
 # Expose ports
 EXPOSE 8080
 
-# Create data and hooks directories
-RUN mkdir -p /pb/pb_data /pb/pb_hooks
+# Create data directory (volume mount target)
+RUN mkdir -p /pb/pb_data
 
 # Run PocketBase
 CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--dir=/pb/pb_data", "--migrationsDir=/pb/pb_migrations", "--hooksDir=/pb/pb_hooks"]

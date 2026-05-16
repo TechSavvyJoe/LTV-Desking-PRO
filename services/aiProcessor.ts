@@ -1,5 +1,6 @@
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Vehicle } from "../types";
 import { DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings } from "../lib/aiModelRegistry";
+import { pb } from "../lib/pocketbase";
 
 const ENRICHABLE_FIELDS = [
   "contactName",
@@ -94,9 +95,13 @@ const postAiRoute = async <T>(
   const timeout = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (pb.authStore.token) {
+      headers.Authorization = `Bearer ${pb.authStore.token}`;
+    }
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(payload),
       signal: controller.signal,
     });

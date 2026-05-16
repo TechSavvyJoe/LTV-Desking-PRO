@@ -21,11 +21,23 @@ export interface ResolvedAiModel {
   warning?: string;
 }
 
-export const getProviderKeys = (env: NodeJS.ProcessEnv = process.env): ProviderKeys => ({
+/**
+ * @deprecated Direct env reads remain only as a local-dev fallback. In all
+ * server code, prefer `resolveProviderKeys()` from `./keyResolver` which
+ * reads from the PocketBase `ai_provider_keys` collection at request time
+ * and only falls back to env when PB isn't reachable. Production must never
+ * rely on this path.
+ */
+export const getProviderKeysFromEnv = (
+  env: NodeJS.ProcessEnv = process.env
+): ProviderKeys => ({
   openai: env.OPENAI_API_KEY,
   anthropic: env.ANTHROPIC_API_KEY,
   gemini: env.GEMINI_API_KEY ?? env.GOOGLE_API_KEY,
 });
+
+// Backwards-compat alias used by tests + the /api/ai/models route.
+export const getProviderKeys = getProviderKeysFromEnv;
 
 export const getConfiguredProviders = (
   keys: ProviderKeys = getProviderKeys()

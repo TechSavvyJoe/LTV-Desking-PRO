@@ -13,7 +13,9 @@ import {
   LENDER_EXTRACTION_SYSTEM_PROMPT,
 } from "./prompts";
 import { callAiJson, callGroundedAiJson } from "./providerClients";
-import { getConfiguredProviders, getProviderKeys, resolveAiModel } from "./modelSelection";
+import { getConfiguredProviders, resolveAiModel } from "./modelSelection";
+import { resolveProviderKeys, updateProviderKeyTestStatus } from "./keyResolver";
+import { AuthError, requireAuth, requireSuperadmin, type AuthContext } from "./auth";
 import {
   dealSuggestionJsonSchema,
   lenderExtractJsonSchema,
@@ -131,7 +133,8 @@ const resolveAndCall = async (
   model: string;
   warning?: string;
 }> => {
-  const resolved = resolveAiModel(task, aiSettings);
+  const keys = await resolveProviderKeys();
+  const resolved = resolveAiModel(task, aiSettings, keys);
   const raw = await callAiJson({
     provider: resolved.provider,
     model: resolved.model,
@@ -151,15 +154,19 @@ const resolveAndCall = async (
   };
 };
 
-const handleModels = (_request: IncomingMessage, response: ServerResponse): void => {
-  const registry = buildAiModelRegistryResponse(getConfiguredProviders(getProviderKeys()));
+const handleModels = async (
+  _request: IncomingMessage,
+  response: ServerResponse
+): Promise<void> => {
+  const keys = await resolveProviderKeys();
+  const registry = buildAiModelRegistryResponse(getConfiguredProviders(keys));
   const hasConfiguredProvider = registry.providers.some((provider) => provider.configured);
   sendJson(response, 200, {
     ...registry,
     warnings: hasConfiguredProvider
       ? registry.warnings
       : [
-          "No provider keys are configured. Add OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY to enable AI routes.",
+          "No provider keys are configured. Open the Owner Console → Settings → AI Providers to add a key.",
         ],
   });
 };
@@ -185,12 +192,12 @@ const handleLenderEnrich = async (
   response: ServerResponse
 ): Promise<void> => {
   const body = LenderEnrichPayloadSchema.parse(await readRequestBody(request));
-  const keys = getProviderKeys();
+  const keys = await resolveProviderKeys();
   if (!keys.gemini) {
     sendError(
       response,
       400,
-      "Lender enrichment requires GEMINI_API_KEY to be configured (Google Search grounding).",
+      "Lender enrichment requires a Gemini key (Google Search grounding). Add one in Owner Console → Settings → AI Providers.",
       { provider: "gemini" }
     );
     return;
@@ -218,6 +225,83 @@ const handleLenderEnrich = async (
     { enrichment: parsed.enrichment, sources: mergedSources },
     { provider: "gemini", model }
   );
+};
+
+const TestKeyPayloadSchema = z.object({
+  provider: z.enum(["openai", "anthropic", "gemini"]),
+});
+
+const testProviderKey = async (
+  provider: "openai" | "anthropic" | "gemini",
+  apiKey: string
+): Promise<void> => {
+  if (provider === "openai") {
+    const resp = await fetch("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!resp.ok) {
+      const body = (await resp.json().catch(() => ({}))) as { error?: { message?: string } };
+      throw new Error(body.error?.message ?? `OpenAI returned HTTP ${resp.status}`);
+    }
+    return;
+  }
+  if (provider === "anthropic") {
+    // Anthropic doesn't expose a free model-list; use a minimal /v1/messages call.
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 1,
+        messages: [{ role: "user", content: "ping" }],
+      }),
+    });
+    // 400 with model_not_found still proves the key is valid auth-wise.
+    if (resp.status === 401 || resp.status === 403) {
+      const body = (await resp.json().catch(() => ({}))) as { error?: { message?: string } };
+      throw new Error(body.error?.message ?? `Anthropic auth failed (HTTP ${resp.status})`);
+    }
+    return;
+  }
+  // gemini
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+  );
+  if (!resp.ok) {
+    const body = (await resp.json().catch(() => ({}))) as { error?: { message?: string } };
+    throw new Error(body.error?.message ?? `Gemini returned HTTP ${resp.status}`);
+  }
+};
+
+const handleTestKey = async (
+  request: IncomingMessage,
+  response: ServerResponse
+): Promise<void> => {
+  const body = TestKeyPayloadSchema.parse(await readRequestBody(request));
+  const keys = await resolveProviderKeys();
+  const apiKey = keys[body.provider];
+  if (!apiKey) {
+    sendJson(response, 200, {
+      ok: false,
+      at: new Date().toISOString(),
+      error: `No ${body.provider} key configured.`,
+    });
+    return;
+  }
+
+  try {
+    await testProviderKey(body.provider, apiKey);
+    await updateProviderKeyTestStatus(body.provider, { ok: true });
+    sendJson(response, 200, { ok: true, at: new Date().toISOString() });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await updateProviderKeyTestStatus(body.provider, { ok: false, error: message });
+    sendJson(response, 200, { ok: false, at: new Date().toISOString(), error: message });
+  }
 };
 
 const handleDealAnalysis = async (
@@ -256,8 +340,34 @@ export const handleAiRequest = async (
   }
 
   try {
+    // GET /api/ai/models is the only route that doesn't need auth — the
+    // frontend hits it pre-auth to render the AI Defaults dropdown. It
+    // returns no secret data (just model IDs + which providers have a key
+    // configured).
     if (method === "GET" && url.startsWith("/api/ai/models")) {
-      handleModels(request, response);
+      await handleModels(request, response);
+      return;
+    }
+
+    // Routes that consume metered keys require an authenticated PB user.
+    // /api/ai/test-key additionally requires superadmin since it triggers
+    // a paid provider call and reads the masked key status.
+    let auth: AuthContext;
+    try {
+      auth = url.startsWith("/api/ai/test-key")
+        ? await requireSuperadmin(request)
+        : await requireAuth(request);
+    } catch (e) {
+      if (e instanceof AuthError) {
+        sendError(response, e.statusCode, e.message);
+        return;
+      }
+      throw e;
+    }
+    void auth; // reserved for per-dealer rate limiting / audit context
+
+    if (method === "POST" && url.startsWith("/api/ai/test-key")) {
+      await handleTestKey(request, response);
       return;
     }
 
