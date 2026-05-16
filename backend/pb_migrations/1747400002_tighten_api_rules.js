@@ -14,15 +14,14 @@ const AUTHED = '@request.auth.id != ""';
 const SUPER = '@request.auth.role = "superadmin"';
 const ADMIN_OR_SUPER = '(@request.auth.role = "superadmin" || @request.auth.role = "admin")';
 
-// Read/write for any authed user whose dealer matches the record's dealer.
-const SAME_DEALER = `${AUTHED} && (${SUPER} || @request.auth.dealer = dealer)`;
-
-// Read/write that requires admin- or super-level for the same dealer.
-const SAME_DEALER_ADMIN = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.auth.dealer = dealer))`;
-
-// For the `dealers` collection itself the matching field is `id` (not `dealer`).
-const ON_OWN_DEALER = `${AUTHED} && (${SUPER} || @request.auth.dealer = id)`;
-const ON_OWN_DEALER_ADMIN_UPDATE = `${AUTHED} && (${SUPER} || (@request.auth.role = "admin" && @request.auth.dealer = id))`;
+// Use the `?=` "any of" operator for relation comparisons (PB's recommended
+// syntax for relation-vs-relation and relation-vs-id checks), and dot-access
+// the related record's `id` so PB's rule parser doesn't need to special-case
+// the relation field type.
+const SAME_DEALER = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= dealer.id)`;
+const SAME_DEALER_ADMIN = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.auth.dealer.id ?= dealer.id))`;
+const ON_OWN_DEALER = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= id)`;
+const ON_OWN_DEALER_ADMIN_UPDATE = `${AUTHED} && (${SUPER} || (@request.auth.role = "admin" && @request.auth.dealer.id ?= id))`;
 
 const setRules = (collection, rules) => {
   collection.listRule = rules.list ?? null;
@@ -49,6 +48,17 @@ const applyTo = (app, name, rules) => {
 
 migrate(
   (app) => {
+    // Force PB to refresh its in-memory schema for the users (auth) collection.
+    // Without this, rule validation in the same serve process can't see
+    // newly-added fields like `dealer` and `role`, causing "unknown field"
+    // errors on rules that reference @request.auth.dealer.
+    try {
+      const users = app.findCollectionByNameOrId("users");
+      app.save(users);
+    } catch (e) {
+      // users collection should always exist; ignore otherwise
+    }
+
     applyTo(app, "dealers", {
       list: ON_OWN_DEALER,
       view: ON_OWN_DEALER,
@@ -94,12 +104,12 @@ migrate(
       console.log("[skip] users collection has no 'dealer' field — likely fresh DB");
       return;
     }
-    const sameDealerOrSelf = `${AUTHED} && (${SUPER} || @request.auth.dealer = dealer || id = @request.auth.id)`;
+    const sameDealerOrSelf = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= dealer.id || id = @request.auth.id)`;
     users.listRule = sameDealerOrSelf;
     users.viewRule = sameDealerOrSelf;
     users.createRule = `${AUTHED} && ${ADMIN_OR_SUPER}`;
-    users.updateRule = `${AUTHED} && (${SUPER} || id = @request.auth.id || (@request.auth.role = "admin" && @request.auth.dealer = dealer))`;
-    users.deleteRule = `${AUTHED} && (${SUPER} || (@request.auth.role = "admin" && @request.auth.dealer = dealer))`;
+    users.updateRule = `${AUTHED} && (${SUPER} || id = @request.auth.id || (@request.auth.role = "admin" && @request.auth.dealer.id ?= dealer.id))`;
+    users.deleteRule = `${AUTHED} && (${SUPER} || (@request.auth.role = "admin" && @request.auth.dealer.id ?= dealer.id))`;
     app.save(users);
   },
   (app) => {
