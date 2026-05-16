@@ -30,6 +30,13 @@ jobs:
 
       - name: Build Project
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          # Sentry DSN baked into the production bundle. Empty in env =
+          # lib/sentry.ts no-ops gracefully, which is fine for previews
+          # / local dev.
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          # Surfaced to Sentry as `release` for source-map matching
+          VITE_RELEASE: ${{ github.sha }}
 
       - name: Deploy to Vercel
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
