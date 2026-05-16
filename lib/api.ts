@@ -740,6 +740,10 @@ export const createDealerWithAdmin = async (input: {
   try {
     const userRecord = await pb.collection("users").create({
       email: input.admin.email,
+      // PB auth collections hide `email` in API responses unless this is true.
+      // Without it, the wizard's success card shows the email but every later
+      // fetch (e.g. getAllUsers) strips it — making it look like it "didn't save".
+      emailVisibility: true,
       password: input.admin.password,
       passwordConfirm: input.admin.password,
       firstName: input.admin.firstName,
@@ -813,7 +817,9 @@ export const createUser = async (data: {
         password: "[REDACTED]",
       });
     }
-    const record = await pb.collection("users").create(data);
+    // PB auth collections hide `email` in API responses unless emailVisibility=true.
+    // Force it on so the email appears in user-list fetches by other admins.
+    const record = await pb.collection("users").create({ ...data, emailVisibility: true });
     if (import.meta.env.DEV) {
       console.log("[createUser] Successfully created user:", record.id);
     }
@@ -881,7 +887,12 @@ export const updateUser = async (
   if (user?.role !== "superadmin") return null;
 
   try {
-    const record = await pb.collection("users").update(sanitizeId(id), data);
+    // Always flip emailVisibility on. Belt-and-braces — heals previously-created
+    // users whose flag was never set (PB defaults it to false, which hides email
+    // in API responses to other admins and makes edits look like they didn't save).
+    const record = await pb
+      .collection("users")
+      .update(sanitizeId(id), { ...data, emailVisibility: true });
     return asType<User>(record);
   } catch (error) {
     console.error("Failed to update user:", error);
