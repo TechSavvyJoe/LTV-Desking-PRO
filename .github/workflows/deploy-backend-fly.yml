@@ -8,20 +8,122 @@ on:
       - ".github/workflows/deploy-backend-fly.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: fly-backend
   cancel-in-progress: false
 
+env:
+  PB_VERSION: 0.26.5
+
 jobs:
-  deploy:
+  validate-migrations:
+    name: Validate PB migrations on ephemeral DB
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Download PocketBase ${{ env.PB_VERSION }}
+        run: |
+          curl -fsSL -o /tmp/pb.zip \
+            "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip"
+          unzip -o /tmp/pb.zip -d /tmp/pb
+          chmod +x /tmp/pb/pocketbase
+          /tmp/pb/pocketbase --version
+
+      - name: Boot PocketBase with migrations against empty data dir
+        working-directory: ./backend
+        run: |
+          set -e
+          mkdir -p /tmp/pb-test/pb_data
+          /tmp/pb/pocketbase serve \
+            --http=127.0.0.1:18090 \
+            --dir=/tmp/pb-test/pb_data \
+            --migrationsDir=./pb_migrations \
+            --hooksDir=/tmp/pb-test/pb_hooks > /tmp/pb-test/serve.log 2>&1 &
+          PB_PID=$!
+          echo "PB_PID=$PB_PID" >> "$GITHUB_ENV"
+
+          # Wait up to 60s for /api/health to return 200.
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18090/api/health > /dev/null 2>&1; then
+              echo "PB up after ${i}s"
+              break
+            fi
+            if ! kill -0 $PB_PID 2>/dev/null; then
+              echo "PB died during startup — migration error likely:"
+              cat /tmp/pb-test/serve.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Confirm new collection exists.
+          if ! curl -fsS "http://127.0.0.1:18090/api/collections/system_settings/records?perPage=1" | grep -q '"totalItems"'; then
+            echo "ERROR: system_settings collection not created"
+            cat /tmp/pb-test/serve.log
+            exit 1
+          fi
+          echo "system_settings collection exists"
+
+          # Stop PB cleanly.
+          kill $PB_PID || true
+          wait $PB_PID 2>/dev/null || true
+
+      - name: Re-boot (idempotency check — migrations must not re-run)
+        working-directory: ./backend
+        run: |
+          set -e
+          /tmp/pb/pocketbase serve \
+            --http=127.0.0.1:18090 \
+            --dir=/tmp/pb-test/pb_data \
+            --migrationsDir=./pb_migrations \
+            --hooksDir=/tmp/pb-test/pb_hooks > /tmp/pb-test/serve2.log 2>&1 &
+          PB_PID=$!
+
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18090/api/health > /dev/null 2>&1; then
+              break
+            fi
+            if ! kill -0 $PB_PID 2>/dev/null; then
+              echo "PB died on re-boot:"
+              cat /tmp/pb-test/serve2.log
+              exit 1
+            fi
+            sleep 1
+          done
+          kill $PB_PID || true
+          wait $PB_PID 2>/dev/null || true
+
+  deploy:
+    name: Deploy to Fly
+    needs: validate-migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to tag 1.6 (SHA ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1) for supply-chain safety.
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
 
       - name: Deploy to Fly
-        run: flyctl deploy --remote-only --strategy=rolling --wait-timeout=300
+        run: flyctl deploy --remote-only --strategy=rolling --wait-timeout=600
         working-directory: ./backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Verify health endpoint
+        run: |
+          set -e
+          for i in 1 2 3 4 5; do
+            body=$(curl -fsS https://ltv-desking-pro-api.fly.dev/api/health || true)
+            if echo "$body" | grep -q '"code":200'; then
+              echo "Health check passed: $body"
+              exit 0
+            fi
+            echo "Attempt $i did not return healthy: ${body:-<no body>}"
+            sleep 10
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1
