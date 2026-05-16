@@ -1,0 +1,34 @@
+name: Fly diagnostics
+
+# One-shot workflow that grabs the most recent Fly logs and uploads them
+# as a workflow artifact. Use when investigating a crash or unhealthy state.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
+
+      - name: Pull last 500 log lines
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl logs --app ltv-desking-pro-api --no-tail 2>&1 | tail -500 > fly-logs.txt
+          echo "---"
+          echo "Captured $(wc -l < fly-logs.txt) lines."
+          echo "---"
+          tail -120 fly-logs.txt
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fly-logs
+          path: fly-logs.txt
+          retention-days: 7
