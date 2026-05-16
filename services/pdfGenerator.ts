@@ -1,11 +1,23 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { PdfTemplate } from "../components/pdf/PdfTemplate";
 import { FavoritesPdfTemplate } from "../components/pdf/FavoritesPdfTemplate";
 import { LenderCheatSheetTemplate } from "../components/pdf/LenderCheatSheetTemplate";
 import type { DealPdfData, LenderProfile, Settings } from "../types";
+
+// jspdf + html2canvas combined add ~400 KB gzipped to the initial bundle.
+// Defer until the user actually clicks "Download PDF" — they're then loaded
+// once per session and the browser caches the chunks for subsequent uses.
+const loadPdfDeps = async () => {
+  const [jsPDFModule, html2canvasModule] = await Promise.all([
+    import("jspdf"),
+    import("html2canvas"),
+  ]);
+  return {
+    jsPDF: jsPDFModule.default,
+    html2canvas: html2canvasModule.default,
+  };
+};
 
 const renderComponentAsPdfBlob = async (
   component: React.ReactElement,
@@ -14,6 +26,8 @@ const renderComponentAsPdfBlob = async (
   if (typeof document === "undefined") {
     throw new Error("PDF generation is only supported in the browser.");
   }
+
+  const { jsPDF, html2canvas } = await loadPdfDeps();
 
   // Create a container element that will be placed off-screen.
   // This is the most reliable way to ensure the browser renders the content fully.

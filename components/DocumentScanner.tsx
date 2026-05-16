@@ -1,7 +1,11 @@
 import React, { useState, useRef } from "react";
-import Tesseract from "tesseract.js";
 import Button from "./common/Button";
 import * as Icons from "./common/Icons";
+
+// tesseract.js + its English language data add ~250 KB JS + ~5 MB WASM/data
+// to the bundle. Defer until the user actually picks a file to scan; loaded
+// once per session and cached after.
+const loadTesseract = () => import("tesseract.js").then((m) => m.default);
 
 interface DocumentScannerProps {
   onIncomeExtracted: (income: number) => void;
@@ -23,6 +27,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
     setError(null);
 
     try {
+      const Tesseract = await loadTesseract();
       const result = await Tesseract.recognize(file, "eng", {
         logger: (m) => {
           if (m.status === "recognizing text") {
