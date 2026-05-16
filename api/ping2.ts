@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { greet } from "./ping-helper";
+import { greet } from "./ping-helper.js";
 
 export default function handler(_req: IncomingMessage, res: ServerResponse): void {
   res.statusCode = 200;
