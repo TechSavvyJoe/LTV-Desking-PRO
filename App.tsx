@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { isAuthenticated, onAuthStateChange, logout, getCurrentUser } from "./lib/auth";
 import {
   setSuperadminDealerOverride,
@@ -123,14 +123,29 @@ const MainLayout: React.FC = () => {
     }
   }, [message, setMessage]);
 
-  const [activeTab, setActiveTab] = useState<"inventory" | "lenders" | "saved" | "scratchpad">(
-    "inventory"
-  );
+  // Active tab is synced with the `?tab=` URL search param so it survives
+  // page refreshes and is shareable as a link. Defaults to "inventory" when
+  // the param is missing or unrecognized.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab: "inventory" | "lenders" | "saved" | "scratchpad" =
+    tabParam === "lenders" || tabParam === "saved" || tabParam === "scratchpad"
+      ? tabParam
+      : "inventory";
 
-  // Handler to change tabs and scroll to top
   const handleTabChange = (tab: "inventory" | "lenders" | "saved" | "scratchpad") => {
-    setActiveTab(tab);
-    // Scroll to top of page when changing tabs
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (tab === "inventory") {
+          next.delete("tab");
+        } else {
+          next.set("tab", tab);
+        }
+        return next;
+      },
+      { replace: true }
+    );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
