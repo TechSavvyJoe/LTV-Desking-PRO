@@ -1,0 +1,70 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits", ":dependencyDashboard"],
+  "timezone": "America/New_York",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "schedule": ["at any time"],
+    "prCreation": "immediate"
+  },
+  "packageRules": [
+    {
+      "description": "Auto-merge patch updates after PR-gate CI passes",
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      "description": "Auto-merge devDependency minor updates",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor"],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      "description": "Group React + react-dom + types together",
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"],
+      "groupName": "react"
+    },
+    {
+      "description": "Group ESLint ecosystem",
+      "matchPackageNames": [
+        "eslint",
+        "@eslint/js",
+        "typescript-eslint",
+        "eslint-plugin-react",
+        "eslint-plugin-react-hooks",
+        "eslint-plugin-react-refresh",
+        "eslint-config-prettier"
+      ],
+      "groupName": "eslint"
+    },
+    {
+      "description": "Group Vitest + testing-library",
+      "matchPackageNames": ["vitest", "@testing-library/react", "jsdom", "playwright"],
+      "groupName": "test"
+    },
+    {
+      "description": "Tailwind v4 — major bumps need review",
+      "matchPackageNames": ["tailwindcss", "@tailwindcss/vite"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "needs-review"]
+    },
+    {
+      "description": "PocketBase SDK — review every bump (breaking changes are common)",
+      "matchPackageNames": ["pocketbase"],
+      "automerge": false,
+      "labels": ["dependencies", "needs-review"]
+    }
+  ]
+}
