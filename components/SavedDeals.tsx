@@ -1,6 +1,7 @@
 import React from "react";
 import Button from "./common/Button";
 import * as Icons from "./common/Icons";
+import { EmptyState } from "./common/states";
 import { SavedDeal } from "../types";
 import { useStaggerAnimation } from "../hooks/useAnimation";
 
@@ -14,17 +15,11 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
   const visibleItems = useStaggerAnimation(deals.length, 100, 60);
   if (deals.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 text-center px-4">
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-md">
-          <Icons.FolderIcon className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-700 mb-4" />
-          <p className="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2">
-            No Saved Deals Yet
-          </p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Structure a deal and click "Save Deal" to preserve your work for later.
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        icon={<Icons.FolderIcon className="w-full h-full" />}
+        title="No saved deals yet"
+        description="Structure a deal from the inventory tab and click Save — it'll appear here so you can come back to it tomorrow or share it with another desk."
+      />
     );
   }
 

@@ -13,7 +13,7 @@ import {
   OtdLtvCell,
   PaymentCell,
 } from "./common/TableCell";
-import Button from "./common/Button";
+import { EmptyState } from "./common/states";
 import Pagination from "./common/Pagination";
 
 interface InventoryTableProps {
@@ -279,15 +279,20 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         onSort={onSort}
         emptyMessage={
           emptyMessage || (
-            <div className="flex flex-col items-center justify-center py-8 space-y-4">
-              <p className="text-slate-500 dark:text-slate-400 text-lg">No vehicles found.</p>
-              {onLoadSampleData && (
-                <Button onClick={onLoadSampleData} variant="primary">
-                  <Icons.CloudArrowDownIcon className="w-5 h-5 mr-2" />
-                  Load Sample Inventory
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              icon={<Icons.CloudArrowDownIcon className="w-full h-full" />}
+              title={isFavoritesView ? "No favorites yet" : "No vehicles in inventory"}
+              description={
+                isFavoritesView
+                  ? "Star a vehicle from the inventory table to build a shortlist you can structure deals against."
+                  : "Upload a CSV or XLSX of your inventory to get started, or try the bundled sample data."
+              }
+              primaryAction={
+                !isFavoritesView && onLoadSampleData
+                  ? { label: "Try with sample inventory", onClick: onLoadSampleData }
+                  : undefined
+              }
+            />
           )
         }
         rowKey="vin"

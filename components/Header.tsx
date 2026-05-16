@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Button from "./common/Button";
 import * as Icons from "./common/Icons";
 import ThemeToggle from "./common/ThemeToggle";
+import { BrandMark } from "./common/BrandMark";
 import { useDealContext } from "../context/DealContext";
 import {
   getCurrentUser,
@@ -189,12 +190,20 @@ const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-30 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-900 text-white shadow-lg px-4">
       <div className="flex flex-wrap justify-between items-center gap-4 py-4">
         <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">LTV & Desking Pro</h1>
-            <p className="mt-1 text-sm sm:text-base text-slate-200/80">
-              Precision deal structuring, lender intelligence, and desking in one refined workspace.
-            </p>
-          </div>
+          <a href="/" className="flex items-center gap-3 group" aria-label="LTV Desking PRO — home">
+            <BrandMark
+              className="w-10 h-10 transition-transform group-hover:scale-105 drop-shadow-[0_4px_12px_rgba(59,130,246,0.3)]"
+              variant="default"
+            />
+            <div className="leading-tight">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+                LTV Desking <span className="text-blue-400">PRO</span>
+              </h1>
+              <p className="mt-0.5 text-xs sm:text-sm text-slate-300/70">
+                Precision deal structuring &middot; F&amp;I &middot; lender intelligence
+              </p>
+            </div>
+          </a>
 
           {/* SuperAdmin Dealer Switcher */}
           {isSuperAdmin && (
