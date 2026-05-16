@@ -1,5 +1,5 @@
 import PocketBase from "pocketbase";
-import type { ProviderKeys } from "./modelSelection";
+import type { ProviderKeys } from "./modelSelection.js";
 
 /**
  * Resolves AI provider keys at request time.

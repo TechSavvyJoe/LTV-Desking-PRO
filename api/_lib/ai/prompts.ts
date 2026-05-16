@@ -1,4 +1,4 @@
-import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Vehicle } from "../../../types";
+import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Vehicle } from "../../../types.js";
 
 export const LENDER_EXTRACTION_SYSTEM_PROMPT =
   "You are an expert automotive finance data extraction system. Return only valid JSON. Never invent lender program numbers, rates, or LTV values. If a field is not explicit or clearly inferable from the document, omit it. When confidence is low, lower the confidence score rather than guess.";

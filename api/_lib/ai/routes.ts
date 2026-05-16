@@ -4,26 +4,26 @@ import {
   buildAiModelRegistryResponse,
   type AiSettings,
   type AiTask,
-} from "../../../lib/aiModelRegistry";
+} from "../../../lib/aiModelRegistry.js";
 import {
   buildDealAnalysisPrompt,
   buildLenderEnrichmentPrompt,
   buildLenderExtractionPrompt,
   LENDER_ENRICH_SYSTEM_PROMPT,
   LENDER_EXTRACTION_SYSTEM_PROMPT,
-} from "./prompts";
-import { callAiJson, callGroundedAiJson } from "./providerClients";
-import { getConfiguredProviders, resolveAiModel } from "./modelSelection";
-import { resolveProviderKeys, updateProviderKeyTestStatus } from "./keyResolver";
-import { AuthError, requireAuth, requireSuperadmin, type AuthContext } from "./auth";
+} from "./prompts.js";
+import { callAiJson, callGroundedAiJson } from "./providerClients.js";
+import { getConfiguredProviders, resolveAiModel } from "./modelSelection.js";
+import { resolveProviderKeys, updateProviderKeyTestStatus } from "./keyResolver.js";
+import { AuthError, requireAuth, requireSuperadmin, type AuthContext } from "./auth.js";
 import {
   dealSuggestionJsonSchema,
   lenderExtractJsonSchema,
   parseDealSuggestionResponse,
   parseLenderEnrichResponse,
   parseLenderExtractResponse,
-} from "./schemas";
-import { getDefaultModelForTask } from "../../../lib/aiModelRegistry";
+} from "./schemas.js";
+import { getDefaultModelForTask } from "../../../lib/aiModelRegistry.js";
 
 const FilePayloadSchema = z.object({
   name: z.string().min(1),

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DealData, LenderProfile, LenderTier } from "../../../types";
+import type { DealData, LenderProfile, LenderTier } from "../../../types.js";
 
 export const lenderTierJsonSchema = {
   type: "object",

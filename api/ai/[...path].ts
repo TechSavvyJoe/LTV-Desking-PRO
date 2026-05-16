@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { handleAiRequest } from "../_lib/ai/routes";
+import { handleAiRequest } from "../_lib/ai/routes.js";
 
 /**
  * Vercel serverless catch-all for /api/ai/*.
