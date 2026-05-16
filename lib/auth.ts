@@ -1,9 +1,9 @@
-import { pb, User, Dealer, clearSuperadminDealerOverride } from "./pocketbase";
-import type { RecordModel } from "pocketbase";
+import { pb, User, Dealer, clearSuperadminDealerOverride, asRecord } from "./pocketbase";
+import { validatePassword } from "./passwordPolicy";
 
-// Helper for type-safe casting
-const asType = <T>(record: RecordModel | null | undefined): T | null =>
-  record ? (record as unknown as T) : null;
+// Local alias delegates to the shared helper in lib/pocketbase.ts so the
+// cast lives in exactly one place.
+const asType = asRecord;
 
 export interface AuthResult {
   success: boolean;
@@ -41,6 +41,13 @@ export const register = async (
   dealerCode: string
 ): Promise<AuthResult> => {
   try {
+    // Enforce password policy + check against haveibeenpwned breach corpus
+    // before we hit PB. Saves a roundtrip if the password is unacceptable.
+    const policyCheck = await validatePassword(password);
+    if (!policyCheck.ok) {
+      return { success: false, error: policyCheck.error ?? "Password rejected." };
+    }
+
     // First, find the dealer by code
     const dealers = await pb.collection("dealers").getList(1, 1, {
       filter: pb.filter("code = {:code}", { code: dealerCode }),

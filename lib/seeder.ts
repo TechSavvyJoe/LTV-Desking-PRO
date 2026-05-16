@@ -2,7 +2,7 @@ import { addInventoryItem, saveLenderProfile, getInventory, getLenderProfiles } 
 import { SAMPLE_INVENTORY, DEFAULT_LENDER_PROFILES } from "../constants";
 import { toast } from "./toast";
 
-import { getCurrentDealerId } from "./pocketbase";
+import { getCurrentDealerId, type InventoryItem } from "./pocketbase";
 
 export const seedDatabase = async () => {
   try {
@@ -20,13 +20,13 @@ export const seedDatabase = async () => {
       console.log("Seeding inventory...");
       let inventoryCount = 0;
       for (const vehicle of SAMPLE_INVENTORY) {
-        // Omitting 'id' from vehicle if it exists in type but not in data
-        const { id, ...vehicleData } = vehicle;
-        await addInventoryItem({
-          ...vehicleData,
-          // Ensure required fields for PB if any (most are in vehicleData)
-          // Clean up any undefineds if necessary
-        } as any);
+        // Strip the optional sample `id` field; PB generates IDs server-side.
+        // The rest of the Vehicle shape matches InventoryItem's create input.
+        const { id: _id, ...vehicleData } = vehicle;
+        void _id;
+        await addInventoryItem(
+          vehicleData as Omit<InventoryItem, "id" | "dealer" | "created" | "updated">
+        );
         inventoryCount++;
       }
       toast.success(`Seeded ${inventoryCount} vehicles.`);

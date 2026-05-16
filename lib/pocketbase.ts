@@ -1,10 +1,29 @@
-import PocketBase from "pocketbase";
+import PocketBase, { type RecordModel } from "pocketbase";
 import type { LenderTier } from "../types";
 
 // PocketBase client singleton
 const POCKETBASE_URL = import.meta.env.VITE_POCKETBASE_URL || "https://ltv-desking-pro-api.fly.dev";
 
 export const pb = new PocketBase(POCKETBASE_URL);
+
+// ============================================
+// TYPE-SAFE RECORD CASTING
+// ============================================
+// PocketBase's SDK returns `RecordModel` for all records. Our domain types
+// (Vehicle, LenderProfile, Dealer, …) match the runtime shape but the SDK
+// doesn't know that. These two helpers concentrate the unavoidable cast
+// into one reviewed location — every other caller should import these
+// rather than sprinkle `as unknown as T` casts at call sites.
+//
+// Soundness: we trust PB to return the schema we asked for. Verified at
+// the collection-rule level (RBAC) and at write-time via Zod schemas
+// where applicable. If the schema changes shape, type-check + integration
+// tests catch it before deploy.
+
+export const asRecord = <T>(record: RecordModel | null | undefined): T | null =>
+  record ? (record as unknown as T) : null;
+
+export const asRecordArray = <T>(records: RecordModel[]): T[] => records as unknown as T[];
 
 // Enable auto-cancellation of pending requests on new ones
 pb.autoCancellation(false);

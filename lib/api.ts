@@ -9,17 +9,23 @@ import {
   User,
   getCurrentDealerId,
   getCurrentUser,
+  asRecord,
+  asRecordArray,
 } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
 import { sanitizeId } from "./typeGuards";
 import { createLogger } from "./logger";
+import { validatePassword } from "./passwordPolicy";
 
 // Create structured logger for API operations
 const apiLogger = createLogger("api");
 
-// Helper for type-safe casting
-const asType = <T>(record: RecordModel): T => record as unknown as T;
-const asTypeArray = <T>(records: RecordModel[]): T[] => records as unknown as T[];
+// Local aliases preserve existing call sites; both delegate to the single
+// reviewed helper in lib/pocketbase.ts. asType expects a non-null record;
+// asTypeArray expects an array. Either way the cast is funneled through
+// one location.
+const asType = <T>(record: RecordModel): T => asRecord<T>(record) as T;
+const asTypeArray = <T>(records: RecordModel[]): T[] => asRecordArray<T>(records);
 
 // ============================================
 // INVENTORY OPERATIONS
@@ -943,6 +949,11 @@ export const createDealerWithAdmin = async (input: {
     throw new Error("Owner access required");
   }
 
+  const policyCheck = await validatePassword(input.admin.password);
+  if (!policyCheck.ok) {
+    throw new Error(policyCheck.error ?? "Password rejected by policy.");
+  }
+
   const dealerRecord = await collections.dealers.create(input.dealer);
   const newDealer = asType<Dealer>(dealerRecord);
 
@@ -1017,6 +1028,11 @@ export const createUser = async (data: {
   if (user?.role !== "superadmin") {
     console.error("[createUser] Access denied - not superadmin");
     return null;
+  }
+
+  const policyCheck = await validatePassword(data.password);
+  if (!policyCheck.ok) {
+    throw new Error(policyCheck.error ?? "Password rejected by policy.");
   }
 
   try {
@@ -1157,6 +1173,13 @@ export const createDealerUser = async (data: {
   const dealerId = getCurrentDealerId();
 
   if (!user || !dealerId || user.role !== "admin") return null;
+
+  if (data.password) {
+    const policyCheck = await validatePassword(data.password);
+    if (!policyCheck.ok) {
+      throw new Error(policyCheck.error ?? "Password rejected by policy.");
+    }
+  }
 
   try {
     const record = await pb.collection("users").create({
