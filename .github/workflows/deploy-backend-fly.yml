@@ -44,7 +44,6 @@ jobs:
             --migrationsDir=./pb_migrations \
             --hooksDir=/tmp/pb-test/pb_hooks > /tmp/pb-test/serve.log 2>&1 &
           PB_PID=$!
-          echo "PB_PID=$PB_PID" >> "$GITHUB_ENV"
 
           # Wait up to 60s for /api/health to return 200.
           for i in $(seq 1 60); do
@@ -53,29 +52,60 @@ jobs:
               break
             fi
             if ! kill -0 $PB_PID 2>/dev/null; then
-              echo "PB died during startup — migration error likely:"
+              echo "PB died during startup — migration error likely. Full log:"
               cat /tmp/pb-test/serve.log
               exit 1
             fi
             sleep 1
           done
 
-          # Confirm new collection exists.
-          if ! curl -fsS "http://127.0.0.1:18090/api/collections/system_settings/records?perPage=1" | grep -q '"totalItems"'; then
-            echo "ERROR: system_settings collection not created"
-            cat /tmp/pb-test/serve.log
-            exit 1
-          fi
-          echo "system_settings collection exists"
-
-          # Stop PB cleanly.
+          # Stop PB so we can inspect the SQLite DB without lock contention.
           kill $PB_PID || true
           wait $PB_PID 2>/dev/null || true
+
+      - name: Verify migrations applied by querying SQLite directly
+        run: |
+          set -e
+          DB=/tmp/pb-test/pb_data/data.db
+
+          echo "Migrations recorded in _migrations table:"
+          sqlite3 "$DB" "SELECT file FROM _migrations ORDER BY file;"
+          echo "---"
+
+          # Each of our 3 migrations must be recorded.
+          for f in 1747400000_create_system_settings.js \
+                   1747400001_lender_profiles_enrichment_fields.js \
+                   1747400002_tighten_api_rules.js; do
+            count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM _migrations WHERE file='$f';")
+            if [ "$count" != "1" ]; then
+              echo "ERROR: migration $f not recorded as applied (count=$count)"
+              cat /tmp/pb-test/serve.log
+              exit 1
+            fi
+            echo "OK: $f applied"
+          done
+
+          # system_settings collection must have been created.
+          if ! sqlite3 "$DB" "SELECT name FROM _collections WHERE name='system_settings';" | grep -q system_settings; then
+            echo "ERROR: system_settings collection not in _collections"
+            exit 1
+          fi
+          echo "OK: system_settings collection exists"
+
+          # Seed row was inserted by migration 0.
+          seed_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM system_settings;")
+          if [ "$seed_count" -lt 1 ]; then
+            echo "ERROR: system_settings has no seed row (count=$seed_count)"
+            exit 1
+          fi
+          echo "OK: system_settings has $seed_count seed row(s)"
 
       - name: Re-boot (idempotency check — migrations must not re-run)
         working-directory: ./backend
         run: |
           set -e
+          before_count=$(sqlite3 /tmp/pb-test/pb_data/data.db "SELECT COUNT(*) FROM _migrations;")
+
           /tmp/pb/pocketbase serve \
             --http=127.0.0.1:18090 \
             --dir=/tmp/pb-test/pb_data \
@@ -96,6 +126,13 @@ jobs:
           done
           kill $PB_PID || true
           wait $PB_PID 2>/dev/null || true
+
+          after_count=$(sqlite3 /tmp/pb-test/pb_data/data.db "SELECT COUNT(*) FROM _migrations;")
+          if [ "$before_count" != "$after_count" ]; then
+            echo "ERROR: migration count changed on re-boot ($before_count -> $after_count) — not idempotent"
+            exit 1
+          fi
+          echo "OK: idempotency confirmed (${before_count} migrations stable across re-boots)"
 
   deploy:
     name: Deploy to Fly
