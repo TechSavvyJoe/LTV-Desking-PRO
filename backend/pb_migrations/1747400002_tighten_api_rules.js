@@ -32,68 +32,68 @@ const setRules = (collection, rules) => {
   collection.deleteRule = rules.delete ?? null;
 };
 
+// Apply a rule set to the named collection, skipping silently if the
+// collection doesn't exist (fresh DB / CI ephemeral case). Production has
+// every collection so this never noops there.
+const applyTo = (app, name, rules) => {
+  let c;
+  try {
+    c = app.findCollectionByNameOrId(name);
+  } catch (e) {
+    console.log(`[skip] ${name} collection not found`);
+    return;
+  }
+  setRules(c, rules);
+  app.save(c);
+};
+
 migrate(
   (app) => {
-    // --- dealers ---
-    const dealers = app.findCollectionByNameOrId("dealers");
-    setRules(dealers, {
+    applyTo(app, "dealers", {
       list: ON_OWN_DEALER,
       view: ON_OWN_DEALER,
       create: SUPER,
       update: ON_OWN_DEALER_ADMIN_UPDATE,
       delete: SUPER,
     });
-    app.save(dealers);
 
-    // --- inventory ---
-    const inventory = app.findCollectionByNameOrId("inventory");
-    setRules(inventory, {
+    const sameDealerAll = {
       list: SAME_DEALER,
       view: SAME_DEALER,
       create: SAME_DEALER,
       update: SAME_DEALER,
       delete: SAME_DEALER,
-    });
-    app.save(inventory);
+    };
+    applyTo(app, "inventory", sameDealerAll);
+    applyTo(app, "lender_profiles", sameDealerAll);
+    applyTo(app, "saved_deals", sameDealerAll);
 
-    // --- lender_profiles ---
-    const lenders = app.findCollectionByNameOrId("lender_profiles");
-    setRules(lenders, {
-      list: SAME_DEALER,
-      view: SAME_DEALER,
-      create: SAME_DEALER,
-      update: SAME_DEALER,
-      delete: SAME_DEALER,
-    });
-    app.save(lenders);
-
-    // --- saved_deals ---
-    const deals = app.findCollectionByNameOrId("saved_deals");
-    setRules(deals, {
-      list: SAME_DEALER,
-      view: SAME_DEALER,
-      create: SAME_DEALER,
-      update: SAME_DEALER,
-      delete: SAME_DEALER,
-    });
-    app.save(deals);
-
-    // --- dealer_settings ---
-    const dealerSettings = app.findCollectionByNameOrId("dealer_settings");
-    setRules(dealerSettings, {
+    applyTo(app, "dealer_settings", {
       list: SAME_DEALER,
       view: SAME_DEALER,
       create: SAME_DEALER_ADMIN,
       update: SAME_DEALER_ADMIN,
       delete: SAME_DEALER_ADMIN,
     });
-    app.save(dealerSettings);
 
     // --- users ---
     // Allow superadmins anything. Allow same-dealer reads. Allow admins to
     // manage users in their own dealership. Allow users to read their own
     // record (already covered by same-dealer, but explicit fallback for safety).
-    const users = app.findCollectionByNameOrId("users");
+    // The default PB users collection lacks the `dealer` field on a fresh DB,
+    // so this also noops cleanly in CI.
+    let users;
+    try {
+      users = app.findCollectionByNameOrId("users");
+    } catch (e) {
+      console.log("[skip] users collection not found");
+      return;
+    }
+    const hasDealerField = users.fields && users.fields.getByName && users.fields.getByName("dealer");
+    if (!hasDealerField) {
+      console.log("[skip] users collection has no 'dealer' field — likely fresh DB");
+      return;
+    }
     const sameDealerOrSelf = `${AUTHED} && (${SUPER} || @request.auth.dealer = dealer || id = @request.auth.id)`;
     users.listRule = sameDealerOrSelf;
     users.viewRule = sameDealerOrSelf;

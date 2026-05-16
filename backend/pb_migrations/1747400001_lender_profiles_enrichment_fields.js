@@ -6,7 +6,15 @@
  */
 migrate(
   (app) => {
-    const collection = app.findCollectionByNameOrId("lender_profiles");
+    // Skip when the collection doesn't exist yet (fresh DB / CI validation).
+    // Production already has lender_profiles created manually before this migration was added.
+    let collection;
+    try {
+      collection = app.findCollectionByNameOrId("lender_profiles");
+    } catch (e) {
+      console.log("[skip] lender_profiles collection not found");
+      return;
+    }
 
     collection.fields.add(new URLField({ name: "website", required: false }));
     collection.fields.add(new URLField({ name: "portalUrl", required: false }));
@@ -18,7 +26,12 @@ migrate(
     app.save(collection);
   },
   (app) => {
-    const collection = app.findCollectionByNameOrId("lender_profiles");
+    let collection;
+    try {
+      collection = app.findCollectionByNameOrId("lender_profiles");
+    } catch (e) {
+      return;
+    }
 
     for (const fieldName of ["website", "portalUrl", "generalNotes", "enrichmentSources"]) {
       const field = collection.fields.getByName(fieldName);
