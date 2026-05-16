@@ -62,8 +62,18 @@ export const Toast: React.FC = () => {
     }
   };
 
+  // Errors and warnings are assertive (announce immediately); success/info
+  // are polite (wait for screen reader to finish its current utterance).
+  const ariaLive = type === "error" || type === "warning" ? "assertive" : "polite";
+  const role = type === "error" || type === "warning" ? "alert" : "status";
+
   return (
-    <div className="fixed top-4 right-4 z-[200] max-w-md animate-slideIn" role="alert">
+    <div
+      className="fixed top-4 right-4 z-[200] max-w-md animate-slideIn"
+      role={role}
+      aria-live={ariaLive}
+      aria-atomic="true"
+    >
       <div
         className={`
           flex items-start gap-3 p-4 rounded-2xl shadow-2xl backdrop-blur-lg
@@ -76,15 +86,18 @@ export const Toast: React.FC = () => {
           style={{ width: `${progress}%` }}
         />
 
-        <div className="flex-shrink-0 w-6 h-6">{getIcon()}</div>
+        <div className="flex-shrink-0 w-6 h-6" aria-hidden="true">
+          {getIcon()}
+        </div>
 
         <p className="flex-1 text-sm font-medium leading-relaxed">{message}</p>
 
         <button
           onClick={() => setIsVisible(false)}
           className="flex-shrink-0 text-current opacity-60 hover:opacity-100 transition-all"
+          aria-label="Dismiss notification"
         >
-          <XMarkIcon className="w-5 h-5" />
+          <XMarkIcon className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
     </div>

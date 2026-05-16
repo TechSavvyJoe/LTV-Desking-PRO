@@ -40,6 +40,8 @@ import AiLenderManagerModal from "./components/AiLenderManagerModal";
 import BackgroundUploadIndicator from "./components/BackgroundUploadIndicator";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
+import PrivacyPolicy from "./components/legal/PrivacyPolicy";
+import TermsOfService from "./components/legal/TermsOfService";
 import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
 import { DealerAdminDashboard } from "./components/admin/DealerAdminDashboard";
 import { toast } from "./lib/toast";
@@ -541,7 +543,11 @@ const MainLayout: React.FC = () => {
         onRestoreUpload={() => setIsAiMinimized(false)}
       />
 
-      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-6">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-6 focus:outline-none"
+      >
         {/* Deal Controls */}
         <section>
           <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-200 dark:hover:border-slate-700">
@@ -948,6 +954,30 @@ const MainLayout: React.FC = () => {
         </section>
       </main>
 
+      <footer className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 mt-8">
+        <span>© {new Date().getFullYear()} LTV Desking PRO</span>
+        <nav aria-label="Legal" className="flex items-center gap-4">
+          <a
+            href="/privacy"
+            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            Privacy
+          </a>
+          <a
+            href="/terms"
+            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            Terms
+          </a>
+          <a
+            href="mailto:support@ltvdeskingpro.com"
+            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            Support
+          </a>
+        </nav>
+      </footer>
+
       {/* Modals */}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -1062,6 +1092,8 @@ const App: React.FC = () => {
   const isDealerAdmin = currentUser?.role === "admin";
   const hasAdminAccess = isSuperAdmin || isDealerAdmin;
   const isAdminRoute = location.pathname === "/admin";
+  const isPrivacyRoute = location.pathname === "/privacy";
+  const isTermsRoute = location.pathname === "/terms";
 
   useEffect(() => {
     setIsAuth(isAuthenticated());
@@ -1087,6 +1119,14 @@ const App: React.FC = () => {
         <Icons.SpinnerIcon className="w-8 h-8 text-blue-600 animate-spin" />
       </div>
     );
+  }
+
+  // === LEGAL ROUTES (public, no auth required) ===
+  if (isPrivacyRoute) {
+    return <PrivacyPolicy />;
+  }
+  if (isTermsRoute) {
+    return <TermsOfService />;
   }
 
   // === OWNER (/admin) ROUTE ===
