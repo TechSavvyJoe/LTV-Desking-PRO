@@ -16,16 +16,15 @@ migrate(
       updateRule: '@request.auth.id != "" && @request.auth.role = "superadmin"',
       deleteRule: '@request.auth.id != "" && @request.auth.role = "superadmin"',
       fields: [
-        { name: "supportEmail", type: "email", required: false },
-        { name: "announcementBanner", type: "text", required: false, max: 500 },
-        { name: "signupsEnabled", type: "bool", required: false },
-        { name: "defaultLtvThresholds", type: "json", required: false, maxSize: 2000000 },
+        new EmailField({ name: "supportEmail", required: false }),
+        new TextField({ name: "announcementBanner", required: false, max: 500 }),
+        new BoolField({ name: "signupsEnabled", required: false }),
+        new JSONField({ name: "defaultLtvThresholds", required: false, maxSize: 2000000 }),
       ],
     });
 
     app.save(collection);
 
-    // Seed a default row so getSystemSettings() always finds one.
     const record = new Record(collection, {
       supportEmail: "",
       announcementBanner: "",

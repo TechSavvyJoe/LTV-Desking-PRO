@@ -8,15 +8,12 @@ migrate(
   (app) => {
     const collection = app.findCollectionByNameOrId("lender_profiles");
 
-    collection.fields.add({ name: "website", type: "url", required: false });
-    collection.fields.add({ name: "portalUrl", type: "url", required: false });
-    collection.fields.add({ name: "generalNotes", type: "text", required: false, max: 4000 });
-    collection.fields.add({
-      name: "enrichmentSources",
-      type: "json",
-      required: false,
-      maxSize: 100000,
-    });
+    collection.fields.add(new URLField({ name: "website", required: false }));
+    collection.fields.add(new URLField({ name: "portalUrl", required: false }));
+    collection.fields.add(new TextField({ name: "generalNotes", required: false, max: 4000 }));
+    collection.fields.add(
+      new JSONField({ name: "enrichmentSources", required: false, maxSize: 100000 })
+    );
 
     app.save(collection);
   },
