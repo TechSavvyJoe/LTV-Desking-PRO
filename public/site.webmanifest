@@ -1,0 +1,13 @@
+{
+  "name": "LTV Desking PRO",
+  "short_name": "LTV Desking",
+  "description": "Automotive desking, lender matching, and F&I tooling for US dealerships.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/apple-touch-icon.svg", "type": "image/svg+xml", "sizes": "180x180", "purpose": "any maskable" }
+  ]
+}
