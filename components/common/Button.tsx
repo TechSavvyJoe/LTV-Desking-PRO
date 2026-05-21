@@ -5,9 +5,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "danger" | "ghost" | "success";
   size?: "sm" | "md" | "lg" | "icon";
   children: React.ReactNode;
-  /** Loading state - shows spinner and disables button */
   isLoading?: boolean;
-  /** Accessibility label - required for icon-only buttons */
   "aria-label"?: string;
 }
 
@@ -33,41 +31,35 @@ const Button: React.FC<ButtonProps> = ({
 
   const variantClasses = {
     primary: `
-      bg-neutral-950 dark:bg-white
-      text-white dark:text-neutral-950
-      border border-neutral-950 dark:border-white
+      bg-neutral-900 dark:bg-white
+      text-white dark:text-neutral-900
       hover:bg-neutral-800 dark:hover:bg-neutral-100
-      focus-visible:ring-primary-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950
-      disabled:bg-neutral-300 dark:disabled:bg-neutral-700
+      focus-visible:ring-neutral-900 dark:focus-visible:ring-white
     `,
     secondary: `
-      bg-white dark:bg-neutral-900
+      bg-white dark:bg-neutral-800
       text-neutral-700 dark:text-neutral-200
       border border-neutral-200 dark:border-neutral-700
-      hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600
-      focus-visible:ring-primary-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950
+      hover:bg-neutral-50 dark:hover:bg-neutral-700
+      hover:border-neutral-300 dark:hover:border-neutral-600
+      focus-visible:ring-neutral-400
     `,
     danger: `
-      bg-red-600 dark:bg-red-600
-      text-white
-      border border-red-600 dark:border-red-500
-      hover:bg-red-700 dark:hover:bg-red-500
-      focus-visible:ring-red-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950
+      bg-red-600 text-white
+      hover:bg-red-700
+      focus-visible:ring-red-500
     `,
     ghost: `
       bg-transparent
       text-neutral-600 dark:text-neutral-400
-      border border-transparent
       hover:text-neutral-900 dark:hover:text-white
       hover:bg-neutral-100 dark:hover:bg-neutral-800
-      focus-visible:ring-primary-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950
+      focus-visible:ring-neutral-400
     `,
     success: `
-      bg-emerald-600 dark:bg-emerald-600
-      text-white
-      border border-emerald-600 dark:border-emerald-500
-      hover:bg-emerald-700 dark:hover:bg-emerald-500
-      focus-visible:ring-emerald-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950
+      bg-emerald-600 text-white
+      hover:bg-emerald-700
+      focus-visible:ring-emerald-500
     `,
   };
 
@@ -77,11 +69,6 @@ const Button: React.FC<ButtonProps> = ({
     lg: "px-5 py-2.5 text-base rounded-lg gap-2",
     icon: "p-2 rounded-lg",
   };
-
-  // Warn in development if icon button has no aria-label
-  if (import.meta.env.DEV && size === "icon" && !ariaLabel) {
-    console.warn("Button: Icon-only buttons should have an aria-label for accessibility.");
-  }
 
   return (
     <button

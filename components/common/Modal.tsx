@@ -30,26 +30,18 @@ const Modal: React.FC<ModalProps> = ({
       scrollPositionRef.current = window.scrollY;
       setIsVisible(true);
       requestAnimationFrame(() => setIsAnimating(true));
-
       document.body.style.overflow = "hidden";
       document.body.style.position = "fixed";
       document.body.style.top = `-${scrollPositionRef.current}px`;
       document.body.style.width = "100%";
-      document.body.style.left = "0";
     } else if (isVisible) {
       setIsAnimating(false);
-
       document.body.style.overflow = "";
       document.body.style.position = "";
       document.body.style.top = "";
       document.body.style.width = "";
-      document.body.style.left = "";
-
       window.scrollTo(0, scrollPositionRef.current);
-
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-      }, 200);
+      const timer = setTimeout(() => setIsVisible(false), 200);
       return () => clearTimeout(timer);
     }
   }, [isOpen, isVisible]);
@@ -68,11 +60,9 @@ const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
       <div
-        className={`
-          fixed inset-0 bg-black/60 dark:bg-black/70
-          transition-opacity duration-200 ease-out
-          ${isAnimating ? "opacity-100" : "opacity-0"}
-        `}
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
+          isAnimating ? "opacity-100" : "opacity-0"
+        }`}
         onClick={onClose}
         aria-hidden="true"
       />
@@ -83,14 +73,10 @@ const Modal: React.FC<ModalProps> = ({
           relative w-full ${sizeClasses[size]}
           bg-white dark:bg-neutral-900
           border border-neutral-200 dark:border-neutral-800
-          rounded-xl shadow-2xl
-          transform transition-all duration-200 ease-out
+          rounded-xl shadow-xl
+          transform transition-all duration-200
           flex flex-col max-h-[calc(100vh-3rem)]
-          ${
-            isAnimating
-              ? "opacity-100 scale-100 translate-y-0"
-              : "opacity-0 scale-[0.98] translate-y-2"
-          }
+          ${isAnimating ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-[0.96] translate-y-2"}
         `}
         role="dialog"
         aria-modal="true"
@@ -111,19 +97,14 @@ const Modal: React.FC<ModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="
-              -mr-1 p-1.5
-              text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300
-              hover:bg-neutral-100 dark:hover:bg-neutral-800
-              rounded-lg transition-colors
-            "
+            className="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
             aria-label="Close modal"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content - Scrollable */}
+        {/* Content */}
         <div className="px-6 py-5 overflow-y-auto custom-scrollbar flex-1">{children}</div>
 
         {/* Footer */}

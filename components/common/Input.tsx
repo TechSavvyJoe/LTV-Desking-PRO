@@ -1,13 +1,9 @@
 import React, { forwardRef } from "react";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  /** Error state styling */
   error?: boolean;
-  /** Icon to display on the left */
   leftIcon?: React.ReactNode;
-  /** Icon to display on the right */
   rightIcon?: React.ReactNode;
-  /** Size variant */
   inputSize?: "sm" | "md" | "lg";
 }
 
@@ -34,8 +30,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     `;
 
     const stateClasses = error
-      ? "border-red-500 dark:border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
-      : "border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 focus:border-primary-500 dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 dark:focus:ring-primary-400/20";
+      ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+      : "border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 focus:border-neutral-900 dark:focus:border-white focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white";
 
     const iconPadding = {
       left: leftIcon ? "pl-10" : "",
@@ -44,9 +40,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
     return (
       <div className="relative">
-        {/* Left Icon */}
         {leftIcon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 pointer-events-none">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
             {leftIcon}
           </span>
         )}
@@ -65,9 +60,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
 
-        {/* Right Icon */}
         {rightIcon && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 pointer-events-none">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
             {rightIcon}
           </span>
         )}
