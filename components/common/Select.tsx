@@ -10,27 +10,27 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ error = false, selectSize = "md", className = "", disabled, children, ...props }, ref) => {
     const sizeClasses = {
-      sm: "px-3 py-2 text-sm",
-      md: "px-4 py-2.5 text-base",
-      lg: "px-4 py-3.5 text-lg",
+      sm: "px-3 py-1.5 text-sm",
+      md: "px-3 py-2 text-sm",
+      lg: "px-4 py-2.5 text-base",
     };
 
     const baseClasses = `
       w-full
       appearance-none
-      bg-white dark:bg-slate-800/80
-      border-[1.5px] rounded-xl
-      text-slate-900 dark:text-slate-100
-      transition-all duration-200 ease-out
+      bg-white dark:bg-neutral-900
+      border rounded-lg
+      text-neutral-900 dark:text-neutral-100
+      transition-all duration-150 ease-out
       focus:outline-none
       cursor-pointer
-      disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800
+      disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-neutral-100 dark:disabled:bg-neutral-800
       pr-10
     `;
 
     const stateClasses = error
-      ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
-      : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
+      ? "border-red-500 dark:border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+      : "border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 focus:border-primary-500 dark:focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 dark:focus:ring-primary-400/20";
 
     return (
       <div className="relative">
@@ -49,8 +49,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         </select>
 
         {/* Custom Arrow */}
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-slate-500">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400 dark:text-neutral-500">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </span>

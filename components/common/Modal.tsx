@@ -27,35 +27,29 @@ const Modal: React.FC<ModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Save current scroll position BEFORE locking body
       scrollPositionRef.current = window.scrollY;
       setIsVisible(true);
       requestAnimationFrame(() => setIsAnimating(true));
 
-      // Lock body scroll
       document.body.style.overflow = "hidden";
       document.body.style.position = "fixed";
       document.body.style.top = `-${scrollPositionRef.current}px`;
       document.body.style.width = "100%";
       document.body.style.left = "0";
     } else if (isVisible) {
-      // IMMEDIATELY restore scroll when closing starts
       setIsAnimating(false);
 
-      // Restore body styles immediately (don't wait for animation)
       document.body.style.overflow = "";
       document.body.style.position = "";
       document.body.style.top = "";
       document.body.style.width = "";
       document.body.style.left = "";
 
-      // Restore scroll position immediately
       window.scrollTo(0, scrollPositionRef.current);
 
-      // Only delay the visibility (unmount) for animation
       const timer = setTimeout(() => {
         setIsVisible(false);
-      }, 300);
+      }, 200);
       return () => clearTimeout(timer);
     }
   }, [isOpen, isVisible]);
@@ -64,9 +58,9 @@ const Modal: React.FC<ModalProps> = ({
 
   const sizeClasses = {
     sm: "max-w-md",
-    md: "max-w-xl",
-    lg: "max-w-3xl",
-    xl: "max-w-5xl",
+    md: "max-w-lg",
+    lg: "max-w-2xl",
+    xl: "max-w-4xl",
     full: "max-w-full m-4 h-[calc(100vh-2rem)]",
   };
 
@@ -75,8 +69,8 @@ const Modal: React.FC<ModalProps> = ({
       {/* Backdrop */}
       <div
         className={`
-          fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm
-          transition-opacity duration-300 ease-out
+          fixed inset-0 bg-black/60 dark:bg-black/70
+          transition-opacity duration-200 ease-out
           ${isAnimating ? "opacity-100" : "opacity-0"}
         `}
         onClick={onClose}
@@ -87,13 +81,15 @@ const Modal: React.FC<ModalProps> = ({
       <div
         className={`
           relative w-full ${sizeClasses[size]}
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-800
-          rounded-2xl shadow-2xl shadow-slate-900/20
-          transform transition-all duration-300 cubic-bezier(0.16, 1, 0.3, 1)
+          bg-white dark:bg-neutral-900
+          border border-neutral-200 dark:border-neutral-800
+          rounded-xl shadow-2xl
+          transform transition-all duration-200 ease-out
           flex flex-col max-h-[calc(100vh-3rem)]
           ${
-            isAnimating ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
+            isAnimating
+              ? "opacity-100 scale-100 translate-y-0"
+              : "opacity-0 scale-[0.98] translate-y-2"
           }
         `}
         role="dialog"
@@ -101,25 +97,25 @@ const Modal: React.FC<ModalProps> = ({
         aria-labelledby="modal-title"
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800/50 flex-shrink-0">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0">
           <div>
             <h3
               id="modal-title"
-              className="text-lg font-semibold text-slate-900 dark:text-white leading-6"
+              className="text-base font-semibold text-neutral-900 dark:text-white"
             >
               {title}
             </h3>
             {description && (
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
+              <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
             className="
-              -mr-2 p-2
-              text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300
-              hover:bg-slate-100 dark:hover:bg-slate-800
-              rounded-xl transition-colors
+              -mr-1 p-1.5
+              text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300
+              hover:bg-neutral-100 dark:hover:bg-neutral-800
+              rounded-lg transition-colors
             "
             aria-label="Close modal"
           >
@@ -128,11 +124,11 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content - Scrollable */}
-        <div className="px-6 py-6 overflow-y-auto custom-scrollbar flex-1">{children}</div>
+        <div className="px-6 py-5 overflow-y-auto custom-scrollbar flex-1">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-2xl flex-shrink-0">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 rounded-b-xl flex-shrink-0">
             {footer}
           </div>
         )}

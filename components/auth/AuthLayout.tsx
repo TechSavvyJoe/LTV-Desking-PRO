@@ -8,25 +8,14 @@ interface AuthLayoutProps {
 
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8 overflow-hidden">
-      {/* Branded background: deep slate base + radial gradients anchored
-          to brand blue/violet + a subtle grid texture. No external image
-          dependency (drops a ~150 KB Unsplash request from the critical
-          path and stays inside the strict CSP). */}
-      <div className="absolute inset-0 bg-slate-950" />
+    <div className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-neutral-50 dark:bg-neutral-950">
+      {/* Subtle grid pattern */}
       <div
-        className="absolute inset-0 opacity-60"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59, 130, 246, 0.18) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(139, 92, 246, 0.12) 0%, transparent 50%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.04]"
+        className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(148, 163, 184, 0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.45) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
+            "linear-gradient(rgb(0 0 0) 1px, transparent 1px), linear-gradient(90deg, rgb(0 0 0) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
         }}
       />
 
@@ -35,28 +24,33 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="flex justify-center mb-8">
-          <BrandMark className="w-16 h-16 drop-shadow-[0_8px_24px_rgba(59,130,246,0.35)]" />
+        <div className="flex justify-center mb-6">
+          <BrandMark className="w-12 h-12" />
         </div>
-        <h1 className="text-center text-4xl font-bold tracking-tight text-white">
-          LTV Desking <span className="text-blue-400">PRO</span>
+        <h1 className="text-center text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white">
+          LTV Desking <span className="text-primary-500">PRO</span>
         </h1>
-        <p className="text-center text-slate-400 text-sm mt-3 max-w-sm mx-auto">
-          Precision deal structuring, lender intelligence, and F&amp;I tooling for US automotive
-          dealerships.
+        <p className="text-center text-neutral-500 dark:text-neutral-400 text-sm mt-2 max-w-sm mx-auto">
+          Precision deal structuring and lender intelligence for automotive dealerships.
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">{children}</div>
 
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md relative z-10 flex items-center justify-center gap-3 text-xs text-slate-500">
+      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md relative z-10 flex items-center justify-center gap-3 text-xs text-neutral-400 dark:text-neutral-500">
         <span>Built for US dealerships</span>
-        <span aria-hidden>·</span>
-        <a href="/privacy" className="hover:text-slate-300 transition-colors">
+        <span className="text-neutral-300 dark:text-neutral-700">·</span>
+        <a
+          href="/privacy"
+          className="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+        >
           Privacy
         </a>
-        <span aria-hidden>·</span>
-        <a href="/terms" className="hover:text-slate-300 transition-colors">
+        <span className="text-neutral-300 dark:text-neutral-700">·</span>
+        <a
+          href="/terms"
+          className="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+        >
           Terms
         </a>
       </div>

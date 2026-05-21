@@ -13,23 +13,22 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
     <button
       onClick={onClick}
       className={`
-        group relative px-6 py-3 text-sm font-semibold rounded-xl
-        transition-all duration-300 ease-out
-        hover:scale-105 active:scale-95
+        group relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
+        transition-all duration-150 ease-out
         ${
           active
-            ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-sm"
-            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
+            ? "text-neutral-900 dark:text-white bg-neutral-100 dark:bg-neutral-800"
+            : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
         }
       `}
       aria-current={active ? "page" : undefined}
     >
-      {/* Active indicator bar with smooth slide animation */}
+      {/* Icon */}
       <span
-        className={`flex items-center justify-center transition-colors ${
+        className={`transition-colors ${
           active
-            ? "text-blue-600 dark:text-blue-400"
-            : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+            ? "text-neutral-900 dark:text-white"
+            : "text-neutral-400 dark:text-neutral-500 group-hover:text-neutral-600 dark:group-hover:text-neutral-300"
         }`}
       >
         {icon}
@@ -42,27 +41,19 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
       {count !== undefined && (
         <span
           className={`
-            min-w-[1.375rem] h-[1.375rem] px-1.5
+            min-w-[1.25rem] h-5 px-1.5
             flex items-center justify-center
-            text-[10px] font-bold rounded-full
-            transition-all duration-200
+            text-xs font-medium rounded-full
+            transition-all duration-150
             ${
               active
-                ? "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-300"
-                : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                ? "bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200"
+                : "bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400"
             }
           `}
         >
           {count > 99 ? "99+" : count}
         </span>
-      )}
-
-      {/* Active indicator underline */}
-      {active && (
-        <span
-          className="absolute bottom-0 left-4 right-4 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-full shadow-[0_-2px_10px_rgba(59,130,246,0.5)]"
-          aria-hidden="true"
-        />
       )}
     </button>
   );

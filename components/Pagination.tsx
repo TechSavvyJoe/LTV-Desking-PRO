@@ -33,19 +33,23 @@ const Pagination: React.FC<PaginationProps> = ({ totalItems, pagination, setPagi
       : `Page ${totalItems > 0 ? currentPage : 0} of ${totalPages}`;
 
   return (
-    <div className="flex flex-wrap justify-between items-center mt-4 py-3 border-t border-slate-200 dark:border-slate-800 gap-4 text-slate-700 dark:text-slate-200">
+    <div className="flex flex-wrap justify-between items-center py-3 px-4 border-t border-neutral-200 dark:border-neutral-800 gap-4 text-neutral-700 dark:text-neutral-200">
       <div className="flex items-center gap-2">
         <Button
           variant="secondary"
+          size="sm"
           onClick={handlePrev}
           disabled={currentPage === 1 || totalItems === 0}
           aria-label="Go to previous page"
         >
           Previous
         </Button>
-        <span className="text-sm font-medium px-2">{pageInfo}</span>
+        <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 px-2 tabular">
+          {pageInfo}
+        </span>
         <Button
           variant="secondary"
+          size="sm"
           onClick={handleNext}
           disabled={currentPage === totalPages || totalItems === 0}
           aria-label="Go to next page"
@@ -54,14 +58,17 @@ const Pagination: React.FC<PaginationProps> = ({ totalItems, pagination, setPagi
         </Button>
       </div>
       <div className="flex items-center gap-2">
-        <label htmlFor="rowsPerPage" className="text-sm font-medium">
+        <label
+          htmlFor="rowsPerPage"
+          className="text-xs font-medium text-neutral-500 dark:text-neutral-400"
+        >
           Rows:
         </label>
         <select
           id="rowsPerPage"
           value={rowsPerPage}
           onChange={handleRowsPerPageChange}
-          className="px-3 py-1.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-slate-700 dark:text-slate-200"
+          className="px-2 py-1 text-xs bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 text-neutral-700 dark:text-neutral-200"
         >
           <option value="15">15</option>
           <option value="25">25</option>

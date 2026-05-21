@@ -22,32 +22,32 @@ const ActionBar: React.FC<ActionBarProps> = ({
       <Button
         variant="primary"
         size="sm"
-        className="h-9 px-3 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all font-semibold"
         onClick={onSaveDeal}
         disabled={!canSave}
+        className="gap-1.5"
       >
-        <Icons.SaveIcon className="w-4 h-4 mr-2" />
+        <Icons.SaveIcon className="w-3.5 h-3.5" />
         Save Deal
       </Button>
 
       <Button
         variant="secondary"
         size="sm"
-        className="h-9 px-3 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 transition-colors group"
         onClick={onDownloadFavorites}
         disabled={favoritesCount === 0}
+        className="gap-1.5"
       >
-        <Icons.DocumentDuplicateIcon className="w-4 h-4 mr-2 text-slate-400 group-hover:text-blue-500 transition-colors" />
+        <Icons.DocumentDuplicateIcon className="w-3.5 h-3.5" />
         PDF
         {favoritesCount > 0 && (
-          <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded-full font-bold">
+          <span className="ml-1 text-2xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-1.5 py-0.5 rounded-full font-medium tabular">
             {favoritesCount}
           </span>
         )}
       </Button>
 
-      <div className="hidden sm:flex items-center gap-2 ml-2 text-xs text-slate-400 dark:text-slate-600">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+      <div className="hidden sm:flex items-center gap-1.5 ml-2 text-xs text-neutral-400 dark:text-neutral-600">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
         <span>v2.0</span>
       </div>
     </div>

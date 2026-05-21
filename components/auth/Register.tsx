@@ -57,7 +57,7 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
       );
       if (result.success) {
         toast.success("Registration successful! Logging you in...");
-        onSuccess(); // User is already logged in via auto-login in register()
+        onSuccess();
       } else {
         toast.error(result.error || "Registration failed");
       }
@@ -75,15 +75,15 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
 
   if (!signupsEnabled) {
     return (
-      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn text-center">
-        <Icons.LockClosedIcon className="w-10 h-10 mx-auto text-slate-400" />
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Signups disabled</h2>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
+      <div className="w-full max-w-md p-6 sm:p-8 bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-neutral-200 dark:border-neutral-800 text-center space-y-4">
+        <Icons.LockClosedIcon className="w-10 h-10 mx-auto text-neutral-400" />
+        <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">Signups disabled</h2>
+        <p className="text-neutral-500 dark:text-neutral-400 text-sm">
           New dealership signups are temporarily turned off. Please contact your administrator.
         </p>
         <button
           onClick={onLoginClick}
-          className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+          className="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
         >
           Back to sign in
         </button>
@@ -91,17 +91,22 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
     );
   }
 
+  const inputClasses =
+    "w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 transition-colors";
+
   return (
-    <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn">
+    <div className="w-full max-w-md p-6 sm:p-8 bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-neutral-200 dark:border-neutral-800">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Create Account</h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">Join your dealership team</p>
+        <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">Create account</h2>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          Join your dealership team
+        </p>
       </div>
 
-      <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-        <div className="grid grid-cols-2 gap-4">
+      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1.5">
               First Name
             </label>
             <input
@@ -109,11 +114,11 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
               required
               value={formData.firstName}
               onChange={handleChange}
-              className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className={inputClasses}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1.5">
               Last Name
             </label>
             <input
@@ -121,13 +126,13 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
               required
               value={formData.lastName}
               onChange={handleChange}
-              className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className={inputClasses}
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1.5">
             Email
           </label>
           <input
@@ -136,32 +141,33 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
             required
             value={formData.email}
             onChange={handleChange}
-            className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            className={inputClasses}
+            placeholder="you@example.com"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1.5">
             Dealer Code
           </label>
-          <div className="mt-1 relative">
+          <div className="relative">
             <input
               name="dealerCode"
               required
               value={formData.dealerCode}
               onChange={handleChange}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className={`${inputClasses} pl-10`}
               placeholder="e.g. HERTZ"
             />
-            <Icons.BuildingOfficeIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
+            <Icons.BuildingOfficeIcon className="absolute left-3 top-2.5 h-5 w-5 text-neutral-400" />
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Enter the code provided by your admin (e.g., HERTZ)
+          <p className="mt-1 text-xs text-neutral-500">
+            Enter the code provided by your administrator
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1.5">
             Password
           </label>
           <input
@@ -171,12 +177,13 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
             minLength={8}
             value={formData.password}
             onChange={handleChange}
-            className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            className={inputClasses}
+            placeholder="At least 8 characters"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1.5">
             Confirm Password
           </label>
           <input
@@ -186,25 +193,22 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
             minLength={8}
             value={formData.passwordConfirm}
             onChange={handleChange}
-            className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            className={inputClasses}
+            placeholder="Confirm your password"
           />
         </div>
 
-        <Button
-          type="submit"
-          disabled={loading}
-          className="w-full flex justify-center mt-6 py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-        >
-          {loading ? <Icons.SpinnerIcon className="animate-spin h-5 w-5" /> : "Create Account"}
+        <Button type="submit" disabled={loading} className="w-full mt-2">
+          {loading ? <Icons.SpinnerIcon className="animate-spin h-4 w-4" /> : "Create account"}
         </Button>
       </form>
 
-      <div className="text-center mt-4">
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+      <div className="text-center mt-6 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">
           Already have an account?{" "}
           <button
             onClick={onLoginClick}
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
           >
             Sign in
           </button>

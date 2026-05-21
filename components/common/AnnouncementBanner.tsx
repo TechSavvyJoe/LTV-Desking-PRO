@@ -24,9 +24,9 @@ export const AnnouncementBanner: React.FC = () => {
   if (!text.trim()) return null;
 
   return (
-    <div className="bg-amber-500 text-amber-950 px-4 py-2 text-sm flex items-center gap-2 justify-center">
+    <div className="bg-amber-400 text-amber-950 px-4 py-2 text-xs flex items-center gap-2 justify-center font-medium">
       <Icons.ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
-      <span className="font-medium">{text}</span>
+      <span>{text}</span>
     </div>
   );
 };

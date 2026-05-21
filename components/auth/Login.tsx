@@ -39,22 +39,24 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
   };
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn">
+    <div className="w-full max-w-md p-6 sm:p-8 bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-neutral-200 dark:border-neutral-800">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">Sign in to access your deals</p>
+        <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">Welcome back</h2>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          Sign in to access your deals
+        </p>
       </div>
 
-      <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-4">
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1.5"
             >
               Email address
             </label>
-            <div className="mt-1 relative">
+            <div className="relative">
               <input
                 id="email"
                 name="email"
@@ -63,21 +65,21 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 transition-colors"
                 placeholder="you@example.com"
               />
-              <Icons.EnvelopeIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
+              <Icons.EnvelopeIcon className="absolute left-3 top-2.5 h-5 w-5 text-neutral-400" />
             </div>
           </div>
 
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1.5"
             >
               Password
             </label>
-            <div className="mt-1 relative">
+            <div className="relative">
               <input
                 id="password"
                 name="password"
@@ -86,44 +88,35 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 transition-colors"
+                placeholder="Enter your password"
               />
-              <Icons.LockClosedIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
+              <Icons.LockClosedIcon className="absolute left-3 top-2.5 h-5 w-5 text-neutral-400" />
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="text-sm">
-            <a
-              href="#"
-              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-              onClick={(e) => {
-                e.preventDefault();
-                toast.info("Please contact your administrator to reset password.");
-              }}
-            >
-              Forgot your password?
-            </a>
-          </div>
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            className="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
+            onClick={() => toast.info("Please contact your administrator to reset password.")}
+          >
+            Forgot password?
+          </button>
         </div>
 
-        <Button
-          type="submit"
-          disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? <Icons.SpinnerIcon className="animate-spin h-5 w-5" /> : "Sign in"}
+        <Button type="submit" disabled={loading} className="w-full">
+          {loading ? <Icons.SpinnerIcon className="animate-spin h-4 w-4" /> : "Sign in"}
         </Button>
       </form>
 
-      <div className="text-center mt-6">
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          Don't have an account?{" "}
+      <div className="text-center mt-6 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          {"Don't have an account? "}
           <button
             onClick={onRegisterClick}
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
           >
             Register dealer
           </button>

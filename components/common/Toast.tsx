@@ -37,17 +37,22 @@ export const Toast: React.FC = () => {
       clearInterval(progressInterval);
       clearTimeout(timer);
     };
-  }, [isVisible, message]); // Reset timer when message changes
+  }, [isVisible, message]);
 
   if (!isVisible) return null;
 
   const variantStyles = {
-    success:
-      "bg-emerald-500/20 text-emerald-800 border-emerald-500 dark:bg-emerald-500/30 dark:text-emerald-200",
-    error: "bg-red-500/20 text-red-800 border-red-500 dark:bg-red-500/30 dark:text-red-200",
-    warning:
-      "bg-amber-500/20 text-amber-800 border-amber-500 dark:bg-amber-500/30 dark:text-amber-200",
-    info: "bg-blue-500/20 text-blue-800 border-blue-500 dark:bg-blue-500/30 dark:text-blue-200",
+    success: "bg-neutral-900 dark:bg-neutral-800 text-white border-l-emerald-500",
+    error: "bg-neutral-900 dark:bg-neutral-800 text-white border-l-red-500",
+    warning: "bg-neutral-900 dark:bg-neutral-800 text-white border-l-amber-500",
+    info: "bg-neutral-900 dark:bg-neutral-800 text-white border-l-primary-500",
+  };
+
+  const iconColors = {
+    success: "text-emerald-400",
+    error: "text-red-400",
+    warning: "text-amber-400",
+    info: "text-primary-400",
   };
 
   const getIcon = () => {
@@ -62,42 +67,40 @@ export const Toast: React.FC = () => {
     }
   };
 
-  // Errors and warnings are assertive (announce immediately); success/info
-  // are polite (wait for screen reader to finish its current utterance).
   const ariaLive = type === "error" || type === "warning" ? "assertive" : "polite";
   const role = type === "error" || type === "warning" ? "alert" : "status";
 
   return (
     <div
-      className="fixed top-4 right-4 z-[200] max-w-md animate-slideIn"
+      className="fixed bottom-4 right-4 z-[200] max-w-sm animate-slide-up"
       role={role}
       aria-live={ariaLive}
       aria-atomic="true"
     >
       <div
         className={`
-          flex items-start gap-3 p-4 rounded-2xl shadow-2xl backdrop-blur-lg
-          border-l-4 overflow-hidden relative
+          flex items-start gap-3 px-4 py-3 rounded-lg shadow-xl
+          border border-neutral-700 dark:border-neutral-700 border-l-4 overflow-hidden relative
           ${variantStyles[type]}
         `}
       >
         <div
-          className="absolute bottom-0 left-0 h-1 bg-white/30 transition-all duration-75 ease-linear"
+          className="absolute bottom-0 left-0 h-0.5 bg-white/20 transition-all duration-75 ease-linear"
           style={{ width: `${progress}%` }}
         />
 
-        <div className="flex-shrink-0 w-6 h-6" aria-hidden="true">
+        <div className={`flex-shrink-0 w-5 h-5 ${iconColors[type]}`} aria-hidden="true">
           {getIcon()}
         </div>
 
-        <p className="flex-1 text-sm font-medium leading-relaxed">{message}</p>
+        <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
 
         <button
           onClick={() => setIsVisible(false)}
-          className="flex-shrink-0 text-current opacity-60 hover:opacity-100 transition-all"
+          className="flex-shrink-0 text-neutral-400 hover:text-white transition-colors"
           aria-label="Dismiss notification"
         >
-          <XMarkIcon className="w-5 h-5" aria-hidden="true" />
+          <XMarkIcon className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </div>
