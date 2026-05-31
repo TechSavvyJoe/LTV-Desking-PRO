@@ -65,10 +65,20 @@ onRecordCreateRequest((e) => {
   const auth = e.auth;
   const actorRole = auth ? auth.get("role") : "";
 
-  // Trusted actors create users through the admin UI with an explicit role.
-  if (actorRole === "superadmin" || actorRole === "admin") return e.next();
+  // Only a superadmin may create a user with an arbitrary role / dealership.
+  if (actorRole === "superadmin") return e.next();
 
-  // Any non-admin create (notably public self-registration) gets the lowest-
+  if (actorRole === "admin") {
+    // A dealership admin may create users within their OWN dealership and must
+    // never mint a superadmin. Apply the same clamps the update path uses, so
+    // create isn't an escalation/tenant-hop bypass of the update guard.
+    if (e.record.get("role") === "superadmin") e.record.set("role", "sales");
+    const actorDealer = auth.get("dealer");
+    if (actorDealer) e.record.set("dealer", actorDealer);
+    return e.next();
+  }
+
+  // Any other create (notably public self-registration) gets the lowest-
   // privilege role regardless of what the client payload requested.
   e.record.set("role", "sales");
   return e.next();

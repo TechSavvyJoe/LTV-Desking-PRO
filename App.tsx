@@ -367,6 +367,12 @@ const MainLayout: React.FC = () => {
           })
           .catch((err: unknown) => {
             console.error("Failed to sync VIN lookup to PocketBase:", err);
+            // Surface the silent persistence failure (e.g. no dealership selected)
+            // instead of leaving the user believing the vehicle was saved.
+            setMessage({
+              type: "warning",
+              text: "Vehicle is shown locally but couldn't be saved to the server.",
+            });
           });
 
         setMessage({
