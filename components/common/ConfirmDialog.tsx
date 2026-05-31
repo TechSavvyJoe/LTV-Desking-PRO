@@ -15,7 +15,7 @@ export const ConfirmDialog: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-md rounded-xl border border-slate-700 bg-white p-5 shadow-2xl dark:bg-slate-950">
         <h2 className="text-lg font-bold text-slate-900 dark:text-white">{request.title}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">

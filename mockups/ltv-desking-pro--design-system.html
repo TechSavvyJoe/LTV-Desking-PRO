@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LTV Desking PRO - V13 (Disciplined SaaS)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   v13 — Strict SaaS / Table Centric (Tekion/Stripe Aesthetic)
+   ============================================================================ */
+:root {
+  --color-bg            : #FFFFFF;
+  --color-bg-subtle     : #F8FAFC; 
+  --color-bg-muted      : #F1F5F9; 
+  --color-border        : #E2E8F0; 
+  --color-border-strong : #CBD5E1; 
+
+  --color-text          : #0F172A; 
+  --color-text-muted    : #475569; 
+  --color-text-subtle   : #94A3B8; 
+
+  --color-primary        : #1E40AF; 
+  --color-primary-hover  : #1E3A8A; 
+  --color-primary-subtle : #DBEAFE; 
+
+  --color-accent         : #475569; 
+  --color-accent-hover   : #334155; 
+  --color-accent-subtle  : #E2E8F0; 
+
+  --color-success        : #15803D; 
+  --color-success-subtle : #DCFCE7; 
+  --color-warning        : #B45309; 
+  --color-warning-subtle : #FEF3C7; 
+  --color-danger         : #B91C1C; 
+  --color-danger-subtle  : #FEE2E2; 
+
+  --radius-sm : 4px;   
+  --radius    : 6px;   
+  --radius-md : 8px;   
+  --radius-lg : 10px;  
+
+  --shadow-sm : 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow    : 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  --font: "Inter", -apple-system, system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg-subtle);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+.app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  background: #0F172A; /* Deep Navy sidebar for focus */
+  color: #F1F5F9;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #1E293B;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sidebar-logo {
+  width: 24px; height: 24px;
+  background: #3B82F6;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 11px;
+}
+.sidebar-title { font-weight: 600; font-size: 14px; }
+
+.sidebar-nav {
+  padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.nav-item {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: #94A3B8;
+  cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.nav-item:hover { background: #1E293B; color: #F1F5F9; }
+.nav-item.active { background: #1E40AF; color: #FFFFFF; font-weight: 500; }
+.nav-count { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 99px; font-size: 11px; }
+
+/* Main Area */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 24px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.customer-pill {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  display: flex; gap: 8px; align-items: center;
+}
+.customer-pill strong { color: var(--color-primary); }
+.customer-pill span { color: var(--color-text-muted); }
+.btn {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary { background: var(--color-primary); color: #fff; border-color: transparent; }
+.btn-primary:hover { background: var(--color-primary-hover); }
+
+/* Workspace & Table */
+.workspace {
+  padding: 24px;
+  flex: 1;
+  overflow: auto;
+}
+.table-toolbar {
+  display: flex; justify-content: space-between; margin-bottom: 16px;
+}
+.search-input {
+  border: 1px solid var(--color-border);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  width: 300px;
+}
+.table-container {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+th {
+  background: var(--color-bg-subtle);
+  padding: 10px 16px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+tbody tr:hover { background: var(--color-bg-subtle); }
+tr.expanded { background: var(--color-primary-subtle) !important; border-left: 2px solid var(--color-primary); }
+
+/* Status Badges */
+.badge {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-success { background: var(--color-success-subtle); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-subtle); color: var(--color-warning); }
+.badge-neutral { background: var(--color-bg-muted); color: var(--color-text-muted); border: 1px solid var(--color-border);}
+
+/* Expanded Row */
+.desk-panel {
+  padding: 20px;
+  background: var(--color-bg-subtle);
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+}
+.controls-grid {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.control-row {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.control-input {
+  width: 100px; padding: 4px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); text-align: right;
+}
+
+.match-cards {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+}
+.match-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.match-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.match-card ul { list-style: none; color: var(--color-text-muted); display: grid; gap: 4px; margin-top: 8px;}
+.match-card li { display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">LP</div>
+      <div class="sidebar-title">LTV Desking PRO</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active"><span>Inventory desk</span> <span class="nav-count">248</span></div>
+      <div class="nav-item"><span>Lender studio</span> <span class="nav-count">19</span></div>
+      <div class="nav-item"><span>Saved structures</span> <span class="nav-count">42</span></div>
+      <div class="nav-item"><span>Owner pulse</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="customer-pill">
+        <strong>Jordan Rivera</strong>
+        <span>|</span>
+        <span>690 FICO</span>
+        <span>|</span>
+        <span>$4,500 down</span>
+      </div>
+      <div>
+        <button class="btn btn-primary">Create proposal</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <div class="table-toolbar">
+        <input type="text" class="search-input" placeholder="Search stock, VIN, make...">
+        <div style="display:flex; gap: 8px;">
+          <button class="btn" style="background:#F1F5F9; border-color:#CBD5E1;">Sort: Front LTV</button>
+          <button class="btn">Filters (1)</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Vehicle</th>
+              <th>Stock #</th>
+              <th style="text-align:right">Miles</th>
+              <th style="text-align:right">Price</th>
+              <th style="text-align:right">Book</th>
+              <th style="text-align:right">Front LTV</th>
+              <th style="text-align:right">Front Gross</th>
+              <th style="text-align:right">Payment</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-success">Match</span></td>
+              <td><strong>2024 Ford F-150 Lariat</strong></td>
+              <td class="tabular">F4821</td>
+              <td class="tabular" style="text-align:right">18,442</td>
+              <td class="tabular" style="text-align:right">$51,880</td>
+              <td class="tabular" style="text-align:right; color:var(--color-text-muted)">$47,100</td>
+              <td class="tabular" style="text-align:right; font-weight:600">108.2%</td>
+              <td class="tabular" style="text-align:right; color:var(--color-success)">$2,940</td>
+              <td class="tabular" style="text-align:right; font-weight:600">$742/mo</td>
+              <td><button class="btn btn-primary" style="padding:4px 8px; font-size:12px;">Desk deal</button></td>
+            </tr>
+            <tr class="expanded">
+              <td><span class="badge badge-success">Match</span></td>
+              <td><strong>2023 Ford Explorer ST</strong></td>
+              <td class="tabular">E3916</td>
+              <td class="tabular" style="text-align:right">27,906</td>
+              <td class="tabular" style="text-align:right">$39,440</td>
+              <td class="tabular" style="text-align:right; color:var(--color-text-muted)">$35,880</td>
+              <td class="tabular" style="text-align:right; font-weight:600">106.9%</td>
+              <td class="tabular" style="text-align:right; color:var(--color-success)">$2,180</td>
+              <td class="tabular" style="text-align:right; font-weight:600">$618/mo</td>
+              <td><button class="btn btn-primary" style="padding:4px 8px; font-size:12px;">Close desk</button></td>
+            </tr>
+            <tr>
+              <td colspan="10" style="padding: 0;">
+                <div class="desk-panel">
+                  <div class="controls-grid">
+                    <div style="font-weight:600; margin-bottom:4px;">Structure</div>
+                    <div class="control-row">
+                      <label>Cash down</label>
+                      <input type="text" class="control-input tabular" value="$4,500">
+                    </div>
+                    <div class="control-row">
+                      <label>Backend pack</label>
+                      <input type="text" class="control-input tabular" value="$1,760">
+                    </div>
+                    <div class="control-row">
+                      <label>Term (mo)</label>
+                      <input type="text" class="control-input tabular" value="72">
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-weight:600; margin-bottom:16px;">Matched Lenders</div>
+                    <div class="match-cards">
+                      <div class="match-card" style="border-top: 2px solid var(--color-success);">
+                        <h4>Meridian Capital <span class="badge badge-success">Recommended</span></h4>
+                        <ul>
+                          <li><span>APR</span><span class="tabular">5.19%</span></li>
+                          <li><span>PTI</span><span class="tabular">13.9%</span></li>
+                          <li><span>Reserve</span><span class="tabular; font-weight:500; color:#111827">$1,090</span></li>
+                        </ul>
+                      </div>
+                      <div class="match-card">
+                        <h4>Harbor Credit <span class="badge badge-neutral">Alternate</span></h4>
+                        <ul>
+                          <li><span>APR</span><span class="tabular">4.99%</span></li>
+                          <li><span>PTI</span><span class="tabular">13.6%</span></li>
+                          <li><span>Reserve</span><span class="tabular; font-weight:500; color:#111827">$1,210</span></li>
+                        </ul>
+                      </div>
+                      <div class="match-card">
+                        <h4>Metro Acceptance <span class="badge badge-warning">Caution</span></h4>
+                        <ul>
+                          <li><span>APR</span><span class="tabular">5.69%</span></li>
+                          <li><span>PTI</span><span class="tabular">13.1%</span></li>
+                          <li><span>Reserve</span><span class="tabular; font-weight:500; color:#111827">$960</span></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warning">Exception</span></td>
+              <td><strong>2022 Ford Bronco</strong></td>
+              <td class="tabular">B1284</td>
+              <td class="tabular" style="text-align:right">41,882</td>
+              <td class="tabular" style="text-align:right">$48,260</td>
+              <td class="tabular" style="text-align:right; color:var(--color-text-muted)">$42,510</td>
+              <td class="tabular" style="text-align:right; font-weight:600">114.4%</td>
+              <td class="tabular" style="text-align:right; color:var(--color-success)">$3,420</td>
+              <td class="tabular" style="text-align:right; font-weight:600">$799/mo</td>
+              <td><button class="btn" style="padding:4px 8px; font-size:12px;">Desk deal</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

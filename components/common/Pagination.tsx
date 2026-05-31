@@ -126,7 +126,7 @@ const Pagination: React.FC<PaginationProps> = ({ totalItems, pagination, setPagi
                     transition-all duration-150
                     ${
                       isActive
-                        ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/25"
+                        ? "bg-[var(--color-primary)] text-white"
                         : "text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                     }
                     disabled:opacity-40 disabled:cursor-not-allowed

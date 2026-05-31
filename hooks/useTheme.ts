@@ -4,7 +4,9 @@ import { STORAGE_KEYS } from "../constants";
 type Theme = "light" | "dark";
 
 const getInitialTheme = (): Theme => {
-  if (typeof window === "undefined") return "dark";
+  // Dealer Trust: light mode is the default surface. We only fall back to dark
+  // when the user has explicitly chosen it before, or their OS prefers dark.
+  if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(STORAGE_KEYS.THEME);
   if (stored === "light" || stored === "dark") return stored;
   return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";

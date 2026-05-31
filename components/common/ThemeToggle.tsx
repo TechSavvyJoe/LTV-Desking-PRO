@@ -55,7 +55,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme, onToggle }) => {
         `}
       >
         {isDark ? (
-          <Icons.MoonIcon className="w-3.5 h-3.5 text-indigo-400" />
+          <Icons.MoonIcon className="w-3.5 h-3.5 text-slate-400" />
         ) : (
           <Icons.SunIcon className="w-3.5 h-3.5 text-amber-500" />
         )}

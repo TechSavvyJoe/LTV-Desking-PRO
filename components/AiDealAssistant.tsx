@@ -97,7 +97,7 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
     <div>
       <div className="mb-6">
         <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <SparklesIcon className="text-purple-500 w-6 h-6" />
+          <SparklesIcon className="text-[var(--color-primary)] w-6 h-6" />
           AI Desk Manager
         </h3>
         <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
@@ -114,7 +114,7 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
           </p>
           <Button
             onClick={handleAnalyze}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-none shadow-md"
+            className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white border-none"
           >
             <SparklesIcon className="mr-2 w-5 h-5" />
             Analyze Deal Structure
@@ -126,7 +126,7 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
         <div className="text-center py-12 space-y-4">
           <div className="relative mx-auto w-16 h-16">
             <div className="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-gray-700"></div>
-            <div className="absolute inset-0 rounded-full border-4 border-purple-500 border-t-transparent animate-spin"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-[var(--color-primary)] border-t-transparent animate-spin"></div>
           </div>
           <p className="text-slate-600 dark:text-gray-300 font-medium animate-pulse">
             Analyzing Deal Structure...
@@ -146,10 +146,8 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
 
       {suggestionResult && (
         <div className="space-y-6 animate-fade-in">
-          <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-100 dark:border-purple-800">
-            <h4 className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider mb-2">
-              AI Analysis
-            </h4>
+          <div className="bg-[var(--color-primary-subtle)] p-4 rounded-md border border-[var(--color-border)]">
+            <h4 className="text-xs font-bold text-[var(--color-primary)] mb-2">AI Analysis</h4>
             {suggestionResult.modelWarning && (
               <p className="text-xs text-amber-600 dark:text-amber-300 mb-2">
                 {suggestionResult.modelWarning}
@@ -262,7 +260,7 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
                                   className="flex justify-between items-center border-b border-slate-100 dark:border-gray-800 pb-2 last:border-0"
                                 >
                                   <span className="text-slate-500 dark:text-gray-400">{label}</span>
-                                  <span className="font-bold text-purple-600 dark:text-purple-400">
+                                  <span className="font-bold text-[var(--color-primary)]">
                                     {displayVal}
                                   </span>
                                 </div>

@@ -41,13 +41,15 @@ export const Toast: React.FC = () => {
 
   if (!isVisible) return null;
 
+  // Opaque status surfaces (no blur). Left border carries the status color.
   const variantStyles = {
     success:
-      "bg-emerald-500/20 text-emerald-800 border-emerald-500 dark:bg-emerald-500/30 dark:text-emerald-200",
-    error: "bg-red-500/20 text-red-800 border-red-500 dark:bg-red-500/30 dark:text-red-200",
+      "bg-[var(--color-success-subtle)] text-[var(--color-success)] border-[var(--color-success)]",
+    error:
+      "bg-[var(--color-danger-subtle)] text-[var(--color-danger)] border-[var(--color-danger)]",
     warning:
-      "bg-amber-500/20 text-amber-800 border-amber-500 dark:bg-amber-500/30 dark:text-amber-200",
-    info: "bg-blue-500/20 text-blue-800 border-blue-500 dark:bg-blue-500/30 dark:text-blue-200",
+      "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border-[var(--color-warning)]",
+    info: "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border-[var(--color-primary)]",
   };
 
   const getIcon = () => {
@@ -76,7 +78,7 @@ export const Toast: React.FC = () => {
     >
       <div
         className={`
-          flex items-start gap-3 p-4 rounded-2xl shadow-2xl backdrop-blur-lg
+          flex items-start gap-3 p-4 rounded-md shadow-md
           border-l-4 overflow-hidden relative
           ${variantStyles[type]}
         `}

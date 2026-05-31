@@ -92,7 +92,7 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 text-purple-300 border border-purple-500/50 rounded-lg text-sm hover:bg-purple-600/30 transition-all"
+        className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border-strong)] rounded text-sm hover:bg-[var(--color-bg-muted)] transition-colors"
       >
         <Icons.BuildingStorefrontIcon className="w-4 h-4" />
         <span className="font-medium max-w-[150px] truncate">
@@ -114,7 +114,7 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search dealers..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:border-purple-500"
+                className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[var(--color-primary)]"
                 autoFocus
               />
             </div>
@@ -131,11 +131,11 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
                   onClick={() => handleSelectDealer(dealer.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-700/50 transition-colors ${
                     dealer.id === selectedDealerId
-                      ? "bg-purple-600/20 border-l-2 border-purple-500"
+                      ? "bg-[var(--color-primary-subtle)] border-l-2 border-[var(--color-primary)]"
                       : ""
                   }`}
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-8 h-8 bg-[var(--color-primary)] rounded flex items-center justify-center text-white font-semibold text-sm">
                     {dealer.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -151,7 +151,7 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
                     </div>
                   </div>
                   {dealer.id === selectedDealerId && (
-                    <Icons.CheckIcon className="w-5 h-5 text-purple-400" />
+                    <Icons.CheckIcon className="w-5 h-5 text-[var(--color-primary)]" />
                   )}
                 </button>
               ))
@@ -187,30 +187,28 @@ const Header: React.FC<HeaderProps> = ({
   const isSuperAdmin = currentUser?.role === "superadmin";
 
   return (
-    <header className="sticky top-0 z-30 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-900 text-white shadow-lg px-4">
-      <div className="flex flex-wrap justify-between items-center gap-4 py-4">
+    <header className="sticky top-0 z-30 bg-[var(--color-bg)] border-b border-[var(--color-border)] text-[var(--color-text)] px-4">
+      <div className="flex flex-wrap justify-between items-center gap-4 py-2.5">
         <div className="flex items-center gap-4">
-          <a href="/" className="flex items-center gap-3 group" aria-label="LTV Desking PRO — home">
-            <BrandMark
-              className="w-10 h-10 transition-transform group-hover:scale-105 drop-shadow-[0_4px_12px_rgba(59,130,246,0.3)]"
-              variant="default"
-            />
-            <div className="leading-tight">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-                LTV Desking <span className="text-blue-400">PRO</span>
-              </h1>
-              <p className="mt-0.5 text-xs sm:text-sm text-slate-300/70">
-                Precision deal structuring &middot; F&amp;I &middot; lender intelligence
-              </p>
-            </div>
+          <a
+            href="/"
+            className="flex items-center gap-2.5 group"
+            aria-label="LTV Desking PRO — home"
+          >
+            <BrandMark className="w-7 h-7" variant="default" />
+            <h1 className="text-sm font-semibold tracking-tight">
+              LTV Desking <span className="text-[var(--color-primary)]">PRO</span>
+            </h1>
           </a>
 
           {/* SuperAdmin Dealer Switcher */}
           {isSuperAdmin && (
-            <div className="flex items-center gap-3 ml-4 pl-4 border-l border-slate-700">
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-600/30 rounded-lg">
-                <Icons.ShieldCheckIcon className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-medium text-purple-300">Super Admin</span>
+            <div className="flex items-center gap-3 ml-2 pl-3 border-l border-[var(--color-border)]">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--color-bg-muted)] rounded">
+                <Icons.ShieldCheckIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
+                <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                  Superadmin
+                </span>
               </div>
               <DealerSwitcher onDealerChange={onDealerChange} />
             </div>
@@ -219,10 +217,10 @@ const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsShowroomMode(!isShowroomMode)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
               isShowroomMode
-                ? "bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-400"
-                : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700"
+                ? "bg-[var(--color-success)] text-white border border-transparent"
+                : "bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-muted)]"
             }`}
             title="Toggle Showroom Mode (Hides Profit/Cost)"
           >
@@ -238,12 +236,7 @@ const Header: React.FC<HeaderProps> = ({
           </button>
           <div className="h-6 w-px bg-slate-700 mx-1" />
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          <Button
-            variant="secondary"
-            onClick={onOpenSettingsModal}
-            size="sm"
-            className="!rounded-full gap-2"
-          >
+          <Button variant="secondary" onClick={onOpenSettingsModal} size="sm" className="gap-2">
             <Icons.CogIcon className="w-4 h-4" /> Settings
           </Button>
           {/* AI Lender Upload Button with Progress Animation */}
@@ -251,38 +244,27 @@ const Header: React.FC<HeaderProps> = ({
             {/* Animated progress ring when uploading and minimized */}
             {isUploading && isUploadMinimized && (
               <>
-                {/* Outer glow ring */}
+                {/* Progress ring — navy, no purple/pink glow */}
                 <div
-                  className="absolute -inset-1 rounded-full opacity-75 animate-pulse"
+                  className="absolute -inset-0.5 rounded opacity-90"
                   style={{
-                    background: `conic-gradient(from 0deg, rgba(168, 85, 247, 0.8) ${
+                    background: `conic-gradient(from 0deg, var(--color-primary) ${
                       (uploadProgress || 0) * 3.6
-                    }deg, rgba(236, 72, 153, 0.2) ${(uploadProgress || 0) * 3.6}deg)`,
+                    }deg, var(--color-border) ${(uploadProgress || 0) * 3.6}deg)`,
                   }}
-                />
-                {/* Spinning glow effect */}
-                <div
-                  className="absolute -inset-1 rounded-full animate-spin"
-                  style={{
-                    background:
-                      "conic-gradient(from 0deg, transparent 0deg, rgba(168, 85, 247, 0.6) 60deg, transparent 120deg)",
-                    animationDuration: "2s",
-                  }}
+                  aria-hidden
                 />
               </>
             )}
             <Button
+              variant="primary"
               onClick={
                 isUploading && isUploadMinimized && onRestoreUpload
                   ? onRestoreUpload
                   : onOpenAiModal
               }
               size="sm"
-              className={`!rounded-full gap-2 relative z-10 transition-all duration-300 ${
-                isUploading && isUploadMinimized
-                  ? "bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 animate-gradient-x shadow-lg shadow-purple-500/50"
-                  : "bg-gradient-to-r from-purple-500 to-pink-500"
-              }`}
+              className="gap-2 relative z-10"
               title={
                 isUploading && isUploadMinimized
                   ? `Uploading: ${uploadProgress || 0}% - ${uploadStage || "Processing..."}`

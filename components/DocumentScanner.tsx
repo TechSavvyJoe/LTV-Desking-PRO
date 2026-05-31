@@ -12,19 +12,37 @@ interface DocumentScannerProps {
   onClose: () => void;
 }
 
+// tesseract.js cannot OCR a PDF and can hang/crash on very large images.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtracted, onClose }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Show the detected amount for confirmation rather than auto-applying a number
+  // that OCR may have grabbed from the wrong line.
+  const [detected, setDetected] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Guard: PDFs are unsupported by the image OCR path.
+    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+      setError("PDF pay stubs aren't supported yet — upload a photo or screenshot (JPG/PNG).");
+      return;
+    }
+    // Guard: oversized images can hang the OCR worker.
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError("Image is too large (max 10 MB). Please upload a smaller photo or screenshot.");
+      return;
+    }
+
     setIsScanning(true);
     setProgress(0);
     setError(null);
+    setDetected(null);
 
     try {
       const Tesseract = await loadTesseract();
@@ -42,16 +60,27 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
         console.log("Scanned text:", text);
       }
 
-      // Simple regex to find dollar amounts near "Net Pay", "Gross Pay", "Total Pay", "Take Home", "Net", "Gross"
-      // Looks for patterns like "Net Pay $1,234.56" or "Gross Pay: 1234.56"
-      const incomeRegex =
-        /(?:Net Pay|Gross Pay|Total Pay|Take Home|Net|Gross)[\s\S]{0,30}?\$?([\d,]+\.\d{2})/i;
-      const match = text.match(incomeRegex);
+      // Prefer specific labels first; require word boundaries on the bare
+      // "Net"/"Gross" fallbacks so "Network"/"Gross Receipts" don't false-match.
+      const patterns = [
+        /(?:Net Pay|Gross Pay|Total Pay|Take[\s-]?Home Pay|Take[\s-]?Home)[\s\S]{0,30}?\$?([\d,]+\.\d{2})/i,
+        /\b(?:Net|Gross)\b[\s\S]{0,20}?\$?([\d,]+\.\d{2})/i,
+      ];
+      let income: number | null = null;
+      for (const re of patterns) {
+        const match = text.match(re);
+        if (match && match[1]) {
+          const value = parseFloat(match[1].replace(/,/g, ""));
+          // Sanity range for a pay-period figure; reject obvious mis-grabs.
+          if (Number.isFinite(value) && value >= 50 && value <= 1_000_000) {
+            income = value;
+            break;
+          }
+        }
+      }
 
-      if (match && match[1]) {
-        const income = parseFloat(match[1].replace(/,/g, ""));
-        onIncomeExtracted(income);
-        onClose();
+      if (income !== null) {
+        setDetected(income);
       } else {
         setError("Could not detect income automatically. Please enter manually.");
       }
@@ -64,7 +93,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-700">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -113,7 +142,39 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {isScanning ? "Scanning document..." : "Click to upload or take a photo"}
             </p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+              JPG or PNG, up to 10 MB. PDFs aren&apos;t supported.
+            </p>
           </div>
+
+          {detected !== null && !isScanning && (
+            <div className="p-3 bg-[var(--color-primary-subtle)] rounded-lg space-y-2">
+              <p className="text-sm text-[var(--color-text)]">
+                Detected monthly income:{" "}
+                <span className="font-semibold tabular-nums">
+                  ${detected.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Confirm this is correct before applying — OCR can misread.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => {
+                    onIncomeExtracted(detected);
+                    onClose();
+                  }}
+                >
+                  Apply ${detected.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setDetected(null)}>
+                  Rescan
+                </Button>
+              </div>
+            </div>
+          )}
 
           {isScanning && (
             <div className="space-y-2">

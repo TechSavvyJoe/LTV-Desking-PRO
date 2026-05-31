@@ -29,30 +29,25 @@ const InputGroup: React.FC<{
   description?: string;
 }> = ({ label, children, htmlFor, description }) => (
   <div className="flex flex-col">
-    <label
-      htmlFor={htmlFor}
-      className="mb-1.5 text-base font-medium text-slate-700 dark:text-slate-200"
-    >
+    <label htmlFor={htmlFor} className="mb-1.5 text-sm font-medium text-[var(--color-text)]">
       {label}
     </label>
     {children}
-    {description && (
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{description}</p>
-    )}
+    {description && <p className="mt-1 text-xs text-[var(--color-text-subtle)]">{description}</p>}
   </div>
 );
 
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 shadow-sm"
+    className="w-full px-3 py-2 text-sm bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded text-[var(--color-text)] placeholder-[var(--color-text-subtle)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
   />
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
     {...props}
-    className="w-full px-3 py-2.5 text-base bg-white/95 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-400/70 shadow-sm"
+    className="w-full px-3 py-2 text-sm bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded text-[var(--color-text)] placeholder-[var(--color-text-subtle)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
   />
 );
 
@@ -173,19 +168,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+      className="fixed inset-0 bg-black/70 flex justify-center items-center z-50 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col text-slate-100"
+        className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-md w-full max-w-2xl max-h-[90vh] flex flex-col text-[var(--color-text)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-slate-800">
-          <h2 className="text-xl font-bold text-white">Application Settings</h2>
+        <div className="px-6 py-4 border-b border-[var(--color-border)]">
+          <h2 className="text-base font-semibold text-[var(--color-text)]">Application settings</h2>
         </div>
-        <div className="p-6 overflow-y-auto space-y-6">
-          <div className="p-4 border rounded-lg border-slate-800">
-            <h3 className="text-lg font-bold mb-4">Deal Defaults</h3>
+        <div className="px-6 py-5 overflow-y-auto space-y-6">
+          <section className="border-t border-[var(--color-border)] pt-6 first:border-t-0 first:pt-0">
+            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Deal defaults</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup label="Default Loan Term (Months)" htmlFor="defaultTerm">
                 <StyledInput
@@ -207,10 +202,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 />
               </InputGroup>
             </div>
-          </div>
+          </section>
 
-          <div className="p-4 border rounded-lg border-slate-800">
-            <h3 className="text-lg font-bold mb-4">Fees & State Tax</h3>
+          <section className="border-t border-[var(--color-border)] pt-6 first:border-t-0 first:pt-0">
+            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">
+              Fees & state tax
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputGroup
                 label="Dealership State"
@@ -288,11 +285,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 </InputGroup>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="p-4 border rounded-lg border-slate-800">
+          <section className="border-t border-[var(--color-border)] pt-6 first:border-t-0 first:pt-0">
             <div className="flex flex-col gap-1 mb-4">
-              <h3 className="text-lg font-bold">AI Provider & Models</h3>
+              <h3 className="text-sm font-semibold text-[var(--color-text)]">
+                AI provider &amp; models
+              </h3>
               <p className="text-xs text-slate-400">
                 Model catalog verified from official docs on{" "}
                 {modelRegistry?.verifiedDate ?? AI_MODEL_DOCS_VERIFIED_DATE}.
@@ -393,10 +392,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 </StyledSelect>
               </InputGroup>
             </div>
-          </div>
+          </section>
 
-          <div className="p-4 border rounded-lg border-slate-800">
-            <h3 className="text-lg font-bold mb-4">LTV Color Thresholds (%)</h3>
+          <section className="border-t border-[var(--color-border)] pt-6 first:border-t-0 first:pt-0">
+            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">
+              LTV color thresholds (%)
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <InputGroup
                 label="Warning (Yellow)"
@@ -465,9 +466,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 />
               </InputGroup>
             </div>
-          </div>
+          </section>
         </div>
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3 bg-slate-50 dark:bg-slate-900 sticky bottom-0 flex-wrap">
+        <div className="px-6 py-3 border-t border-[var(--color-border)] flex justify-between items-center gap-3 bg-[var(--color-bg-subtle)] sticky bottom-0 flex-wrap">
           <div className="flex gap-2">
             <Button type="button" variant="danger" size="sm" onClick={handleResetAllData}>
               Reset All Data

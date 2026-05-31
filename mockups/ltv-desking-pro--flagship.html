@@ -1,0 +1,2854 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LTV Desking PRO</title>
+<meta name="description" content="LTV Desking PRO — F&I desking software for modern rooftops." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   LTV Desking PRO — Flagship (interactive)
+   ========================================================================= */
+
+:root, [data-theme="light"] {
+  /* Strong contrast — page background reads MEDIUM gray so white cards float
+     clearly above it. Input fields tinted distinctly from card surface so
+     every field edge is visible without squinting. */
+  --bg                : #E6E4DC;
+  --bg-2              : #DCD9CE;
+  --surface           : #FFFFFF;
+  --surface-muted     : #F1EEE5;
+  --surface-elev      : #FFFFFF;
+
+  --rule              : #C9C4B5;
+  --rule-2            : #A7A192;
+  --rule-soft         : #DEDACE;
+
+  --ink               : #0A0D14;
+  --ink-2             : #1A1F2A;
+  --ink-3             : #424857;
+  --ink-4             : #6B7280;
+  --ink-5             : #9CA3AF;
+
+  --navy              : #16244F;
+  --navy-2            : #0D1A3F;
+  --navy-3            : #243A78;
+  --navy-tint         : #D7DDEE;
+  --navy-ring         : rgba(22,36,79,0.26);
+
+  --green             : #0C6233;
+  --green-tint        : #BDE0C9;
+  --amber             : #7A4708;
+  --amber-tint        : #E9CC93;
+  --red               : #8A201B;
+  --red-tint          : #E5BFBB;
+  --blue              : #163390;
+  --blue-tint         : #C9D2E8;
+
+  --r-xs   : 3px;
+  --r-sm   : 5px;
+  --r      : 8px;
+  --r-md   : 10px;
+  --r-lg   : 14px;
+
+  --shadow-1    : 0 1px 0 rgba(10,13,20,0.06), 0 1px 3px rgba(10,13,20,0.08);
+  --shadow-2    : 0 1px 2px rgba(10,13,20,0.08), 0 4px 10px -3px rgba(10,13,20,0.12), 0 12px 28px -12px rgba(10,13,20,0.16);
+  --shadow-elev : 0 1px 0 rgba(10,13,20,0.10),
+                  0 4px 10px -3px rgba(10,13,20,0.14),
+                  0 22px 44px -16px rgba(10,13,20,0.25);
+  --shadow-pop  : 0 1px 3px rgba(10,13,20,0.10),
+                  0 32px 64px -20px rgba(10,13,20,0.40);
+  --shadow-input-inset : inset 0 1px 2px rgba(10,13,20,0.06);
+
+  --header-bg-blur    : rgba(230,228,220,0.86);
+
+  --ui   : "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mono : "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+
+  --t-fast : 110ms cubic-bezier(.32,.72,.34,1);
+  --t      : 180ms cubic-bezier(.32,.72,.34,1);
+  --t-slow : 320ms cubic-bezier(.22,.8,.34,1);
+}
+
+[data-theme="dark"] {
+  --bg                : #07091A;
+  --bg-2              : #0A0F22;
+  --surface           : #0F1530;
+  --surface-muted     : #131A37;
+  --surface-elev      : #141B3B;
+
+  --rule              : #1F2747;
+  --rule-2            : #2B345A;
+  --rule-soft         : #1A2243;
+
+  --ink               : #F1F4FD;
+  --ink-2             : #DFE4F2;
+  --ink-3             : #A4ACC2;
+  --ink-4             : #7B8298;
+  --ink-5             : #555D78;
+
+  --navy              : #3F5BE8;
+  --navy-2            : #5F77F2;
+  --navy-3            : #2A3D9E;
+  --navy-tint         : #1A2350;
+  --navy-ring         : rgba(63,91,232,0.30);
+
+  --green             : #56E08C;
+  --green-tint        : #143822;
+  --amber             : #F4B860;
+  --amber-tint        : #382613;
+  --red               : #F87171;
+  --red-tint          : #3A1A1A;
+  --blue              : #6FA0FF;
+  --blue-tint         : #142142;
+
+  --shadow-1    : 0 1px 0 rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.40);
+  --shadow-2    : 0 1px 3px rgba(0,0,0,0.45), 0 12px 20px -8px rgba(0,0,0,0.55);
+  --shadow-elev : 0 1px 0 rgba(0,0,0,0.40), 0 4px 14px -4px rgba(0,0,0,0.50),
+                  0 24px 60px -20px rgba(0,0,0,0.65);
+  --shadow-pop  : 0 1px 3px rgba(0,0,0,0.5), 0 32px 64px -16px rgba(0,0,0,0.75);
+  --shadow-input-inset : inset 0 1px 1px rgba(0,0,0,0.40);
+
+  --header-bg-blur    : rgba(7,9,26,0.72);
+}
+
+/* — base — */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  font-family: var(--ui);
+  font-feature-settings: "ss01", "cv11", "cv02";
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background var(--t-slow), color var(--t-slow);
+}
+::selection { background: var(--navy); color: #fff; }
+button, input, select { font-family: inherit; }
+a { color: var(--navy); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.num, .tabular {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.005em;
+}
+
+svg.ic { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+svg.ic-sm { width: 13px; height: 13px; stroke-width: 1.6; }
+svg.ic-lg { width: 18px; height: 18px; stroke-width: 1.5; }
+
+/* =========================================================================
+   APP LAYOUT
+   ========================================================================= */
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* Impersonation */
+.imp-bar {
+  background: var(--amber-tint);
+  border-bottom: 1px solid color-mix(in srgb, var(--amber) 50%, transparent);
+  color: var(--amber);
+  padding: 8px 28px;
+  font-size: 12.5px;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+}
+[data-theme="dark"] .imp-bar { color: #F4D49B; }
+.imp-bar .lhs { display: flex; align-items: center; gap: 10px; }
+.imp-bar .dot {
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--amber);
+  position: relative;
+}
+.imp-bar .dot::after {
+  content: ""; position: absolute; inset: -4px; border-radius: 999px;
+  border: 2px solid var(--amber); opacity: 0.4;
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.6); opacity: 0.6; }
+  70%  { transform: scale(1.3); opacity: 0; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+.imp-bar strong { font-weight: 600; }
+.imp-bar .session-meta {
+  font-family: var(--mono); font-size: 11px;
+  opacity: 0.75; margin-left: 4px;
+}
+.imp-bar .actions { display: flex; gap: 8px; }
+
+/* Header — frosted glass sticky */
+.header {
+  position: sticky; top: 0; z-index: 50;
+  height: 64px;
+  padding: 0 28px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 24px;
+  background: var(--header-bg-blur);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background:
+    radial-gradient(120% 100% at 30% 20%, #3950A6 0%, #0E1A3A 60%, #08122B 100%);
+  display: grid; place-items: center;
+  position: relative;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.14),
+    inset 0 0 0 1px rgba(255,255,255,0.04),
+    0 1px 2px rgba(11,18,32,0.20);
+}
+.brand-mark::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 40%);
+  pointer-events: none;
+}
+.brand-mark svg { width: 18px; height: 18px; position: relative; }
+.brand-name {
+  font-weight: 600;
+  font-size: 15.5px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.brand-name em {
+  font-style: normal; color: var(--ink-3); font-weight: 500; margin-left: 2px;
+}
+.brand-rev {
+  display: block; font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.04em;
+  color: var(--ink-4); margin-top: 2px;
+}
+
+.search {
+  position: relative; max-width: 540px; width: 100%; justify-self: center;
+}
+.search input {
+  width: 100%; height: 38px;
+  padding: 0 14px 0 40px;
+  background: var(--surface-muted);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  font: 400 13.5px var(--ui);
+  color: var(--ink);
+  outline: none;
+  transition: background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.search input::placeholder { color: var(--ink-4); }
+.search input:focus {
+  background: var(--surface);
+  border-color: var(--navy-3);
+  box-shadow: 0 0 0 4px var(--navy-ring);
+}
+.search .ic-search {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-4); pointer-events: none;
+}
+.search .kbd {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+  color: var(--ink-4);
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  padding: 2px 6px; border-radius: 4px;
+}
+
+.header-r { display: flex; align-items: center; gap: 6px; }
+
+.icon-btn {
+  width: 38px; height: 38px;
+  border-radius: var(--r);
+  border: 1px solid transparent;
+  background: transparent;
+  display: grid; place-items: center;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+  position: relative;
+}
+.icon-btn:hover { background: var(--surface-muted); color: var(--ink); }
+.icon-btn .dot-ind {
+  position: absolute; top: 8px; right: 8px;
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.header-divider { width: 1px; height: 22px; background: var(--rule); margin: 0 4px; }
+
+.dealer-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 12px;
+  background: var(--surface-muted);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  font-size: 13px; font-weight: 500;
+  color: var(--ink); cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.dealer-chip:hover { background: var(--surface); border-color: var(--rule-2); }
+.dealer-chip svg { color: var(--ink-4); }
+.dealer-chip .ico-dealer {
+  width: 6px; height: 6px; border-radius: 999px; background: var(--green);
+}
+
+.user-chip {
+  display: grid; grid-template-columns: 30px 1fr auto;
+  align-items: center; gap: 10px;
+  height: 38px; padding: 0 12px 0 4px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  cursor: pointer; margin-left: 2px;
+}
+.user-chip .ava {
+  width: 30px; height: 30px; border-radius: 999px;
+  background: linear-gradient(180deg, #3C4566 0%, #232B45 100%);
+  color: #fff;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; letter-spacing: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+}
+.user-chip .name { font-size: 12.5px; font-weight: 600; line-height: 1.1; color: var(--ink); }
+.user-chip .role { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-top: 2px; }
+
+/* Tabs */
+.tabbar {
+  position: sticky; top: 64px; z-index: 40;
+  background: var(--header-bg-blur);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--rule);
+  padding: 0 28px;
+  display: flex; align-items: stretch; gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabbar::-webkit-scrollbar { display: none; }
+.tab {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 14px 16px 12px;
+  font-size: 13.5px; font-weight: 500;
+  color: var(--ink-3);
+  cursor: pointer;
+  background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  transition: color var(--t-fast), border-color var(--t-fast);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--ink); }
+.tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  font-weight: 600;
+}
+.tab .count {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-4);
+  padding: 2px 7px;
+  background: var(--surface-muted);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+}
+.tab.active .count {
+  background: var(--navy-tint);
+  border-color: color-mix(in srgb, var(--navy) 30%, transparent);
+  color: var(--navy);
+}
+[data-theme="dark"] .tab.active .count { color: var(--navy-2); }
+
+.tabbar .tabbar-r {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 0;
+}
+
+/* =========================================================================
+   MAIN GRID — workspace + right rail
+   ========================================================================= */
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  padding: 22px 24px 56px;
+  max-width: none;
+  margin: 0 auto;
+  width: 100%;
+  transition: grid-template-columns var(--t-slow);
+}
+.shell.rail-collapsed { grid-template-columns: minmax(0, 1fr) 0px; gap: 0; }
+.shell.rail-collapsed .jacket { display: none; }
+.rail-toggle {
+  position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+  z-index: 25;
+  width: 28px; height: 64px;
+  background: var(--surface); color: var(--ink-3);
+  border: 1px solid var(--rule); border-right: none;
+  border-radius: var(--r) 0 0 var(--r);
+  display: grid; place-items: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-2);
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.rail-toggle:hover { background: var(--surface-muted); color: var(--ink); }
+
+/* — Page header — */
+.page-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 24px;
+  align-items: end;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 18px;
+}
+.page-head .lhs { min-width: 0; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-4);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 7px;
+}
+.crumb .sep { color: var(--ink-5); }
+
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: var(--ink);
+  margin: 0;
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+}
+.page-title .badge-demo {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 3px 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-xs);
+  transform: translateY(-6px);
+}
+.page-subtitle {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  color: var(--ink-3);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.page-subtitle .dot { width: 3px; height: 3px; border-radius: 999px; background: var(--ink-5); }
+.page-head .actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* =========================================================================
+   KPI STRIP — 4 cards w/ SVG sparklines
+   ========================================================================= */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  padding: 16px 18px 14px;
+  position: relative;
+  box-shadow: var(--shadow-2);
+  transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+  overflow: hidden;
+}
+.kpi:hover {
+  border-color: var(--rule-2);
+  box-shadow: var(--shadow-2);
+}
+.kpi-label {
+  font-size: 11.5px; font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex; align-items: center; gap: 7px;
+}
+.kpi-label svg { color: var(--ink-4); }
+.kpi-value {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  margin-top: 8px;
+  display: flex; align-items: baseline; gap: 4px;
+}
+.kpi-value .unit {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-4);
+  letter-spacing: 0;
+}
+.kpi-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 6px;
+}
+.kpi-sub .num { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.kpi-sub .delta { font-family: var(--mono); font-weight: 600; }
+.kpi-sub.up   .delta { color: var(--green); }
+.kpi-sub.down .delta { color: var(--red); }
+
+.spark-wrap {
+  position: absolute;
+  right: 14px; top: 14px;
+  width: 96px; height: 36px;
+}
+.spark-wrap svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.spark-line { fill: none; stroke: var(--navy); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.spark-area { fill: url(#sparkGradient); opacity: 0.55; }
+.spark-peak { fill: var(--navy); stroke: var(--surface); stroke-width: 2; }
+.spark-tip {
+  position: absolute;
+  pointer-events: none;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 3px 7px; border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0; transform: translate(-50%, -100%);
+  transition: opacity var(--t-fast);
+  z-index: 5;
+}
+.spark-tip.on { opacity: 1; }
+.spark-tip::after {
+  content: ""; position: absolute;
+  left: 50%; top: 100%; transform: translateX(-50%);
+  border: 4px solid transparent; border-top-color: var(--ink);
+}
+.spark-hover { cursor: crosshair; }
+
+/* =========================================================================
+   CARD — primary container
+   ========================================================================= */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  margin-top: 22px;
+  overflow: hidden;
+}
+.card-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--rule);
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 16px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+}
+.card-header .lhs { display: flex; align-items: center; gap: 12px; }
+.card-header .actions { display: flex; gap: 8px; align-items: center; }
+
+.section-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.section-meta { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+
+.card-body { padding: 16px 20px; }
+.card-body.compact { padding: 14px 20px; }
+
+.collapse-chev {
+  width: 24px; height: 24px;
+  background: transparent; border: none;
+  display: grid; place-items: center;
+  color: var(--ink-3); cursor: pointer;
+  border-radius: 4px;
+  transition: background var(--t-fast), color var(--t-fast), transform var(--t);
+}
+.collapse-chev:hover { background: var(--surface-muted); color: var(--ink); }
+.card.collapsible.collapsed .collapse-chev svg { transform: rotate(-90deg); }
+.card.collapsible.collapsed .card-body { display: none; }
+.card.collapsible:not(.collapsed) .collapse-chev svg { transform: rotate(0deg); }
+.collapse-chev svg { transition: transform var(--t); }
+
+/* Numbered subsection */
+.subsection {
+  display: flex; align-items: center; gap: 11px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.subsection-num {
+  width: 22px; height: 22px;
+  border-radius: var(--r-xs);
+  background: var(--ink);
+  color: var(--bg);
+  display: grid; place-items: center;
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: -0.02em;
+}
+[data-theme="dark"] .subsection-num { background: var(--ink); color: var(--bg); }
+.subsection-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink); margin: 0;
+}
+.subsection-meta {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--rule-soft);
+  margin: 22px 0 18px;
+}
+
+/* =========================================================================
+   FORM
+   ========================================================================= */
+.deal-form-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px 14px;
+}
+.deal-form-row.cols-7 { grid-template-columns: repeat(7, 1fr); }
+.deal-form-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 5px;
+}
+.field-label .hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-4);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  background: var(--surface-muted);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  font: 500 13.5px var(--ui);
+  color: var(--ink);
+  outline: none;
+  transition: background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);
+  box-shadow: var(--shadow-input-inset);
+}
+.input:not(:focus):not(:placeholder-shown), .input:not(:focus)[value] {
+  border-color: var(--rule);
+}
+.input.tabular {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: right;
+  letter-spacing: -0.005em;
+}
+.input::placeholder { color: var(--ink-4); font-style: italic; }
+.input:hover { border-color: var(--rule-2); }
+.input:focus {
+  background: var(--surface);
+  border-color: var(--navy-3);
+  box-shadow: 0 0 0 4px var(--navy-ring), var(--shadow-input-inset);
+}
+.field .prefix-wrap { position: relative; }
+.field .prefix {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--ink-4); pointer-events: none;
+}
+.input.with-prefix { padding-left: 22px; }
+
+/* =========================================================================
+   BUTTONS
+   ========================================================================= */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 36px; padding: 0 14px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-sm);
+  font: 500 13px var(--ui);
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+  box-shadow: var(--shadow-1);
+}
+.btn:hover { background: var(--surface-muted); border-color: var(--ink-4); }
+.btn:active { background: var(--bg-2); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--navy-ring), var(--shadow-1); }
+.btn-primary {
+  background: var(--navy); color: var(--surface);
+  border-color: var(--navy);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    0 1px 2px rgba(11,18,32,0.18);
+}
+.btn-primary:hover { background: var(--navy-2); border-color: var(--navy-2); }
+[data-theme="dark"] .btn-primary { color: #07091A; }
+.btn-secondary { background: var(--surface); border-color: var(--rule-2); color: var(--ink-2); }
+.btn-ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-3); }
+.btn-ghost:hover { background: var(--surface-muted); color: var(--ink); }
+.btn-sm { height: 32px; padding: 0 12px; font-size: 12.5px; }
+.btn-xs { height: 26px; padding: 0 9px; font-size: 12px; border-radius: var(--r-xs); }
+.btn:disabled, .btn[disabled] { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+.btn-icon { width: 28px; padding: 0; }
+
+/* =========================================================================
+   BADGES & CHIPS
+   ========================================================================= */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px;
+  font-size: 11px; font-weight: 500;
+  border-radius: 999px;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.badge::before { content: ""; width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+.badge-success { background: var(--green-tint); color: var(--green); }
+.badge-warning { background: var(--amber-tint); color: var(--amber); }
+.badge-danger  { background: var(--red-tint);   color: var(--red); }
+.badge-info    { background: var(--blue-tint);  color: var(--blue); }
+.badge-neutral { background: var(--surface-muted); color: var(--ink-3); border: 1px solid var(--rule); }
+.badge-neutral::before { display: none; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px;
+  font: 500 12px var(--ui);
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: 999px;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+  user-select: none;
+}
+.chip:hover { background: var(--surface-muted); }
+.chip.active {
+  background: var(--navy-tint);
+  border-color: color-mix(in srgb, var(--navy) 35%, transparent);
+  color: var(--navy);
+}
+[data-theme="dark"] .chip.active { color: var(--navy-2); }
+.chip .x { color: currentColor; opacity: 0.5; }
+.chip .x:hover { opacity: 1; }
+.chip.add { border-style: dashed; background: transparent; color: var(--ink-3); }
+.chip.add:hover { color: var(--ink); border-color: var(--ink-4); }
+
+/* =========================================================================
+   TOOLBAR
+   ========================================================================= */
+.toolbar {
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 16px;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+  border-bottom: 1px solid var(--rule);
+}
+.toolbar-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+
+/* =========================================================================
+   TABLE — the spreadsheet, the hero
+   ========================================================================= */
+.table-wrap {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+table { table-layout: auto; }
+.table-wrap::-webkit-scrollbar { width: 10px; height: 10px; }
+.table-wrap::-webkit-scrollbar-track { background: var(--surface-muted); }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--rule-2); border-radius: 5px; border: 2px solid var(--surface-muted); }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
+
+table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  font-size: 13px;
+}
+thead th {
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--rule-2);
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-3);
+  padding: 11px 10px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  position: sticky; top: 0; z-index: 5;
+  user-select: none;
+}
+thead th.right { text-align: right; }
+thead th.sortable { cursor: pointer; transition: color var(--t-fast), background var(--t-fast); }
+thead th.sortable:hover { color: var(--ink); background: var(--bg-2); }
+thead th .sort-ind {
+  display: inline-block;
+  margin-left: 5px;
+  opacity: 0;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+  font-family: var(--mono); font-size: 9px;
+  vertical-align: 1px;
+}
+thead th.sort-asc .sort-ind, thead th.sort-desc .sort-ind { opacity: 1; color: var(--navy); }
+thead th.sort-desc .sort-ind { transform: rotate(180deg); }
+thead th.sort-asc, thead th.sort-desc { color: var(--ink); }
+
+tbody td {
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 11px 10px;
+  vertical-align: middle;
+  color: var(--ink); white-space: nowrap;
+  font-size: 12.5px;
+}
+tbody td:first-child { padding-left: 14px; }
+tbody td:last-child { padding-right: 14px; }
+tbody td.right {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+}
+tbody td.copyable {
+  cursor: copy;
+  position: relative;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+tbody td.copyable:hover {
+  background: var(--navy-tint);
+  color: var(--navy);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--navy) 18%, transparent);
+}
+[data-theme="dark"] tbody td.copyable:hover { color: var(--navy-2); }
+tbody td.just-copied {
+  background: var(--green-tint) !important;
+  color: var(--green) !important;
+}
+
+/* Zebra striping for scan-ability */
+tbody tr.row:nth-child(4n+1) { background: color-mix(in srgb, var(--surface-muted) 50%, transparent); }
+tbody tr.row:nth-child(4n+1):hover { background: var(--surface-muted); }
+
+/* Approval score cell */
+.approve-cell {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+}
+.approve-bar {
+  width: 36px; height: 6px;
+  border-radius: 999px;
+  background: var(--rule);
+  overflow: hidden;
+  position: relative;
+}
+.approve-bar span {
+  display: block; height: 100%;
+  border-radius: 999px;
+  background: var(--green);
+}
+.approve-cell[data-s="ok"]   { color: var(--green); }
+.approve-cell[data-s="ok"]   .approve-bar span { background: var(--green); }
+.approve-cell[data-s="warn"] { color: var(--amber); }
+.approve-cell[data-s="warn"] .approve-bar span { background: var(--amber); }
+.approve-cell[data-s="bad"]  { color: var(--red); }
+.approve-cell[data-s="bad"]  .approve-bar span { background: var(--red); }
+
+/* Best-match ribbon */
+.best-pin {
+  position: relative; display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px 2px 5px;
+  background: var(--navy);
+  color: var(--surface);
+  border-radius: 999px;
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  margin-left: 6px;
+}
+.best-pin svg { width: 10px; height: 10px; stroke-width: 2; }
+tbody td.muted { color: var(--ink-3); }
+
+tbody tr.row { cursor: pointer; transition: background var(--t-fast), box-shadow var(--t-fast); }
+tbody tr.row:hover { background: var(--surface-muted); }
+tbody tr.row.is-selected { background: var(--navy-tint); }
+tbody tr.row.is-selected td { border-bottom-color: color-mix(in srgb, var(--navy) 30%, transparent); }
+
+tbody tr.row.is-expanded {
+  background: var(--surface-muted);
+  box-shadow: inset 3px 0 0 var(--navy);
+}
+
+tbody tr.row.hidden-by-filter { display: none; }
+
+/* Checkbox */
+.check {
+  appearance: none; -webkit-appearance: none;
+  width: 15px; height: 15px;
+  border: 1.5px solid var(--ink-4);
+  border-radius: 3px;
+  background: var(--surface);
+  cursor: pointer; position: relative;
+  vertical-align: middle;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.check:hover { border-color: var(--navy); }
+.check:checked { background: var(--navy); border-color: var(--navy); }
+.check:checked::after {
+  content: ""; position: absolute;
+  left: 4px; top: 1px;
+  width: 4px; height: 9px;
+  border: solid var(--surface);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.veh {
+  display: grid; grid-template-columns: 30px 1fr;
+  gap: 11px; align-items: center; min-width: 0;
+}
+.veh-mark {
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #F4F6FA 0%, #E5E9F0 100%);
+  color: var(--ink-2);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: -0.02em;
+  box-shadow: inset 0 0 0 1px var(--rule-2);
+  flex-shrink: 0;
+}
+[data-theme="dark"] .veh-mark {
+  background: linear-gradient(180deg, #1B2347 0%, #131A37 100%);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--rule-2);
+}
+.veh .ttl { font-weight: 600; letter-spacing: -0.005em; color: var(--ink); }
+.veh .met { font-size: 11.5px; color: var(--ink-3); margin-top: 1px; letter-spacing: 0; }
+
+/* LTV ribbon — visual bar + percentage, scan-friendly */
+.ltv {
+  display: inline-grid;
+  grid-template-columns: 64px auto;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.ltv .bar {
+  position: relative;
+  height: 8px;
+  background: var(--rule);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ltv .bar::before {
+  /* 100% LTV marker */
+  content: ""; position: absolute;
+  left: 35%; top: 0; bottom: 0; width: 1px;
+  background: var(--ink-4);
+  opacity: 0.4;
+}
+.ltv .bar span { display: block; height: 100%; background: var(--ink-4); border-radius: 999px; }
+.ltv[data-s="ok"]   .bar span { background: linear-gradient(90deg, var(--green) 0%, color-mix(in srgb, var(--green) 75%, var(--surface)) 100%); }
+.ltv[data-s="warn"] .bar span { background: linear-gradient(90deg, var(--amber) 0%, color-mix(in srgb, var(--amber) 75%, var(--surface)) 100%); }
+.ltv[data-s="bad"]  .bar span { background: linear-gradient(90deg, var(--red) 0%, color-mix(in srgb, var(--red) 75%, var(--surface)) 100%); }
+
+/* Row actions */
+.row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.icon-action {
+  width: 26px; height: 26px;
+  border-radius: 4px; border: 1px solid transparent;
+  background: transparent; color: var(--ink-4);
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.icon-action:hover { background: var(--surface); color: var(--ink); }
+.icon-action.fav.active { color: #D49A2A; }
+
+/* — expand row content — */
+tr.expand-content { background: var(--surface-muted); }
+tr.expand-content > td { padding: 0; border-bottom: 1px solid var(--rule); }
+tr.expand-content.collapsed { display: none; }
+
+.expand-panel {
+  padding: 22px 24px 26px 28px;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  background: var(--surface-muted);
+  position: relative;
+  box-shadow: inset 0 1px 0 var(--rule), inset 0 -1px 0 var(--rule);
+}
+.expand-panel::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--navy);
+}
+.expand-col .ttl {
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 12px;
+}
+.expand-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px;
+  align-items: center; padding: 6px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 12.5px;
+}
+.expand-row:last-child { border-bottom: none; }
+.expand-row label { color: var(--ink-3); font-size: 11.5px; }
+.expand-row .v {
+  font-family: var(--mono); font-weight: 600;
+  font-size: 13px; color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.expand-row .v-edit {
+  width: 96px; height: 28px;
+  text-align: right;
+  font-family: var(--mono); font-size: 12.5px; font-weight: 500;
+  padding: 0 9px;
+  background: var(--surface); border: 1px solid var(--rule-2);
+  border-radius: var(--r-xs); color: var(--ink);
+  outline: none; transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.expand-row .v-edit:focus { border-color: var(--navy-3); box-shadow: 0 0 0 3px var(--navy-ring); }
+
+/* Payment matrix */
+.matrix-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+.matrix-head {
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+}
+.matrix-head .lender { display: grid; grid-template-columns: 32px 1fr; gap: 10px; align-items: center; }
+.lender-logo {
+  width: 32px; height: 32px;
+  border-radius: var(--r-xs);
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--surface);
+  background: var(--navy);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.lender-logo.l-hc { background: #475569; }
+.lender-logo.l-ma { background: #8B2A26; }
+.lender .nm { font-weight: 600; font-size: 13px; }
+.lender .det { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.lender .det .num { color: var(--ink-2); font-weight: 500; }
+
+.matrix {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  font-family: var(--mono); font-size: 12px;
+}
+.matrix th, .matrix td {
+  padding: 9px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--rule-soft);
+  border-right: 1px solid var(--rule-soft);
+  position: relative;
+}
+.matrix th {
+  background: var(--surface-muted);
+  font-family: var(--ui); font-weight: 500;
+  color: var(--ink-3);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.matrix tbody td:first-child,
+.matrix thead th:first-child {
+  text-align: left;
+  border-right: 1px solid var(--rule);
+  color: var(--ink-3);
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  width: 1%; white-space: nowrap;
+  background: var(--surface-muted);
+  font-weight: 600;
+}
+.matrix tbody td { color: var(--ink); font-weight: 500; }
+.matrix td:last-child, .matrix th:last-child { border-right: none; }
+.matrix tbody tr:last-child td { border-bottom: none; }
+.matrix td.target {
+  background: var(--navy-tint);
+  color: var(--navy);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px var(--navy);
+}
+[data-theme="dark"] .matrix td.target { color: var(--navy-2); }
+.matrix td.target::after {
+  content: "TARGET";
+  position: absolute; top: 3px; right: 5px;
+  font-family: var(--ui);
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 0.14em; opacity: 0.6;
+}
+.matrix td.warn { color: var(--amber); background: color-mix(in srgb, var(--amber-tint) 50%, transparent); }
+.matrix td.bad  { color: var(--red);   background: color-mix(in srgb, var(--red-tint) 55%, transparent); }
+
+/* Rank cards */
+.rank-row {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.rank-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  position: relative;
+}
+.rank-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--ink-5); border-radius: var(--r) 0 0 var(--r);
+}
+.rank-card.recommend::before { background: var(--green); }
+.rank-card.caution::before   { background: var(--amber); }
+.rank-card .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.rank-card .nm { font-weight: 600; font-size: 12.5px; letter-spacing: -0.005em; }
+.rank-card dl {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 4px; margin: 0; font-size: 11.5px;
+}
+.rank-card dt { color: var(--ink-3); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; }
+.rank-card dd { margin: 0; font-family: var(--mono); font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+
+/* =========================================================================
+   PAGINATION
+   ========================================================================= */
+.pagination {
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 12px 20px;
+  border-top: 1px solid var(--rule);
+  font-size: 12.5px;
+  background: linear-gradient(180deg, var(--surface-muted) 0%, var(--surface) 100%);
+}
+.pagination .info { color: var(--ink-3); }
+.pagination .ctrls { display: flex; gap: 6px; align-items: center; }
+.pagination .ctrls .lbl { color: var(--ink-3); margin-right: 6px; font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* =========================================================================
+   DEAL JACKET (right rail)
+   ========================================================================= */
+.jacket {
+  position: sticky; top: 124px; /* below header + tabbar */
+  align-self: start;
+  background: var(--surface-elev);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+.jacket-head {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.jacket-head .lhs { display: flex; align-items: center; gap: 10px; }
+.jacket-head .ttl {
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-2);
+}
+.jacket-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+.j-customer {
+  display: grid; grid-template-columns: 38px 1fr; gap: 11px; align-items: center;
+  padding: 4px 0;
+}
+.j-customer .ava {
+  width: 38px; height: 38px; border-radius: 999px;
+  background: var(--navy); color: var(--surface);
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.j-customer .nm { font-weight: 600; font-size: 14px; letter-spacing: -0.01em; }
+.j-customer .det { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+.j-customer .det .num { color: var(--ink-2); font-weight: 500; }
+
+.j-meta {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.j-meta .cell { display: flex; flex-direction: column; gap: 3px; }
+.j-meta .l { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
+.j-meta .v { font-family: var(--mono); font-size: 13.5px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+
+.j-structure { display: flex; flex-direction: column; gap: 0; }
+.j-structure .grp-ttl {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 6px;
+}
+.j-input {
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: 8px; padding: 7px 0;
+  border-bottom: 1px solid var(--rule-soft); font-size: 12.5px;
+}
+.j-input:last-of-type { border-bottom: none; }
+.j-input label { color: var(--ink-3); font-size: 11.5px; }
+.j-input input {
+  width: 96px; height: 28px;
+  text-align: right; font-family: var(--mono);
+  font-size: 12.5px; font-weight: 500;
+  padding: 0 9px;
+  background: var(--surface); border: 1px solid var(--rule);
+  border-radius: var(--r-xs); color: var(--ink);
+  outline: none; transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.j-input input:focus { border-color: var(--navy-3); box-shadow: 0 0 0 3px var(--navy-ring); }
+
+.j-payment {
+  background: var(--ink);
+  color: #fff;
+  border-radius: var(--r);
+  padding: 12px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; overflow: hidden;
+}
+[data-theme="dark"] .j-payment { background: var(--surface-muted); color: var(--ink); border: 1px solid var(--navy-3); }
+.j-payment .label {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  font-weight: 600; opacity: 0.7;
+}
+.j-payment .v {
+  font-family: var(--mono);
+  font-size: 22px; font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+}
+.j-payment .v .unit { font-family: var(--mono); font-size: 11px; opacity: 0.6; margin-left: 2px; font-weight: 400; }
+.j-payment .meta {
+  font-family: var(--mono); font-size: 10.5px;
+  opacity: 0.7; text-align: right;
+  letter-spacing: 0.04em;
+}
+
+/* Affordability cone */
+.cone {
+  margin-top: 4px;
+}
+.cone .l {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 18px;
+  font-weight: 600;
+}
+.cone-bar {
+  height: 8px; border-radius: 999px; position: relative;
+  background: linear-gradient(90deg,
+    var(--green) 0%   38%,
+    var(--amber) 38% 78%,
+    var(--red)   78% 100%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+}
+.cone-bar::after {
+  content: ""; position: absolute;
+  top: -4px; left: 56%;
+  width: 2px; height: 16px;
+  background: var(--ink); border-radius: 1px;
+}
+.cone-bar::before {
+  content: "JR";
+  position: absolute;
+  top: -22px; left: 56%; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--surface);
+  background: var(--ink);
+  padding: 1px 5px; border-radius: 3px;
+}
+.cone .legend {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; margin-top: 14px;
+  font-size: 10px;
+}
+.cone .legend > div .lk {
+  font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 2px;
+}
+.cone .legend > div .vk {
+  font-family: var(--mono); font-weight: 600;
+  color: var(--ink-2); font-size: 11px; letter-spacing: -0.005em;
+}
+
+/* Lender ladder (compact in jacket) */
+.j-lenders {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.lender-mini {
+  display: grid; grid-template-columns: 28px 1fr auto; gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  position: relative;
+}
+.lender-mini::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: var(--r) 0 0 var(--r);
+  background: var(--ink-5);
+}
+.lender-mini.recommend::before { background: var(--green); }
+.lender-mini.caution::before   { background: var(--amber); }
+.lender-mini .logo {
+  width: 28px; height: 28px; border-radius: 5px;
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  color: var(--surface); background: var(--navy);
+}
+.lender-mini.alt .logo     { background: #475569; }
+.lender-mini.caution .logo { background: #8B2A26; }
+.lender-mini .meta .nm { font-size: 12px; font-weight: 600; letter-spacing: -0.005em; }
+.lender-mini .meta .det { font-size: 10.5px; color: var(--ink-3); margin-top: 2px; font-family: var(--mono); letter-spacing: 0; }
+.lender-mini .reserve {
+  font-family: var(--mono); font-weight: 600; font-size: 12.5px;
+  color: var(--ink); letter-spacing: -0.01em;
+  text-align: right;
+}
+.lender-mini .reserve .lk { display: block; font-size: 9px; color: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; margin-bottom: 1px; }
+
+/* =========================================================================
+   COMMAND PALETTE
+   ========================================================================= */
+.palette-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(11,18,32,0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: grid; place-items: start center; padding-top: 18vh;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--t);
+}
+.palette-backdrop.on { opacity: 1; pointer-events: auto; }
+.palette {
+  width: min(600px, 92vw);
+  background: var(--surface-elev);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  transform: scale(0.97) translateY(-6px);
+  opacity: 0;
+  transition: transform var(--t), opacity var(--t);
+}
+.palette-backdrop.on .palette { transform: scale(1) translateY(0); opacity: 1; }
+.palette-input {
+  display: grid; grid-template-columns: 18px 1fr auto; align-items: center;
+  gap: 12px; padding: 14px 18px;
+  border-bottom: 1px solid var(--rule);
+}
+.palette-input svg { color: var(--ink-4); }
+.palette-input input {
+  border: none; outline: none; background: transparent;
+  font: 400 15px var(--ui); color: var(--ink); width: 100%;
+}
+.palette-input input::placeholder { color: var(--ink-4); }
+.palette-input .kbd {
+  font-family: var(--mono); font-size: 10.5px;
+  color: var(--ink-4);
+  border: 1px solid var(--rule);
+  background: var(--surface-muted);
+  padding: 2px 7px; border-radius: 4px;
+}
+.palette-list { max-height: 360px; overflow-y: auto; padding: 6px 0; }
+.palette-group {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-4); font-weight: 600;
+  padding: 10px 18px 6px;
+}
+.palette-item {
+  display: grid; grid-template-columns: 28px 1fr auto; gap: 12px;
+  align-items: center;
+  padding: 9px 18px;
+  font-size: 13.5px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.palette-item:hover, .palette-item.active {
+  background: var(--surface-muted);
+  border-left-color: var(--navy);
+}
+.palette-item .pico {
+  width: 28px; height: 28px; border-radius: 5px;
+  background: var(--surface-muted);
+  border: 1px solid var(--rule);
+  color: var(--ink-3);
+  display: grid; place-items: center;
+}
+.palette-item .pmeta { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+.palette-item .kbd-hint {
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-4);
+  letter-spacing: 0.04em;
+}
+.palette-foot {
+  border-top: 1px solid var(--rule);
+  padding: 9px 18px;
+  font-family: var(--mono); font-size: 10.5px;
+  color: var(--ink-4);
+  display: flex; gap: 14px; align-items: center;
+  background: var(--surface-muted);
+}
+.palette-foot .legend-key {
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.palette-foot kbd {
+  font-family: var(--mono); font-size: 9.5px;
+  border: 1px solid var(--rule);
+  padding: 1px 5px; border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink-2);
+}
+
+/* =========================================================================
+   SLIDE-OVER MODAL
+   ========================================================================= */
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(11,18,32,0.45);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--t);
+}
+.sheet-backdrop.on { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(520px, 96vw); z-index: 95;
+  background: var(--surface-elev);
+  border-left: 1px solid var(--rule);
+  box-shadow: var(--shadow-elev);
+  transform: translateX(100%);
+  transition: transform var(--t-slow);
+  display: flex; flex-direction: column;
+}
+.sheet.on { transform: translateX(0); }
+.sheet-head {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--rule);
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+}
+.sheet-head .icon {
+  width: 34px; height: 34px;
+  border-radius: var(--r-sm);
+  background: var(--navy); color: var(--surface);
+  display: grid; place-items: center;
+  font: 600 13px var(--mono); letter-spacing: -0.02em;
+}
+.sheet-head .ttl { font-weight: 700; font-size: 14.5px; letter-spacing: -0.015em; }
+.sheet-head .meta { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; letter-spacing: 0; font-family: var(--mono); }
+.sheet-body { flex: 1; overflow-y: auto; padding: 22px; }
+.sheet-foot {
+  padding: 14px 22px;
+  border-top: 1px solid var(--rule);
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+  background: linear-gradient(180deg, var(--surface-muted) 0%, var(--surface) 100%);
+}
+
+/* =========================================================================
+   TOAST
+   ========================================================================= */
+.toast-stack {
+  position: fixed; right: 24px; bottom: 24px; z-index: 70;
+  display: flex; flex-direction: column-reverse; gap: 10px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-pop);
+  padding: 12px 14px;
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 12px; align-items: center;
+  min-width: 280px;
+  pointer-events: auto;
+  font-size: 13px;
+  animation: toastIn var(--t-slow) ease-out;
+}
+.toast .ico {
+  width: 22px; height: 22px; border-radius: 5px;
+  background: var(--green-tint); color: var(--green);
+  display: grid; place-items: center;
+}
+.toast .ttl { font-weight: 600; letter-spacing: -0.005em; }
+.toast .det { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+.toast .x {
+  width: 22px; height: 22px; border-radius: 4px;
+  border: none; background: transparent; color: var(--ink-4);
+  display: grid; place-items: center; cursor: pointer;
+}
+.toast .x:hover { background: var(--surface-muted); color: var(--ink); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================================
+   ACTION MENU (per-row dropdown)
+   ========================================================================= */
+.menu-pop {
+  position: absolute; z-index: 30;
+  min-width: 180px;
+  background: var(--surface-elev);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-pop);
+  padding: 4px;
+  opacity: 0; transform: scale(0.97) translateY(-4px);
+  pointer-events: none;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+.menu-pop.on { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
+.menu-item {
+  display: grid; grid-template-columns: 18px 1fr auto;
+  gap: 10px; align-items: center;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  cursor: pointer; border-radius: var(--r-xs);
+}
+.menu-item:hover { background: var(--surface-muted); color: var(--ink); }
+.menu-item svg { color: var(--ink-4); }
+.menu-item.danger { color: var(--red); }
+.menu-item.danger svg { color: var(--red); }
+.menu-divider { height: 1px; background: var(--rule); margin: 4px 0; }
+.menu-item .kbd-hint { font-family: var(--mono); font-size: 10px; color: var(--ink-4); }
+
+/* =========================================================================
+   STAGGER ENTRANCE
+   ========================================================================= */
+.stagger > * { opacity: 0; transform: translateY(8px); animation: rise var(--t-slow) ease-out forwards; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+@keyframes rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================================
+   ACCESSIBILITY
+   ========================================================================= */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--navy-ring);
+  border-radius: 4px;
+}
+
+/* =========================================================================
+   RESPONSIVE
+   ========================================================================= */
+@media (max-width: 1280px) {
+  .shell { grid-template-columns: 1fr; }
+  .jacket { position: static; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .header { grid-template-columns: 1fr auto; padding: 0 16px; }
+  .search { display: none; }
+  .shell { padding: 16px; }
+  .deal-form-row, .deal-form-row.cols-7 { grid-template-columns: 1fr 1fr; }
+  .expand-panel { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================================================================
+   SVG GRADIENT DEFS (shared)
+   ========================================================================= */
+.svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<!-- Shared SVG defs (gradients) -->
+<svg class="svg-defs" aria-hidden="true">
+  <defs>
+    <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="var(--navy)" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="var(--navy)" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="sparkDown" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="var(--red)" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="var(--red)" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="app">
+
+  <!-- Impersonation -->
+  <div class="imp-bar" role="status">
+    <div class="lhs">
+      <span class="dot" aria-hidden="true"></span>
+      <span>Viewing as <strong>Bob Maxey Ford</strong> · Detroit, MI</span>
+      <span class="session-meta">session 14m</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-sm btn-secondary">Exit impersonation</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 5v14h5.2v-3.1H8.3V5H5z" fill="#fff"/>
+          <path d="M12.8 5l2.7 9.4L18.3 5h2.7L17.1 19H14L9.9 5h2.9z" fill="#fff"/>
+        </svg>
+      </span>
+      <span class="brand-name">
+        LTV Desking <em>PRO</em>
+        <span class="brand-rev">v 1.0.4 · build 2026.05</span>
+      </span>
+    </div>
+
+    <div class="search" onclick="openPalette()">
+      <svg class="ic ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="hdr-search" type="search" placeholder="Search stock #, VIN, customer, lender…  press ⌘K" readonly />
+      <span class="kbd">⌘ K</span>
+    </div>
+
+    <div class="header-r">
+      <button class="btn btn-sm btn-secondary">Desk mode</button>
+
+      <button class="dealer-chip" type="button">
+        <span class="ico-dealer" aria-hidden="true"></span>
+        Bob Maxey Ford
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+
+      <span class="header-divider"></span>
+
+      <button class="icon-btn" aria-label="Toggle dark mode" id="themeBtn">
+        <svg class="ic" viewBox="0 0 24 24" id="themeIcon"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+        <span class="dot-ind" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="Help">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7v.5"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>
+      </button>
+
+      <button class="user-chip" type="button">
+        <span class="ava">JG</span>
+        <span>
+          <div class="name">Joe Gallant</div>
+          <div class="role">Owner</div>
+        </span>
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="tabbar" role="tablist" aria-label="Primary">
+    <button class="tab active" data-tab="inventory">Inventory <span class="count">35</span></button>
+    <button class="tab" data-tab="lender">Lender programs <span class="count">12</span></button>
+    <button class="tab" data-tab="saved">Saved deals <span class="count">7</span></button>
+    <button class="tab" data-tab="tools">Finance tools</button>
+    <button class="tab" data-tab="match">Customer match</button>
+    <button class="tab" data-tab="reports">Reports</button>
+  </nav>
+
+  <!-- Main shell -->
+  <main class="shell" id="shell">
+    <button class="rail-toggle" id="railToggle" onclick="document.getElementById('shell').classList.toggle('rail-collapsed'); this.querySelector('svg').style.transform = document.getElementById('shell').classList.contains('rail-collapsed') ? 'rotate(180deg)' : '';" aria-label="Toggle deal jacket rail" title="Toggle deal jacket (show / hide)">
+      <svg class="ic ic-sm" viewBox="0 0 24 24" style="transition: transform var(--t)"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+
+    <!-- ============ WORKSPACE (left) ============ -->
+    <div>
+
+      <header class="page-head">
+        <div class="lhs">
+          <div class="crumb">
+            <span>Dealers</span>
+            <svg class="ic ic-sm" viewBox="0 0 24 24" style="color:var(--ink-5)"><polyline points="9 18 15 12 9 6"/></svg>
+            <span>Bob Maxey Ford</span>
+            <svg class="ic ic-sm" viewBox="0 0 24 24" style="color:var(--ink-5)"><polyline points="9 18 15 12 9 6"/></svg>
+            <span>Inventory</span>
+          </div>
+          <h1 class="page-title">
+            Bob Maxey Ford
+            <span class="badge-demo">Demo</span>
+          </h1>
+          <p class="page-subtitle">
+            <span>Detroit, MI</span>
+            <span class="dot"></span>
+            <span><span class="num">35</span> vehicles in inventory</span>
+            <span class="dot"></span>
+            <span><span class="num">7</span> active deals</span>
+            <span class="dot"></span>
+            <span>Sell APR <span class="num">5.19%</span></span>
+          </p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button class="btn btn-primary" onclick="openSheet('Generic')">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            New deal
+          </button>
+        </div>
+      </header>
+
+      <!-- KPI strip -->
+      <div class="kpi-grid stagger">
+        <div class="kpi">
+          <div class="kpi-label">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            Inventory units
+          </div>
+          <div class="kpi-value" data-counter="35" data-target="35">0</div>
+          <div class="kpi-sub up">
+            <span class="delta">▲ 12</span><span>above book</span>
+          </div>
+          <div class="spark-wrap spark-hover" data-spark='{"vals":[28,29,32,30,33,31,33,34,35],"days":["Apr 24","Apr 25","Apr 26","Apr 27","Apr 28","Apr 29","Apr 30","May 01","May 02"]}'>
+            <svg viewBox="0 0 96 36" preserveAspectRatio="none"></svg>
+            <div class="spark-tip"></div>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>
+            Active deals
+          </div>
+          <div class="kpi-value" data-counter="7" data-target="7">0</div>
+          <div class="kpi-sub">
+            <span class="num">3</span><span>pending lender</span>
+          </div>
+          <div class="spark-wrap spark-hover" data-spark='{"vals":[4,5,5,6,6,7,7],"days":["Apr 26","Apr 27","Apr 28","Apr 29","Apr 30","May 01","May 02"]}'>
+            <svg viewBox="0 0 96 36" preserveAspectRatio="none"></svg>
+            <div class="spark-tip"></div>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M12 2v20M5 9h11a3 3 0 1 1 0 6H6a3 3 0 1 0 0 6h13"/></svg>
+            Avg front gross
+          </div>
+          <div class="kpi-value">$<span data-counter data-target="1742">0</span></div>
+          <div class="kpi-sub up">
+            <span class="delta">▲ 8.4%</span><span>vs last week</span>
+          </div>
+          <div class="spark-wrap spark-hover" data-spark='{"vals":[1240,1310,1290,1410,1520,1605,1742],"days":["Apr 26","Apr 27","Apr 28","Apr 29","Apr 30","May 01","May 02"]}'>
+            <svg viewBox="0 0 96 36" preserveAspectRatio="none"></svg>
+            <div class="spark-tip"></div>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-label">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>
+            Avg payment
+          </div>
+          <div class="kpi-value">$<span data-counter data-target="378">0</span><span class="unit">/mo</span></div>
+          <div class="kpi-sub">
+            <span class="num">72</span><span>mo ·</span><span class="num">8.9%</span><span>APR</span>
+          </div>
+          <div class="spark-wrap spark-hover" data-spark='{"vals":[412,402,395,388,382,380,378],"days":["Apr 26","Apr 27","Apr 28","Apr 29","Apr 30","May 01","May 02"]}'>
+            <svg viewBox="0 0 96 36" preserveAspectRatio="none"></svg>
+            <div class="spark-tip"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer & deal (collapsible — collapsed by default so the table is the focus) -->
+      <section class="card collapsible collapsed" id="customerCard">
+        <div class="card-header" onclick="toggleCard('customerCard', event)" style="cursor: pointer;">
+          <div class="lhs">
+            <button class="collapse-chev" aria-label="Toggle Customer &amp; deal" type="button">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <h2 class="section-title">Customer &amp; deal</h2>
+            <span class="badge badge-info">Draft</span>
+            <span class="section-meta">Jordan Rivera · FICO <span class="num">690</span> · Down <span class="num">$4,500</span> · Term <span class="num">72 mo</span> · APR <span class="num">5.19%</span></span>
+          </div>
+          <div class="actions" onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-secondary">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M6 4h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M14 4v6h6"/></svg>
+              Save deal
+            </button>
+            <button class="btn btn-sm btn-secondary">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Export PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body">
+
+          <div class="subsection">
+            <div class="subsection-num">1</div>
+            <h3 class="subsection-title">Customer &amp; deal info</h3>
+            <div class="subsection-meta">Required to run payment matrix</div>
+          </div>
+
+          <div class="deal-form-row">
+            <div class="field">
+              <label class="field-label">Customer name</label>
+              <input class="input" value="Jordan Rivera" />
+            </div>
+            <div class="field">
+              <label class="field-label">Salesperson</label>
+              <input class="input" value="Mike Carter" />
+            </div>
+            <div class="field">
+              <label class="field-label">Credit score <span class="hint">FICO 8</span></label>
+              <input class="input tabular" value="690" />
+            </div>
+            <div class="field">
+              <label class="field-label">Monthly income <span class="hint">gross</span></label>
+              <div class="prefix-wrap">
+                <span class="prefix">$</span>
+                <input class="input tabular with-prefix" value="6,200" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">VIN lookup</label>
+              <input class="input tabular" placeholder="17-digit VIN" />
+            </div>
+          </div>
+
+          <hr class="section-divider" />
+
+          <div class="subsection">
+            <div class="subsection-num">2</div>
+            <h3 class="subsection-title">Global deal structure</h3>
+            <div class="subsection-meta">Applied to every row in the inventory grid</div>
+          </div>
+
+          <div class="deal-form-row cols-7">
+            <div class="field">
+              <label class="field-label">Down payment</label>
+              <div class="prefix-wrap">
+                <span class="prefix">$</span>
+                <input class="input tabular with-prefix" value="4,500" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Trade value</label>
+              <div class="prefix-wrap">
+                <span class="prefix">$</span>
+                <input class="input tabular with-prefix" value="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Trade payoff</label>
+              <div class="prefix-wrap">
+                <span class="prefix">$</span>
+                <input class="input tabular with-prefix" value="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Backend pack</label>
+              <div class="prefix-wrap">
+                <span class="prefix">$</span>
+                <input class="input tabular with-prefix" value="1,760" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">State fees</label>
+              <div class="prefix-wrap">
+                <span class="prefix">$</span>
+                <input class="input tabular with-prefix" value="31" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Term <span class="hint">months</span></label>
+              <input class="input tabular" value="72" />
+            </div>
+            <div class="field">
+              <label class="field-label">APR <span class="hint">sell</span></label>
+              <input class="input tabular" value="5.19" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Inventory -->
+      <section class="card">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <h2 class="section-title">Inventory</h2>
+            <span class="chip" data-filter="all">All <span class="num">35</span></span>
+            <span class="chip active" data-filter="match">Match <span class="num">22</span></span>
+            <span class="chip" data-filter="caution">Caution <span class="num">9</span></span>
+            <span class="chip" data-filter="decline">Decline <span class="num">4</span></span>
+            <span class="chip add">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              Add filter
+            </span>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn btn-sm btn-secondary">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 6h18M6 12h12M9 18h6"/></svg>
+              Sort · Front LTV
+            </button>
+            <button class="btn btn-sm btn-secondary">
+              <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+              Columns
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table aria-label="Inventory">
+            <thead>
+              <tr>
+                <th style="width:36px;"><input type="checkbox" class="check" /></th>
+                <th class="sortable" data-sort="approval">Approval <span class="sort-ind">▼</span></th>
+                <th class="sortable" data-sort="status">Status <span class="sort-ind">▼</span></th>
+                <th class="sortable" data-sort="ttl">Vehicle <span class="sort-ind">▼</span></th>
+                <th class="sortable" data-sort="id">Stock <span class="sort-ind">▼</span></th>
+                <th class="sortable right" data-sort="mi">Miles <span class="sort-ind">▼</span></th>
+                <th class="sortable right" data-sort="price">Price <span class="sort-ind">▼</span></th>
+                <th class="sortable right" data-sort="ltv">Front LTV <span class="sort-ind">▼</span></th>
+                <th class="sortable right" data-sort="otd">Backend LTV <span class="sort-ind">▼</span></th>
+                <th class="sortable right" data-sort="gross">Gross <span class="sort-ind">▼</span></th>
+                <th class="sortable right" data-sort="pmt">Payment <span class="sort-ind">▼</span></th>
+                <th style="text-align:right; width:140px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="invBody">
+              <!-- Rows are rendered via JS for clean filtering/expand handling -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <div class="info">Showing <span class="num">1–9</span> of <span class="num">35</span></div>
+          <div class="ctrls">
+            <span class="lbl">Rows</span>
+            <button class="btn btn-sm btn-secondary">25 ▾</button>
+            <span class="header-divider"></span>
+            <button class="btn btn-sm btn-secondary" disabled>← Previous</button>
+            <button class="btn btn-sm btn-secondary">Next →</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ============ DEAL JACKET (right rail) ============ -->
+    <aside class="jacket" aria-label="Active deal jacket">
+      <div class="jacket-head">
+        <div class="lhs">
+          <svg class="ic" viewBox="0 0 24 24" style="color:var(--ink-3)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <div class="ttl">Active deal</div>
+        </div>
+        <button class="btn btn-xs btn-secondary" onclick="openSheet('Explorer ST')">Open</button>
+      </div>
+
+      <div class="jacket-body">
+
+        <div class="j-customer">
+          <div class="ava">JR</div>
+          <div>
+            <div class="nm">Jordan Rivera</div>
+            <div class="det">FICO <span class="num">690</span> · DTI <span class="num">38%</span> · PTI cap <span class="num">15%</span></div>
+          </div>
+        </div>
+
+        <div class="j-meta">
+          <div class="cell"><div class="l">Down</div><div class="v">$4,500</div></div>
+          <div class="cell"><div class="l">Term</div><div class="v">72 mo</div></div>
+          <div class="cell"><div class="l">APR</div><div class="v">5.19%</div></div>
+        </div>
+
+        <div class="j-structure">
+          <div class="grp-ttl">Vehicle · 2023 Explorer ST · E3916</div>
+          <div class="j-input">
+            <label for="j-price">Sell price</label>
+            <input id="j-price" data-recalc="price" value="39440" />
+          </div>
+          <div class="j-input">
+            <label for="j-down">Down</label>
+            <input id="j-down" data-recalc="down" value="4500" />
+          </div>
+          <div class="j-input">
+            <label for="j-pack">Backend pack</label>
+            <input id="j-pack" data-recalc="pack" value="1760" />
+          </div>
+          <div class="j-input">
+            <label for="j-term">Term (mo)</label>
+            <input id="j-term" data-recalc="term" value="72" />
+          </div>
+          <div class="j-input">
+            <label for="j-apr">APR (%)</label>
+            <input id="j-apr" data-recalc="apr" value="5.19" />
+          </div>
+        </div>
+
+        <div class="j-payment">
+          <div>
+            <div class="label">Estimated payment</div>
+            <div class="v">$<span id="j-out">618</span><span class="unit">/mo</span></div>
+          </div>
+          <div class="meta">
+            <div>PTI 13.9%</div>
+            <div>of 15.0% cap</div>
+          </div>
+        </div>
+
+        <div class="cone">
+          <div class="l">Affordability cone</div>
+          <div class="cone-bar"></div>
+          <div class="legend">
+            <div><div class="lk">Comfort</div><div class="vk">≤ $26K</div></div>
+            <div><div class="lk">Stretch</div><div class="vk">$26–42K</div></div>
+            <div><div class="lk">Decline</div><div class="vk">$42K+</div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="grp-ttl" style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3); margin-bottom:10px;">Lender ladder</div>
+          <div class="j-lenders">
+            <div class="lender-mini recommend">
+              <div class="logo">MC</div>
+              <div class="meta">
+                <div class="nm">Meridian Capital</div>
+                <div class="det">5.19% · 13.9% PTI</div>
+              </div>
+              <div class="reserve"><span class="lk">Reserve</span>$1,090</div>
+            </div>
+            <div class="lender-mini alt">
+              <div class="logo">HC</div>
+              <div class="meta">
+                <div class="nm">Harbor Credit</div>
+                <div class="det">4.99% · 13.6% PTI</div>
+              </div>
+              <div class="reserve"><span class="lk">Reserve</span>$1,210</div>
+            </div>
+            <div class="lender-mini caution">
+              <div class="logo">MA</div>
+              <div class="meta">
+                <div class="nm">Metro Accept.</div>
+                <div class="det">5.69% · POI · POR</div>
+              </div>
+              <div class="reserve"><span class="lk">Reserve</span>$960</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top: 6px;">
+          <button class="btn btn-sm btn-secondary">Save</button>
+          <button class="btn btn-sm btn-primary" onclick="openSheet('Explorer ST')">Lock structure</button>
+        </div>
+
+      </div>
+    </aside>
+
+  </main>
+</div>
+
+<!-- =========================================================================
+     COMMAND PALETTE
+     ========================================================================= -->
+<div class="palette-backdrop" id="palette" onclick="if(event.target===this) closePalette()">
+  <div class="palette" role="dialog" aria-label="Command palette">
+    <div class="palette-input">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="palInput" type="text" placeholder="Jump to vehicle, customer, lender — or type a command…" />
+      <span class="kbd">ESC</span>
+    </div>
+    <div class="palette-list" id="palList">
+      <div class="palette-group">Jump to vehicle</div>
+      <div class="palette-item" data-q="2023 ford explorer st e3916">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 13h2l1-4h12l1 4h2v5h-2a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H3v-5z"/></svg></div>
+        <div>2023 Ford Explorer ST <span style="color:var(--ink-4); font-family:var(--mono); font-size:11px; margin-left:6px;">E3916</span><div class="pmeta">$39,440 · 27,906 mi · Match</div></div>
+        <span class="kbd-hint">↵</span>
+      </div>
+      <div class="palette-item" data-q="2024 ford f150 lariat f4821">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 13h2l1-4h12l1 4h2v5h-2a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H3v-5z"/></svg></div>
+        <div>2024 Ford F-150 Lariat <span style="color:var(--ink-4); font-family:var(--mono); font-size:11px; margin-left:6px;">F4821</span><div class="pmeta">$51,880 · 18,442 mi · Match</div></div>
+        <span class="kbd-hint">↵</span>
+      </div>
+      <div class="palette-item" data-q="2024 ford maverick xlt m9012">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 13h2l1-4h12l1 4h2v5h-2a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H3v-5z"/></svg></div>
+        <div>2024 Ford Maverick XLT <span style="color:var(--ink-4); font-family:var(--mono); font-size:11px; margin-left:6px;">M9012</span><div class="pmeta">$32,210 · 9,118 mi · Match</div></div>
+        <span class="kbd-hint">↵</span>
+      </div>
+
+      <div class="palette-group">Customers</div>
+      <div class="palette-item" data-q="jordan rivera customer">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+        <div>Jordan Rivera<div class="pmeta">FICO 690 · entered manually · 14m ago</div></div>
+        <span class="kbd-hint">↵</span>
+      </div>
+
+      <div class="palette-group">Lenders</div>
+      <div class="palette-item" data-q="meridian capital tier b">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13"/></svg></div>
+        <div>Meridian Capital<div class="pmeta">Tier B+ · 660–720 FICO · 120% LTV</div></div>
+        <span class="kbd-hint">↵</span>
+      </div>
+      <div class="palette-item" data-q="harbor credit tier a">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13"/></svg></div>
+        <div>Harbor Credit<div class="pmeta">Tier A · 720+ · 115% LTV</div></div>
+        <span class="kbd-hint">↵</span>
+      </div>
+
+      <div class="palette-group">Actions</div>
+      <div class="palette-item" data-q="new deal blank">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div>Start a new deal<div class="pmeta">Blank customer + structure</div></div>
+        <span class="kbd-hint">⌘↵</span>
+      </div>
+      <div class="palette-item" data-q="settings lender programs">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg></div>
+        <div>Settings → Lender programs<div class="pmeta">12 active programs</div></div>
+        <span class="kbd-hint">⌘↵</span>
+      </div>
+      <div class="palette-item" data-q="dark mode toggle theme">
+        <div class="pico"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+        <div>Toggle dark mode<div class="pmeta">Currently <span id="palTheme">light</span></div></div>
+        <span class="kbd-hint">D</span>
+      </div>
+    </div>
+    <div class="palette-foot">
+      <span class="legend-key"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+      <span class="legend-key"><kbd>↵</kbd> Select</span>
+      <span class="legend-key"><kbd>ESC</kbd> Close</span>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     SLIDE-OVER SHEET
+     ========================================================================= -->
+<div class="sheet-backdrop" id="sheetBackdrop" onclick="closeSheet()"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-label="Deal jacket">
+  <div class="sheet-head">
+    <div class="icon">DJ</div>
+    <div>
+      <div class="ttl">Structure deal · <span id="sheetSubject">Explorer ST</span></div>
+      <div class="meta">Stock E3916 · Customer Jordan Rivera</div>
+    </div>
+    <button class="icon-btn" onclick="closeSheet()" aria-label="Close">
+      <svg class="ic" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-body">
+    <div class="subsection">
+      <div class="subsection-num">1</div>
+      <h3 class="subsection-title">Sell &amp; finance</h3>
+      <div class="subsection-meta">Editable</div>
+    </div>
+    <div class="deal-form-row cols-4">
+      <div class="field"><label class="field-label">Sell price</label><div class="prefix-wrap"><span class="prefix">$</span><input class="input tabular with-prefix" value="39,440" /></div></div>
+      <div class="field"><label class="field-label">Cash down</label><div class="prefix-wrap"><span class="prefix">$</span><input class="input tabular with-prefix" value="4,500" /></div></div>
+      <div class="field"><label class="field-label">Trade allow</label><div class="prefix-wrap"><span class="prefix">$</span><input class="input tabular with-prefix" value="0" /></div></div>
+      <div class="field"><label class="field-label">Backend</label><div class="prefix-wrap"><span class="prefix">$</span><input class="input tabular with-prefix" value="1,760" /></div></div>
+      <div class="field"><label class="field-label">Term <span class="hint">mo</span></label><input class="input tabular" value="72" /></div>
+      <div class="field"><label class="field-label">Sell APR</label><input class="input tabular" value="5.19" /></div>
+      <div class="field"><label class="field-label">Buy APR</label><input class="input tabular" value="4.69" /></div>
+      <div class="field"><label class="field-label">State fees</label><div class="prefix-wrap"><span class="prefix">$</span><input class="input tabular with-prefix" value="31" /></div></div>
+    </div>
+
+    <hr class="section-divider" />
+
+    <div class="subsection">
+      <div class="subsection-num">2</div>
+      <h3 class="subsection-title">Outcome</h3>
+      <div class="subsection-meta">Live, recomputed on edit</div>
+    </div>
+    <div class="kpi-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
+      <div class="kpi"><div class="kpi-label">Payment</div><div class="kpi-value">$618<span class="unit">/mo</span></div></div>
+      <div class="kpi"><div class="kpi-label">Amt. financed</div><div class="kpi-value">$41,620</div></div>
+      <div class="kpi"><div class="kpi-label">Front LTV</div><div class="kpi-value">106.9<span class="unit">%</span></div></div>
+      <div class="kpi"><div class="kpi-label">Front gross</div><div class="kpi-value" style="color:var(--green);">+$2,180</div></div>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <span class="badge badge-success">Inside Meridian envelope · PTI 13.9 / cap 15.0</span>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-sm btn-secondary" onclick="closeSheet()">Cancel</button>
+      <button class="btn btn-sm btn-primary">Save quote</button>
+    </div>
+  </div>
+</aside>
+
+<!-- =========================================================================
+     ACTION MENU POPOVER (one shared)
+     ========================================================================= -->
+<div class="menu-pop" id="rowMenu">
+  <div class="menu-item">
+    <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+    Restore from saved
+    <span class="kbd-hint">R</span>
+  </div>
+  <div class="menu-item">
+    <svg class="ic ic-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    Duplicate row
+    <span class="kbd-hint">⌘D</span>
+  </div>
+  <div class="menu-item">
+    <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+    Archive
+    <span class="kbd-hint">⌫</span>
+  </div>
+  <div class="menu-divider"></div>
+  <div class="menu-item">
+    <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    Copy quote link
+  </div>
+</div>
+
+<!-- =========================================================================
+     TOAST STACK
+     ========================================================================= -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<!-- =========================================================================
+     JS
+     ========================================================================= -->
+<script>
+// ─────────────────────────────────────────────────────────────
+// Inventory data + row rendering
+// ─────────────────────────────────────────────────────────────
+const inventory = [
+  { id: 'F4821', status:'match',  ttl:'Ford F-150 Lariat',          met:'5.0L V8 · 4WD · SuperCrew',     year:2024, mi:18442, price:51880, book:47100, ltv:108.2, gross:2940,  fin:54820, otd:114.9, pmt:742, approval:91, vin:'1FTFW1ED7P…', fav:false, mark:'F' },
+  { id: 'E3916', status:'match',  ttl:'Ford Explorer ST',           met:'3.0L EcoBoost · AWD · 7-seat',  year:2023, mi:27906, price:39440, book:35880, ltv:106.9, gross:2180,  fin:41620, otd:112.8, pmt:618, approval:96, vin:'1FM5K8GC0P…', fav:true,  mark:'F', expanded:true },
+  { id: 'M9012', status:'match',  ttl:'Ford Maverick XLT',          met:'2.0L Hybrid · FWD · SuperCrew', year:2024, mi:9118,  price:32210, book:30080, ltv:104.8, gross:1640,  fin:33850, otd:110.2, pmt:512, approval:97, vin:'3FTTW8E32R…', fav:false, mark:'F' },
+  { id: 'B1284', status:'caution',ttl:'Ford Bronco Outer Banks',    met:'2.7L EcoBoost · 4WD',            year:2022, mi:41882, price:48260, book:42510, ltv:114.4, gross:3420,  fin:51680, otd:121.5, pmt:799, approval:64, vin:'1FMEE5DH6N…', fav:false, mark:'F' },
+  { id: 'E8843', status:'match',  ttl:'Ford Edge Titanium',         met:'2.0L EcoBoost · AWD',            year:2023, mi:22108, price:36990, book:33240, ltv:105.4, gross:1870,  fin:39150, otd:111.6, pmt:586, approval:94, vin:'2FMPK4J92P…', fav:false, mark:'F' },
+  { id: 'E7711', status:'decline',ttl:'Ford Escape Titanium',       met:'2.0L EcoBoost · AWD',            year:2021, mi:68402, price:23580, book:18440, ltv:127.9, gross:-640,  fin:26180, otd:142.0, pmt:461, approval:18, vin:'1FMCU9J91M…', fav:false, mark:'F' },
+  { id: 'M5520', status:'match',  ttl:'Ford Mustang GT',            met:'5.0L V8 · RWD · Premium',        year:2024, mi:4201,  price:48780, book:45910, ltv:107.0, gross:2460,  fin:51240, otd:111.6, pmt:702, approval:89, vin:'1FA6P8CF9R…', fav:false, mark:'F' },
+  { id: 'R2208', status:'caution',ttl:'Ford Ranger Lariat',         met:'2.3L EcoBoost · 4WD',            year:2022, mi:35712, price:36200, book:31640, ltv:113.0, gross:2240,  fin:38820, otd:119.4, pmt:598, approval:71, vin:'1FTER4FH8N…', fav:false, mark:'F' },
+  { id: 'X1187', status:'match',  ttl:'Ford Expedition Limited',    met:'3.5L EcoBoost · 4WD · 8-seat',   year:2023, mi:19442, price:62440, book:58210, ltv:107.3, gross:3180,  fin:65620, otd:112.7, pmt:894, approval:86, vin:'1FMJU2A87P…', fav:false, mark:'F' },
+  { id: 'B6622', status:'match',  ttl:'Ford Bronco Sport Big Bend', met:'1.5L EcoBoost · 4WD',            year:2024, mi:14210, price:34890, book:31980, ltv:106.1, gross:1980,  fin:37120, otd:110.4, pmt:556, approval:93, vin:'3FMCR9B62R…', fav:false, mark:'F' },
+  { id: 'T9920', status:'match',  ttl:'Ford Transit Connect XL',    met:'2.0L · FWD · Cargo',             year:2023, mi:22890, price:29440, book:27100, ltv:105.2, gross:1480,  fin:30960, otd:109.8, pmt:471, approval:90, vin:'NM0LS7E20P…', fav:false, mark:'F' },
+  { id: 'F7711', status:'caution',ttl:'Ford F-250 XLT',             met:'6.7L Diesel · 4WD',              year:2022, mi:52204, price:54880, book:48910, ltv:113.6, gross:2940,  fin:57860, otd:120.2, pmt:868, approval:68, vin:'1FT8W2BT5N…', fav:false, mark:'F' },
+];
+
+const fmt = {
+  $: n => (n<0?'−$':'$') + Math.abs(n).toLocaleString('en-US'),
+  pct: n => n.toFixed(1) + '%',
+  miles: n => n.toLocaleString('en-US'),
+};
+
+const ltvState = pct => pct < 112 ? 'ok' : pct < 120 ? 'warn' : 'bad';
+const statusBadge = s => ({
+  match:   '<span class="badge badge-success">Match</span>',
+  caution: '<span class="badge badge-warning">Caution</span>',
+  decline: '<span class="badge badge-danger">Decline</span>',
+}[s]);
+
+function approvalState(p){ return p >= 85 ? 'ok' : p >= 65 ? 'warn' : 'bad'; }
+
+function rowHTML(r, idx, rank) {
+  const dataAttr = `data-id="${r.id}" data-status="${r.status}"`;
+  const sel = r.expanded ? ' is-selected is-expanded' : '';
+  const gross = r.gross<0?'−$'+Math.abs(r.gross).toLocaleString():'+$'+r.gross.toLocaleString();
+  const cp = (val) => `data-copy="${val}"`;
+  const isBest = rank === 0;
+  return `
+    <tr class="row${sel}" ${dataAttr}>
+      <td><input type="checkbox" class="check" ${r.expanded?'checked':''} onclick="event.stopPropagation()" /></td>
+      <td class="copyable" ${cp(r.approval+'%')}>
+        <span class="approve-cell" data-s="${approvalState(r.approval)}">
+          <span class="approve-bar"><span style="width:${r.approval}%"></span></span>
+          ${r.approval}%
+        </span>
+      </td>
+      <td>${statusBadge(r.status)}</td>
+      <td>
+        <div class="veh">
+          <div class="veh-mark">${r.mark}</div>
+          <div>
+            <div class="ttl">${r.year} ${r.ttl}${isBest ? '<span class="best-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"/></svg>Best fit</span>' : ''}</div>
+            <div class="met">${r.met}</div>
+          </div>
+        </div>
+      </td>
+      <td class="muted copyable" ${cp(r.id)} title="Click to copy stock #">${r.id}</td>
+      <td class="right copyable" ${cp(fmt.miles(r.mi))} title="Click to copy miles">${fmt.miles(r.mi)}</td>
+      <td class="right copyable" ${cp(fmt.$(r.price))} title="Click to copy price">${fmt.$(r.price)}</td>
+      <td class="right copyable" ${cp(fmt.pct(r.ltv))} title="Click to copy Front LTV"><span class="ltv" data-s="${ltvState(r.ltv)}"><span class="bar"><span style="width:${Math.min(100, (r.ltv-100)*10)}%"></span></span><span>${fmt.pct(r.ltv)}</span></span></td>
+      <td class="right copyable" ${cp(fmt.pct(r.otd))} title="Click to copy Backend LTV"><span class="ltv" data-s="${ltvState(r.otd)}"><span class="bar"><span style="width:${Math.min(100, (r.otd-100)*8)}%"></span></span><span>${fmt.pct(r.otd)}</span></span></td>
+      <td class="right copyable" ${cp(gross)} title="Click to copy front gross" style="color:${r.gross<0?'var(--red)':'var(--green)'}; font-weight:600;">${gross}</td>
+      <td class="right copyable" ${cp('$'+r.pmt+'/mo')} title="Click to copy payment" style="font-weight:600;">$${r.pmt}<span style="color:var(--ink-4); font-weight:400;">/mo</span></td>
+      <td>
+        <div class="row-actions" onclick="event.stopPropagation()">
+          <button class="icon-action" onclick="copyRow('${r.id}', this)" aria-label="Copy all vehicle info" title="Copy full vehicle details">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="icon-action fav ${r.fav?'active':''}" onclick="toggleFav('${r.id}', this)" aria-label="Favorite">
+            <svg class="ic ic-sm" viewBox="0 0 24 24" ${r.fav?'fill="currentColor" stroke="currentColor"':''}><polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"/></svg>
+          </button>
+          <button class="icon-action" onclick="showRowMenu(event, '${r.id}')" aria-label="More">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+          <button class="btn btn-xs ${r.status==='match'?'btn-primary':'btn-secondary'}" onclick="event.stopPropagation(); openSheet('${r.year} ${r.ttl.replace(/'/g,"&#39;")}')" ${r.status==='decline'?'disabled':''}>Desk</button>
+        </div>
+      </td>
+    </tr>
+    <tr class="expand-content ${r.expanded?'':'collapsed'}" data-id="${r.id}">
+      <td colspan="12">
+        ${expandHTML(r)}
+      </td>
+    </tr>
+  `;
+}
+
+function expandHTML(r){
+  return `
+    <div class="expand-panel">
+      <div class="expand-col">
+        <div class="ttl">Structure · ${r.ttl}</div>
+        <div class="expand-row"><label>Cash down</label><input class="v-edit" value="$4,500"/></div>
+        <div class="expand-row"><label>Trade</label><input class="v-edit" value="$0"/></div>
+        <div class="expand-row"><label>Backend pack</label><input class="v-edit" value="$1,760"/></div>
+        <div class="expand-row"><label>Sell APR</label><input class="v-edit" value="5.19%"/></div>
+        <div class="expand-row"><label>Term</label><input class="v-edit" value="72 mo"/></div>
+        <div class="expand-row"><label>Payment</label><span class="v">$${r.pmt}/mo</span></div>
+      </div>
+
+      <div class="expand-col">
+        <div class="ttl">Payment grid · Meridian Capital · 5.19% APR</div>
+        <div class="matrix-card">
+          <div class="matrix-head">
+            <div class="lender">
+              <div class="lender-logo">MC</div>
+              <div>
+                <div class="nm">Meridian Capital · tier B+</div>
+                <div class="det">660–720 FICO · max <span class="num">120%</span> LTV · PTI <span class="num">15%</span> cap · funding <span class="num">24 hr</span></div>
+              </div>
+            </div>
+            <span class="badge badge-success">Inside envelope</span>
+          </div>
+          <table class="matrix">
+            <thead>
+              <tr><th>Down / Term</th><th>60 mo</th><th>66 mo</th><th>72 mo</th><th>84 mo</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>$2,500</td><td>$742</td><td>$684</td><td class="warn">$641</td><td class="bad">$574</td></tr>
+              <tr><td>$3,500</td><td>$721</td><td>$664</td><td>$622</td><td class="warn">$556</td></tr>
+              <tr><td>$4,500</td><td>$700</td><td>$645</td><td class="target">$618</td><td>$537</td></tr>
+              <tr><td>$6,000</td><td>$668</td><td>$615</td><td>$576</td><td>$515</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="rank-row">
+          <div class="rank-card recommend">
+            <div class="top"><span class="nm">Meridian Capital</span><span class="badge badge-success">Recommend</span></div>
+            <dl><dt>APR</dt><dd>5.19%</dd><dt>PTI</dt><dd>13.9%</dd><dt>Reserve</dt><dd>$1,090</dd><dt>Funding</dt><dd>24 hr</dd></dl>
+          </div>
+          <div class="rank-card">
+            <div class="top"><span class="nm">Harbor Credit</span><span class="badge badge-neutral">Alternate</span></div>
+            <dl><dt>APR</dt><dd>4.99%</dd><dt>PTI</dt><dd>13.6%</dd><dt>Reserve</dt><dd>$1,210</dd><dt>Funding</dt><dd>48 hr</dd></dl>
+          </div>
+          <div class="rank-card caution">
+            <div class="top"><span class="nm">Metro Accept.</span><span class="badge badge-warning">Caution</span></div>
+            <dl><dt>APR</dt><dd>5.69%</dd><dt>PTI</dt><dd>13.1%</dd><dt>Reserve</dt><dd>$960</dd><dt>Stips</dt><dd>POI · POR</dd></dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Sort state — default to Approval desc (best matches first)
+let sortKey = 'approval';
+let sortDir = 'desc'; // 'asc' | 'desc'
+
+function sortedInventory() {
+  const list = inventory.slice();
+  list.sort((a, b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    if (av == null) av = -Infinity;
+    if (bv == null) bv = -Infinity;
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  return list;
+}
+
+function renderInventory() {
+  const body = document.getElementById('invBody');
+  const list = sortedInventory();
+  body.innerHTML = list.map((r, i) => rowHTML(r, i, i)).join('');
+  // Wire row click → toggle expand
+  body.querySelectorAll('tr.row').forEach(tr => {
+    tr.addEventListener('click', () => toggleExpand(tr.dataset.id));
+  });
+  updateSortIndicators();
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll('thead th.sortable').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.sort === sortKey) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  });
+}
+
+function setupSort() {
+  document.querySelectorAll('thead th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (sortKey === k) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else { sortKey = k; sortDir = (k === 'ttl' || k === 'id' || k === 'status') ? 'asc' : 'desc'; }
+      renderInventory();
+    });
+  });
+}
+
+function toggleExpand(id) {
+  const row = document.querySelector(`tr.row[data-id="${id}"]`);
+  const exp = document.querySelector(`tr.expand-content[data-id="${id}"]`);
+  if (!row || !exp) return;
+  const open = exp.classList.contains('collapsed');
+  // Close any currently open
+  document.querySelectorAll('tr.expand-content').forEach(e => e.classList.add('collapsed'));
+  document.querySelectorAll('tr.row').forEach(r => r.classList.remove('is-expanded'));
+  if (open) {
+    exp.classList.remove('collapsed');
+    row.classList.add('is-expanded');
+  }
+}
+
+function toggleCard(id, ev) {
+  if (ev) ev.stopPropagation();
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+function toggleFav(id, btn) {
+  event.stopPropagation();
+  const row = inventory.find(r => r.id === id);
+  if (!row) return;
+  row.fav = !row.fav;
+  btn.classList.toggle('active', row.fav);
+  const svg = btn.querySelector('svg');
+  if (row.fav) { svg.setAttribute('fill','currentColor'); svg.setAttribute('stroke','currentColor'); }
+  else { svg.setAttribute('fill','none'); svg.setAttribute('stroke','currentColor'); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Copy — per-cell + per-row
+// ─────────────────────────────────────────────────────────────
+function flash(el) {
+  el.classList.add('just-copied');
+  setTimeout(() => el.classList.remove('just-copied'), 700);
+}
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    }
+    return true;
+  } catch (e) { return false; }
+}
+
+document.addEventListener('click', async e => {
+  const td = e.target.closest('td.copyable');
+  if (!td) return;
+  if (e.target.closest('.row-actions')) return;
+  e.stopPropagation();
+  const val = td.dataset.copy || td.textContent.trim();
+  const ok = await copyToClipboard(val);
+  flash(td);
+  toast({ title: ok ? 'Copied to clipboard' : 'Copy failed', detail: val.length > 60 ? val.slice(0,60)+'…' : val });
+});
+
+async function copyRow(id, btn) {
+  event.stopPropagation();
+  const r = inventory.find(x => x.id === id);
+  if (!r) return;
+  const lines = [
+    `Vehicle\t${r.year} ${r.ttl}`,
+    `Trim\t${r.met}`,
+    `Stock #\t${r.id}`,
+    `VIN\t${r.vin}`,
+    `Miles\t${fmt.miles(r.mi)}`,
+    `Price\t${fmt.$(r.price)}`,
+    `Book (trade)\t${fmt.$(r.book)}`,
+    `Front LTV\t${fmt.pct(r.ltv)}`,
+    `Front gross\t${r.gross<0?'−$'+Math.abs(r.gross).toLocaleString():'+$'+r.gross.toLocaleString()}`,
+    `Amt. financed\t${fmt.$(r.fin)}`,
+    `OTD LTV\t${fmt.pct(r.otd)}`,
+    `Payment\t$${r.pmt}/mo @ 5.19% APR / 72 mo`,
+  ];
+  const text = lines.join('\n');
+  const ok = await copyToClipboard(text);
+  if (ok && btn) {
+    const original = btn.innerHTML;
+    btn.innerHTML = '<svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.innerHTML = original; btn.style.color = ''; }, 1200);
+  }
+  toast({
+    title: ok ? `Copied ${r.year} ${r.ttl}` : 'Copy failed',
+    detail: ok ? `${r.id} · ${fmt.$(r.price)} · ${fmt.pct(r.ltv)} LTV · $${r.pmt}/mo · ready to paste` : 'Try again'
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Filter chips
+// ─────────────────────────────────────────────────────────────
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.chip[data-filter]');
+  if (!chip) return;
+  document.querySelectorAll('.chip[data-filter]').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  const f = chip.dataset.filter;
+  document.querySelectorAll('tr.row').forEach(row => {
+    const show = f === 'all' || row.dataset.status === f;
+    row.classList.toggle('hidden-by-filter', !show);
+    const exp = document.querySelector(`tr.expand-content[data-id="${row.dataset.id}"]`);
+    if (exp && !show) exp.classList.add('hidden-by-filter');
+    else if (exp) exp.classList.remove('hidden-by-filter');
+  });
+});
+
+// Hide rows that match no filter using CSS
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `tr.row.hidden-by-filter, tr.expand-content.hidden-by-filter { display: none !important; }`;
+document.head.appendChild(styleSheet);
+
+// ─────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// SVG sparklines (render after DOM ready)
+// ─────────────────────────────────────────────────────────────
+function drawSparks() {
+  document.querySelectorAll('.spark-wrap[data-spark]').forEach(wrap => {
+    const svg = wrap.querySelector('svg');
+    const data = JSON.parse(wrap.dataset.spark);
+    const vals = data.vals;
+    const days = data.days;
+    const W = 96, H = 36;
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const dx = vals.length > 1 ? W / (vals.length - 1) : W;
+    const range = max - min || 1;
+    const pts = vals.map((v, i) => [i*dx, H - 4 - ((v - min)/range) * (H - 8)]);
+    // Determine if trend is down (start higher than end)
+    const isDown = vals[0] > vals[vals.length-1];
+    const grad = isDown ? 'sparkDown' : 'sparkGradient';
+    const stroke = isDown ? 'var(--red)' : 'var(--navy)';
+
+    const linePath = pts.map((p,i)=> (i===0?'M':'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const areaPath = linePath + ` L ${W} ${H} L 0 ${H} Z`;
+    const peakIdx  = vals.indexOf(isDown ? min : max);
+    const peak = pts[peakIdx];
+
+    svg.innerHTML = `
+      <path d="${areaPath}" fill="url(#${grad})"/>
+      <path d="${linePath}" class="spark-line" style="stroke:${stroke}"/>
+      <circle cx="${peak[0]}" cy="${peak[1]}" r="2.5" class="spark-peak" style="fill:${stroke}"/>
+    `;
+
+    const tip = wrap.querySelector('.spark-tip');
+    wrap.addEventListener('mousemove', e => {
+      const rect = wrap.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const i = Math.max(0, Math.min(vals.length-1, Math.round(x / dx)));
+      const v = vals[i];
+      const d = days[i];
+      tip.textContent = `${d} · ${typeof v==='number' && v > 99 ? '$'+v.toLocaleString() : v}`;
+      tip.style.left = (pts[i][0]) + 'px';
+      tip.style.top  = (pts[i][1] - 6) + 'px';
+      tip.classList.add('on');
+    });
+    wrap.addEventListener('mouseleave', () => tip.classList.remove('on'));
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// KPI counter-up animation
+// ─────────────────────────────────────────────────────────────
+function animateCounters() {
+  document.querySelectorAll('[data-counter]').forEach(el => {
+    const target = parseFloat(el.dataset.target);
+    const dur = 800;
+    const start = performance.now();
+    const fmt = el.dataset.target.includes('.') ? v => v.toFixed(1) :
+                el.dataset.target.length >= 4 ? v => Math.round(v).toLocaleString('en-US') :
+                v => Math.round(v).toString();
+    const step = now => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = fmt(target * eased);
+      if (t < 1) requestAnimationFrame(step);
+      else el.textContent = fmt(target);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Deal jacket — live payment recalc
+//   payment = (P × r) / (1 − (1+r)^−n)
+//   where P = amount financed, r = monthly rate, n = term
+// ─────────────────────────────────────────────────────────────
+function recalc() {
+  const get = id => parseFloat(document.getElementById(id).value) || 0;
+  const price = get('j-price');
+  const down  = get('j-down');
+  const pack  = get('j-pack');
+  const term  = get('j-term');
+  const apr   = get('j-apr');
+  const P = price - down + pack;
+  const r = (apr / 100) / 12;
+  let pmt = 0;
+  if (term > 0 && r > 0) {
+    pmt = (P * r) / (1 - Math.pow(1 + r, -term));
+  } else if (term > 0) {
+    pmt = P / term;
+  }
+  document.getElementById('j-out').textContent = Math.round(pmt).toLocaleString('en-US');
+}
+document.querySelectorAll('[data-recalc]').forEach(i => i.addEventListener('input', recalc));
+
+// ─────────────────────────────────────────────────────────────
+// Command palette
+// ─────────────────────────────────────────────────────────────
+const pal = document.getElementById('palette');
+const palInput = document.getElementById('palInput');
+const palList  = document.getElementById('palList');
+
+function openPalette() {
+  pal.classList.add('on');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => palInput.focus(), 80);
+  filterPalette('');
+}
+function closePalette() {
+  pal.classList.remove('on');
+  document.body.style.overflow = '';
+  palInput.value = '';
+}
+function filterPalette(q) {
+  q = q.trim().toLowerCase();
+  palList.querySelectorAll('.palette-item').forEach(item => {
+    const t = item.dataset.q || item.textContent.toLowerCase();
+    item.style.display = !q || t.includes(q) ? '' : 'none';
+  });
+  // Hide group headers whose all items are hidden
+  palList.querySelectorAll('.palette-group').forEach(g => {
+    let next = g.nextElementSibling;
+    let anyVisible = false;
+    while (next && !next.classList.contains('palette-group')) {
+      if (next.classList.contains('palette-item') && next.style.display !== 'none') anyVisible = true;
+      next = next.nextElementSibling;
+    }
+    g.style.display = anyVisible ? '' : 'none';
+  });
+}
+palInput.addEventListener('input', e => filterPalette(e.target.value));
+palList.addEventListener('click', e => {
+  const item = e.target.closest('.palette-item');
+  if (!item) return;
+  if (item.dataset.q && item.dataset.q.includes('dark')) toggleTheme();
+  closePalette();
+});
+
+// Keybindings
+window.addEventListener('keydown', e => {
+  // ⌘K / Ctrl+K
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    pal.classList.contains('on') ? closePalette() : openPalette();
+  }
+  // ESC closes everything
+  if (e.key === 'Escape') {
+    closePalette(); closeSheet(); hideRowMenu();
+  }
+  // D in palette toggles theme
+  if (pal.classList.contains('on') && e.key === 'd' && document.activeElement !== palInput) {
+    toggleTheme();
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Slide-over sheet
+// ─────────────────────────────────────────────────────────────
+const sheet = document.getElementById('sheet');
+const sheetBackdrop = document.getElementById('sheetBackdrop');
+function openSheet(subject) {
+  document.getElementById('sheetSubject').textContent = subject || 'New deal';
+  sheet.classList.add('on');
+  sheetBackdrop.classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet() {
+  sheet.classList.remove('on');
+  sheetBackdrop.classList.remove('on');
+  document.body.style.overflow = '';
+}
+
+// ─────────────────────────────────────────────────────────────
+// Theme toggle
+// ─────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const html = document.documentElement;
+  const cur = html.dataset.theme;
+  const next = cur === 'dark' ? 'light' : 'dark';
+  html.dataset.theme = next;
+  // Update theme icon
+  const ti = document.getElementById('themeIcon');
+  if (next === 'dark') {
+    ti.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  } else {
+    ti.innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
+  }
+  const pt = document.getElementById('palTheme');
+  if (pt) pt.textContent = next;
+}
+document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+
+// ─────────────────────────────────────────────────────────────
+// Row action menu (single shared popover)
+// ─────────────────────────────────────────────────────────────
+const rowMenu = document.getElementById('rowMenu');
+function showRowMenu(e, id) {
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  rowMenu.style.left = (rect.right - 180 + window.scrollX) + 'px';
+  rowMenu.style.top  = (rect.bottom + 4 + window.scrollY) + 'px';
+  rowMenu.classList.add('on');
+}
+function hideRowMenu() { rowMenu.classList.remove('on'); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('.menu-pop') && !e.target.closest('.icon-action')) hideRowMenu();
+});
+
+// ─────────────────────────────────────────────────────────────
+// Toast
+// ─────────────────────────────────────────────────────────────
+function toast({ title, detail }) {
+  const stack = document.getElementById('toastStack');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `
+    <div class="ico"><svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div><div class="ttl">${title}</div><div class="det">${detail}</div></div>
+    <button class="x" aria-label="Dismiss"><svg class="ic ic-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  `;
+  stack.appendChild(t);
+  const dismiss = () => { t.style.opacity = '0'; t.style.transform = 'translateY(8px)'; setTimeout(()=>t.remove(), 220); };
+  t.querySelector('.x').addEventListener('click', dismiss);
+  setTimeout(dismiss, 5000);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Default: rail collapsed so the table is the focus
+  document.getElementById('shell').classList.add('rail-collapsed');
+  const tog = document.getElementById('railToggle');
+  if (tog && tog.querySelector('svg')) tog.querySelector('svg').style.transform = 'rotate(180deg)';
+  setupSort();
+  renderInventory();
+  drawSparks();
+  animateCounters();
+  recalc();
+  setTimeout(() => toast({
+    title: 'Sorted by approval likelihood',
+    detail: 'Best-fit vehicles surfaced first — click any header to re-sort.'
+  }), 1600);
+});
+</script>
+
+</body>
+</html>

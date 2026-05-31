@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LTV Desking PRO — v5 "Warm Premium"</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   v5 — "Warm Premium"
+   Wealthfront / Public.com energy. Cream backgrounds, sage primary,
+   editorial serif display numbers, generous whitespace, paper-like depth.
+
+   Tone: modern financial product that respects adults. Less Wall Street,
+   more "YC fintech that won design awards." Auto-finance adapted.
+   ============================================================================ */
+:root {
+  /* Warm cream surfaces */
+  --color-bg            : #FAF6EE;   /* page background — warm cream */
+  --color-bg-paper      : #FFFDF8;   /* card background — softer than white */
+  --color-bg-subtle     : #F2ECDD;   /* nested / hover surfaces */
+  --color-bg-muted      : #EAE2CF;
+  --color-bg-input      : #FFFDF8;   /* inputs read as paper */
+
+  /* Warm dark text */
+  --color-text          : #1F1B16;   /* near-black with warm cast */
+  --color-text-muted    : #5C5648;
+  --color-text-subtle   : #A89B8C;
+
+  /* Warm borders — visible but soft */
+  --color-border        : #E0D6BF;
+  --color-border-strong : #B8AC92;
+  --color-divider-hair  : #EFE8D6;
+
+  /* Sage primary — premium financial calm */
+  --color-primary       : #2F5347;   /* deep sage */
+  --color-primary-hover : #1F3C32;
+  --color-primary-subtle: #DCE5DF;   /* light sage tint */
+
+  /* Warm amber accent (used sparingly) */
+  --color-accent        : #B68419;   /* warm amber/copper */
+  --color-accent-hover  : #8E6310;
+  --color-accent-subtle : #F2E6C8;
+
+  /* Warm status — softer than typical fintech */
+  --color-success       : #3F6B3E;
+  --color-success-subtle: #DFE9DC;
+  --color-warning       : #B68419;
+  --color-warning-subtle: #F2E6C8;
+  --color-danger        : #A8413B;
+  --color-danger-subtle : #F0DDD9;
+
+  /* Dark sidebar — deep forest green */
+  --color-bg-sidebar    : #1B2A22;
+  --color-sidebar-text  : #B8C5B5;
+  --color-sidebar-text-active: #FAF6EE;
+  --color-sidebar-divider: #2A3B30;
+  --color-sidebar-accent: #6B8E73;
+
+  /* Geometry */
+  --radius-sm: 4px;
+  --radius   : 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Paper-like shadows — soft, warm-tinted */
+  --shadow-card    : 0 1px 2px rgba(31,27,22,.04),
+                     0 6px 14px -3px rgba(31,27,22,.06);
+  --shadow-card-hover: 0 2px 4px rgba(31,27,22,.05),
+                       0 12px 28px -6px rgba(31,27,22,.10);
+  --shadow-input   : inset 0 1px 1px rgba(31,27,22,.03);
+
+  --duration-fast: 140ms;
+  --duration     : 220ms;
+
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-display: "Fraunces", "Inter", -apple-system, BlinkMacSystemFont, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+.tabular { font-variant-numeric: tabular-nums lining-nums; }
+.serif   { font-family: var(--font-display); font-feature-settings: "ss01"; }
+
+/* ============================================================================
+   Layout
+   ============================================================================ */
+.app { display: grid; grid-template-columns: 256px 1fr; min-height: 100vh; }
+
+/* Sidebar — deep forest green */
+.sidebar {
+  background: var(--color-bg-sidebar);
+  border-right: 1px solid var(--color-sidebar-divider);
+  color: var(--color-sidebar-text);
+  display: flex; flex-direction: column;
+  padding: 24px 0 16px;
+  position: sticky; top: 0; height: 100vh;
+}
+.sidebar-brand {
+  padding: 0 24px 20px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--color-sidebar-divider);
+  margin-bottom: 20px;
+}
+.brand-mark {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(140deg, #FAF6EE 0%, #D8CBA8 100%);
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 18px; font-weight: 600;
+  color: var(--color-sidebar-text-active);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+.brand-tagline {
+  font-size: 10px;
+  color: var(--color-sidebar-accent);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.sidebar-dealer {
+  padding: 12px 16px;
+  margin: 0 16px 20px;
+  background: rgba(250,246,238,.04);
+  border: 1px solid rgba(250,246,238,.07);
+  border-radius: 10px;
+  display: flex; align-items: center; gap: 11px;
+  cursor: pointer;
+  transition: background-color var(--duration-fast);
+}
+.sidebar-dealer:hover { background: rgba(250,246,238,.07); }
+.sidebar-dealer-logo {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: var(--color-sidebar-accent);
+  color: var(--color-bg-sidebar);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px;
+  letter-spacing: -0.02em;
+}
+.sidebar-dealer-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.sidebar-dealer-name {
+  font-size: 14px; font-weight: 600;
+  color: var(--color-sidebar-text-active);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sidebar-dealer-sub {
+  font-size: 12px; color: var(--color-sidebar-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sidebar-dealer-caret { color: var(--color-sidebar-text); opacity: 0.6; }
+
+.sidebar-section-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-sidebar-accent);
+  padding: 14px 28px 10px;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 16px; }
+.sidebar-nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  font-size: 14px; font-weight: 500;
+  color: var(--color-sidebar-text);
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--duration-fast), color var(--duration-fast);
+}
+.sidebar-nav-item:hover {
+  background: rgba(250,246,238,.04);
+  color: var(--color-sidebar-text-active);
+}
+.sidebar-nav-item.active {
+  background: rgba(107,142,115,.15);
+  color: var(--color-sidebar-text-active);
+  font-weight: 600;
+}
+.sidebar-nav-item.active::before {
+  content: ""; position: absolute; left: -16px; top: 10px; bottom: 10px;
+  width: 3px; background: var(--color-sidebar-accent); border-radius: 0 3px 3px 0;
+}
+.sidebar-nav-icon {
+  width: 18px; height: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; opacity: 0.85;
+}
+.sidebar-nav-count {
+  margin-left: auto;
+  font-size: 11px; font-weight: 700;
+  padding: 1px 8px; border-radius: 999px;
+  background: rgba(250,246,238,.08);
+  color: var(--color-sidebar-text);
+  font-variant-numeric: tabular-nums;
+}
+.sidebar-nav-item.active .sidebar-nav-count {
+  background: rgba(107,142,115,.25);
+  color: var(--color-sidebar-text-active);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 18px 24px 0;
+  border-top: 1px solid var(--color-sidebar-divider);
+  display: flex; align-items: center; gap: 12px;
+}
+.sidebar-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--color-sidebar-accent);
+  color: var(--color-bg-sidebar);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+}
+.sidebar-user-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.sidebar-user-name {
+  font-size: 13px; font-weight: 600;
+  color: var(--color-sidebar-text-active);
+}
+.sidebar-user-role {
+  font-size: 11px; color: var(--color-sidebar-text);
+  font-weight: 500;
+}
+.sidebar-user-role .dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-accent); margin-right: 5px; vertical-align: 1px;
+}
+
+/* Main column */
+.main { display: flex; flex-direction: column; min-width: 0; }
+
+/* Impersonation strip — warm amber, premium "system message" feel */
+.impersonation {
+  background: var(--color-warning-subtle);
+  border-bottom: 1px solid rgba(184,132,25,.3);
+  padding: 12px 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px;
+  color: #6B4E0E;
+}
+.impersonation strong { font-weight: 700; color: var(--color-text); }
+
+/* Hero header band — editorial generosity */
+.hero {
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  padding: 36px 40px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 32px;
+}
+.hero-left { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.hero-logo {
+  width: 60px; height: 60px;
+  border-radius: 14px;
+  background: var(--color-primary);
+  color: var(--color-bg);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-card);
+}
+.hero-info { display: flex; flex-direction: column; min-width: 0; gap: 6px; }
+.hero-title {
+  font-family: var(--font-display);
+  font-size: 34px; font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+  line-height: 1.1;
+  margin: 0;
+}
+.hero-sub {
+  font-size: 13px; font-weight: 500;
+  color: var(--color-text-muted);
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.hero-sub .pill {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 10px;
+  background: var(--color-success-subtle);
+  color: var(--color-success);
+  border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.hero-sub .pill .dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+}
+.hero-sub .divider { color: var(--color-text-subtle); }
+.hero-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+/* Workspace */
+.workspace { padding: 32px 40px 48px; flex: 1; }
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+.btn {
+  font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 18px;
+  font-size: 14px; font-weight: 600;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color var(--duration-fast), border-color var(--duration-fast),
+              color var(--duration-fast), box-shadow var(--duration-fast);
+  white-space: nowrap;
+  letter-spacing: -0.005em;
+}
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 7px 13px; font-size: 13px; }
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-bg);
+}
+.btn-primary:hover { background: var(--color-primary-hover); }
+
+.btn-secondary {
+  background: var(--color-bg-paper);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  box-shadow: 0 1px 2px rgba(31,27,22,.04);
+}
+.btn-secondary:hover {
+  background: var(--color-bg-subtle);
+  border-color: var(--color-text-muted);
+}
+
+.btn-accent {
+  background: var(--color-accent);
+  color: var(--color-bg-paper);
+}
+.btn-accent:hover { background: var(--color-accent-hover); }
+
+.btn-ghost {
+  background: transparent; color: var(--color-text-muted);
+}
+.btn-ghost:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+
+/* ============================================================================
+   Cards
+   ============================================================================ */
+.card {
+  background: var(--color-bg-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+.card + .card { margin-top: 24px; }
+.card-header {
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--color-divider-hair);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+}
+.card-body { padding: 28px; }
+
+h2.section-title {
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 600;
+  letter-spacing: -0.018em;
+  margin: 0;
+  color: var(--color-text);
+}
+h3.subsection-title {
+  font-family: var(--font-display);
+  font-size: 16px; font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 18px;
+  display: flex; align-items: center; gap: 10px;
+  letter-spacing: -0.01em;
+}
+.subsection-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  font-size: 12px; font-weight: 700;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   KPI cards — editorial hero numbers (Fraunces serif)
+   ============================================================================ */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
+  margin-bottom: 28px;
+}
+.kpi {
+  background: var(--color-bg-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--duration), transform var(--duration);
+}
+.kpi:hover { box-shadow: var(--shadow-card-hover); }
+.kpi-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.kpi-label {
+  font-size: 12px; font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+.kpi-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 44px; font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--color-text);
+  letter-spacing: -0.035em;
+  line-height: 1;
+  margin-top: 10px;
+}
+.kpi-bottom {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-top: 14px;
+  gap: 12px;
+}
+.kpi-trend {
+  font-size: 12px; font-weight: 500;
+  color: var(--color-text-muted);
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.kpi-trend .delta {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px 8px; border-radius: 999px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+.kpi-trend .delta.up   { color: var(--color-success); background: var(--color-success-subtle); }
+.kpi-trend .delta.down { color: var(--color-danger);  background: var(--color-danger-subtle); }
+.kpi-spark { flex-shrink: 0; opacity: 0.9; }
+
+/* ============================================================================
+   Form fields — paper aesthetic
+   ============================================================================ */
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field-label {
+  font-size: 12px; font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+.input {
+  display: block; width: 100%;
+  padding: 10px 14px;
+  font-family: inherit; font-size: 14px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text);
+  box-shadow: var(--shadow-input);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.input::placeholder { color: var(--color-text-subtle); }
+.input:hover { border-color: var(--color-border-strong); }
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-input), 0 0 0 4px var(--color-primary-subtle);
+}
+.input-prefix { position: relative; }
+.input-prefix .input { padding-left: 28px; }
+.input-prefix::before {
+  content: "$";
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--color-text-subtle);
+  font-weight: 500;
+  pointer-events: none;
+  font-size: 14px;
+}
+
+.deal-form-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.deal-form-row.cols-7 { grid-template-columns: repeat(7, 1fr); }
+.section-divider {
+  height: 1px;
+  background: var(--color-divider-hair);
+  border: 0;
+  margin: 28px 0;
+}
+
+/* ============================================================================
+   Inventory table — soft + editorial
+   ============================================================================ */
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+.toolbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.toolbar-right { display: flex; align-items: center; gap: 10px; }
+.muted { color: var(--color-text-muted); font-size: 13px; }
+.toolbar-input { width: 220px; }
+
+.table-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-paper);
+  box-shadow: var(--shadow-card);
+}
+table { width: 100%; border-collapse: collapse; }
+thead { background: var(--color-bg-subtle); }
+th {
+  text-align: left;
+  font-size: 11px; font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+th.right { text-align: right; }
+td {
+  padding: 14px 16px;
+  font-size: 14px; color: var(--color-text);
+  border-bottom: 1px solid var(--color-divider-hair);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+td.right { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr {
+  position: relative;
+  transition: background-color var(--duration-fast);
+}
+tbody tr:hover { background: var(--color-primary-subtle); }
+tbody tr:hover td:first-child::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--color-primary);
+}
+tbody tr:last-child td { border-bottom: 0; }
+
+.vehicle-cell { display: flex; flex-direction: column; }
+.vehicle-name {
+  font-weight: 600; color: var(--color-text);
+  letter-spacing: -0.005em;
+}
+.vehicle-meta {
+  font-size: 12px; color: var(--color-text-subtle);
+  margin-top: 2px;
+}
+
+.row-actions { display: flex; gap: 6px; }
+.icon-btn {
+  width: 32px; height: 32px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color var(--duration-fast), background-color var(--duration-fast),
+              border-color var(--duration-fast);
+}
+.icon-btn:hover {
+  color: var(--color-text);
+  background: var(--color-bg-subtle);
+  border-color: var(--color-border-strong);
+}
+.icon-btn.fav:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+}
+.icon-btn.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-bg);
+}
+.icon-btn.primary:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.badge-success { background: var(--color-success-subtle); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-subtle); color: var(--color-warning); }
+.badge-danger  { background: var(--color-danger-subtle);  color: var(--color-danger); }
+.badge-neutral { background: var(--color-bg-subtle); color: var(--color-text-muted); }
+
+/* Pagination */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 18px;
+  font-size: 13px;
+}
+.pagination-right { display: flex; gap: 6px; align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!--===========================================================
+       SIDEBAR — deep forest green
+  ============================================================-->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-mark" aria-hidden>
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+          <path d="M8 7v18h7v-3h-4V7H8z" fill="#2F5347"/>
+          <path d="M16 7l5 13 5-13h3l-7 18h-2L13 7h3z" fill="#2F5347"/>
+        </svg>
+      </span>
+      <div>
+        <div class="brand-name">LTV Desking</div>
+        <div class="brand-tagline">Pro · F&amp;I</div>
+      </div>
+    </div>
+
+    <div class="sidebar-dealer">
+      <span class="sidebar-dealer-logo">BM</span>
+      <div class="sidebar-dealer-info">
+        <span class="sidebar-dealer-name">Bob Maxey Ford</span>
+        <span class="sidebar-dealer-sub">Detroit, MI · 0001</span>
+      </div>
+      <span class="sidebar-dealer-caret">▾</span>
+    </div>
+
+    <div class="sidebar-section-label">Workspace</div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-item active">
+        <span class="sidebar-nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-7 9 7M5 10v10h14V10"/></svg>
+        </span>
+        Inventory
+        <span class="sidebar-nav-count">35</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>
+        </span>
+        Lender programs
+        <span class="sidebar-nav-count">7</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8M3 8l9-5 9 5M3 8h18"/></svg>
+        </span>
+        Saved deals
+        <span class="sidebar-nav-count">12</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M5 9h11a3 3 0 1 1 0 6H6a3 3 0 1 0 0 6h13"/></svg>
+        </span>
+        Finance tools
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 16l4-4 3 3 6-7"/></svg>
+        </span>
+        Reports
+      </div>
+    </nav>
+
+    <div class="sidebar-section-label">Admin</div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </span>
+        Settings
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        </span>
+        Owner Console
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="sidebar-avatar">JG</span>
+      <div class="sidebar-user-info">
+        <span class="sidebar-user-name">Joe Gallant</span>
+        <span class="sidebar-user-role"><span class="dot"></span>Superadmin</span>
+      </div>
+    </div>
+  </aside>
+
+  <!--===========================================================
+       MAIN
+  ============================================================-->
+  <div class="main">
+
+    <div class="impersonation">
+      <span>
+        Viewing as <strong>Bob Maxey Ford</strong> · superadmin impersonation session
+      </span>
+      <button class="btn btn-sm btn-secondary">Exit impersonation</button>
+    </div>
+
+    <div class="hero">
+      <div class="hero-left">
+        <span class="hero-logo">BM</span>
+        <div class="hero-info">
+          <h1 class="hero-title">Bob Maxey Ford</h1>
+          <div class="hero-sub">
+            <span class="pill"><span class="dot"></span>Active</span>
+            <span>Detroit, MI · Code 0001</span>
+            <span class="divider">·</span>
+            <span>35 vehicles · 7 active deals</span>
+          </div>
+        </div>
+      </div>
+      <div class="hero-right">
+        <button class="btn btn-secondary">Desk mode</button>
+        <button class="btn btn-secondary">Generate PDF</button>
+        <button class="btn btn-accent">AI Lender Upload</button>
+      </div>
+    </div>
+
+    <main class="workspace">
+
+      <!-- KPI row -->
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-label">Inventory units</div>
+            <div class="kpi-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-7 9 7M5 10v10h14V10"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value">35</div>
+          <div class="kpi-bottom">
+            <div class="kpi-trend">
+              <span class="delta up">↑ 4</span>
+              <span>vs last week</span>
+            </div>
+            <svg class="kpi-spark" width="84" height="26" viewBox="0 0 84 26">
+              <polyline points="0,20 14,18 28,19 42,16 56,14 70,10 84,7" fill="none" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-label">Active deals</div>
+            <div class="kpi-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value">7</div>
+          <div class="kpi-bottom">
+            <div class="kpi-trend">
+              <span class="delta up">↑ 2</span>
+              <span>3 pending lender</span>
+            </div>
+            <svg class="kpi-spark" width="84" height="26" viewBox="0 0 84 26">
+              <polyline points="0,20 14,18 28,16 42,15 56,13 70,12 84,9" fill="none" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-label">Avg front gross</div>
+            <div class="kpi-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M5 9h11a3 3 0 1 1 0 6H6a3 3 0 1 0 0 6h13"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value">$1,742</div>
+          <div class="kpi-bottom">
+            <div class="kpi-trend">
+              <span class="delta up">↑ 8.2%</span>
+              <span>vs last week</span>
+            </div>
+            <svg class="kpi-spark" width="84" height="26" viewBox="0 0 84 26">
+              <polyline points="0,18 14,17 28,19 42,16 56,13 70,11 84,7" fill="none" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-label">Avg payment</div>
+            <div class="kpi-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h2"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value">$378</div>
+          <div class="kpi-bottom">
+            <div class="kpi-trend">
+              <span class="delta down">↓ 1.4%</span>
+              <span>72 mo · 8.9%</span>
+            </div>
+            <svg class="kpi-spark" width="84" height="26" viewBox="0 0 84 26">
+              <polyline points="0,10 14,11 28,9 42,12 56,15 70,14 84,17" fill="none" stroke="var(--color-danger)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer & deal -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="section-title">Customer &amp; deal</h2>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-sm btn-secondary" disabled>Save deal</button>
+            <button class="btn btn-sm btn-primary" disabled>Generate PDF</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <h3 class="subsection-title"><span class="subsection-num">1</span> Customer &amp; deal info</h3>
+          <div class="deal-form-row">
+            <div class="field">
+              <label class="field-label">Customer name</label>
+              <input class="input" placeholder="e.g. John Doe" />
+            </div>
+            <div class="field">
+              <label class="field-label">Salesperson</label>
+              <input class="input" placeholder="e.g. Jane Smith" />
+            </div>
+            <div class="field">
+              <label class="field-label">Credit score</label>
+              <input class="input tabular" placeholder="720" />
+            </div>
+            <div class="field">
+              <label class="field-label">Monthly income</label>
+              <div class="input-prefix"><input class="input tabular" placeholder="5,000" /></div>
+            </div>
+            <div class="field">
+              <label class="field-label">VIN lookup</label>
+              <input class="input tabular" placeholder="17-digit VIN" />
+            </div>
+          </div>
+
+          <hr class="section-divider" />
+
+          <h3 class="subsection-title"><span class="subsection-num">2</span> Global deal structure</h3>
+          <div class="deal-form-row cols-7">
+            <div class="field">
+              <label class="field-label">Down payment</label>
+              <div class="input-prefix"><input class="input tabular" value="0" /></div>
+            </div>
+            <div class="field">
+              <label class="field-label">Trade value</label>
+              <div class="input-prefix"><input class="input tabular" value="0" /></div>
+            </div>
+            <div class="field">
+              <label class="field-label">Trade payoff</label>
+              <div class="input-prefix"><input class="input tabular" value="0" /></div>
+            </div>
+            <div class="field">
+              <label class="field-label">Backend</label>
+              <div class="input-prefix"><input class="input tabular" value="0" /></div>
+            </div>
+            <div class="field">
+              <label class="field-label">State fees</label>
+              <div class="input-prefix"><input class="input tabular" value="31" /></div>
+            </div>
+            <div class="field">
+              <label class="field-label">Term (mo)</label>
+              <input class="input tabular" value="72" />
+            </div>
+            <div class="field">
+              <label class="field-label">APR (%)</label>
+              <input class="input tabular" value="8.9" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory -->
+      <div style="margin-top:28px">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <h2 class="section-title">Inventory</h2>
+            <span class="badge badge-neutral tabular">35 vehicles</span>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn btn-sm btn-secondary">Import CSV / Excel</button>
+            <input class="input toolbar-input tabular" placeholder="Enter VIN…" />
+            <button class="btn btn-sm btn-primary">Decode</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Vehicle</th>
+                <th class="right">Miles</th>
+                <th class="right">Price</th>
+                <th class="right">Book</th>
+                <th class="right">Front LTV</th>
+                <th class="right">Front gross</th>
+                <th class="right">Amt to fin</th>
+                <th class="right">OTD LTV</th>
+                <th class="right">Payment</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="row-actions"><button class="icon-btn fav" title="Favorite">☆</button></div></td>
+                <td>
+                  <div class="vehicle-cell">
+                    <span class="vehicle-name">2012 Honda Civic LX</span>
+                    <span class="vehicle-meta">STK1000 · SAMPLE01AAAA1000</span>
+                  </div>
+                </td>
+                <td class="right">155,000</td>
+                <td class="right">$5,500</td>
+                <td class="right">$4,800</td>
+                <td class="right"><span class="badge badge-warning">122%</span></td>
+                <td class="right">$1,500</td>
+                <td class="right">$5,835</td>
+                <td class="right">122%</td>
+                <td class="right">$105</td>
+                <td><button class="icon-btn primary">→</button></td>
+              </tr>
+              <tr>
+                <td><div class="row-actions"><button class="icon-btn fav">☆</button></div></td>
+                <td>
+                  <div class="vehicle-cell">
+                    <span class="vehicle-name">2013 Ford Focus SE</span>
+                    <span class="vehicle-meta">STK1001 · SAMPLE02AAAA1001</span>
+                  </div>
+                </td>
+                <td class="right">140,000</td>
+                <td class="right">$5,800</td>
+                <td class="right">$5,100</td>
+                <td class="right"><span class="badge badge-warning">120%</span></td>
+                <td class="right">$1,600</td>
+                <td class="right">$6,135</td>
+                <td class="right">120%</td>
+                <td class="right">$110</td>
+                <td><button class="icon-btn primary">→</button></td>
+              </tr>
+              <tr>
+                <td><div class="row-actions"><button class="icon-btn fav">☆</button></div></td>
+                <td>
+                  <div class="vehicle-cell">
+                    <span class="vehicle-name">2015 Nissan Altima S</span>
+                    <span class="vehicle-meta">STK1003 · SAMPLE04AAAA1003</span>
+                  </div>
+                </td>
+                <td class="right">110,000</td>
+                <td class="right">$10,500</td>
+                <td class="right">$9,800</td>
+                <td class="right"><span class="badge badge-warning">111%</span></td>
+                <td class="right">$1,700</td>
+                <td class="right">$10,835</td>
+                <td class="right">111%</td>
+                <td class="right">$195</td>
+                <td><button class="icon-btn primary">→</button></td>
+              </tr>
+              <tr>
+                <td><div class="row-actions"><button class="icon-btn fav">☆</button></div></td>
+                <td>
+                  <div class="vehicle-cell">
+                    <span class="vehicle-name">2018 Honda Accord Sport</span>
+                    <span class="vehicle-meta">STK1007 · SAMPLE08AAAA1007</span>
+                  </div>
+                </td>
+                <td class="right">75,000</td>
+                <td class="right">$15,500</td>
+                <td class="right">$14,800</td>
+                <td class="right"><span class="badge badge-warning">107%</span></td>
+                <td class="right">$1,700</td>
+                <td class="right">$15,835</td>
+                <td class="right">107%</td>
+                <td class="right">$285</td>
+                <td><button class="icon-btn primary">→</button></td>
+              </tr>
+              <tr>
+                <td><div class="row-actions"><button class="icon-btn fav">☆</button></div></td>
+                <td>
+                  <div class="vehicle-cell">
+                    <span class="vehicle-name">2020 Toyota Camry SE</span>
+                    <span class="vehicle-meta">STK1011 · SAMPLE12AAAA1011</span>
+                  </div>
+                </td>
+                <td class="right">55,000</td>
+                <td class="right">$20,500</td>
+                <td class="right">$19,500</td>
+                <td class="right"><span class="badge badge-success">107%</span></td>
+                <td class="right">$2,300</td>
+                <td class="right">$20,835</td>
+                <td class="right">107%</td>
+                <td class="right">$375</td>
+                <td><button class="icon-btn primary">→</button></td>
+              </tr>
+              <tr>
+                <td><div class="row-actions"><button class="icon-btn fav">☆</button></div></td>
+                <td>
+                  <div class="vehicle-cell">
+                    <span class="vehicle-name">2021 Hyundai Kona SEL</span>
+                    <span class="vehicle-meta">STK1014 · SAMPLE15AAAA1014</span>
+                  </div>
+                </td>
+                <td class="right">40,000</td>
+                <td class="right">$19,200</td>
+                <td class="right">$18,400</td>
+                <td class="right"><span class="badge badge-success">106%</span></td>
+                <td class="right">$1,900</td>
+                <td class="right">$19,535</td>
+                <td class="right">106%</td>
+                <td class="right">$351</td>
+                <td><button class="icon-btn primary">→</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <span class="muted">Showing <strong>1–6</strong> of <strong>35</strong> results</span>
+          <div class="pagination-right">
+            <span class="muted">Rows:</span>
+            <button class="btn btn-sm btn-secondary">15 ▾</button>
+            <button class="btn btn-sm btn-secondary" disabled>Previous</button>
+            <button class="btn btn-sm btn-secondary">1</button>
+            <button class="btn btn-sm btn-secondary">2</button>
+            <button class="btn btn-sm btn-secondary">3</button>
+            <button class="btn btn-sm btn-secondary">Next</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+</body>
+</html>

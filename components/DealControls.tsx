@@ -110,9 +110,9 @@ const DealControls: React.FC<DealControlsProps> = ({
 
   return (
     <div className="border-b border-slate-200 dark:border-gray-700 py-4 grid grid-cols-1 2xl:grid-cols-2 gap-6">
-      <div className="border border-slate-200 dark:border-gray-700 rounded-2xl p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
+      <div className="border border-slate-200 dark:border-gray-700 rounded-lg p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
         <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white text-sm font-black">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-primary)] text-white text-sm font-semibold">
             1
           </span>
           Customer & Deal Info
@@ -246,9 +246,9 @@ const DealControls: React.FC<DealControlsProps> = ({
         </div>
       </div>
 
-      <div className="border border-slate-200 dark:border-gray-700 rounded-2xl p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
+      <div className="border border-slate-200 dark:border-gray-700 rounded-lg p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
         <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-sm font-black">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-primary)] text-white text-sm font-semibold">
             2
           </span>
           Global Deal Structure

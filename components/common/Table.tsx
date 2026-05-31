@@ -80,7 +80,7 @@ export const Table = <T extends { [key: string]: any }>({
                   group
                   px-4 py-3.5
                   text-left
-                  text-xs font-semibold uppercase tracking-wider
+                  text-xs font-semibold
                   text-slate-500 dark:text-slate-400
                   bg-slate-50/80 dark:bg-slate-800/50
                   ${col.isNumeric ? "text-right" : ""}

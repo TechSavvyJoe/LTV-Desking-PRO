@@ -64,10 +64,11 @@ export const checkBankEligibility = (
     }
   }
 
-  if (bank.maxPti !== undefined && bank.maxPti > 0 && monthlyIncome && monthlyIncome > 0) {
+  const income = Number(monthlyIncome) || 0;
+  if (bank.maxPti !== undefined && bank.maxPti > 0 && income > 0) {
     const pment = Number(monthlyPayment);
-    if (pment > 0) {
-      const pti = (pment / monthlyIncome) * 100;
+    if (Number.isFinite(pment) && pment > 0) {
+      const pti = (pment / income) * 100;
       if (pti > bank.maxPti) {
         reasons.push(`PTI too high (${pti.toFixed(1)}% > ${bank.maxPti}%)`);
       }

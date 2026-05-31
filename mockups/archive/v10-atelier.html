@@ -1,0 +1,1740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LTV Desking PRO - v10 Atelier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f3efe7;
+  --bg-alt: #ebe4d7;
+  --panel: rgba(255, 252, 246, 0.84);
+  --panel-solid: #fffdf9;
+  --panel-strong: #f8f3ea;
+  --ink: #0f1728;
+  --muted: #5d677c;
+  --subtle: #8d96a8;
+  --line: rgba(22, 31, 48, 0.11);
+  --line-strong: rgba(22, 31, 48, 0.2);
+  --navy: #10284f;
+  --navy-2: #163463;
+  --navy-soft: #d9e4f2;
+  --accent: #b9802d;
+  --accent-soft: #f1e0c4;
+  --success: #16603b;
+  --success-soft: #d9eedf;
+  --warn: #9b5e12;
+  --warn-soft: #f8e7c9;
+  --danger: #8c312d;
+  --danger-soft: #f2dad7;
+  --shadow-1: 0 1px 2px rgba(13, 22, 38, 0.06), 0 8px 24px rgba(13, 22, 38, 0.05);
+  --shadow-2: 0 10px 34px rgba(12, 23, 42, 0.08), 0 2px 6px rgba(12, 23, 42, 0.06);
+  --shadow-3: 0 20px 70px rgba(8, 18, 36, 0.12);
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --sans: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(185, 128, 45, 0.12), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(16, 40, 79, 0.08), transparent 28%),
+    linear-gradient(180deg, #f6f2ea 0%, #f0e9de 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(16, 40, 79, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 40, 79, 0.03) 1px, transparent 1px);
+  background-size: 42px 42px;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0));
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0));
+}
+
+.mono, .tabular { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 286px minmax(0, 1fr);
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(6, 15, 30, 0.96) 0%, rgba(9, 18, 34, 0.98) 100%),
+    linear-gradient(135deg, rgba(185, 128, 45, 0.08), transparent);
+  color: #eef3fb;
+  padding: 24px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 0 8px 22px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.brand-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #f2c06f, #9f6c1b);
+  color: #0d1628;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 10px 20px rgba(0,0,0,0.25);
+}
+
+.brand-copy strong {
+  display: block;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+}
+
+.brand-copy span {
+  display: block;
+  margin-top: 4px;
+  color: rgba(240, 226, 198, 0.72);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.dealer-card,
+.nav-item,
+.mini-note,
+.side-stat {
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.04);
+}
+
+.dealer-card {
+  margin: 18px 6px 12px;
+  padding: 14px;
+  border-radius: 18px;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.dealer-seal {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(245, 219, 173, 0.18);
+  color: #f4d7a0;
+  font-weight: 700;
+}
+
+.dealer-card strong { display: block; font-size: 14px; }
+.dealer-card span { color: rgba(212, 224, 246, 0.68); font-size: 12px; }
+
+.section-label {
+  margin: 18px 10px 10px;
+  color: rgba(244, 215, 160, 0.78);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.nav-item {
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(238, 243, 251, 0.78);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: rgba(244, 215, 160, 0.12);
+  border-color: rgba(244, 215, 160, 0.22);
+  color: #fff9ed;
+}
+
+.nav-item .count {
+  margin-left: auto;
+  min-width: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 11px;
+  color: rgba(244, 215, 160, 0.92);
+  background: rgba(244, 215, 160, 0.12);
+}
+
+.side-cluster {
+  margin-top: 18px;
+  padding: 0 6px;
+  display: grid;
+  gap: 10px;
+}
+
+.side-stat {
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.side-stat .label,
+.mini-note .label {
+  color: rgba(212, 224, 246, 0.62);
+  font-size: 11px;
+}
+
+.side-stat .value {
+  margin-top: 8px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.side-stat .hint,
+.mini-note p {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: rgba(212, 224, 246, 0.72);
+}
+
+.mini-note {
+  margin-top: auto;
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.mini-note strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.workspace {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.topbar,
+.panel,
+.hero,
+.inventory-panel,
+.canvas-panel,
+.rail-card,
+.palette,
+.toast,
+.overlay-card {
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 251, 244, 0.72);
+  border: 1px solid rgba(16, 40, 79, 0.08);
+  box-shadow: var(--shadow-1);
+}
+
+.search {
+  flex: 1;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.74);
+  border-radius: 16px;
+  padding: 12px 14px;
+  color: var(--muted);
+}
+
+.search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+}
+
+.search kbd,
+.hotkey {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--subtle);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 8px;
+  padding: 2px 7px;
+  background: rgba(255,255,255,0.8);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pill,
+.button,
+.chip,
+.mode-toggle button,
+.tiny-button {
+  font: inherit;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.pill {
+  background: rgba(16, 40, 79, 0.06);
+  color: var(--navy);
+  padding: 10px 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.button {
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-weight: 700;
+}
+
+.button.secondary {
+  background: rgba(255,255,255,0.82);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.button.primary {
+  background: var(--navy);
+  color: white;
+  box-shadow: 0 12px 30px rgba(16, 40, 79, 0.14);
+}
+
+.button.primary:hover { background: var(--navy-2); }
+
+.hero {
+  background:
+    radial-gradient(circle at top right, rgba(185, 128, 45, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,250,242,0.74));
+  border: 1px solid rgba(16, 40, 79, 0.08);
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow: var(--shadow-2);
+  display: grid;
+  grid-template-columns: 1.35fr 0.9fr;
+  gap: 24px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(185, 128, 45, 0.12);
+  color: #7b5318;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.hero h1 {
+  margin: 18px 0 10px;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.hero p {
+  margin: 0;
+  max-width: 720px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.hero-grid {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric {
+  background: rgba(255,255,255,0.66);
+  border: 1px solid rgba(16,40,79,0.08);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.metric .label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.metric .value {
+  margin-top: 8px;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+.metric .trail {
+  margin-top: 10px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.hero-side {
+  display: grid;
+  gap: 12px;
+}
+
+.rail-card {
+  background: rgba(13, 24, 45, 0.96);
+  color: white;
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: var(--shadow-3);
+}
+
+.rail-card h3,
+.canvas-header h3,
+.section-title,
+.overlay-card h3 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.03em;
+}
+
+.rail-card p {
+  margin: 8px 0 0;
+  color: rgba(255,255,255,0.72);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rail-card.light {
+  background: rgba(255,252,246,0.82);
+  color: var(--ink);
+}
+
+.rail-card.light p {
+  color: var(--muted);
+}
+
+.signal-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.signal {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.signal-readable .dot { background: #69da9f; }
+.signal-trust .dot { background: #f0c87d; }
+.signal-dealer .dot { background: #8fb1db; }
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.surface-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(340px, 0.84fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.inventory-panel,
+.canvas-panel,
+.panel,
+.palette,
+.overlay-card {
+  background: var(--panel);
+  border: 1px solid rgba(16,40,79,0.08);
+  border-radius: 26px;
+  box-shadow: var(--shadow-2);
+}
+
+.inventory-panel,
+.canvas-panel {
+  padding: 20px;
+}
+
+.panel-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.section-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-head p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.74);
+}
+
+.mode-toggle button {
+  background: transparent;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.mode-toggle button.active {
+  background: var(--navy);
+  color: #fff;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.chip {
+  background: rgba(255,255,255,0.88);
+  border-color: var(--line);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chip.active {
+  background: rgba(16, 40, 79, 0.08);
+  border-color: rgba(16, 40, 79, 0.2);
+  color: var(--navy);
+}
+
+.inventory-list {
+  display: grid;
+  gap: 12px;
+}
+
+.vehicle-card {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(16,40,79,0.08);
+  background: rgba(255,255,255,0.72);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.vehicle-card:hover,
+.vehicle-card.active {
+  border-color: rgba(16, 40, 79, 0.22);
+  background: rgba(255,255,255,0.92);
+  box-shadow: var(--shadow-1);
+}
+
+.vehicle-main {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.vehicle-visual {
+  height: 88px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.9), rgba(255,255,255,0.2) 28%, transparent 29%),
+    linear-gradient(145deg, #dbe3ed, #becad8);
+  border: 1px solid rgba(16, 40, 79, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.vehicle-visual::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 20px;
+  height: 22px;
+  border-radius: 50% 44% 26% 26% / 50% 50% 28% 28%;
+  background: rgba(16, 40, 79, 0.9);
+  box-shadow:
+    10px 18px 0 -8px rgba(16,40,79,0.96),
+    -10px 18px 0 -8px rgba(16,40,79,0.96);
+}
+
+.vehicle-visual::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+  height: 10px;
+  background: rgba(15, 23, 40, 0.14);
+  border-radius: 999px;
+  filter: blur(5px);
+}
+
+.vehicle-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badge.navy { background: rgba(16,40,79,0.1); color: var(--navy); }
+.badge.warn { background: var(--warn-soft); color: #85500f; }
+.badge.success { background: var(--success-soft); color: var(--success); }
+
+.vehicle-name {
+  margin: 6px 0 0;
+  font-size: 23px;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.vehicle-meta,
+.vehicle-metrics,
+.summary-grid,
+.offer-list,
+.task-list,
+.payment-grid,
+.insight-grid,
+.owner-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.vehicle-meta {
+  margin-top: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.vehicle-meta .box,
+.summary-grid .box,
+.payment-grid .box,
+.insight-card,
+.owner-card {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(16,40,79,0.08);
+}
+
+.box .label {
+  font-size: 11px;
+  color: var(--subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.box .stat {
+  margin-top: 7px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.vehicle-side {
+  min-width: 220px;
+  display: grid;
+  gap: 12px;
+}
+
+.scorecard {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(16,40,79,0.94);
+  color: white;
+}
+
+.scorecard .big {
+  margin-top: 8px;
+  font-size: 38px;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+  font-weight: 800;
+}
+
+.meter {
+  margin-top: 14px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  overflow: hidden;
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f0c87d, #c9861f);
+}
+
+.quick-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tiny-button {
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: rgba(16,40,79,0.06);
+  border-color: rgba(16,40,79,0.08);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.canvas-panel {
+  position: sticky;
+  top: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.canvas-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.canvas-sub {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.customer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(16,40,79,0.06);
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(16,40,79,0.94);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.summary-grid,
+.payment-grid,
+.owner-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.section-title {
+  font-size: 15px;
+}
+
+.slider-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(16,40,79,0.08);
+}
+
+.slider-row {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.slider-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.slider {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(16,40,79,0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.slider > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, rgba(16,40,79,0.94), rgba(185,128,45,0.9));
+  border-radius: inherit;
+}
+
+.offer-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(16,40,79,0.08);
+  background: rgba(255,255,255,0.78);
+}
+
+.offer-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.offer-top strong { font-size: 16px; }
+.offer-top span { color: var(--muted); font-size: 12px; }
+
+.offer-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.offer-grid div {
+  padding: 11px 10px;
+  border-radius: 14px;
+  background: rgba(16,40,79,0.05);
+}
+
+.offer-grid label {
+  display: block;
+  font-size: 10px;
+  color: var(--subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.offer-grid strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 15px;
+}
+
+.section-head.tight {
+  margin-bottom: 12px;
+}
+
+.section-head.compact {
+  margin-bottom: 8px;
+}
+
+.section-head .muted-copy {
+  margin-top: 6px;
+}
+
+.panel.compact {
+  padding: 18px;
+}
+
+.grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.spark span.h28 { height: 28%; }
+.spark span.h34 { height: 34%; }
+.spark span.h40 { height: 40%; }
+.spark span.h42 { height: 42%; }
+.spark span.h51 { height: 51%; }
+.spark span.h55 { height: 55%; }
+.spark span.h58 { height: 58%; }
+.spark span.h62 { height: 62%; }
+.spark span.h64 { height: 64%; }
+.spark span.h66 { height: 66%; }
+.spark span.h74 { height: 74%; }
+.spark span.h82 { height: 82%; }
+
+.lead-metric,
+.lead-title {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.lead-metric {
+  font-size: 30px;
+}
+
+.lead-title {
+  font-size: 22px;
+}
+
+.saved-copy {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.task-list {
+  grid-template-columns: 1fr;
+}
+
+.task {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 0;
+  border-top: 1px solid rgba(16,40,79,0.08);
+}
+
+.task:first-child { border-top: 0; padding-top: 0; }
+
+.task-index {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(16,40,79,0.08);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.task strong { display: block; font-size: 14px; }
+.task span { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+
+.palette {
+  position: fixed;
+  left: 50%;
+  top: 88px;
+  transform: translateX(-50%);
+  width: min(760px, calc(100vw - 48px));
+  padding: 18px;
+  z-index: 40;
+  display: none;
+}
+
+.palette.open { display: block; }
+
+.overlay-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 40, 0.26);
+  display: none;
+  z-index: 30;
+}
+
+.overlay-scrim.open { display: block; }
+
+.palette-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(16,40,79,0.08);
+  background: rgba(255,255,255,0.88);
+}
+
+.palette-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+}
+
+.palette-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.palette-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(16,40,79,0.06);
+  background: rgba(255,255,255,0.7);
+}
+
+.palette-item strong { display: block; font-size: 14px; }
+.palette-item span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+.bottom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.insight-grid,
+.owner-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.insight-card h4,
+.owner-card h4 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+
+.insight-card p,
+.owner-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.spark {
+  display: flex;
+  gap: 6px;
+  align-items: end;
+  height: 54px;
+  margin-top: 12px;
+}
+
+.spark span {
+  flex: 1;
+  border-radius: 999px 999px 6px 6px;
+  background: linear-gradient(180deg, rgba(185,128,45,0.85), rgba(16,40,79,0.88));
+}
+
+.toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(11, 24, 44, 0.94);
+  color: #fff;
+  box-shadow: var(--shadow-3);
+}
+
+.toast strong { display: block; font-size: 14px; }
+.toast span { display: block; font-size: 12px; color: rgba(255,255,255,0.74); }
+
+.live {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #69da9f;
+  box-shadow: 0 0 0 8px rgba(105,218,159,0.15);
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+@media (max-width: 1280px) {
+  .hero,
+  .surface-grid,
+  .bottom-row { grid-template-columns: 1fr; }
+  .canvas-panel { position: static; }
+}
+
+@media (max-width: 980px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace { padding: 14px; }
+  .topbar { flex-direction: column; align-items: stretch; }
+  .hero,
+  .inventory-panel,
+  .canvas-panel { padding: 16px; }
+  .vehicle-main { grid-template-columns: 1fr; }
+  .vehicle-meta,
+  .offer-grid,
+  .summary-grid,
+  .payment-grid,
+  .insight-grid,
+  .owner-grid,
+  .hero-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 560px) {
+  .vehicle-meta,
+  .offer-grid,
+  .summary-grid,
+  .payment-grid,
+  .insight-grid,
+  .owner-grid,
+  .hero-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+  <div class="overlay-scrim" id="scrim"></div>
+  <div class="palette" id="palette">
+    <div class="overlay-card">
+      <div class="palette-search">
+        <strong class="mono">/</strong>
+        <input value="Open lender matrix for selected deal" aria-label="Command palette" />
+        <span class="hotkey">esc</span>
+      </div>
+      <div class="palette-list">
+        <div class="palette-item">
+          <div class="avatar">LM</div>
+          <div>
+            <strong>Open lender matrix</strong>
+            <span>See approval posture, PTI guardrails, and reserve spread by lender.</span>
+          </div>
+          <span class="hotkey">enter</span>
+        </div>
+        <div class="palette-item">
+          <div class="avatar">PD</div>
+          <div>
+            <strong>Generate customer proposal</strong>
+            <span>Build a clean showroom printout that hides front-end gross.</span>
+          </div>
+          <span class="hotkey">p</span>
+        </div>
+        <div class="palette-item">
+          <div class="avatar">AI</div>
+          <div>
+            <strong>Ask AI deal assistant</strong>
+            <span>Explain why this structure lands with Meridian Capital but misses Apex.</span>
+          </div>
+          <span class="hotkey">a</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">LP</div>
+        <div class="brand-copy">
+          <strong>LTV Desking PRO</strong>
+          <span>Atelier mockup v10</span>
+        </div>
+      </div>
+
+      <div class="dealer-card">
+        <div class="dealer-seal">BM</div>
+        <div>
+          <strong>Bob Maxey Ford</strong>
+          <span>Metro Detroit flagship rooftop</span>
+        </div>
+        <div class="hotkey">DET</div>
+      </div>
+
+      <div class="section-label">Dealer workspace</div>
+      <nav class="nav" id="tabs">
+        <div class="nav-item active" data-tab="inventory"><span>Inventory desk</span><span class="count">248</span></div>
+        <div class="nav-item" data-tab="lenders"><span>Lender studio</span><span class="count">19</span></div>
+        <div class="nav-item" data-tab="saved"><span>Saved structures</span><span class="count">42</span></div>
+        <div class="nav-item" data-tab="owner"><span>Owner pulse</span><span class="count">4</span></div>
+      </nav>
+
+      <div class="section-label">Today</div>
+      <div class="side-cluster">
+        <div class="side-stat">
+          <div class="label">Deals touched</div>
+          <div class="value tabular">17</div>
+          <div class="hint">6 submitted, 4 penciled, 2 funded before 2:00 PM.</div>
+        </div>
+        <div class="side-stat">
+          <div class="label">Average front LTV</div>
+          <div class="value tabular">109.4%</div>
+          <div class="hint">Down 1.8 points from last week. Margin discipline is improving.</div>
+        </div>
+      </div>
+
+      <div class="mini-note">
+        <div class="label">Desk note</div>
+        <strong>Retail polish, lender-first logic.</strong>
+        <p>This concept leans into executive software craft while keeping the screens readable from across a finance desk.</p>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <div class="topbar">
+        <div class="search">
+          <span aria-hidden="true">Search stock, VIN, customer, lender, or note</span>
+          <input aria-label="Search" />
+          <kbd>cmd k</kbd>
+        </div>
+        <div class="top-actions">
+          <div class="pill"><span class="live"></span> Live underwriting</div>
+          <button class="button secondary" id="openPalette">Command bar</button>
+          <button class="button primary">Create deal sheet</button>
+        </div>
+      </div>
+
+      <section class="hero">
+        <div>
+          <div class="eyebrow">High-trust dealership software system</div>
+          <h1>Luxury-grade desking for modern rooftops.</h1>
+          <p>
+            The concept below is designed to feel like a premium operating surface for dealer principals,
+            finance directors, and desk managers. It keeps the density and control of serious F&amp;I software,
+            but presents it with the restraint, material depth, and typography you would expect from a top-tier product studio.
+          </p>
+          <div class="hero-grid">
+            <div class="metric">
+              <div class="label">Best-fit approval path</div>
+              <div class="value tabular">3.7 min</div>
+              <div class="trail">Meridian, North Coast, and Harbor pre-qualified from live profile data.</div>
+            </div>
+            <div class="metric">
+              <div class="label">Monthly payment spread</div>
+              <div class="value tabular">$68</div>
+              <div class="trail">Customer-friendly structure surfaced without sacrificing reserve.</div>
+            </div>
+            <div class="metric">
+              <div class="label">Gross protected</div>
+              <div class="value tabular">$2,940</div>
+              <div class="trail">Showroom mode can hide cost-sensitive fields instantly.</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-side">
+          <div class="rail-card">
+            <h3>Design posture</h3>
+            <p>Private-banking calm, dealership realism, and crisp software ergonomics. The screen should feel expensive without becoming decorative.</p>
+            <div class="signal-list">
+              <div class="signal signal-readable"><span class="dot"></span><strong>Readable</strong><span>3 ft test passes</span></div>
+              <div class="signal signal-trust"><span class="dot"></span><strong>Trustworthy</strong><span>No gimmick motion</span></div>
+              <div class="signal signal-dealer"><span class="dot"></span><strong>Dealer-aware</strong><span>Inventory and lender logic stay central</span></div>
+            </div>
+          </div>
+          <div class="rail-card light">
+            <h3>Open and interact</h3>
+            <p>Click inventory rows, switch the workspace tabs, and open the command bar to preview how the concept behaves as a live product surface.</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="inventory" class="tab-content active">
+        <div class="surface-grid">
+          <section class="inventory-panel">
+            <div class="section-head">
+              <div>
+                <h2 class="section-title">Inventory desk</h2>
+                <p>A richer alternative to flat tables: stock cards feel editorial, but the numbers remain F&amp;I-first and immediately scannable.</p>
+              </div>
+              <div class="mode-toggle" id="deskMode">
+                <button class="active">Desk mode</button>
+                <button>Showroom</button>
+                <button>Manager</button>
+              </div>
+            </div>
+            <div class="chip-row">
+              <button class="chip active">Prime eligible</button>
+              <button class="chip">High gross</button>
+              <button class="chip">Fresh trade-ins</button>
+              <button class="chip">Under 35k miles</button>
+              <button class="chip">Needs lender exception</button>
+            </div>
+            <div class="inventory-list" id="inventoryList"></div>
+          </section>
+
+          <aside class="canvas-panel">
+            <div class="canvas-header">
+              <div>
+                <h3 id="dealTitle">2024 Ford F-150 Lariat</h3>
+                <div class="canvas-sub" id="dealSubtitle">Structured for a 690 FICO customer with $4,500 down and strong trade equity.</div>
+              </div>
+              <div class="customer-pill"><div class="avatar">JR</div>Jordan Rivera</div>
+            </div>
+
+            <div class="summary-grid">
+              <div class="box"><div class="label">Front LTV</div><div class="stat tabular" id="frontLtv">108.2%</div></div>
+              <div class="box"><div class="label">Estimated reserve</div><div class="stat tabular" id="reserve">$1,480</div></div>
+              <div class="box"><div class="label">Amount financed</div><div class="stat tabular" id="amountFinanced">$46,920</div></div>
+              <div class="box"><div class="label">Payment target</div><div class="stat tabular" id="paymentTarget">$742/mo</div></div>
+            </div>
+
+            <div class="slider-card">
+              <h3 class="section-title">Deal shaping controls</h3>
+              <div class="slider-row">
+                <div class="slider-meta"><strong>Cash down</strong><span class="tabular" id="cashDown">$4,500</span></div>
+                <div class="slider"><span id="cashDownBar"></span></div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-meta"><strong>Backend product pack</strong><span class="tabular" id="backendPack">$2,190</span></div>
+                <div class="slider"><span id="backendBar"></span></div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-meta"><strong>Term</strong><span class="tabular" id="term">72 mo</span></div>
+                <div class="slider"><span id="termBar"></span></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="section-head tight">
+                <div>
+                  <h3 class="section-title">Matched lenders</h3>
+                  <p class="muted-copy">Each card explains why the deal works, not just whether it passes.</p>
+                </div>
+              </div>
+              <div class="offer-list" id="offerList"></div>
+            </div>
+
+            <div class="panel compact">
+              <div class="section-head compact">
+                <div>
+                  <h3 class="section-title">Next best moves</h3>
+                </div>
+              </div>
+              <div class="task-list">
+                <div class="task"><div class="task-index">1</div><div><strong>Lead with Meridian Capital at 72 months</strong><span>Best balance of payment, approval confidence, and reserve preservation.</span></div></div>
+                <div class="task"><div class="task-index">2</div><div><strong>Hold VSC at current pack</strong><span>Lowering the pack only trims payment by $11 but gives away too much backend.</span></div></div>
+                <div class="task"><div class="task-index">3</div><div><strong>Use showroom mode for presentation</strong><span>Hide gross and lender commentary before turning the screen toward the customer.</span></div></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="bottom-row">
+          <section class="inventory-panel">
+            <div class="section-head">
+              <div>
+                <h2 class="section-title">AI-backed desk intelligence</h2>
+                <p>Advisory surfaces that feel premium because they are concise, specific, and attached to real deal mechanics.</p>
+              </div>
+            </div>
+            <div class="insight-grid">
+              <div class="insight-card">
+                <h4>Portfolio balance</h4>
+                <p>Trucks are over-indexing the desk today. Use APR flexibility on certified SUVs to diversify funded paper without surrendering gross.</p>
+                <div class="spark"><span class="h28"></span><span class="h42"></span><span class="h55"></span><span class="h74"></span><span class="h64"></span><span class="h82"></span></div>
+              </div>
+              <div class="insight-card">
+                <h4>Lender appetite drift</h4>
+                <p>Harbor Credit is tightening on 115%+ front-end structures. Move borderline paper to North Coast before afternoon volume spikes.</p>
+                <div class="spark"><span class="h66"></span><span class="h62"></span><span class="h58"></span><span class="h51"></span><span class="h40"></span><span class="h34"></span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="inventory-panel">
+            <div class="section-head">
+              <div>
+                <h2 class="section-title">Executive snapshot</h2>
+                <p>The same language can scale into a refined owner surface without looking like a separate product.</p>
+              </div>
+            </div>
+            <div class="owner-grid">
+              <div class="owner-card">
+                <h4>Approval throughput</h4>
+                <p><strong class="tabular lead-metric">81%</strong>Approval rate is pacing 6 points ahead of Tuesday average with fewer lender touches per deal.</p>
+              </div>
+              <div class="owner-card">
+                <h4>PVR posture</h4>
+                <p><strong class="tabular lead-metric">$2,284</strong>Backend retention remains healthy even with more payment-sensitive structures.</p>
+              </div>
+              <div class="owner-card">
+                <h4>Fastest team</h4>
+                <p><strong class="lead-title">North desk</strong>Average time from pencil to matched lender is now under 4 minutes.</p>
+              </div>
+              <div class="owner-card">
+                <h4>Risk watch</h4>
+                <p><strong class="lead-title">2 exceptions</strong>One lifted truck and one high-mileage SUV are approaching exception-only territory.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="lenders" class="tab-content">
+        <section class="inventory-panel">
+          <div class="section-head">
+            <div>
+              <h2 class="section-title">Lender studio</h2>
+              <p>A premium underwriting surface focused on appetite, program fit, and exception handling.</p>
+            </div>
+            <button class="button primary">Upload rate sheet</button>
+          </div>
+          <div class="insight-grid grid-3">
+            <div class="insight-card"><h4>Meridian Capital</h4><p>Prime and near-prime leader. Strong on late-model trucks up to 112% front LTV. Best reserve today.</p></div>
+            <div class="insight-card"><h4>North Coast</h4><p>Most flexible PTI for longer terms. Good fallback when payment pressure matters more than rate headline.</p></div>
+            <div class="insight-card"><h4>Harbor Credit</h4><p>Best fit on certified inventory under 40k miles. Tightening slowly on higher backend packs.</p></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="saved" class="tab-content">
+        <section class="inventory-panel">
+          <div class="section-head">
+            <div>
+              <h2 class="section-title">Saved structures</h2>
+              <p>Reusable deal compositions with notes for why they won, not just what numbers were used.</p>
+            </div>
+          </div>
+          <div class="inventory-list">
+            <div class="vehicle-card active"><div><strong>Truck close script - high-income commuter</strong><p class="saved-copy">72 mo / 4.9% / VSC + GAP. Built to hold gross while keeping payment under $760.</p></div><div class="badge success">Funded 6 times</div></div>
+            <div class="vehicle-card"><div><strong>Budget SUV - payment-first</strong><p class="saved-copy">75 mo / low cash / service contract optional. Designed for sub-$520 payment conversations.</p></div><div class="badge warn">Needs update</div></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="owner" class="tab-content">
+        <section class="inventory-panel">
+          <div class="section-head">
+            <div>
+              <h2 class="section-title">Owner pulse</h2>
+              <p>Same system, translated upward for leadership without losing the DNA of the desk floor.</p>
+            </div>
+          </div>
+          <div class="owner-grid grid-4">
+            <div class="owner-card"><h4>Total deals</h4><p><strong class="tabular lead-metric">142</strong>Month-to-date funded and pending volume.</p></div>
+            <div class="owner-card"><h4>Average reserve</h4><p><strong class="tabular lead-metric">$1,164</strong>Up 9% versus prior month.</p></div>
+            <div class="owner-card"><h4>Approval ratio</h4><p><strong class="tabular lead-metric">79%</strong>Healthy mix across prime and near-prime lenders.</p></div>
+            <div class="owner-card"><h4>Desk speed</h4><p><strong class="tabular lead-metric">4.2 min</strong>Median time to first qualified structure.</p></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast">
+    <span class="live"></span>
+    <div>
+      <strong>Interactive mockup ready</strong>
+      <span>Click a vehicle, swap tabs, or use the command bar.</span>
+    </div>
+  </div>
+
+<script>
+const deals = [
+  {
+    id: 'f150',
+    badge: 'best match',
+    badgeTone: 'success',
+    year: 2024,
+    name: 'Ford F-150 Lariat',
+    stock: 'F4821',
+    vin: '1FTFW1E89RFB11284',
+    miles: '18,442',
+    price: '$51,880',
+    book: '$47,100',
+    gross: '$2,940',
+    amount: '$46,920',
+    payment: '$742/mo',
+    frontLtv: '108.2%',
+    reserve: '$1,480',
+    subtitle: 'Structured for a 690 FICO customer with $4,500 down and strong trade equity.',
+    fico: '690 FICO',
+    down: '$4,500',
+    backend: '$2,190',
+    term: '72 mo',
+    cashWidth: '38%',
+    backendWidth: '52%',
+    termWidth: '78%',
+    score: 'A-',
+    meter: '78%',
+    tags: ['Prime', 'Truck', 'Retail ready'],
+    offers: [
+      { lender: 'Meridian Capital', note: 'Fastest path to clean approval', apr: '5.49%', term: '72 mo', pti: '14.8%', reserve: '$1,480' },
+      { lender: 'North Coast Financial', note: 'Lower payment fallback', apr: '5.89%', term: '75 mo', pti: '14.1%', reserve: '$1,260' },
+      { lender: 'Harbor Credit', note: 'Best if backend is trimmed', apr: '5.39%', term: '72 mo', pti: '15.2%', reserve: '$1,120' }
+    ]
+  },
+  {
+    id: 'explorer',
+    badge: 'certified',
+    badgeTone: 'navy',
+    year: 2023,
+    name: 'Ford Explorer ST-Line',
+    stock: 'E3916',
+    vin: '1FMSK8KH9PGA19214',
+    miles: '27,906',
+    price: '$39,440',
+    book: '$35,880',
+    gross: '$2,180',
+    amount: '$36,790',
+    payment: '$618/mo',
+    frontLtv: '106.9%',
+    reserve: '$1,210',
+    subtitle: 'Ideal for a payment-sensitive household looking for warranty confidence and low-friction lender approval.',
+    fico: '708 FICO',
+    down: '$3,200',
+    backend: '$1,760',
+    term: '72 mo',
+    cashWidth: '32%',
+    backendWidth: '44%',
+    termWidth: '75%',
+    score: 'A',
+    meter: '82%',
+    tags: ['Certified', 'SUV', 'Family buyer'],
+    offers: [
+      { lender: 'Harbor Credit', note: 'Strong CPO appetite under 40k miles', apr: '4.99%', term: '72 mo', pti: '13.6%', reserve: '$1,210' },
+      { lender: 'Meridian Capital', note: 'Very safe second option', apr: '5.19%', term: '72 mo', pti: '13.9%', reserve: '$1,090' },
+      { lender: 'Metro Acceptance', note: 'Payment-first alternative', apr: '5.69%', term: '75 mo', pti: '13.1%', reserve: '$960' }
+    ]
+  },
+  {
+    id: 'bronco',
+    badge: 'exception',
+    badgeTone: 'warn',
+    year: 2022,
+    name: 'Ford Bronco Wildtrak',
+    stock: 'B1284',
+    vin: '1FMEE5DP2NLB77219',
+    miles: '41,882',
+    price: '$48,260',
+    book: '$42,510',
+    gross: '$3,420',
+    amount: '$45,980',
+    payment: '$799/mo',
+    frontLtv: '114.4%',
+    reserve: '$1,620',
+    subtitle: 'High-emotion unit with strong gross, but the structure needs careful lender positioning to stay clean.',
+    fico: '674 FICO',
+    down: '$5,800',
+    backend: '$2,480',
+    term: '75 mo',
+    cashWidth: '48%',
+    backendWidth: '58%',
+    termWidth: '84%',
+    score: 'B+',
+    meter: '64%',
+    tags: ['High gross', 'Exception', 'Lifestyle buyer'],
+    offers: [
+      { lender: 'North Coast Financial', note: 'Needs PTI discipline but doable', apr: '6.39%', term: '75 mo', pti: '15.6%', reserve: '$1,620' },
+      { lender: 'Meridian Capital', note: 'Possible with backend moderation', apr: '6.09%', term: '72 mo', pti: '16.2%', reserve: '$1,280' },
+      { lender: 'Apex Specialty', note: 'True exception desk route', apr: '7.19%', term: '72 mo', pti: '16.0%', reserve: '$1,050' }
+    ]
+  }
+];
+
+const inventoryList = document.getElementById('inventoryList');
+const offerList = document.getElementById('offerList');
+
+function renderInventory(selectedId) {
+  inventoryList.innerHTML = deals.map((deal) => `
+    <article class="vehicle-card ${deal.id === selectedId ? 'active' : ''}" data-id="${deal.id}">
+      <div class="vehicle-main">
+        <div class="vehicle-visual"></div>
+        <div>
+          <div class="vehicle-header">
+            <span class="badge ${deal.badgeTone}">${deal.badge}</span>
+            ${deal.tags.map((tag) => `<span class="chip">${tag}</span>`).join('')}
+          </div>
+          <h3 class="vehicle-name">${deal.year} ${deal.name}</h3>
+          <div class="vehicle-meta">
+            <div class="box"><div class="label">Stock #</div><div class="stat mono">${deal.stock}</div></div>
+            <div class="box"><div class="label">Miles</div><div class="stat tabular">${deal.miles}</div></div>
+            <div class="box"><div class="label">Sale price</div><div class="stat tabular">${deal.price}</div></div>
+            <div class="box"><div class="label">Book</div><div class="stat tabular">${deal.book}</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="vehicle-side">
+        <div class="scorecard">
+          <div class="label">Desk confidence</div>
+          <div class="big">${deal.score}</div>
+          <div class="meter"><span style="width:${deal.meter}"></span></div>
+        </div>
+        <div class="quick-actions">
+          <button class="tiny-button">Structure</button>
+          <button class="tiny-button">Proposal</button>
+          <button class="tiny-button">Compare</button>
+        </div>
+      </div>
+    </article>
+  `).join('');
+
+  inventoryList.querySelectorAll('.vehicle-card').forEach((card) => {
+    card.addEventListener('click', () => updateDeal(card.dataset.id));
+  });
+}
+
+function renderOffers(offers) {
+  offerList.innerHTML = offers.map((offer, index) => `
+    <div class="offer-card">
+      <div class="offer-top">
+        <div>
+          <strong>${offer.lender}</strong>
+          <span>${offer.note}</span>
+        </div>
+        <span class="badge ${index === 0 ? 'success' : 'navy'}">${index === 0 ? 'recommended' : 'alternate'}</span>
+      </div>
+      <div class="offer-grid">
+        <div><label>APR</label><strong class="tabular">${offer.apr}</strong></div>
+        <div><label>Term</label><strong class="tabular">${offer.term}</strong></div>
+        <div><label>PTI</label><strong class="tabular">${offer.pti}</strong></div>
+        <div><label>Reserve</label><strong class="tabular">${offer.reserve}</strong></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateDeal(id) {
+  const deal = deals.find((item) => item.id === id) || deals[0];
+  document.getElementById('dealTitle').textContent = `${deal.year} ${deal.name}`;
+  document.getElementById('dealSubtitle').textContent = deal.subtitle;
+  document.getElementById('frontLtv').textContent = deal.frontLtv;
+  document.getElementById('reserve').textContent = deal.reserve;
+  document.getElementById('amountFinanced').textContent = deal.amount;
+  document.getElementById('paymentTarget').textContent = deal.payment;
+  document.getElementById('cashDown').textContent = deal.down;
+  document.getElementById('backendPack').textContent = deal.backend;
+  document.getElementById('term').textContent = deal.term;
+  document.getElementById('cashDownBar').style.width = deal.cashWidth;
+  document.getElementById('backendBar').style.width = deal.backendWidth;
+  document.getElementById('termBar').style.width = deal.termWidth;
+  renderOffers(deal.offers);
+  renderInventory(deal.id);
+}
+
+document.querySelectorAll('#tabs .nav-item').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#tabs .nav-item').forEach((item) => item.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    document.querySelectorAll('.tab-content').forEach((panel) => panel.classList.remove('active'));
+    document.getElementById(target).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.chip').forEach((chip) => {
+  chip.addEventListener('click', () => chip.classList.toggle('active'));
+});
+
+document.querySelectorAll('#deskMode button').forEach((button) => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('#deskMode button').forEach((item) => item.classList.remove('active'));
+    button.classList.add('active');
+  });
+});
+
+const palette = document.getElementById('palette');
+const scrim = document.getElementById('scrim');
+const openPalette = document.getElementById('openPalette');
+
+function togglePalette(forceOpen) {
+  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !palette.classList.contains('open');
+  palette.classList.toggle('open', shouldOpen);
+  scrim.classList.toggle('open', shouldOpen);
+}
+
+openPalette.addEventListener('click', () => togglePalette(true));
+scrim.addEventListener('click', () => togglePalette(false));
+document.addEventListener('keydown', (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    togglePalette(true);
+  }
+  if (event.key === 'Escape') {
+    togglePalette(false);
+  }
+});
+
+updateDeal('f150');
+</script>
+</body>
+</html>

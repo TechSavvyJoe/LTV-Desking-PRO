@@ -75,8 +75,8 @@ const Modal: React.FC<ModalProps> = ({
       {/* Backdrop */}
       <div
         className={`
-          fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm
-          transition-opacity duration-300 ease-out
+          fixed inset-0 bg-slate-950/60
+          transition-opacity duration-200 ease-out
           ${isAnimating ? "opacity-100" : "opacity-0"}
         `}
         onClick={onClose}
@@ -87,10 +87,10 @@ const Modal: React.FC<ModalProps> = ({
       <div
         className={`
           relative w-full ${sizeClasses[size]}
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-800
-          rounded-2xl shadow-2xl shadow-slate-900/20
-          transform transition-all duration-300 cubic-bezier(0.16, 1, 0.3, 1)
+          bg-[var(--color-bg)]
+          border border-[var(--color-border)]
+          rounded-lg shadow-md
+          transform transition-all duration-200 ease-out
           flex flex-col max-h-[calc(100vh-3rem)]
           ${
             isAnimating ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"

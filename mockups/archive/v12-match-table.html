@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTV-Desking-PRO - Intelligent Match Table</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        gray: {
+                            50: '#F9FAFB',
+                            100: '#F3F4F6',
+                            200: '#E5E7EB',
+                            300: '#D1D5DB',
+                            400: '#9CA3AF',
+                            500: '#6B7280',
+                            600: '#4B5563',
+                            700: '#374151',
+                            800: '#1F2937',
+                            900: '#111827',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #FAFAFA;
+            color: #111827;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Glassmorphism Header */
+        .glass-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.85);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+        }
+
+        /* Table specific styling */
+        .table-container {
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 10px 15px -3px rgba(0,0,0,0.02), 0 0 0 1px rgba(229, 231, 235, 1);
+            border-radius: 12px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        
+        .main-row {
+            transition: all 0.15s ease-in-out;
+            cursor: pointer;
+        }
+        .main-row:hover {
+            background-color: #F9FAFB;
+        }
+        
+        /* Expanded row */
+        .expanded-row {
+            display: none;
+            background-color: #FAFAFA;
+        }
+        .expanded-row.active {
+            display: table-row;
+            animation: slideDown 0.3s ease-out forwards;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .expanded-row > td {
+            box-shadow: inset 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Gauge */
+        .ltv-gauge-track {
+            height: 6px;
+            background: #E5E7EB;
+            border-radius: 99px;
+            overflow: hidden;
+            width: 100%;
+            margin-top: 6px;
+        }
+        .ltv-gauge-fill {
+            height: 100%;
+            border-radius: 99px;
+            transition: width 0.5s ease;
+        }
+        .ltv-green { background: linear-gradient(90deg, #10B981, #34D399); }
+        .ltv-yellow { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+        .ltv-red { background: linear-gradient(90deg, #EF4444, #F87171); }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1;
+        }
+        .badge-high {
+            background: #ECFDF5;
+            color: #065F46;
+            border: 1px solid #A7F3D0;
+        }
+        .badge-med {
+            background: #FFFBEB;
+            color: #92400E;
+            border: 1px solid #FDE68A;
+        }
+        
+        /* Gradients & Buttons */
+        .btn-primary {
+            background: linear-gradient(180deg, #111827 0%, #000000 100%);
+            color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1);
+            transition: all 0.15s ease;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.15);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background: #ffffff;
+            border: 1px solid #D1D5DB;
+            color: #374151;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.15s ease;
+        }
+        .btn-secondary:hover {
+            background: #F9FAFB;
+        }
+        
+        /* Input Styling */
+        .desk-input {
+            width: 100%;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            background: #FFFFFF;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .desk-input:focus {
+            outline: none;
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Navbar -->
+    <header class="glass-header px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <div class="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center font-bold text-sm">
+                LTV
+            </div>
+            <h1 class="font-semibold text-gray-900 tracking-tight text-lg">Inventory Match Tool</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-sm font-medium text-gray-500">
+                Customer: <span class="text-gray-900">John Smith (680 FICO)</span>
+            </div>
+            <button class="btn-secondary px-4 py-2 rounded-md text-sm font-medium">Reset Profile</button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        
+        <!-- Controls / Filters -->
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex gap-2">
+                <input type="text" placeholder="Search vehicles..." class="desk-input w-64">
+                <button class="btn-secondary px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                    Filter
+                </button>
+            </div>
+            <div class="flex text-sm text-gray-500 gap-4">
+                <span class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-green-500"></div> High Likelihood</span>
+                <span class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-yellow-500"></div> Borderline</span>
+            </div>
+        </div>
+
+        <!-- High-End Table -->
+        <div class="table-container">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="glass-header">
+                        <th class="py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicle</th>
+                        <th class="py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stock & Miles</th>
+                        <th class="py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">Front LTV</th>
+                        <th class="py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Approval Match</th>
+                        <th class="py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Price</th>
+                        <th class="py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Gross</th>
+                        <th class="py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Est. Payment</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    
+                    <!-- Row 1 -->
+                    <tr class="main-row border-b border-gray-100" onclick="toggleRow('row-1')">
+                        <td class="py-4 px-6">
+                            <div class="font-medium text-gray-900">2024 Toyota RAV4 XLE</div>
+                            <div class="text-xs text-gray-500 mt-1">AWD SUV</div>
+                        </td>
+                        <td class="py-4 px-6 text-sm">
+                            <div class="text-gray-900 font-medium">STK: A1020</div>
+                            <div class="text-gray-500 mt-1">12,400 mi</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-sm font-medium text-gray-900">85%</div>
+                            <div class="ltv-gauge-track">
+                                <div class="ltv-gauge-fill ltv-green w-[85%]"></div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="badge badge-high">High Approval</span>
+                        </td>
+                        <td class="py-4 px-6 text-sm text-right font-medium text-gray-900">$32,000</td>
+                        <td class="py-4 px-6 text-sm text-right font-medium text-green-600">+$1,500</td>
+                        <td class="py-4 px-6 text-sm text-right font-semibold text-gray-900">$450<span class="text-gray-500 font-normal text-xs">/mo</span></td>
+                    </tr>
+                    
+                    <!-- Expanded Desk Row 1 -->
+                    <tr class="expanded-row border-b border-gray-200" id="row-1">
+                        <td colspan="7" class="p-6">
+                            <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 ml-4">
+                                <div class="flex items-start justify-between mb-4 pb-4 border-b border-gray-100">
+                                    <div>
+                                        <h3 class="font-semibold text-gray-900 text-lg">Desk a Deal: 2024 Toyota RAV4 XLE</h3>
+                                        <p class="text-sm text-gray-500">Auto-calculated using Chase Auto tier 1 rates (680 FICO).</p>
+                                    </div>
+                                    <button class="text-gray-400 hover:text-gray-600" onclick="event.stopPropagation(); toggleRow('row-1')">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-4 gap-6">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Selling Price</label>
+                                        <input type="text" class="desk-input font-medium" value="$32,000">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Cash Down</label>
+                                        <input type="text" class="desk-input" value="$2,000">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Term (Months)</label>
+                                        <select class="desk-input">
+                                            <option>60 Months</option>
+                                            <option selected>72 Months</option>
+                                            <option>84 Months</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Est. Rate (APR)</label>
+                                        <input type="text" class="desk-input" value="6.5%">
+                                    </div>
+                                </div>
+                                <div class="mt-6 flex items-center justify-between bg-gray-50 p-4 rounded-md border border-gray-100">
+                                    <div class="flex gap-8">
+                                        <div>
+                                            <span class="block text-xs text-gray-500">Total Financed</span>
+                                            <span class="block font-semibold text-gray-900">$30,000</span>
+                                        </div>
+                                        <div>
+                                            <span class="block text-xs text-gray-500">Final LTV</span>
+                                            <span class="block font-semibold text-green-600">80.2%</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-4">
+                                        <div class="text-right mr-4">
+                                            <span class="block text-xs text-gray-500">New Est. Payment</span>
+                                            <span class="block font-bold text-gray-900 text-xl">$412/mo</span>
+                                        </div>
+                                        <button class="btn-primary px-6 py-2 rounded-md font-medium text-sm">Send to Lender</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Row 2 -->
+                    <tr class="main-row border-b border-gray-100" onclick="toggleRow('row-2')">
+                        <td class="py-4 px-6">
+                            <div class="font-medium text-gray-900">2023 Honda CR-V EX</div>
+                            <div class="text-xs text-gray-500 mt-1">FWD SUV</div>
+                        </td>
+                        <td class="py-4 px-6 text-sm">
+                            <div class="text-gray-900 font-medium">STK: H982</div>
+                            <div class="text-gray-500 mt-1">25,100 mi</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-sm font-medium text-gray-900">92%</div>
+                            <div class="ltv-gauge-track">
+                                <div class="ltv-gauge-fill ltv-green w-[92%]"></div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="badge badge-high">High Approval</span>
+                        </td>
+                        <td class="py-4 px-6 text-sm text-right font-medium text-gray-900">$29,500</td>
+                        <td class="py-4 px-6 text-sm text-right font-medium text-green-600">+$1,200</td>
+                        <td class="py-4 px-6 text-sm text-right font-semibold text-gray-900">$410<span class="text-gray-500 font-normal text-xs">/mo</span></td>
+                    </tr>
+                    
+                    <!-- Expanded Desk Row 2 -->
+                    <tr class="expanded-row border-b border-gray-200" id="row-2">
+                        <td colspan="7" class="p-6">
+                            <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 ml-4">
+                                <div class="flex items-start justify-between mb-4 pb-4 border-b border-gray-100">
+                                    <div>
+                                        <h3 class="font-semibold text-gray-900 text-lg">Desk a Deal: 2023 Honda CR-V EX</h3>
+                                    </div>
+                                    <button class="text-gray-400 hover:text-gray-600" onclick="event.stopPropagation(); toggleRow('row-2')">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-4 gap-6">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Selling Price</label>
+                                        <input type="text" class="desk-input font-medium" value="$29,500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Cash Down</label>
+                                        <input type="text" class="desk-input" value="$0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Term (Months)</label>
+                                        <select class="desk-input">
+                                            <option selected>72 Months</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Est. Rate (APR)</label>
+                                        <input type="text" class="desk-input" value="7.2%">
+                                    </div>
+                                </div>
+                                <div class="mt-6 flex items-center justify-between bg-gray-50 p-4 rounded-md border border-gray-100">
+                                    <div class="flex gap-8">
+                                        <div>
+                                            <span class="block text-xs text-gray-500">Total Financed</span>
+                                            <span class="block font-semibold text-gray-900">$29,500</span>
+                                        </div>
+                                        <div>
+                                            <span class="block text-xs text-gray-500">Final LTV</span>
+                                            <span class="block font-semibold text-yellow-600">92%</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-4">
+                                        <div class="text-right mr-4">
+                                            <span class="block text-xs text-gray-500">New Est. Payment</span>
+                                            <span class="block font-bold text-gray-900 text-xl">$410/mo</span>
+                                        </div>
+                                        <button class="btn-primary px-6 py-2 rounded-md font-medium text-sm">Send to Lender</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Row 3 -->
+                    <tr class="main-row border-b border-gray-100" onclick="toggleRow('row-3')">
+                        <td class="py-4 px-6">
+                            <div class="font-medium text-gray-900">2022 Ford F-150 XLT</div>
+                            <div class="text-xs text-gray-500 mt-1">4WD SuperCrew</div>
+                        </td>
+                        <td class="py-4 px-6 text-sm">
+                            <div class="text-gray-900 font-medium">STK: F331</div>
+                            <div class="text-gray-500 mt-1">41,000 mi</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-sm font-medium text-gray-900">115%</div>
+                            <div class="ltv-gauge-track">
+                                <div class="ltv-gauge-fill ltv-yellow w-full"></div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="badge badge-med">Mod Approval</span>
+                        </td>
+                        <td class="py-4 px-6 text-sm text-right font-medium text-gray-900">$45,000</td>
+                        <td class="py-4 px-6 text-sm text-right font-medium text-green-600">+$2,800</td>
+                        <td class="py-4 px-6 text-sm text-right font-semibold text-gray-900">$720<span class="text-gray-500 font-normal text-xs">/mo</span></td>
+                    </tr>
+                    
+                    <!-- Expanded Desk Row 3 -->
+                    <tr class="expanded-row" id="row-3">
+                        <td colspan="7" class="p-6">
+                            <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 ml-4">
+                                <div class="flex items-start justify-between mb-4 pb-4 border-b border-gray-100">
+                                    <div>
+                                        <h3 class="font-semibold text-gray-900 text-lg">Desk a Deal: 2022 Ford F-150 XLT</h3>
+                                        <p class="text-sm text-yellow-600 font-medium mt-1">Requires cash down or trade to hit LTV targets for Tier 1 Lenders.</p>
+                                    </div>
+                                    <button class="text-gray-400 hover:text-gray-600" onclick="event.stopPropagation(); toggleRow('row-3')">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-4 gap-6">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Selling Price</label>
+                                        <input type="text" class="desk-input font-medium" value="$45,000">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Cash Down</label>
+                                        <input type="text" class="desk-input" value="$0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Term (Months)</label>
+                                        <select class="desk-input">
+                                            <option selected>72 Months</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Est. Rate (APR)</label>
+                                        <input type="text" class="desk-input" value="8.5%">
+                                    </div>
+                                </div>
+                                <div class="mt-6 flex items-center justify-between bg-gray-50 p-4 rounded-md border border-gray-100">
+                                    <div class="flex gap-8">
+                                        <div>
+                                            <span class="block text-xs text-gray-500">Total Financed</span>
+                                            <span class="block font-semibold text-gray-900">$45,000</span>
+                                        </div>
+                                        <div>
+                                            <span class="block text-xs text-gray-500">Final LTV</span>
+                                            <span class="block font-semibold text-yellow-600">115%</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-4">
+                                        <div class="text-right mr-4">
+                                            <span class="block text-xs text-gray-500">New Est. Payment</span>
+                                            <span class="block font-bold text-gray-900 text-xl">$720/mo</span>
+                                        </div>
+                                        <button class="btn-primary px-6 py-2 rounded-md font-medium text-sm">Send to Lender</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        function toggleRow(rowId) {
+            // Close all other rows
+            const allExpanded = document.querySelectorAll('.expanded-row');
+            allExpanded.forEach(row => {
+                if (row.id !== rowId) {
+                    row.classList.remove('active');
+                }
+            });
+
+            // Toggle selected row
+            const row = document.getElementById(rowId);
+            row.classList.toggle('active');
+        }
+    </script>
+</body>
+</html>

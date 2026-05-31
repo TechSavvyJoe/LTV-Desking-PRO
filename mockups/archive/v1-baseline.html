@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LTV Desking PRO — UI Redesign Mockup</title>
+<style>
+/* ============================================================================
+   Dealer Trust — design tokens.
+   These are the exact tokens specified in UI_REDESIGN_BRIEF.md §5.
+   Toggling .dark on <html> swaps to the dark mode token set.
+   Toggling .v2 on <html> swaps to the revised "depth" token set
+   (tinted page, depressed input bg, stronger borders) — applies to both
+   light and dark via cascade.
+   ============================================================================ */
+:root {
+  --color-bg            : #FFFFFF;
+  --color-bg-subtle     : #F8FAFC;
+  --color-bg-muted      : #F1F5F9;
+  --color-bg-input      : var(--color-bg);   /* v1: white input bg */
+  --color-border        : #E2E8F0;
+  --color-border-strong : #CBD5E1;
+
+  --color-text          : #0F172A;
+  --color-text-muted    : #475569;
+  --color-text-subtle   : #94A3B8;
+
+  --color-primary       : #1E40AF;
+  --color-primary-hover : #1E3A8A;
+  --color-primary-subtle: #DBEAFE;
+
+  --color-accent        : #475569;
+  --color-accent-hover  : #334155;
+  --color-accent-subtle : #E2E8F0;
+
+  --color-success       : #15803D;
+  --color-success-subtle: #DCFCE7;
+  --color-warning       : #B45309;
+  --color-warning-subtle: #FEF3C7;
+  --color-danger        : #B91C1C;
+  --color-danger-subtle : #FEE2E2;
+
+  --radius-sm: 4px;  --radius: 6px;  --radius-md: 8px;  --radius-lg: 10px;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.04);
+  --shadow:    0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+  --shadow-md: 0 4px 8px -2px rgba(15,23,42,.08);
+
+  --duration-fast: 120ms;  --duration: 180ms;
+
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --num : "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html.dark {
+  --color-bg            : #0F172A;
+  --color-bg-subtle     : #1E293B;
+  --color-bg-muted      : #334155;
+  --color-bg-input      : var(--color-bg);   /* v1: same as card */
+  --color-border        : #334155;
+  --color-border-strong : #475569;
+
+  --color-text          : #F1F5F9;
+  --color-text-muted    : #94A3B8;
+  --color-text-subtle   : #64748B;
+
+  --color-primary       : #3B82F6;
+  --color-primary-hover : #60A5FA;
+  --color-primary-subtle: #1E3A8A;
+
+  --color-accent        : #94A3B8;
+  --color-accent-hover  : #CBD5E1;
+  --color-accent-subtle : #334155;
+
+  --color-success       : #4ADE80;
+  --color-success-subtle: #14532D;
+  --color-warning       : #FBBF24;
+  --color-warning-subtle: #78350F;
+  --color-danger        : #F87171;
+  --color-danger-subtle : #7F1D1D;
+}
+
+/* ============================================================================
+   v2 token overrides — addresses user feedback "too light / too busy /
+   can't see the outline of what to type in / can't see where to click."
+
+   Three changes vs. v1:
+   1. Page background is tinted slate-100 (not pure white) — less harsh, lets
+      cards "pop" off the chrome.
+   2. Inputs sit on a tinted slate-50 background INSIDE white cards —
+      creates a "paper-form" depression you can see at a glance.
+   3. Borders are slate-300 (was slate-200) so input outlines and card edges
+      are visible from 3 feet away in showroom lighting.
+   ============================================================================ */
+html.v2 {
+  --color-bg-subtle     : #F1F5F9;   /* slate-100 — page bg, was slate-50 */
+  --color-bg-input      : #F8FAFC;   /* slate-50 — depressed input, was white */
+  --color-bg-muted      : #E2E8F0;   /* slate-200 — hover bg */
+  --color-border        : #CBD5E1;   /* slate-300 — was slate-200 */
+  --color-border-strong : #94A3B8;   /* slate-400 — was slate-300 */
+}
+
+html.v2.dark {
+  --color-bg-subtle     : #0F172A;   /* slate-900 page */
+  --color-bg-input      : #0F172A;   /* slightly different from card */
+  --color-bg-muted      : #334155;
+  --color-border        : #475569;   /* slate-600 — was slate-700 */
+  --color-border-strong : #64748B;
+}
+
+/* ============================================================================
+   v3 token + size overrides — "premium financial software" feel.
+
+   User feedback on v2: still too pale in light, and dark mode reads "cheesy /
+   simple / basic." Wants larger fonts, larger input areas, more presence —
+   without going back to consumer-tech gradients.
+
+   Strategy:
+   1. Size up everything by ~25-30% (typography + padding + KPI hero values)
+   2. Add real card depth via layered shadows (not glow, just elevation)
+   3. Stronger borders so fields and cards register from across the room
+   4. Subtle inset shadow on inputs → "paper-form depression" feel
+   5. KPI values become the hero — 40px semibold tabular
+   6. Hover states more confident (shadow growth on cards, stronger row tint)
+
+   What v3 does NOT do (preserves discipline from prior versions):
+   - No gradients on buttons or KPI strips
+   - No purple/violet/indigo
+   - No scale transforms or translate-y bounces
+   - No glassmorphism / backdrop-blur
+   ============================================================================ */
+html.v3 {
+  --color-bg-subtle     : #F1F5F9;
+  --color-bg-input      : #FFFFFF;     /* white input on slightly-tinted card */
+  --color-bg-muted      : #E2E8F0;
+  --color-border        : #94A3B8;     /* slate-400 — visibly present */
+  --color-border-strong : #64748B;     /* slate-500 — strong emphasis */
+
+  /* Layered shadows for real depth — multiple offsets give premium feel */
+  --shadow-card    : 0 1px 3px rgba(15,23,42,.06),
+                     0 4px 12px -2px rgba(15,23,42,.08);
+  --shadow-card-hover: 0 2px 4px rgba(15,23,42,.08),
+                       0 8px 24px -4px rgba(15,23,42,.12);
+  --shadow-input-inset: inset 0 1px 2px rgba(15,23,42,.04);
+}
+
+html.v3.dark {
+  --color-bg            : #1E293B;     /* slate-800 — cards lifted from page */
+  --color-bg-subtle     : #0F172A;     /* slate-900 — page */
+  --color-bg-input      : #0F172A;     /* slate-900 — depressed below cards */
+  --color-bg-muted      : #334155;
+  --color-border        : #475569;     /* slate-600 — visible on dark cards */
+  --color-border-strong : #64748B;
+
+  --shadow-card    : 0 1px 3px rgba(0,0,0,.4),
+                     0 4px 12px -2px rgba(0,0,0,.3);
+  --shadow-card-hover: 0 2px 4px rgba(0,0,0,.5),
+                       0 8px 24px -4px rgba(0,0,0,.4);
+  --shadow-input-inset: inset 0 1px 2px rgba(0,0,0,.2);
+}
+
+/* ============================================================================
+   v3 layout / typography / depth overrides
+   ============================================================================ */
+html.v3 body { font-size: 15px; }
+html.v3 .workspace { padding: 32px; }
+html.v3 .header { height: 64px; padding: 0 32px; }
+html.v3 .brand-name { font-size: 15px; }
+html.v3 .brand-mark { width: 32px; height: 32px; }
+
+html.v3 .tabs { padding: 0 32px; gap: 8px; }
+html.v3 .tab { padding: 14px 18px; font-size: 14px; }
+html.v3 .tab .count {
+  min-width: 22px; padding: 1px 8px; font-size: 12px;
+}
+
+html.v3 h1.page-title { font-size: 28px; letter-spacing: -0.02em; }
+html.v3 .page-subtitle { font-size: 14px; margin-bottom: 28px; }
+html.v3 h2.section-title { font-size: 19px; }
+html.v3 h3.subsection-title { font-size: 14px; margin-bottom: 16px; }
+
+/* Cards: real shadow + subtle top hairline highlight = "lifted paper" feel */
+html.v3 .card {
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--duration);
+}
+html.v3 .card-header {
+  padding: 18px 24px;
+}
+html.v3 .card-body {
+  padding: 24px;
+}
+html.v3 .card + .card { margin-top: 20px; }
+
+/* KPI cards: hero presentation */
+html.v3 .kpi-grid { gap: 16px; }
+html.v3 .kpi {
+  padding: 24px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--duration), border-color var(--duration);
+}
+html.v3 .kpi:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+html.v3 .kpi-label { font-size: 13px; }
+html.v3 .kpi-value {
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-top: 8px;
+  line-height: 1.05;
+}
+html.v3 .kpi-sub { font-size: 13px; margin-top: 6px; }
+html.v3 .kpi-icon { top: 24px; right: 24px; }
+
+/* Inputs: bigger, inset, visible */
+html.v3 .field-label { font-size: 13px; margin-bottom: 8px; }
+html.v3 .input {
+  padding: 11px 14px;
+  font-size: 15px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-input-inset);
+}
+html.v3 .input:focus {
+  box-shadow: var(--shadow-input-inset),
+              0 0 0 4px var(--color-primary-subtle);
+}
+
+html.v3 .deal-form-row { gap: 16px; }
+html.v3 .deal-form-row.cols-7 { gap: 14px; }
+
+/* Buttons: more presence */
+html.v3 .btn {
+  padding: 11px 18px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+html.v3 .btn-sm { padding: 7px 12px; font-size: 13px; }
+html.v3 .btn-primary {
+  box-shadow: 0 1px 2px rgba(30,64,175,.2);
+}
+html.v3 .btn-primary:hover {
+  box-shadow: 0 2px 4px rgba(30,64,175,.3);
+}
+
+/* Tables: bigger cells, more breathing room, stronger header */
+html.v3 .table-wrap {
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+html.v3 thead { background: var(--color-bg-muted); }
+html.v3 th {
+  padding: 12px 16px;
+  font-size: 12px;
+}
+html.v3 td {
+  padding: 13px 16px;
+  font-size: 14px;
+}
+html.v3 tbody tr {
+  transition: background-color var(--duration-fast);
+}
+html.v3 .icon-btn {
+  width: 34px; height: 34px;
+}
+html.v3 .row-actions { gap: 6px; }
+
+/* Badges: a hair more padding so they read at a glance */
+html.v3 .badge { padding: 3px 10px; font-size: 12px; border-radius: 6px; }
+
+/* Toolbar */
+html.v3 .toolbar { margin-bottom: 16px; }
+
+/* Section divider gets more breathing room */
+html.v3 .section-divider { margin: 28px 0; }
+
+/* Section num: slightly bigger so it doesn't disappear */
+html.v3 .section-num { margin-right: 8px; font-size: 14px; }
+
+/* Avatars get larger so initials read clearly */
+html.v3 .avatar { width: 36px; height: 36px; font-size: 12px; }
+html.v3 .list-item { padding: 14px 0; }
+html.v3 .list-item-title { font-size: 14px; }
+html.v3 .list-item-sub { font-size: 13px; }
+
+/* Page bg overall (light mode v3) */
+html.v3 body { background: var(--color-bg-subtle); }
+
+/* Impersonation bar: more presence */
+html.v3 .impersonation-bar {
+  padding: 12px 32px;
+  font-size: 14px;
+  border-bottom-width: 3px;
+}
+html.v3 .impersonation-bar .dot {
+  width: 8px; height: 8px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg-subtle);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+.tabular { font-variant-numeric: tabular-nums lining-nums; }
+
+/* ============================================================================
+   App chrome
+   ============================================================================ */
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+.impersonation-bar {
+  background: var(--color-bg);
+  border-bottom: 2px solid var(--color-warning);
+  padding: 8px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.impersonation-bar .dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-warning); margin-right: 8px;
+}
+.impersonation-bar strong { font-weight: 600; }
+
+.header {
+  height: 56px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.brand-mark {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--color-text);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.brand-mark svg { display: block; }
+.brand-name {
+  font-size: 14px; font-weight: 600; color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+.header-right { display: flex; align-items: center; gap: 8px; }
+
+.tabs {
+  display: flex; gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  padding: 0 24px;
+}
+.tab {
+  padding: 12px 16px;
+  font-size: 13px; font-weight: 500;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: color var(--duration-fast), border-color var(--duration-fast);
+}
+.tab:hover { color: var(--color-text); }
+.tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.tab .count {
+  display: inline-block; min-width: 18px; padding: 0 6px;
+  background: var(--color-bg-muted); color: var(--color-text-muted);
+  border-radius: 4px;
+  font-size: 11px; font-weight: 500;
+  font-variant-numeric: tabular-nums; text-align: center;
+}
+.tab.active .count { background: var(--color-primary-subtle); color: var(--color-primary); }
+
+.workspace { padding: 24px; flex: 1; }
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: inherit;
+  font-size: 13px; font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color var(--duration-fast), border-color var(--duration-fast),
+              color var(--duration-fast);
+}
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.btn-primary {
+  background: var(--color-primary); color: #fff;
+}
+.btn-primary:hover { background: var(--color-primary-hover); }
+
+.btn-secondary {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+.btn-secondary:hover { background: var(--color-bg-muted); }
+
+.btn-ghost {
+  background: transparent; color: var(--color-text-muted);
+}
+.btn-ghost:hover { background: var(--color-bg-muted); color: var(--color-text); }
+
+.btn-danger {
+  background: var(--color-danger); color: #fff;
+}
+.btn-danger:hover { background: #991b1b; }
+
+/* ============================================================================
+   Card / Section
+   ============================================================================ */
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+.card + .card { margin-top: 12px; }
+.card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+.card-body { padding: 16px 18px; }
+
+h1.page-title {
+  font-size: 22px; font-weight: 600; letter-spacing: -0.015em;
+  margin: 0 0 4px;
+}
+.page-subtitle {
+  font-size: 13px; color: var(--color-text-muted);
+  margin: 0 0 20px;
+}
+h2.section-title {
+  font-size: 16px; font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+h3.subsection-title {
+  font-size: 13px; font-weight: 600;
+  margin: 0 0 12px;
+}
+.section-num {
+  color: var(--color-text-subtle); font-weight: 500;
+  margin-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.section-divider {
+  height: 1px; background: var(--color-border); border: 0; margin: 20px 0;
+}
+
+/* ============================================================================
+   KPI cards
+   ============================================================================ */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.kpi {
+  position: relative;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+}
+.kpi:hover { border-color: var(--color-border-strong); }
+.kpi-label {
+  font-size: 12px; font-weight: 500;
+  color: var(--color-text-muted);
+}
+.kpi-value {
+  font-size: 28px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  margin-top: 4px; letter-spacing: -0.01em;
+}
+.kpi-sub {
+  font-size: 12px; color: var(--color-text-subtle);
+  margin-top: 4px;
+}
+.kpi-icon {
+  position: absolute; top: 16px; right: 18px;
+  color: var(--color-text-subtle);
+}
+
+/* ============================================================================
+   Form fields
+   ============================================================================ */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label {
+  font-size: 12px; font-weight: 500; color: var(--color-text-muted);
+}
+.input {
+  display: block; width: 100%;
+  padding: 7px 10px;
+  font-family: inherit; font-size: 13px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text);
+  transition: background-color var(--duration-fast),
+              border-color var(--duration-fast),
+              box-shadow var(--duration-fast);
+}
+.input::placeholder { color: var(--color-text-subtle); }
+.input:hover { border-color: var(--color-border-strong); }
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+.field-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+}
+.field-grid-7 {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px;
+}
+
+/* ============================================================================
+   Inventory table
+   ============================================================================ */
+.table-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg);
+}
+table { width: 100%; border-collapse: collapse; }
+thead { background: var(--color-bg-subtle); }
+th {
+  text-align: left;
+  font-size: 11px; font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+th.right { text-align: right; }
+td {
+  padding: 8px 12px;
+  font-size: 13px; color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+td.right { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--color-primary-subtle); }
+tbody tr:nth-child(even) td:not(:hover) { /* zebra optional */ }
+.row-actions { display: flex; gap: 4px; }
+.icon-btn {
+  width: 30px; height: 30px;
+  background: var(--color-bg-subtle);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color var(--duration-fast), background-color var(--duration-fast),
+              border-color var(--duration-fast);
+}
+.icon-btn:hover {
+  color: var(--color-text);
+  background: var(--color-bg-muted);
+  border-color: var(--color-border);
+}
+.icon-btn.fav:hover {
+  color: var(--color-warning);
+  background: var(--color-warning-subtle);
+  border-color: var(--color-warning);
+}
+
+/* ============================================================================
+   Avatars and badges
+   ============================================================================ */
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+}
+.avatar-primary {
+  background: var(--color-primary-subtle); color: var(--color-primary);
+}
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 500;
+}
+.badge-neutral { background: var(--color-bg-muted); color: var(--color-text-muted); }
+.badge-success { background: var(--color-success-subtle); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-subtle); color: var(--color-warning); }
+.badge-danger  { background: var(--color-danger-subtle);  color: var(--color-danger); }
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ============================================================================
+   Two-column recent
+   ============================================================================ */
+.cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.list-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.list-item:last-child { border-bottom: 0; }
+.list-item-main { display: flex; align-items: center; gap: 10px; }
+.list-item-info { display: flex; flex-direction: column; }
+.list-item-title { font-size: 13px; font-weight: 500; color: var(--color-text); }
+.list-item-sub { font-size: 12px; color: var(--color-text-muted); }
+
+/* ============================================================================
+   Toggle panel (theme + token version)
+   ============================================================================ */
+.toggle-panel {
+  position: fixed; bottom: 16px; right: 16px;
+  z-index: 100;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  min-width: 220px;
+}
+.toggle-row { display: flex; align-items: center; gap: 8px; }
+.toggle-row .label {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  width: 56px;
+}
+.toggle-btn {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color var(--duration-fast),
+              border-color var(--duration-fast),
+              color var(--duration-fast);
+}
+.toggle-btn:hover { color: var(--color-text); }
+.toggle-btn.active {
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.toggle-hint {
+  font-size: 10px;
+  color: var(--color-text-subtle);
+  margin: 0;
+  line-height: 1.3;
+}
+
+/* ============================================================================
+   Section grouping in workspace
+   ============================================================================ */
+.section + .section { margin-top: 16px; }
+
+.deal-form-row {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+}
+.deal-form-row.cols-7 { grid-template-columns: repeat(7, 1fr); }
+
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.toolbar-left { display: flex; align-items: center; gap: 8px; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; }
+.muted { color: var(--color-text-muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="toggle-panel" id="togglePanel">
+  <div class="toggle-row">
+    <span class="label">Theme</span>
+    <button class="toggle-btn active" id="btnLight">Light</button>
+    <button class="toggle-btn" id="btnDark">Dark</button>
+  </div>
+  <div class="toggle-row">
+    <span class="label">Version</span>
+    <button class="toggle-btn" id="btnV1">v1</button>
+    <button class="toggle-btn" id="btnV2">v2</button>
+    <button class="toggle-btn active" id="btnV3">v3</button>
+  </div>
+  <p class="toggle-hint" id="hintText">
+    v3: bigger type + larger inputs + real card shadows + stronger borders + larger KPI numbers. Premium financial-software feel without the consumer-tech gradients.
+  </p>
+</div>
+<script>
+  const root = document.documentElement;
+  // Default to v3 (the premium revision) so the user sees the new direction first.
+  root.classList.add('v3');
+  const versions = ['btnV1','btnV2','btnV3'];
+  const versionClass = {btnV1: null, btnV2: 'v2', btnV3: 'v3'};
+  const versionHint = {
+    btnV1: 'v1: original mockup — too pale, white-on-white, hairline borders. Reproduces the problem.',
+    btnV2: 'v2: tinted page bg, depressed input bg, slate-300 borders. Better contrast but still reads as utilitarian.',
+    btnV3: 'v3: bigger type + larger inputs + real card shadows + stronger borders + larger KPI numbers. Premium financial-software feel without the consumer-tech gradients.',
+  };
+  const setActive = (id, on) => document.getElementById(id).classList.toggle('active', on);
+  const pickVersion = (id) => {
+    root.classList.remove('v2','v3');
+    if (versionClass[id]) root.classList.add(versionClass[id]);
+    versions.forEach(v => setActive(v, v === id));
+    document.getElementById('hintText').textContent = versionHint[id];
+  };
+  document.getElementById('btnLight').onclick = () => { root.classList.remove('dark'); setActive('btnLight', true); setActive('btnDark', false); };
+  document.getElementById('btnDark').onclick  = () => { root.classList.add('dark');    setActive('btnLight', false); setActive('btnDark', true); };
+  document.getElementById('btnV1').onclick    = () => pickVersion('btnV1');
+  document.getElementById('btnV2').onclick    = () => pickVersion('btnV2');
+  document.getElementById('btnV3').onclick    = () => pickVersion('btnV3');
+</script>
+
+<div class="app">
+
+  <!--===========================================================
+       Impersonation bar (was: saturated purple gradient)
+       Now: white bg + amber bottom border = "system message"
+  ============================================================-->
+  <div class="impersonation-bar">
+    <span>
+      <span class="dot"></span>
+      Viewing as <strong>Bob Maxey Ford</strong> (0001)
+    </span>
+    <button class="btn btn-sm btn-secondary">Exit impersonation</button>
+  </div>
+
+  <!--===========================================================
+       Header — 56px, single row, no tagline
+  ============================================================-->
+  <header class="header">
+    <div class="header-left">
+      <span class="brand-mark" aria-hidden>
+        <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+          <path d="M9 8v16h6v-2.5h-3.5V8H9z" fill="#3B82F6" />
+          <path d="M17 8l4 11 4-11h2.5L21.5 24h-1.5L14.5 8H17z" fill="#3B82F6" />
+        </svg>
+      </span>
+      <span class="brand-name">LTV Desking PRO</span>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-sm btn-ghost">Desk Mode</button>
+      <button class="btn btn-sm btn-secondary">Bob Maxey Ford ▾</button>
+      <button class="btn btn-sm btn-secondary">Settings</button>
+      <button class="btn btn-sm btn-primary">AI Lender Upload</button>
+      <span class="avatar avatar-primary" style="margin-left:4px">JG</span>
+    </div>
+  </header>
+
+  <!--===========================================================
+       Tabs (sentence-case, count chips muted, active = primary)
+  ============================================================-->
+  <nav class="tabs">
+    <div class="tab active">Inventory <span class="count">35</span></div>
+    <div class="tab">Lender programs <span class="count">0</span></div>
+    <div class="tab">Saved deals <span class="count">0</span></div>
+    <div class="tab">Finance tools</div>
+  </nav>
+
+  <!--===========================================================
+       Workspace
+  ============================================================-->
+  <main class="workspace">
+
+    <h1 class="page-title">Bob Maxey Ford</h1>
+    <p class="page-subtitle">DEMO &nbsp;•&nbsp; Springfield, IL &nbsp;•&nbsp; 35 vehicles in inventory</p>
+
+    <!-- KPI row: 4 identical cards, no rainbow stripes -->
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Inventory units</div>
+        <div class="kpi-value">35</div>
+        <div class="kpi-sub">12 above book</div>
+        <span class="kpi-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        </span>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Active deals</div>
+        <div class="kpi-value">7</div>
+        <div class="kpi-sub">3 pending lender</div>
+        <span class="kpi-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>
+        </span>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg front gross</div>
+        <div class="kpi-value">$1,742</div>
+        <div class="kpi-sub">+8% vs last week</div>
+        <span class="kpi-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M5 9h11a3 3 0 1 1 0 6H6a3 3 0 1 0 0 6h13"/></svg>
+        </span>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg payment</div>
+        <div class="kpi-value">$378</div>
+        <div class="kpi-sub">72 mo / 8.9% APR</div>
+        <span class="kpi-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- Customer & Deal form -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <h2 class="section-title">Customer &amp; deal</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm btn-secondary" disabled>Save deal</button>
+          <button class="btn btn-sm btn-secondary" disabled>PDF</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3 class="subsection-title">
+          <span class="section-num">1.</span> Customer &amp; deal info
+        </h3>
+        <div class="deal-form-row">
+          <div class="field">
+            <label class="field-label">Customer name</label>
+            <input class="input" placeholder="e.g. John Doe" />
+          </div>
+          <div class="field">
+            <label class="field-label">Salesperson</label>
+            <input class="input" placeholder="e.g. Jane Smith" />
+          </div>
+          <div class="field">
+            <label class="field-label">Credit score</label>
+            <input class="input tabular" placeholder="e.g. 720" />
+          </div>
+          <div class="field">
+            <label class="field-label">Monthly income ($)</label>
+            <input class="input tabular" placeholder="e.g. 5000" />
+          </div>
+          <div class="field">
+            <label class="field-label">VIN lookup</label>
+            <input class="input tabular" placeholder="17-digit VIN" />
+          </div>
+        </div>
+
+        <hr class="section-divider" />
+
+        <h3 class="subsection-title">
+          <span class="section-num">2.</span> Global deal structure
+        </h3>
+        <div class="deal-form-row cols-7">
+          <div class="field">
+            <label class="field-label">Down pmt ($)</label>
+            <input class="input tabular" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-label">Trade value ($)</label>
+            <input class="input tabular" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-label">Trade payoff ($)</label>
+            <input class="input tabular" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-label">Backend ($)</label>
+            <input class="input tabular" value="0" />
+          </div>
+          <div class="field">
+            <label class="field-label">State fees ($)</label>
+            <input class="input tabular" value="31" />
+          </div>
+          <div class="field">
+            <label class="field-label">Term (mo)</label>
+            <input class="input tabular" value="72" />
+          </div>
+          <div class="field">
+            <label class="field-label">APR (%)</label>
+            <input class="input tabular" value="8.9" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory table -->
+    <div style="margin-top:16px">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <h2 class="section-title">Inventory</h2>
+          <span class="badge badge-neutral tabular">35 vehicles</span>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-sm btn-secondary">Import CSV / Excel</button>
+          <input class="input" style="width:200px" placeholder="Enter VIN…" />
+          <button class="btn btn-sm btn-primary">Decode</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Actions</th>
+              <th>Year</th>
+              <th>Make</th>
+              <th>Model</th>
+              <th>Stock #</th>
+              <th class="right">Miles</th>
+              <th class="right">Price</th>
+              <th class="right">Book (trade)</th>
+              <th class="right">Front LTV</th>
+              <th class="right">Front gross</th>
+              <th class="right">Amt to fin</th>
+              <th class="right">OTD LTV</th>
+              <th class="right">Payment</th>
+              <th>VIN</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="row-actions">
+                  <button class="icon-btn" title="Expand">▾</button>
+                  <button class="icon-btn fav" title="Favorite">☆</button>
+                  <button class="icon-btn" title="Structure deal">→</button>
+                </div>
+              </td>
+              <td>2012</td><td>Honda</td><td>Civic LX</td><td>STK1000</td>
+              <td class="right">155,000</td><td class="right">$5,500</td><td class="right">$4,800</td>
+              <td class="right"><span class="badge badge-warning">122%</span></td>
+              <td class="right">$1,500</td><td class="right">$5,835</td><td class="right">122%</td>
+              <td class="right">$105</td><td>SAMPLE01AAAA1000</td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn">▾</button><button class="icon-btn fav">☆</button><button class="icon-btn">→</button></div></td>
+              <td>2013</td><td>Ford</td><td>Focus SE</td><td>STK1001</td>
+              <td class="right">140,000</td><td class="right">$5,800</td><td class="right">$5,100</td>
+              <td class="right"><span class="badge badge-warning">120%</span></td>
+              <td class="right">$1,600</td><td class="right">$6,135</td><td class="right">120%</td>
+              <td class="right">$110</td><td>SAMPLE02AAAA1001</td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn">▾</button><button class="icon-btn fav">☆</button><button class="icon-btn">→</button></div></td>
+              <td>2015</td><td>Nissan</td><td>Altima S</td><td>STK1003</td>
+              <td class="right">110,000</td><td class="right">$10,500</td><td class="right">$9,800</td>
+              <td class="right"><span class="badge badge-warning">111%</span></td>
+              <td class="right">$1,700</td><td class="right">$10,835</td><td class="right">111%</td>
+              <td class="right">$195</td><td>SAMPLE04AAAA1003</td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn">▾</button><button class="icon-btn fav">☆</button><button class="icon-btn">→</button></div></td>
+              <td>2018</td><td>Honda</td><td>Accord Sport</td><td>STK1007</td>
+              <td class="right">75,000</td><td class="right">$15,500</td><td class="right">$14,800</td>
+              <td class="right"><span class="badge badge-warning">107%</span></td>
+              <td class="right">$1,700</td><td class="right">$15,835</td><td class="right">107%</td>
+              <td class="right">$285</td><td>SAMPLE08AAAA1007</td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn">▾</button><button class="icon-btn fav">☆</button><button class="icon-btn">→</button></div></td>
+              <td>2020</td><td>Toyota</td><td>Camry SE</td><td>STK1011</td>
+              <td class="right">55,000</td><td class="right">$20,500</td><td class="right">$19,500</td>
+              <td class="right"><span class="badge badge-success">107%</span></td>
+              <td class="right">$2,300</td><td class="right">$20,835</td><td class="right">107%</td>
+              <td class="right">$375</td><td>SAMPLE12AAAA1011</td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn">▾</button><button class="icon-btn fav">☆</button><button class="icon-btn">→</button></div></td>
+              <td>2021</td><td>Hyundai</td><td>Kona SEL</td><td>STK1014</td>
+              <td class="right">40,000</td><td class="right">$19,200</td><td class="right">$18,400</td>
+              <td class="right"><span class="badge badge-success">106%</span></td>
+              <td class="right">$1,900</td><td class="right">$19,535</td><td class="right">106%</td>
+              <td class="right">$351</td><td>SAMPLE15AAAA1014</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+        <span class="muted">Showing <strong>1–6</strong> of <strong>35</strong> results</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="muted">Rows:</span>
+          <button class="btn btn-sm btn-secondary">15 ▾</button>
+          <button class="btn btn-sm btn-secondary" disabled>Previous</button>
+          <button class="btn btn-sm btn-secondary">1</button>
+          <button class="btn btn-sm btn-secondary">2</button>
+          <button class="btn btn-sm btn-secondary">3</button>
+          <button class="btn btn-sm btn-secondary">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Owner Console preview (collapsed) -->
+    <div class="card" style="margin-top:24px">
+      <div class="card-header">
+        <h2 class="section-title">Owner Console preview</h2>
+        <p class="muted" style="margin:4px 0 0;font-size:12px">
+          Same tokens, applied to the admin view. 4 identical KPI cards. Sentence-case labels.
+          Status pills with solid colors. Avatars: muted slate, no gradient fills.
+        </p>
+      </div>
+      <div class="card-body">
+        <div class="cols-2">
+          <div>
+            <h3 class="subsection-title">Recent dealers</h3>
+            <div class="list-item">
+              <div class="list-item-main">
+                <span class="avatar">BM</span>
+                <div class="list-item-info">
+                  <span class="list-item-title">Bob Maxey Ford</span>
+                  <span class="list-item-sub">0001 · Detroit, MI</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span class="badge badge-success"><span class="dot"></span>Active</span>
+                <button class="btn btn-sm btn-ghost">View as →</button>
+              </div>
+            </div>
+            <div class="list-item">
+              <div class="list-item-main">
+                <span class="avatar">HE</span>
+                <div class="list-item-info">
+                  <span class="list-item-title">Hertz Car Sales</span>
+                  <span class="list-item-sub">HERTZ · Springfield, IL</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span class="badge badge-success"><span class="dot"></span>Active</span>
+                <button class="btn btn-sm btn-ghost">View as →</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 class="subsection-title">Recent users</h3>
+            <div class="list-item">
+              <div class="list-item-main">
+                <span class="avatar">BM</span>
+                <div class="list-item-info">
+                  <span class="list-item-title">Bob Maxey</span>
+                  <span class="list-item-sub">bob@bobmaxey.com</span>
+                </div>
+              </div>
+              <span class="badge badge-neutral">Admin</span>
+            </div>
+            <div class="list-item">
+              <div class="list-item-main">
+                <span class="avatar avatar-primary">JG</span>
+                <div class="list-item-info">
+                  <span class="list-item-title">Joe Gallant</span>
+                  <span class="list-item-sub">joejgallant@gmail.com</span>
+                </div>
+              </div>
+              <span class="badge badge-neutral">Superadmin</span>
+            </div>
+            <div class="list-item">
+              <div class="list-item-main">
+                <span class="avatar">JC</span>
+                <div class="list-item-info">
+                  <span class="list-item-title">Jose Cadena</span>
+                  <span class="list-item-sub">autoseed@test.com</span>
+                </div>
+              </div>
+              <span class="badge badge-neutral">Sales</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

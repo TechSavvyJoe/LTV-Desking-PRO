@@ -1,5 +1,22 @@
 import type { Vehicle, DealData, CalculatedVehicle, Settings } from "../types";
 
+/**
+ * Round a monetary value to whole cents. All currency leaving the calculator is
+ * rounded at the boundary so the financed amount and the displayed figures agree
+ * with what a lender will actually amortize (no sub-cent float drift). [B7]
+ */
+const roundCents = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * Coerce a possibly-blank numeric deal field to a number, treating empty string /
+ * null / undefined / NaN as 0. Safe for fields where "unset" legitimately means 0
+ * (down payment, fees, trade). NOT used for APR — see resolveRate. [B6]
+ */
+const toNumber = (value: unknown): number => {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
 export const calculateMonthlyPayment = (
   principal: number,
   annualRate: number,
@@ -9,7 +26,7 @@ export const calculateMonthlyPayment = (
   if (principal <= 0) return 0; // No loan, no payment
   if (annualRate < 0) return "Error"; // Rate cannot be negative
 
-  if (annualRate === 0) return principal / termMonths;
+  if (annualRate === 0) return roundCents(principal / termMonths);
 
   const monthlyRate = annualRate / 100 / 12;
   const payment =
@@ -17,7 +34,7 @@ export const calculateMonthlyPayment = (
     (Math.pow(1 + monthlyRate, termMonths) - 1);
 
   if (!isFinite(payment) || isNaN(payment)) return "Error";
-  return payment;
+  return roundCents(payment);
 };
 
 export const calculateLoanAmount = (
@@ -25,15 +42,19 @@ export const calculateLoanAmount = (
   annualRate: number,
   termMonths: number
 ): number | "Error" => {
-  if (monthlyPayment <= 0 || termMonths <= 0 || annualRate < 0) return 0;
-  if (annualRate === 0) return monthlyPayment * termMonths;
+  // Match calculateMonthlyPayment's contract: invalid term / negative rate is an
+  // "Error", not a silent 0 that a caller would mistake for a valid principal. [B8]
+  if (termMonths <= 0) return "Error";
+  if (annualRate < 0) return "Error";
+  if (monthlyPayment <= 0) return 0; // No payment, no principal
+  if (annualRate === 0) return roundCents(monthlyPayment * termMonths);
 
   const monthlyRate = annualRate / 100 / 12;
   const principal = monthlyPayment * ((1 - Math.pow(1 + monthlyRate, -termMonths)) / monthlyRate);
 
   if (isNaN(principal) || !isFinite(principal)) return "Error";
 
-  return principal;
+  return roundCents(principal);
 };
 
 const calculateSalesTax = (
@@ -65,15 +86,26 @@ const calculateSalesTax = (
 
     if (defaultState !== "MI") {
       // Michigan reciprocity caps out-of-state tax at the Michigan statutory rate.
+      // NOTE (flagged for F&I review): this caps the *collected* rate at MI's 6%.
+      // For a buyer whose home state rate is higher than 6%, the remaining
+      // differential is collected by the buyer's home state at registration — it
+      // is intentionally not added here. Revisit if modeling dealer vs. buyer state.
       taxRate = Math.min(michiganTaxRate, taxRate);
-      extraFees += outOfStateTransitFee;
     }
   }
 
-  const taxableAmount = Math.max(0, price - tradeInValue) + docFee + cvrFee;
-  const tax = taxableAmount * taxRate;
+  // The out-of-state transit fee is a real out-of-state cost and must apply
+  // regardless of whether a custom tax rate is in play. Previously it was only
+  // added inside the default-rate branch, so a custom-rate out-of-state deal
+  // silently dropped it and understated OTD. [B5]
+  if (defaultState !== "MI") {
+    extraFees += toNumber(outOfStateTransitFee);
+  }
 
-  return { tax, extraFees };
+  const taxableAmount = Math.max(0, price - tradeInValue) + docFee + cvrFee;
+  const tax = roundCents(taxableAmount * taxRate); // [B7]
+
+  return { tax, extraFees: roundCents(extraFees) };
 };
 
 export const calculateFinancials = (
@@ -81,14 +113,26 @@ export const calculateFinancials = (
   dealData: DealData,
   settings: Settings
 ): CalculatedVehicle => {
-  // Defensive defaults
-  const downPayment = Number(dealData.downPayment) || 0;
-  const backendProducts = Number(dealData.backendProducts) || 0;
-  const loanTerm = Number(dealData.loanTerm) || 0;
-  const interestRate = Number(dealData.interestRate) || 0;
-  const tradeInValue = Number(dealData.tradeInValue) || 0;
-  const tradeInPayoff = Number(dealData.tradeInPayoff) || 0;
-  const stateFees = Number(dealData.stateFees) || 0;
+  // Defensive defaults — empty/blank fields collapse to 0, which is the correct
+  // intent for down payment, fees, and trade values.
+  const downPayment = toNumber(dealData.downPayment);
+  const backendProducts = toNumber(dealData.backendProducts);
+  const loanTerm = toNumber(dealData.loanTerm);
+  const tradeInValue = toNumber(dealData.tradeInValue);
+  const tradeInPayoff = toNumber(dealData.tradeInPayoff);
+  const stateFees = toNumber(dealData.stateFees);
+
+  // APR is special: a cleared field arrives as "" at runtime (see DealControls
+  // handleDealChange). Treat blank/NaN as "unset" (no payment quoted) so we never
+  // present an interest-free payment by accident, while still honoring a real 0%
+  // promotional rate entered explicitly. [B6]
+  const rawRate: unknown = dealData.interestRate;
+  const rateIsBlank =
+    rawRate === "" ||
+    rawRate === null ||
+    rawRate === undefined ||
+    (typeof rawRate === "number" && !Number.isFinite(rawRate));
+  const interestRate: number | null = rateIsBlank ? null : toNumber(rawRate);
 
   const price = typeof vehicle.price === "number" ? vehicle.price : 0;
   const jdPower = typeof vehicle.jdPower === "number" ? vehicle.jdPower : 0;
@@ -112,20 +156,29 @@ export const calculateFinancials = (
     const { tax, extraFees } = calculateSalesTax(price, tradeInValue, settings);
     salesTax = tax;
 
-    baseOutTheDoorPrice = price + docFee + cvrFee + stateFees + salesTax + extraFees;
+    // Round OTD and amount-to-finance to cents so the payment is amortized off the
+    // same figure the customer sees, and the financed amount reconciles. [B7]
+    baseOutTheDoorPrice = roundCents(price + docFee + cvrFee + stateFees + salesTax + extraFees);
 
     if (typeof vehicle.unitCost === "number") {
-      frontEndGross = price - unitCost;
+      frontEndGross = roundCents(price - unitCost);
     }
 
-    amountToFinance = baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn;
+    amountToFinance = roundCents(baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn);
 
-    monthlyPayment = calculateMonthlyPayment(amountToFinance, interestRate, loanTerm);
+    // An unset APR yields no payment rather than a spurious interest-free figure. [B6]
+    monthlyPayment =
+      interestRate === null
+        ? "N/A"
+        : calculateMonthlyPayment(amountToFinance, interestRate, loanTerm);
 
     // LTV Logic: Prefer Trade Book, fallback to Retail Book
     const bookValue = jdPower > 0 ? jdPower : jdPowerRetail > 0 ? jdPowerRetail : 0;
 
     if (bookValue > 0) {
+      // NOTE (flagged for F&I review): "front-end" LTV here is OTD-minus-backend
+      // products (it includes taxes/fees), not selling-price-only. Renaming/redefining
+      // is a product decision; behavior is unchanged from the prior version.
       const frontEndAmountToFinance = baseOutTheDoorPrice - downPayment - netTradeIn;
       frontEndLtv = frontEndAmountToFinance >= 0 ? (frontEndAmountToFinance / bookValue) * 100 : 0;
       otdLtv = amountToFinance >= 0 ? (amountToFinance / bookValue) * 100 : 0;

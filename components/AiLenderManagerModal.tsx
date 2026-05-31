@@ -133,7 +133,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
       case "extracting":
         return "text-yellow-400";
       case "validating":
-        return "text-purple-400";
+        return "text-[var(--color-primary)]";
       case "enhancing":
         return "text-cyan-400";
       case "complete":
@@ -336,7 +336,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         </div>
         <div className="w-full bg-x-hover-dark rounded-full h-3 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 rounded-full transition-all duration-300 ease-out"
+            className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-300 ease-out"
             style={{ width: `${overallProgress}%` }}
           />
         </div>
@@ -376,7 +376,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                       ? "bg-red-500"
                       : stage === "complete"
                         ? "bg-green-500"
-                        : "bg-gradient-to-r from-blue-500 to-purple-500"
+                        : "bg-[var(--color-primary)]"
                   }`}
                   style={{ width: `${stageProgress}%` }}
                 />
@@ -412,11 +412,11 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-x-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+      className="fixed inset-0 bg-slate-950/60 flex justify-center items-center z-50 p-4"
       onClick={handleClose}
     >
       <div
-        className="bg-x-black border border-x-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+        className="bg-x-black border border-x-border rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 flex justify-between items-center border-b border-x-border">
@@ -491,9 +491,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                     Enrich missing bank data via web search
                   </span>
                   <span className="block text-xs text-x-text-secondary mt-1">
-                    After extracting the rate sheet, search the web (Gemini grounding) to fill in any
-                    missing contact info, website, portal URL, or general bank notes. Sources are
-                    cited. Adds ~10–20s per file.
+                    After extracting the rate sheet, search the web (Gemini grounding) to fill in
+                    any missing contact info, website, portal URL, or general bank notes. Sources
+                    are cited. Adds ~10–20s per file.
                   </span>
                 </label>
               </div>

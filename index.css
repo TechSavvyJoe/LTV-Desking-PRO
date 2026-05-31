@@ -22,7 +22,42 @@
    1. DESIGN TOKENS - CSS Custom Properties
    ============================================================================ */
 :root {
-  /* Primary Color Palette - Refined Blues */
+  /* === DEALER TRUST design language ===
+     Navy primary, one muted steel-blue accent, status-only color.
+     No gradients on functional elements, no colored glows, no glassmorphism.
+     "What Tekion would build if they hired a Stripe designer." */
+
+  /* Surfaces */
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f8fafc; /* slate-50  — cards, panels */
+  --color-bg-muted: #f1f5f9; /* slate-100 — hover / nested */
+  --color-border: #e2e8f0; /* slate-200 */
+  --color-border-strong: #cbd5e1; /* slate-300 */
+
+  /* Text */
+  --color-text: #0f172a; /* slate-900 */
+  --color-text-muted: #475569; /* slate-600 */
+  --color-text-subtle: #94a3b8; /* slate-400 */
+
+  /* Brand — ONE navy, no purples/violets/indigos */
+  --color-primary: #1e40af; /* blue-800 — actions, links, focus */
+  --color-primary-hover: #1e3a8a; /* blue-900 */
+  --color-primary-subtle: #dbeafe; /* blue-100 — selected row / focus tint */
+
+  /* Accent — one muted steel-blue for secondary actions */
+  --color-accent: #475569; /* slate-600 */
+  --color-accent-hover: #334155; /* slate-700 */
+  --color-accent-subtle: #e2e8f0; /* slate-200 */
+
+  /* Status — used SPARINGLY, only where state must be communicated */
+  --color-success: #15803d; /* green-700 */
+  --color-success-subtle: #dcfce7; /* green-100 */
+  --color-warning: #b45309; /* amber-700 */
+  --color-warning-subtle: #fef3c7; /* amber-100 */
+  --color-danger: #b91c1c; /* red-700 */
+  --color-danger-subtle: #fee2e2; /* red-100 */
+
+  /* Legacy primary scale — retained so older references still resolve. */
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
   --color-primary-200: #bfdbfe;
@@ -34,49 +69,49 @@
   --color-primary-800: #1e40af;
   --color-primary-900: #1e3a8a;
 
-  /* Accent Gradients */
-  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
-  --gradient-primary-hover: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
-  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  --gradient-surface: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.8) 0%,
-    rgba(248, 250, 252, 0.9) 100%
-  );
+  /* Legacy "gradient" tokens neutralized to SOLID navy/status colors.
+     Rule: if a token resolves to a linear-gradient, it's the wrong token. */
+  --gradient-primary: var(--color-primary);
+  --gradient-primary-hover: var(--color-primary-hover);
+  --gradient-success: var(--color-success);
+  --gradient-warning: var(--color-warning);
+  --gradient-danger: var(--color-danger);
+  --gradient-surface: var(--color-bg-subtle);
 
-  /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  --glass-bg-elevated: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.6);
-  --glass-border-subtle: rgba(148, 163, 184, 0.2);
-  --glass-blur: 16px;
+  /* Legacy glass tokens neutralized to OPAQUE surfaces (no backdrop blur). */
+  --glass-bg: #ffffff;
+  --glass-bg-elevated: #ffffff;
+  --glass-border: #e2e8f0;
+  --glass-border-subtle: #e2e8f0;
+  --glass-blur: 0px;
 
-  /* Shadows - Apple-style depth system */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.04);
-  --shadow-glow-primary: 0 0 20px rgba(59, 130, 246, 0.3), 0 0 40px rgba(99, 102, 241, 0.15);
-  --shadow-glow-success: 0 0 20px rgba(16, 185, 129, 0.3);
+  /* Shadows — neutral slate alpha only, no colored glows. */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 16px -4px rgba(15, 23, 42, 0.1);
+  --shadow-xl: 0 16px 28px -8px rgba(15, 23, 42, 0.12);
+  --shadow-2xl: 0 24px 48px -12px rgba(15, 23, 42, 0.16);
+  --shadow-inner: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-glow-primary: var(--shadow-md);
+  --shadow-glow-success: var(--shadow-md);
 
-  /* Transitions - Smooth & Natural */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-bounce: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  --transition-spring: 500ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* Transitions — short, color-only. No bounce/spring on functional UI. */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration: 180ms;
 
-  /* Border Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --radius-2xl: 24px;
+  /* Border radius — tighter, institutional (4–14px, not 16–24px). */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
   --radius-full: 9999px;
 
   /* Z-Index Scale */
@@ -85,27 +120,47 @@
   --z-toast: 200;
 }
 
-/* Dark Mode Tokens */
+/* Dark Mode Tokens — same restraint, darker surfaces. */
 .dark {
-  --gradient-surface: linear-gradient(
-    180deg,
-    rgba(15, 23, 42, 0.95) 0%,
-    rgba(30, 41, 59, 0.9) 100%
-  );
+  --color-bg: #0f172a; /* slate-900 */
+  --color-bg-subtle: #1e293b; /* slate-800 */
+  --color-bg-muted: #334155; /* slate-700 */
+  --color-border: #334155; /* slate-700 */
+  --color-border-strong: #475569; /* slate-600 */
 
-  --glass-bg: rgba(15, 23, 42, 0.75);
-  --glass-bg-elevated: rgba(30, 41, 59, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-subtle: rgba(255, 255, 255, 0.05);
+  --color-text: #f1f5f9; /* slate-100 */
+  --color-text-muted: #94a3b8; /* slate-400 */
+  --color-text-subtle: #64748b; /* slate-500 */
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.35), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.15);
-  --shadow-glow-primary: 0 0 25px rgba(59, 130, 246, 0.4), 0 0 50px rgba(99, 102, 241, 0.2);
+  --color-primary: #3b82f6; /* blue-500 — lighter for dark bg */
+  --color-primary-hover: #60a5fa; /* blue-400 */
+  --color-primary-subtle: #1e3a8a; /* blue-900 */
+
+  --color-accent: #94a3b8; /* slate-400 */
+  --color-accent-hover: #cbd5e1; /* slate-300 */
+  --color-accent-subtle: #334155; /* slate-700 */
+
+  --color-success: #4ade80; /* green-400 */
+  --color-success-subtle: #14532d; /* green-900 */
+  --color-warning: #fbbf24; /* amber-400 */
+  --color-warning-subtle: #78350f; /* amber-900 */
+  --color-danger: #f87171; /* red-400 */
+  --color-danger-subtle: #7f1d1d; /* red-900 */
+
+  --gradient-surface: var(--color-bg-subtle);
+  --glass-bg: #1e293b;
+  --glass-bg-elevated: #1e293b;
+  --glass-border: #334155;
+  --glass-border-subtle: #334155;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 16px -4px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 16px 28px -8px rgba(0, 0, 0, 0.5);
+  --shadow-2xl: 0 24px 48px -12px rgba(0, 0, 0, 0.55);
+  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-glow-primary: var(--shadow-md);
 }
 
 /* ============================================================================
@@ -126,7 +181,7 @@ body {
 }
 
 body {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+  background: var(--color-bg-subtle);
   min-height: 100vh;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
@@ -148,7 +203,7 @@ main {
 }
 
 .dark body {
-  background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e293b 100%);
+  background: var(--color-bg);
 }
 
 /* Selection Color */

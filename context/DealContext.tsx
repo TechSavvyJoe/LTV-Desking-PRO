@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   getInventory,
   getLenderProfiles,
@@ -104,6 +112,11 @@ interface DealContextType {
   loadSampleData: () => void;
   isShowroomMode: boolean;
   setIsShowroomMode: React.Dispatch<React.SetStateAction<boolean>>;
+
+  // Async data-load status (initial PocketBase fetch)
+  dataLoading: boolean;
+  dataError: string | null;
+  refetchData: () => void;
 }
 
 const DealContext = createContext<DealContextType | undefined>(undefined);
@@ -179,6 +192,14 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [expandedFavoriteRows, setExpandedFavoriteRows] = useState<Set<string>>(new Set());
   const [isShowroomMode, setIsShowroomMode] = useState<boolean>(false);
 
+  // Initial-load status so views can show a loading skeleton / error+retry
+  // instead of silently falling through to the empty state. [frontend-state]
+  const [dataLoading, setDataLoading] = useState<boolean>(isAuthenticated());
+  const [dataError, setDataError] = useState<string | null>(null);
+  // Monotonic token: a newer load invalidates an older in-flight one so a stale
+  // (e.g. previous-dealer) response can't overwrite current data. [frontend-state]
+  const loadSeqRef = useRef(0);
+
   // Safe Data Hooks
   const safeInventory = useSafeData(inventory);
   const safeFavorites = useSafeData(favorites);
@@ -221,122 +242,101 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return safeSavedDeals.map((d) => normalizeSavedDeal(d)).filter((d): d is SavedDeal => !!d);
   }, [safeSavedDeals]);
 
-  // Effects
-  // Load initial data from PocketBase
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log("[DealContext] useEffect running, isAuthenticated:", isAuthenticated());
-    }
+  // Map a PocketBase InventoryItem to the app's Vehicle shape.
+  const mapInventoryItem = (i: {
+    id: string;
+    year: number;
+    make: string;
+    model: string;
+    trim?: string;
+    stockNumber?: string;
+    vin: string;
+    mileage?: number;
+    price: number;
+    jdPower?: number;
+    jdPowerRetail?: number;
+    unitCost?: number;
+  }): Vehicle => ({
+    id: i.id,
+    vehicle: `${i.year} ${i.make} ${i.model} ${i.trim || ""}`.trim(),
+    stock: i.stockNumber || "N/A",
+    vin: i.vin,
+    modelYear: i.year,
+    mileage: i.mileage || "N/A",
+    price: i.price,
+    jdPower: i.jdPower || "N/A",
+    jdPowerRetail: i.jdPowerRetail || "N/A",
+    unitCost: i.unitCost || "N/A",
+    baseOutTheDoorPrice: "N/A",
+    make: i.make,
+    model: i.model,
+    trim: i.trim,
+  });
+
+  // Load all dealer-scoped data. Guarded by a sequence token so a stale response
+  // (e.g. the previous dealer, after a superadmin switch) can never overwrite the
+  // current dealer's data. [frontend-state]
+  const loadData = useCallback(async () => {
     if (!isAuthenticated()) {
-      if (import.meta.env.DEV) {
-        console.log("[DealContext] Not authenticated, skipping data load");
-      }
+      setDataLoading(false);
       return;
     }
+    const seq = ++loadSeqRef.current;
+    setDataLoading(true);
+    setDataError(null);
+    try {
+      const [inv, lenders, deals, dealerSettings] = await Promise.all([
+        getInventory(),
+        getLenderProfiles(),
+        getSavedDeals(),
+        getDealerSettings(),
+      ]);
 
-    const loadData = async () => {
-      if (import.meta.env.DEV) {
-        console.log("[DealContext] loadData starting...");
-      }
-      try {
-        const [inv, lenders, deals, dealerSettings] = await Promise.all([
-          getInventory(), // Returns InventoryItem[]
-          getLenderProfiles(), // Returns LenderProfile[] (PB)
-          getSavedDeals(), // Returns SavedDeal[] (PB)
-          getDealerSettings(),
-        ]);
+      if (seq !== loadSeqRef.current) return; // superseded by a newer load
 
-        if (import.meta.env.DEV) {
-          console.log("[DealContext] Data loaded:", {
-            inventory: inv.length,
-            lenders: lenders.length,
-            deals: deals.length,
-            settings: !!dealerSettings,
-          });
-        }
+      setInventory(inv.map(mapInventoryItem));
+      setLenderProfiles(lenders);
+      setSavedDeals(deals.map(mapPocketBaseSavedDeal));
 
-        // Map InventoryItem -> Vehicle
-        const mappedInventory: Vehicle[] = inv.map((i) => ({
-          id: i.id,
-          vehicle: `${i.year} ${i.make} ${i.model} ${i.trim || ""}`.trim(),
-          stock: i.stockNumber || "N/A",
-          vin: i.vin,
-          modelYear: i.year,
-          mileage: i.mileage || "N/A",
-          price: i.price,
-          jdPower: i.jdPower || "N/A",
-          jdPowerRetail: i.jdPowerRetail || "N/A",
-          unitCost: i.unitCost || "N/A",
-          baseOutTheDoorPrice: "N/A", // Calculate or pull
-          make: i.make,
-          model: i.model,
-          trim: i.trim,
+      if (dealerSettings) {
+        setSettings((prev) => ({
+          ...prev,
+          defaultTerm: dealerSettings.defaultLoanTerm || prev.defaultTerm,
+          defaultApr: dealerSettings.defaultInterestRate || prev.defaultApr,
+          defaultStateFees: dealerSettings.defaultStateFees || prev.defaultStateFees,
+          docFee: dealerSettings.docFee,
+          cvrFee: dealerSettings.cvrFee,
+          defaultState: toAppState(dealerSettings.defaultState, prev.defaultState),
+          outOfStateTransitFee: dealerSettings.outOfStateTransitFee,
+          customTaxRate: dealerSettings.customTaxRate ?? null,
+          ai: normalizeAiSettings(prev.ai),
         }));
-        setInventory(mappedInventory);
-
-        // Always set lender profiles (even if empty, to clear stale data)
-        if (import.meta.env.DEV) {
-          console.log("[DealContext] Setting lender profiles:", lenders.length);
-        }
-        setLenderProfiles(lenders);
-
-        const mappedDeals: SavedDeal[] = deals.map(mapPocketBaseSavedDeal);
-        setSavedDeals(mappedDeals);
-
-        if (dealerSettings) {
-          setSettings((prev) => ({
-            ...prev,
-            defaultTerm: dealerSettings.defaultLoanTerm || prev.defaultTerm,
-            defaultApr: dealerSettings.defaultInterestRate || prev.defaultApr,
-            defaultStateFees: dealerSettings.defaultStateFees || prev.defaultStateFees,
-            docFee: dealerSettings.docFee,
-            cvrFee: dealerSettings.cvrFee,
-            defaultState: toAppState(dealerSettings.defaultState, prev.defaultState),
-            outOfStateTransitFee: dealerSettings.outOfStateTransitFee,
-            customTaxRate: dealerSettings.customTaxRate ?? null,
-            ai: normalizeAiSettings(prev.ai),
-          }));
-        }
-      } catch (error) {
-        console.error("Failed to load data from PocketBase", error);
       }
-    };
+    } catch (error) {
+      console.error("Failed to load data from PocketBase", error);
+      if (seq === loadSeqRef.current) {
+        setDataError("We couldn't load your data. Check your connection and try again.");
+      }
+    } finally {
+      if (seq === loadSeqRef.current) setDataLoading(false);
+    }
+  }, []);
+
+  // Effects: initial load + realtime subscriptions. The subscribe helpers no
+  // longer fetch on mount (loadData owns the initial fetch), avoiding a
+  // double-fetch race. [frontend-state]
+  useEffect(() => {
+    if (!isAuthenticated()) return;
 
     loadData();
 
-    // subscriptions
-    const unsubInv = subscribeToInventory((data) => {
-      // Map data again
-      const mapped: Vehicle[] = data.map((i) => ({
-        id: i.id,
-        vehicle: `${i.year} ${i.make} ${i.model} ${i.trim || ""}`.trim(),
-        stock: i.stockNumber || "N/A",
-        vin: i.vin,
-        modelYear: i.year,
-        mileage: i.mileage || "N/A",
-        price: i.price,
-        jdPower: i.jdPower || "N/A",
-        jdPowerRetail: i.jdPowerRetail || "N/A",
-        unitCost: i.unitCost || "N/A",
-        baseOutTheDoorPrice: "N/A",
-        make: i.make,
-        model: i.model,
-        trim: i.trim,
-      }));
-      setInventory(mapped);
-    });
-    const unsubDeals = subscribeToSavedDeals((data) => {
-      const mapped: SavedDeal[] = data.map(mapPocketBaseSavedDeal);
-      setSavedDeals(mapped);
-    });
+    const unsubInv = subscribeToInventory((data) => setInventory(data.map(mapInventoryItem)));
+    const unsubDeals = subscribeToSavedDeals((data) =>
+      setSavedDeals(data.map(mapPocketBaseSavedDeal))
+    );
 
-    // Listen for dealer override changes (superadmin switching dealers)
-    const handleDealerChange = () => {
-      if (import.meta.env.DEV) {
-        console.log("[DealContext] Dealer override changed, reloading data...");
-      }
-      loadData();
-    };
+    // Superadmin switching dealers re-runs loadData (new seq invalidates old).
+    const handleDealerChange = () => loadData();
     window.addEventListener("dealerOverrideChanged", handleDealerChange);
 
     return () => {
@@ -344,7 +344,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubDeals();
       window.removeEventListener("dealerOverrideChanged", handleDealerChange);
     };
-  }, []);
+  }, [loadData]);
 
   // Sync settings changes to PocketBase
   const updateSettings: React.Dispatch<React.SetStateAction<Settings>> = useCallback((action) => {
@@ -519,32 +519,62 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleInventoryUpdate = useCallback(
     async (vin: string, updatedData: Partial<Vehicle>) => {
+      const item = inventory.find((v) => v.vin === vin);
+
+      // Snapshot before the optimistic write so we can roll back on failure.
+      const prevInventory = inventory;
+      const prevFavorites = favorites;
+
+      // Optimistic update.
       setInventory((prev) =>
         (prev || []).map((v) => (v.vin === vin ? { ...v, ...updatedData } : v))
       );
-      setFavorites((prev) => {
-        if (!Array.isArray(prev)) return prev;
-        return prev.map((f) => (f.vin === vin ? { ...f, ...updatedData } : f));
-      });
+      setFavorites((prev) =>
+        Array.isArray(prev) ? prev.map((f) => (f.vin === vin ? { ...f, ...updatedData } : f)) : prev
+      );
 
-      // API Call
-      const item = inventory.find((v) => v.vin === vin);
+      // Persist. updateInventoryItem returns null on failure — when it does (or
+      // there's no backing record id), revert the optimistic state and tell the
+      // user, instead of leaving the UI silently diverged from the DB. [frontend-state]
       if (item && item.id) {
-        try {
-          const apiData: any = { ...updatedData };
-          // Handle mileage if present and "N/A"
-          if (apiData.mileage === "N/A") {
-            delete apiData.mileage;
-          }
-          await updateInventoryItem(item.id, apiData);
-        } catch (e) {
-          console.error("Failed to update inventory item in backend", e);
-          // Revert? For now just log.
+        const apiData: Partial<Vehicle> = { ...updatedData };
+        if (apiData.mileage === "N/A") delete apiData.mileage;
+        const result = await updateInventoryItem(
+          item.id,
+          apiData as unknown as Parameters<typeof updateInventoryItem>[1]
+        );
+        if (!result) {
+          setInventory(prevInventory);
+          setFavorites(prevFavorites);
+          setMessage({
+            type: "error",
+            text: "Couldn't save that change to the server. Your edit was reverted.",
+          });
         }
       }
     },
-    [inventory, setInventory, setFavorites]
+    [inventory, favorites, setInventory, setFavorites, setMessage]
   );
+
+  // Keep favorites in sync with live inventory so a CSV re-sync or an inline
+  // edit doesn't leave a stale snapshot behind. Favorites for vehicles no longer
+  // in inventory keep their last-known data. [frontend-state]
+  useEffect(() => {
+    setFavorites((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) return prev;
+      const byVin = new Map(inventory.map((v) => [v.vin, v]));
+      let changed = false;
+      const next = prev.map((fav) => {
+        const live = byVin.get(fav.vin);
+        if (live) {
+          changed = true;
+          return live;
+        }
+        return fav;
+      });
+      return changed ? next : prev;
+    });
+  }, [inventory, setFavorites]);
 
   const clearDealAndFilters = useCallback(() => {
     setDealData({
@@ -611,64 +641,120 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setFavSort,
   ]);
 
-  const value = {
-    settings,
-    setSettings: updateSettings, // Use wrapped setter for persistence
-    inventory,
-    setInventory,
-    dealData,
-    setDealData,
-    filters,
-    setFilters,
-    message,
-    setMessage,
-    errors,
-    setErrors,
-    customerName,
-    setCustomerName,
-    salespersonName,
-    setSalespersonName,
-    activeVehicle,
-    setActiveVehicle,
-    isDealDirty,
-    setIsDealDirty,
-    favorites,
-    setFavorites,
-    lenderProfiles,
-    setLenderProfiles,
-    savedDeals,
-    setSavedDeals,
-    scratchPadNotes,
-    setScratchPadNotes,
-    inventorySort,
-    setInventorySort,
-    favSort,
-    setFavSort,
-    pagination,
-    setPagination,
-    fileName,
-    setFileName,
-    expandedInventoryRows,
-    setExpandedInventoryRows,
-    expandedFavoriteRows,
-    setExpandedFavoriteRows,
-    safeInventory,
-    safeFavorites,
-    safeLenderProfiles,
-    safeSavedDeals: normalizedSavedDeals,
-    processedInventory,
-    filteredInventory,
-    sortedInventory,
-    paginatedInventory,
-    toggleFavorite,
-    toggleInventoryRowExpansion,
-    toggleFavoriteRowExpansion,
-    handleInventoryUpdate,
-    clearDealAndFilters,
-    loadSampleData,
-    isShowroomMode,
-    setIsShowroomMode,
-  };
+  // Memoize the context value so consumers don't re-render on every provider
+  // render (e.g. each keystroke); identity now changes only when a dependency
+  // actually changes. [perf]
+  const value = useMemo(
+    () => ({
+      settings,
+      setSettings: updateSettings, // Use wrapped setter for persistence
+      inventory,
+      setInventory,
+      dealData,
+      setDealData,
+      filters,
+      setFilters,
+      message,
+      setMessage,
+      errors,
+      setErrors,
+      customerName,
+      setCustomerName,
+      salespersonName,
+      setSalespersonName,
+      activeVehicle,
+      setActiveVehicle,
+      isDealDirty,
+      setIsDealDirty,
+      favorites,
+      setFavorites,
+      lenderProfiles,
+      setLenderProfiles,
+      savedDeals,
+      setSavedDeals,
+      scratchPadNotes,
+      setScratchPadNotes,
+      inventorySort,
+      setInventorySort,
+      favSort,
+      setFavSort,
+      pagination,
+      setPagination,
+      fileName,
+      setFileName,
+      expandedInventoryRows,
+      setExpandedInventoryRows,
+      expandedFavoriteRows,
+      setExpandedFavoriteRows,
+      safeInventory,
+      safeFavorites,
+      safeLenderProfiles,
+      safeSavedDeals: normalizedSavedDeals,
+      processedInventory,
+      filteredInventory,
+      sortedInventory,
+      paginatedInventory,
+      toggleFavorite,
+      toggleInventoryRowExpansion,
+      toggleFavoriteRowExpansion,
+      handleInventoryUpdate,
+      clearDealAndFilters,
+      loadSampleData,
+      isShowroomMode,
+      setIsShowroomMode,
+      dataLoading,
+      dataError,
+      refetchData: loadData,
+    }),
+    [
+      settings,
+      updateSettings,
+      inventory,
+      setInventory,
+      dealData,
+      setDealData,
+      filters,
+      setFilters,
+      message,
+      setMessage,
+      errors,
+      setErrors,
+      customerName,
+      salespersonName,
+      activeVehicle,
+      isDealDirty,
+      favorites,
+      setFavorites,
+      lenderProfiles,
+      savedDeals,
+      scratchPadNotes,
+      setScratchPadNotes,
+      inventorySort,
+      favSort,
+      pagination,
+      fileName,
+      expandedInventoryRows,
+      expandedFavoriteRows,
+      safeInventory,
+      safeFavorites,
+      safeLenderProfiles,
+      normalizedSavedDeals,
+      processedInventory,
+      filteredInventory,
+      sortedInventory,
+      paginatedInventory,
+      toggleFavorite,
+      toggleInventoryRowExpansion,
+      toggleFavoriteRowExpansion,
+      handleInventoryUpdate,
+      clearDealAndFilters,
+      loadSampleData,
+      isShowroomMode,
+      dataLoading,
+      dataError,
+      loadData,
+    ]
+  );
 
   return <DealContext.Provider value={value}>{children}</DealContext.Provider>;
 };

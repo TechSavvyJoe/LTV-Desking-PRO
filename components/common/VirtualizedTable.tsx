@@ -112,7 +112,7 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
     >
       {/* Header with premium shadow */}
       <div
-        className="sticky top-0 z-10 bg-gradient-to-b from-white via-white to-white/95 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950/95 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-500 dark:text-gray-400 text-xs uppercase tracking-wider shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]"
+        className="sticky top-0 z-10 bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)] font-medium text-[var(--color-text-muted)] text-xs"
         style={{
           display: "grid",
           gridTemplateColumns,
@@ -147,7 +147,7 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
         {safeData.length === 0 ? (
           <div className="absolute top-0 left-0 w-full p-12 text-center">
             <div className="flex flex-col items-center justify-center space-y-3">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-lg bg-[var(--color-bg-muted)] flex items-center justify-center">
                 <svg
                   className="w-8 h-8 text-slate-400 dark:text-slate-500"
                   fill="none"
@@ -189,9 +189,7 @@ export const VirtualizedTable = <T extends { [key: string]: any }>({
                 {/* Main Row */}
                 <div
                   className={`grid border-b border-slate-100 dark:border-slate-800/50 transition-all duration-150 ${
-                    onRowClick
-                      ? "cursor-pointer hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/30 dark:hover:from-blue-500/5 dark:hover:to-indigo-500/5 hover:shadow-[inset_3px_0_0_0_rgba(59,130,246,0.5)]"
-                      : ""
+                    onRowClick ? "cursor-pointer hover:bg-[var(--color-primary-subtle)]" : ""
                   } ${isExpanded ? "bg-slate-50/50 dark:bg-white/[0.02]" : ""}`}
                   style={{ gridTemplateColumns }}
                   onClick={() => onRowClick && onRowClick(key)}

@@ -104,9 +104,13 @@ export const syncInventory = async (
     jdPower?: number;
     jdPowerRetail?: number;
   }>
-): Promise<{ added: number; updated: number; removed: number }> => {
+): Promise<{ added: number; updated: number; removed: number; failed: number }> => {
   const dealerId = getCurrentDealerId();
-  if (!dealerId) return { added: 0, updated: 0, removed: 0 };
+  // Fail loudly instead of returning zeros that the UI would render as a green
+  // "Synced 0 vehicles" success while nothing was persisted. [data-import]
+  if (!dealerId) {
+    throw new Error("No dealership is selected, so inventory could not be synced.");
+  }
 
   // Batch size for parallel operations (avoid overwhelming the API)
   const BATCH_SIZE = 50;
@@ -183,30 +187,34 @@ export const syncInventory = async (
       }
     }
 
-    // Execute all operations in parallel batches
+    // Execute all operations in parallel batches, tracking both successes and
+    // failures so partial failures are reported rather than hidden. [data-import]
     const processBatch = async (operations: Promise<unknown>[]) => {
       const results = [];
       for (let i = 0; i < operations.length; i += BATCH_SIZE) {
         const batch = operations.slice(i, i + BATCH_SIZE);
         results.push(...(await Promise.allSettled(batch)));
       }
-      return results.filter((r) => r.status === "fulfilled").length;
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      return { ok, failed: results.length - ok };
     };
 
-    const [updatedCount, addedCount, removedCount] = await Promise.all([
+    const [updated, added, removed] = await Promise.all([
       processBatch(updateOperations),
       processBatch(createOperations),
       processBatch(removeOperations),
     ]);
 
     return {
-      added: addedCount,
-      updated: updatedCount,
-      removed: removedCount,
+      added: added.ok,
+      updated: updated.ok,
+      removed: removed.ok,
+      failed: added.failed + updated.failed + removed.failed,
     };
   } catch (error) {
+    // Re-throw so the caller surfaces an error toast instead of a false success.
     console.error("Failed to sync inventory:", error);
-    return { added: 0, updated: 0, removed: 0 };
+    throw error instanceof Error ? error : new Error("Failed to sync inventory.");
   }
 };
 
@@ -542,19 +550,50 @@ export const updateDealerSettings = async (
 // REAL-TIME SUBSCRIPTIONS
 // ============================================
 
+// Trailing debounce so a bulk write (e.g. a CSV sync touching many rows) fans
+// out into a single refetch instead of one getFullList per changed record.
+const SUBSCRIPTION_REFETCH_DEBOUNCE_MS = 300;
+
+/**
+ * Subscribe to realtime inventory changes. Returns a cleanup that removes ONLY
+ * this subscription (via the per-subscription unsubscribe handle PocketBase
+ * returns) rather than unsubscribe("*"), which would tear down every listener
+ * on the collection and break under StrictMode double-mount. The subscribe
+ * promise is awaited/caught so a failed connection can't become an unhandled
+ * rejection. No initial fetch here — DealContext.loadData performs it, so we
+ * don't double-fetch on mount. [frontend-state]
+ */
 export const subscribeToInventory = (callback: (data: InventoryItem[]) => void): (() => void) => {
   const dealerId = getCurrentDealerId();
   if (!dealerId) return () => {};
 
-  getInventory().then(callback);
+  let unsubscribe: (() => void) | null = null;
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
 
-  collections.inventory.subscribe("*", async () => {
-    const data = await getInventory();
-    callback(data);
-  });
+  const refetch = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      getInventory()
+        .then((data) => {
+          if (!cancelled) callback(data);
+        })
+        .catch((err) => console.error("Inventory refetch after realtime event failed:", err));
+    }, SUBSCRIPTION_REFETCH_DEBOUNCE_MS);
+  };
+
+  collections.inventory
+    .subscribe("*", () => refetch())
+    .then((fn) => {
+      if (cancelled) fn();
+      else unsubscribe = fn;
+    })
+    .catch((err) => console.error("Failed to subscribe to inventory updates:", err));
 
   return () => {
-    collections.inventory.unsubscribe("*");
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+    if (unsubscribe) unsubscribe();
   };
 };
 
@@ -562,15 +601,33 @@ export const subscribeToSavedDeals = (callback: (data: SavedDeal[]) => void): ((
   const dealerId = getCurrentDealerId();
   if (!dealerId) return () => {};
 
-  getSavedDeals().then(callback);
+  let unsubscribe: (() => void) | null = null;
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
 
-  collections.savedDeals.subscribe("*", async () => {
-    const data = await getSavedDeals();
-    callback(data);
-  });
+  const refetch = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      getSavedDeals()
+        .then((data) => {
+          if (!cancelled) callback(data);
+        })
+        .catch((err) => console.error("Saved-deals refetch after realtime event failed:", err));
+    }, SUBSCRIPTION_REFETCH_DEBOUNCE_MS);
+  };
+
+  collections.savedDeals
+    .subscribe("*", () => refetch())
+    .then((fn) => {
+      if (cancelled) fn();
+      else unsubscribe = fn;
+    })
+    .catch((err) => console.error("Failed to subscribe to saved-deals updates:", err));
 
   return () => {
-    collections.savedDeals.unsubscribe("*");
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+    if (unsubscribe) unsubscribe();
   };
 };
 

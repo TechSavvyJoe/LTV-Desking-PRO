@@ -9,16 +9,15 @@ interface AuthLayoutProps {
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8 overflow-hidden">
-      {/* Branded background: deep slate base + radial gradients anchored
-          to brand blue/violet + a subtle grid texture. No external image
-          dependency (drops a ~150 KB Unsplash request from the critical
-          path and stays inside the strict CSP). */}
+      {/* Branded background: deep slate base + restrained navy radial glow + a
+          subtle grid texture. One brand color only (navy) — no violet. No
+          external image dependency (stays inside the strict CSP). */}
       <div className="absolute inset-0 bg-slate-950" />
       <div
         className="absolute inset-0 opacity-60"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59, 130, 246, 0.18) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(139, 92, 246, 0.12) 0%, transparent 50%)",
+            "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(30, 64, 175, 0.20) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(30, 58, 138, 0.14) 0%, transparent 50%)",
         }}
       />
       <div
@@ -36,9 +35,9 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center mb-8">
-          <BrandMark className="w-16 h-16 drop-shadow-[0_8px_24px_rgba(59,130,246,0.35)]" />
+          <BrandMark className="w-16 h-16" />
         </div>
-        <h1 className="text-center text-4xl font-bold tracking-tight text-white">
+        <h1 className="text-center text-3xl font-semibold tracking-tight text-white">
           LTV Desking <span className="text-blue-400">PRO</span>
         </h1>
         <p className="text-center text-slate-400 text-sm mt-3 max-w-sm mx-auto">

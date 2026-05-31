@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { enforceAiRateLimit } from "./rateLimit.js";
 import {
   buildAiModelRegistryResponse,
   type AiSettings,
@@ -25,11 +27,37 @@ import {
 } from "./schemas.js";
 import { getDefaultModelForTask } from "../../../lib/aiModelRegistry.js";
 
+// Upload caps. base64 inflates binary by ~33%, so ~8 MB of base64 ≈ 6 MB PDF —
+// comfortably under Vercel's ~4.5 MB request cap once the JSON envelope is
+// accounted for, and the body reader enforces the hard ceiling regardless. [B4]
+const MAX_BASE64_LENGTH = 8 * 1024 * 1024;
+
 const FilePayloadSchema = z.object({
-  name: z.string().min(1),
-  mimeType: z.string().min(1),
-  base64Data: z.string().min(1),
+  name: z.string().min(1).max(255),
+  // Server is the trust boundary: only accept PDFs, regardless of what the
+  // client claims. [B4]
+  mimeType: z.enum(["application/pdf"]),
+  base64Data: z
+    .string()
+    .min(1)
+    .max(MAX_BASE64_LENGTH)
+    .regex(/^[A-Za-z0-9+/=\r\n]+$/, "base64Data must be valid base64"),
 });
+
+/** An error with an explicit HTTP status the top-level handler should honor. */
+class RequestError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number
+  ) {
+    super(message);
+    this.name = "RequestError";
+  }
+}
+
+// Hard cap on buffered request bytes — prevents unbounded memory growth from a
+// large or malicious body when Vercel's body parser is disabled. [B4]
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
 const AiSettingsPayloadSchema = z
   .object({
@@ -46,16 +74,25 @@ const LenderExtractPayloadSchema = z.object({
 });
 
 const LenderEnrichPayloadSchema = z.object({
-  lenderName: z.string().min(1),
-  missingFields: z.array(z.string()).min(1),
+  // lenderName is interpolated into a Google-Search-grounded prompt, so
+  // constrain it to a single line of reasonable length to limit
+  // prompt-injection / search-abuse surface. [ai-proxy]
+  lenderName: z
+    .string()
+    .min(1)
+    .max(120)
+    .regex(/^[^\n\r\t]+$/, "lenderName must be a single line"),
+  missingFields: z.array(z.string().min(1).max(60)).min(1).max(20),
 });
 
 const DealAnalysisPayloadSchema = z.object({
   vehicle: z.record(z.string(), z.unknown()),
   dealData: z.record(z.string(), z.unknown()),
   filters: z.record(z.string(), z.unknown()),
-  lenderProfiles: z.array(z.record(z.string(), z.unknown())).default([]),
-  inventory: z.array(z.record(z.string(), z.unknown())).default([]),
+  // Cap array sizes so a caller can't inflate the prompt (and provider token
+  // bill) with arbitrarily large payloads. [B4]
+  lenderProfiles: z.array(z.record(z.string(), z.unknown())).max(100).default([]),
+  inventory: z.array(z.record(z.string(), z.unknown())).max(500).default([]),
   aiSettings: AiSettingsPayloadSchema,
 });
 
@@ -64,8 +101,21 @@ type NextFunction = () => void;
 const readRequestBody = async (request: IncomingMessage): Promise<unknown> =>
   new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    request.on("data", (chunk: Buffer) => chunks.push(chunk));
+    let total = 0;
+    let aborted = false;
+    request.on("data", (chunk: Buffer) => {
+      if (aborted) return;
+      total += chunk.length;
+      if (total > MAX_BODY_BYTES) {
+        aborted = true;
+        reject(new RequestError("Request body too large.", 413));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
     request.on("end", () => {
+      if (aborted) return;
       const rawBody = Buffer.concat(chunks).toString("utf8");
       if (!rawBody) {
         resolve({});
@@ -75,7 +125,7 @@ const readRequestBody = async (request: IncomingMessage): Promise<unknown> =>
       try {
         resolve(JSON.parse(rawBody) as unknown);
       } catch {
-        reject(new Error("Request body must be valid JSON."));
+        reject(new RequestError("Request body must be valid JSON.", 400));
       }
     });
     request.on("error", reject);
@@ -107,12 +157,22 @@ const sendError = (
   response: ServerResponse,
   statusCode: number,
   error: unknown,
-  meta?: { provider?: string; model?: string; warning?: string }
+  meta?: { provider?: string; model?: string; warning?: string },
+  correlationId?: string
 ): void => {
-  const message = error instanceof Error ? error.message : String(error);
+  // Never leak internal/provider error detail to the client on a 5xx — it aids
+  // reconnaissance. Return a generic message + a correlation id that ties back
+  // to the server log. Specific text is preserved only for validated 4xx. [B9]
+  const message =
+    statusCode >= 500
+      ? "AI request failed. Please try again."
+      : error instanceof Error
+        ? error.message
+        : String(error);
   sendJson(response, statusCode, {
     ok: false,
     error: message,
+    ...(correlationId ? { correlationId } : {}),
     meta,
   });
 };
@@ -154,10 +214,7 @@ const resolveAndCall = async (
   };
 };
 
-const handleModels = async (
-  _request: IncomingMessage,
-  response: ServerResponse
-): Promise<void> => {
+const handleModels = async (_request: IncomingMessage, response: ServerResponse): Promise<void> => {
   const keys = await resolveProviderKeys();
   const registry = buildAiModelRegistryResponse(getConfiguredProviders(keys));
   const hasConfiguredProvider = registry.providers.some((provider) => provider.configured);
@@ -267,20 +324,18 @@ const testProviderKey = async (
     }
     return;
   }
-  // gemini
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
-  );
+  // gemini — pass the key via header, not the URL query string, so it never
+  // lands in intermediary/proxy access logs. [ai-proxy]
+  const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+    headers: { "x-goog-api-key": apiKey },
+  });
   if (!resp.ok) {
     const body = (await resp.json().catch(() => ({}))) as { error?: { message?: string } };
     throw new Error(body.error?.message ?? `Gemini returned HTTP ${resp.status}`);
   }
 };
 
-const handleTestKey = async (
-  request: IncomingMessage,
-  response: ServerResponse
-): Promise<void> => {
+const handleTestKey = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
   const body = TestKeyPayloadSchema.parse(await readRequestBody(request));
   const keys = await resolveProviderKeys();
   const apiKey = keys[body.provider];
@@ -364,7 +419,21 @@ export const handleAiRequest = async (
       }
       throw e;
     }
-    void auth; // reserved for per-dealer rate limiting / audit context
+
+    // Entitlement: metered routes must be attributable to a dealership.
+    // Superadmins (who may have no dealer) are exempt. [ai-proxy authz]
+    if (auth.role !== "superadmin" && !auth.dealerId) {
+      sendError(response, 403, "Your account is not associated with a dealership.");
+      return;
+    }
+
+    // Rate limit per user (and per dealer) before spending the owner's keys. [B3]
+    const limit = enforceAiRateLimit(auth);
+    if (!limit.ok) {
+      response.setHeader("Retry-After", String(limit.retryAfterSec));
+      sendError(response, 429, `Rate limit exceeded. Try again in ${limit.retryAfterSec}s.`);
+      return;
+    }
 
     if (method === "POST" && url.startsWith("/api/ai/test-key")) {
       await handleTestKey(request, response);
@@ -388,7 +457,18 @@ export const handleAiRequest = async (
 
     sendError(response, 404, "AI route not found.");
   } catch (error) {
-    const statusCode = error instanceof z.ZodError ? 400 : 500;
-    sendError(response, statusCode, error);
+    if (error instanceof z.ZodError) {
+      sendError(response, 400, "Request validation failed.");
+      return;
+    }
+    if (error instanceof RequestError) {
+      sendError(response, error.statusCode, error);
+      return;
+    }
+    // Unexpected 5xx: log the real error with a correlation id server-side, but
+    // return only the generic masked message + id to the client. [B9]
+    const correlationId = randomUUID();
+    console.error(`[ai-proxy] error ${correlationId}:`, error);
+    sendError(response, 500, error, undefined, correlationId);
   }
 };

@@ -32,7 +32,7 @@ const TierField = ({
   className?: string;
 }) => (
   <div className={className}>
-    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1">
       {label}
     </label>
     {children}
@@ -187,8 +187,8 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* General Settings - Premium Card */}
-        <div className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-          <div className="px-5 py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
+        <div className="bg-[var(--color-bg)] rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+          <div className="px-5 py-4 bg-[var(--color-primary)]">
             <h4 className="flex items-center gap-2 text-sm font-bold text-white">
               <Icons.BuildingLibraryIcon className="w-5 h-5" />
               Lender Settings
@@ -253,7 +253,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
           <div className="flex items-center justify-between mb-4">
             <div>
               <h4 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
-                <Icons.ListIcon className="w-5 h-5 text-indigo-500" />
+                <Icons.ListIcon className="w-5 h-5 text-[var(--color-primary)]" />
                 Credit Tiers
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -286,12 +286,12 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
                         index === 0
-                          ? "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white"
+                          ? "bg-[var(--color-success)] text-white"
                           : index === 1
-                            ? "bg-gradient-to-br from-blue-400 to-blue-600 text-white"
+                            ? "bg-[var(--color-primary)] text-white"
                             : index === 2
-                              ? "bg-gradient-to-br from-purple-400 to-purple-600 text-white"
-                              : "bg-gradient-to-br from-slate-400 to-slate-600 text-white"
+                              ? "bg-[var(--color-accent)] text-white"
+                              : "bg-[var(--color-accent)] text-white"
                       }`}
                     >
                       {index + 1}
@@ -432,9 +432,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
                     {/* Advanced Options Row */}
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                        Advanced Options
-                      </p>
+                      <p className="text-[10px] font-bold text-slate-400 mb-2">Advanced Options</p>
                       <div className="grid grid-cols-4 gap-3">
                         <TierField label="Buy Rate %">
                           <Input
