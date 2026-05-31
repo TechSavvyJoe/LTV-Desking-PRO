@@ -1190,9 +1190,8 @@ const App: React.FC = () => {
       return <OwnerLogin onSuccess={() => setIsAuth(true)} />;
     }
     if (!isSuperAdmin) {
-      logout();
-      navigate("/", { replace: true });
-      return null;
+      // Redirect handled by the effect above; render a neutral spinner meanwhile.
+      return PageFallback;
     }
     return (
       <Suspense fallback={PageFallback}>
@@ -1225,9 +1224,9 @@ const App: React.FC = () => {
   }
 
   // Superadmin on / without an active impersonation defaults to /admin
+  // (navigation performed by the redirect effect above).
   if (isSuperAdmin && viewMode === "auto" && !getSuperadminDealerOverride()) {
-    navigate("/admin", { replace: true });
-    return null;
+    return PageFallback;
   }
 
   if (isDealerAdmin && viewMode === "auto") {
