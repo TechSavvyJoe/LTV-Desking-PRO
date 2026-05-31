@@ -303,7 +303,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const navItems = NAV_ITEMS;
 
   return (
-    <div className="glass-panel flex min-h-[600px] rounded-lg overflow-hidden shadow-sm">
+    <div className="flex min-h-[600px] rounded-lg overflow-hidden shadow-sm bg-[var(--color-bg)] border border-[var(--color-border)]">
       {/* Sidebar */}
       <div className="w-64 bg-[var(--color-bg-subtle)] border-r border-[var(--color-border)] flex flex-col">
         <div className="p-4 border-b border-[var(--color-border)]">

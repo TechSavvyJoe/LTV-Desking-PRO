@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from "react";
+import React, { useState, useRef, useMemo, useEffect, lazy, Suspense } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { isAuthenticated, onAuthStateChange, logout, getCurrentUser } from "./lib/auth";
 import {
@@ -25,7 +25,6 @@ import InventoryTable from "./components/InventoryTable";
 import LenderProfiles from "./components/LenderProfiles";
 import SavedDeals from "./components/SavedDeals";
 import SettingsModal from "./components/SettingsModal";
-import FinanceTools from "./components/FinanceTools";
 import ActionBar from "./components/ActionBar";
 import { Toast } from "./components/common/Toast";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
@@ -41,10 +40,26 @@ import AiLenderManagerModal from "./components/AiLenderManagerModal";
 import BackgroundUploadIndicator from "./components/BackgroundUploadIndicator";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
-import PrivacyPolicy from "./components/legal/PrivacyPolicy";
-import TermsOfService from "./components/legal/TermsOfService";
-import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
-import { DealerAdminDashboard } from "./components/admin/DealerAdminDashboard";
+// Code-split the heavy, conditionally-rendered surfaces so a salesperson on the
+// default route never downloads the admin dashboards (~3,200 lines), the legal
+// pages, or recharts (via FinanceTools) on first paint. [perf]
+const PrivacyPolicy = lazy(() => import("./components/legal/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./components/legal/TermsOfService"));
+const FinanceTools = lazy(() => import("./components/FinanceTools"));
+const SuperAdminDashboard = lazy(() =>
+  import("./components/admin/SuperAdminDashboard").then((m) => ({ default: m.SuperAdminDashboard }))
+);
+const DealerAdminDashboard = lazy(() =>
+  import("./components/admin/DealerAdminDashboard").then((m) => ({
+    default: m.DealerAdminDashboard,
+  }))
+);
+
+const PageFallback = (
+  <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
+    <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+  </div>
+);
 import { toast } from "./lib/toast";
 import { confirmAction } from "./lib/confirm";
 import { mapPocketBaseSavedDeal } from "./lib/dealMappers";
@@ -119,11 +134,8 @@ const MainLayout: React.FC = () => {
   // Bridge the message state to the global toast system
   useEffect(() => {
     if (message) {
-      if (message.type === "success") {
-        toast.success(message.text);
-      } else {
-        toast.error(message.text);
-      }
+      // Map all four message types so warnings/info aren't downgraded to errors.
+      toast[message.type](message.text);
       // Clear after dispatching so the same message can be set again
       setMessage(null);
     }
@@ -174,6 +186,13 @@ const MainLayout: React.FC = () => {
   const favoriteVins = useMemo(() => {
     return new Set(safeFavorites.map((v) => v.vin));
   }, [safeFavorites]);
+
+  // Compute favorites' financials once per render instead of inline (twice) in
+  // JSX, which re-ran the full calc on every MainLayout render. [perf]
+  const calculatedFavorites = useMemo(
+    () => safeFavorites.map((item) => calculateFinancials(item, dealData, settings)),
+    [safeFavorites, dealData, settings]
+  );
 
   // PDF and share handlers for expanded rows
   const isShareSupported = typeof navigator !== "undefined" && "share" in navigator;
@@ -609,6 +628,7 @@ const MainLayout: React.FC = () => {
                 className="hidden"
                 ref={fileInputRef}
                 title="Upload inventory file"
+                aria-label="Upload inventory CSV or Excel file"
               />
               <Button
                 onClick={() => fileInputRef.current?.click()}
@@ -698,6 +718,7 @@ const MainLayout: React.FC = () => {
                   type="text"
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
                   placeholder="Enter VIN..."
+                  aria-label="Enter VIN to decode"
                   maxLength={17}
                   value={vinLookup}
                   onChange={(e) => setVinLookup(e.target.value.toUpperCase())}
@@ -743,7 +764,11 @@ const MainLayout: React.FC = () => {
 
           {/* Navigation Tabs */}
           <div className="sticky top-[88px] z-20 xl:static bg-transparent">
-            <nav className="flex items-center gap-2 p-1.5 bg-[var(--color-bg-subtle)] rounded-lg overflow-x-auto border border-[var(--color-border)] shadow-sm">
+            <nav
+              role="tablist"
+              aria-label="Dealer workspace sections"
+              className="flex items-center gap-2 p-1.5 bg-[var(--color-bg-subtle)] rounded-lg overflow-x-auto border border-[var(--color-border)] shadow-sm"
+            >
               <TabButton
                 active={activeTab === "inventory"}
                 onClick={() => handleTabChange("inventory")}
@@ -799,9 +824,7 @@ const MainLayout: React.FC = () => {
                         </div>
                         <div className="p-2">
                           <InventoryTable
-                            data={safeFavorites.map((item) =>
-                              calculateFinancials(item, dealData, settings)
-                            )}
+                            data={calculatedFavorites}
                             sortConfig={favSort}
                             onSort={(key) =>
                               setFavSort((prev) => ({
@@ -811,14 +834,7 @@ const MainLayout: React.FC = () => {
                               }))
                             }
                             expandedRows={expandedFavoriteRows}
-                            onRowClick={(vin) =>
-                              handleFavoriteRowSelect(
-                                vin,
-                                safeFavorites.map((item) =>
-                                  calculateFinancials(item, dealData, settings)
-                                )
-                              )
-                            }
+                            onRowClick={(vin) => handleFavoriteRowSelect(vin, calculatedFavorites)}
                             onStructureDeal={handleSelectVehicle}
                             favoriteVins={favoriteVins}
                             toggleFavorite={toggleFavorite}
@@ -971,12 +987,14 @@ const MainLayout: React.FC = () => {
                 )}
 
                 {activeTab === "scratchpad" && (
-                  <FinanceTools
-                    scratchPadNotes={scratchPadNotes}
-                    setScratchPadNotes={setScratchPadNotes}
-                    dealData={dealData}
-                    activeVehicle={activeVehicle}
-                  />
+                  <Suspense fallback={<DataLoading label="Loading tools…" />}>
+                    <FinanceTools
+                      scratchPadNotes={scratchPadNotes}
+                      setScratchPadNotes={setScratchPadNotes}
+                      dealData={dealData}
+                      activeVehicle={activeVehicle}
+                    />
+                  </Suspense>
                 )}
               </>
             )}
@@ -1154,10 +1172,10 @@ const App: React.FC = () => {
 
   // === LEGAL ROUTES (public, no auth required) ===
   if (isPrivacyRoute) {
-    return <PrivacyPolicy />;
+    return <Suspense fallback={PageFallback}>{<PrivacyPolicy />}</Suspense>;
   }
   if (isTermsRoute) {
-    return <TermsOfService />;
+    return <Suspense fallback={PageFallback}>{<TermsOfService />}</Suspense>;
   }
 
   // === OWNER (/admin) ROUTE ===
@@ -1171,17 +1189,19 @@ const App: React.FC = () => {
       return null;
     }
     return (
-      <SuperAdminDashboard
-        onSwitchToDealer={() => {
-          setViewMode("dealer");
-          navigate("/");
-        }}
-        onImpersonate={(dealerId) => {
-          setSuperadminDealerOverride(dealerId);
-          setViewMode("dealer");
-          navigate("/");
-        }}
-      />
+      <Suspense fallback={PageFallback}>
+        <SuperAdminDashboard
+          onSwitchToDealer={() => {
+            setViewMode("dealer");
+            navigate("/");
+          }}
+          onImpersonate={(dealerId) => {
+            setSuperadminDealerOverride(dealerId);
+            setViewMode("dealer");
+            navigate("/");
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -1205,7 +1225,11 @@ const App: React.FC = () => {
   }
 
   if (isDealerAdmin && viewMode === "auto") {
-    return <DealerAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />;
+    return (
+      <Suspense fallback={PageFallback}>
+        <DealerAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />
+      </Suspense>
+    );
   }
 
   const handleExitImpersonation = () => {

@@ -7,6 +7,7 @@ export const Toast: React.FC = () => {
   const [message, setMessage] = useState("");
   const [type, setType] = useState<"success" | "error" | "warning" | "info">("info");
   const [progress, setProgress] = useState(100);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     return subscribe((msg, t) => {
@@ -14,13 +15,18 @@ export const Toast: React.FC = () => {
       setType(t);
       setIsVisible(true);
       setProgress(100);
+      setIsPaused(false);
     });
   }, []);
 
-  useEffect(() => {
-    if (!isVisible) return;
+  // Errors and warnings persist until dismissed; success/info auto-dismiss after
+  // a comfortable window and pause while the user hovers/focuses the toast. [a11y]
+  const persistent = type === "error" || type === "warning";
 
-    const duration = 3000;
+  useEffect(() => {
+    if (!isVisible || persistent || isPaused) return;
+
+    const duration = 5500;
     const interval = 60;
     const steps = duration / interval;
     const decrement = 100 / steps;
@@ -37,7 +43,7 @@ export const Toast: React.FC = () => {
       clearInterval(progressInterval);
       clearTimeout(timer);
     };
-  }, [isVisible, message]); // Reset timer when message changes
+  }, [isVisible, message, persistent, isPaused]); // Reset timer when message changes
 
   if (!isVisible) return null;
 
@@ -75,6 +81,10 @@ export const Toast: React.FC = () => {
       role={role}
       aria-live={ariaLive}
       aria-atomic="true"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocus={() => setIsPaused(true)}
+      onBlur={() => setIsPaused(false)}
     >
       <div
         className={`
@@ -83,10 +93,12 @@ export const Toast: React.FC = () => {
           ${variantStyles[type]}
         `}
       >
-        <div
-          className="absolute bottom-0 left-0 h-1 bg-white/30 transition-all duration-75 ease-linear"
-          style={{ width: `${progress}%` }}
-        />
+        {!persistent && (
+          <div
+            className="absolute bottom-0 left-0 h-1 bg-white/30 transition-all duration-75 ease-linear"
+            style={{ width: `${progress}%` }}
+          />
+        )}
 
         <div className="flex-shrink-0 w-6 h-6" aria-hidden="true">
           {getIcon()}

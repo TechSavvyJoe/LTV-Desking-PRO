@@ -1,21 +1,31 @@
-import * as Sentry from "@sentry/react";
-
 /**
- * Sentry frontend error tracking.
+ * Sentry frontend error tracking — lazily loaded.
  *
- * Initialises only when VITE_SENTRY_DSN is set, so local dev and PR previews
- * stay silent unless the developer wants them captured. Set the DSN as a
- * Vercel Project Environment Variable for Production.
+ * The @sentry/react SDK (with tracing + replay) is one of the heaviest deps in
+ * the tree. It is dynamically imported only when VITE_SENTRY_DSN is set, so it
+ * never ships in the main bundle for local dev, PR previews, or any deploy
+ * without a DSN configured. [perf]
  *
  * Free tier (Developer): 5K events/mo, 30-day retention.
- * Team plan ($26/mo): 50K events/mo, unlimited users.
  */
-export const initSentry = (): void => {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
-  if (!dsn) return;
 
+type SentryModule = typeof import("@sentry/react");
+
+let sentryPromise: Promise<SentryModule> | null = null;
+let initialized = false;
+
+const dsn = (): string | undefined => import.meta.env.VITE_SENTRY_DSN;
+
+const loadSentry = (): Promise<SentryModule> => {
+  if (!sentryPromise) sentryPromise = import("@sentry/react");
+  return sentryPromise;
+};
+
+export const initSentry = async (): Promise<void> => {
+  if (!dsn()) return; // not configured — never download the SDK
+  const Sentry = await loadSentry();
   Sentry.init({
-    dsn,
+    dsn: dsn(),
     environment: import.meta.env.MODE,
     release: import.meta.env.VITE_RELEASE,
     integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
@@ -24,6 +34,22 @@ export const initSentry = (): void => {
     replaysOnErrorSampleRate: 1.0,
     sendDefaultPii: false,
   });
+  initialized = true;
 };
 
-export { Sentry };
+/**
+ * Report an exception to Sentry when it's configured. No-ops (without loading
+ * the SDK) when there's no DSN, so unconfigured builds pay nothing.
+ */
+export const captureException = async (
+  error: unknown,
+  context?: Record<string, unknown>
+): Promise<void> => {
+  if (!dsn()) return;
+  const Sentry = await loadSentry();
+  if (!initialized) {
+    // An error fired before init completed — bring Sentry up so it isn't lost.
+    await initSentry();
+  }
+  Sentry.captureException(error, context as Parameters<SentryModule["captureException"]>[1]);
+};

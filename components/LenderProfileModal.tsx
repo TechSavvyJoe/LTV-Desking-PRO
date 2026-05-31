@@ -113,12 +113,18 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     }));
   };
 
-  const handleTierChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTierChange = (
+    index: number,
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
     const tiers = [...(formData.tiers || [])];
-    if (tiers[index]) {
-      (tiers[index] as any)[name] =
-        type === "number" ? (value === "" ? undefined : Number(value)) : value;
+    const tier = tiers[index];
+    if (tier) {
+      // Narrow `name` to a real LenderTier key instead of writing through `any`. [B12]
+      const key = name as keyof LenderTier;
+      const parsed = type === "number" ? (value === "" ? undefined : Number(value)) : value;
+      tiers[index] = { ...tier, [key]: parsed } as LenderTier;
     }
     setFormData((prev) => ({ ...prev, tiers }));
   };
@@ -300,7 +306,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                       <input
                         type="text"
                         value={tier.name}
-                        onChange={(e) => handleTierChange(index, e as any)}
+                        onChange={(e) => handleTierChange(index, e)}
                         name="name"
                         className="w-full font-semibold text-slate-900 dark:text-white bg-transparent border-none p-0 focus:ring-0 focus:outline-none truncate"
                         onClick={(e) => e.stopPropagation()}
@@ -470,7 +476,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                           <select
                             name="vehicleType"
                             value={tier.vehicleType || ""}
-                            onChange={(e) => handleTierChange(index, e as any)}
+                            onChange={(e) => handleTierChange(index, e)}
                             className="w-full h-9 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           >
                             <option value="">Any</option>

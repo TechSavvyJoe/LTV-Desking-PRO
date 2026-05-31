@@ -7,7 +7,7 @@ import { initSentry } from "./lib/sentry";
 import App from "./App";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
-initSentry();
+void initSentry();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

@@ -110,12 +110,10 @@ const DealControls: React.FC<DealControlsProps> = ({
 
   return (
     <div className="border-b border-slate-200 dark:border-gray-700 py-4 grid grid-cols-1 2xl:grid-cols-2 gap-6">
-      <div className="border border-slate-200 dark:border-gray-700 rounded-lg p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
-        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-primary)] text-white text-sm font-semibold">
-            1
-          </span>
-          Customer & Deal Info
+      <div className="border border-[var(--color-border)] rounded-md p-5 space-y-2 bg-[var(--color-bg)] shadow-sm">
+        <h3 className="text-lg font-semibold mb-2 text-[var(--color-text)]">
+          <span className="text-[var(--color-text-subtle)] mr-2 tabular-nums">1.</span>
+          Customer &amp; Deal Info
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-4 gap-4">
           <InputGroup label="Customer Name" htmlFor="customerName" className="lg:col-span-1">
@@ -246,11 +244,9 @@ const DealControls: React.FC<DealControlsProps> = ({
         </div>
       </div>
 
-      <div className="border border-slate-200 dark:border-gray-700 rounded-lg p-5 space-y-2 bg-white/90 dark:bg-slate-900/60 shadow-lg">
-        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-primary)] text-white text-sm font-semibold">
-            2
-          </span>
+      <div className="border border-[var(--color-border)] rounded-md p-5 space-y-2 bg-[var(--color-bg)] shadow-sm">
+        <h3 className="text-lg font-semibold mb-2 text-[var(--color-text)]">
+          <span className="text-[var(--color-text-subtle)] mr-2 tabular-nums">2.</span>
           Global Deal Structure
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 2xl:grid-cols-4 gap-4">

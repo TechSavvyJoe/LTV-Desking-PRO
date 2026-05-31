@@ -1277,7 +1277,7 @@ html {
   scroll-behavior: smooth;
 }
 
-@media (prefers-reduced-motion: prefer-reduced-motion) {
+@media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
@@ -1524,18 +1524,13 @@ html {
   color: #64748b !important;
 }
 
-/* Light mode section headers - uppercase labels */
-:root:not(.dark) .uppercase,
-:root:not(.dark) [class*="tracking-"] {
-  color: #475569 !important; /* slate-600 */
-}
+/* Removed: a leftover from the old aesthetic that forced every `.uppercase`
+   and `[class*="tracking-"]` element to slate-600 !important — it overrode the
+   redesign's `tracking-tight` headings (including the header wordmark) and the
+   intended token colors. The redesigned components set their own colors. */
 
-/* Glassmorphism adjustment for light mode - reduce transparency */
-:root:not(.dark) .glass-panel,
-:root:not(.dark) .glass-card {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(8px) !important;
-}
+/* Removed: light-mode glassmorphism override that re-asserted backdrop blur on
+   .glass-panel / .glass-card with !important — banned on functional surfaces. */
 
 /* Light mode stat cards */
 :root:not(.dark) [class*="stat"],

@@ -12,6 +12,11 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
   return (
     <button
       onClick={onClick}
+      role="tab"
+      aria-selected={active}
+      // The label is visually hidden on small screens, so always expose it as
+      // the button's accessible name. [a11y]
+      aria-label={label}
       className={`
         group relative px-5 py-2 text-sm font-medium rounded
         transition-colors duration-[120ms]
@@ -21,7 +26,6 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
             : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-muted)]"
         }
       `}
-      aria-current={active ? "page" : undefined}
     >
       {/* Active indicator bar with smooth slide animation */}
       <span

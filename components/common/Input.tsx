@@ -55,6 +55,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           disabled={disabled}
+          // Announce the invalid state to assistive tech. Callers can still pass
+          // aria-invalid/aria-describedby explicitly to override. [a11y]
+          aria-invalid={error || undefined}
           className={`
             ${baseClasses}
             ${stateClasses}
