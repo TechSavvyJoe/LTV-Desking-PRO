@@ -1168,6 +1168,39 @@ const App: React.FC = () => {
     return () => window.removeEventListener("dealerOverrideChanged", handler);
   }, []);
 
+  // Perform route redirects in an effect, not during render — calling navigate()
+  // (a router state update) mid-render triggers React's "Cannot update a component
+  // while rendering a different component" warning. The render branches below
+  // return a neutral spinner (PageFallback) while these redirects settle.
+  useEffect(() => {
+    if (isLoading) return;
+    if (isAdminRoute && isAuth && !isSuperAdmin) {
+      // A non-superadmin hit /admin — drop them to the dealer app.
+      logout();
+      navigate("/", { replace: true });
+    } else if (
+      !isPrivacyRoute &&
+      !isTermsRoute &&
+      !isAdminRoute &&
+      isAuth &&
+      isSuperAdmin &&
+      viewMode === "auto" &&
+      !getSuperadminDealerOverride()
+    ) {
+      // Superadmin on / without an active impersonation defaults to /admin.
+      navigate("/admin", { replace: true });
+    }
+  }, [
+    isLoading,
+    isAdminRoute,
+    isPrivacyRoute,
+    isTermsRoute,
+    isAuth,
+    isSuperAdmin,
+    viewMode,
+    navigate,
+  ]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
