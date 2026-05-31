@@ -23,61 +23,56 @@ const Button: React.FC<ButtonProps> = ({
 }) => {
   const isDisabled = disabled || isLoading;
 
+  // Dealer Trust: solid fills, neutral borders, color-only hover. No gradients,
+  // no colored shadow glows, no lift/scale transforms. The prop API is unchanged.
   const baseClasses = `
-    relative inline-flex items-center justify-center font-semibold
-    transition-all duration-200 ease-out
-    focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+    relative inline-flex items-center justify-center font-medium
+    rounded transition-colors duration-[120ms]
+    focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2
     disabled:cursor-not-allowed
-    active:scale-[0.98]
   `;
 
   const variantClasses = {
     primary: `
-      bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600
-      text-white shadow-md shadow-blue-500/20
-      hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5
-      focus-visible:ring-blue-400 focus-visible:ring-offset-0
-      disabled:opacity-60 disabled:shadow-none disabled:translate-y-0
-      before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-b before:from-white/15 before:to-transparent
+      bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]
+      text-white border border-transparent
+      focus-visible:outline-[var(--color-primary)]
+      disabled:opacity-50
     `,
     secondary: `
-      bg-white/90 dark:bg-slate-800/90 
-      border border-slate-200 dark:border-slate-700
-      text-slate-700 dark:text-slate-200
-      shadow-sm
-      hover:bg-slate-50 dark:hover:bg-slate-700/90 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md
-      focus-visible:ring-blue-400
-      disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800
+      bg-white dark:bg-[var(--color-bg-subtle)]
+      hover:bg-[var(--color-bg-muted)]
+      text-[var(--color-text)]
+      border border-[var(--color-border-strong)]
+      focus-visible:outline-[var(--color-primary)]
+      disabled:opacity-50
     `,
     danger: `
-      bg-gradient-to-br from-red-500 to-rose-600
-      text-white shadow-md shadow-red-500/20
-      hover:shadow-lg hover:shadow-red-500/30 hover:-translate-y-0.5
-      focus-visible:ring-red-400
-      disabled:opacity-60 disabled:shadow-none disabled:translate-y-0
+      bg-[var(--color-danger)] hover:bg-red-800
+      text-white border border-transparent
+      focus-visible:outline-[var(--color-danger)]
+      disabled:opacity-50
     `,
     ghost: `
-      bg-transparent
-      text-slate-600 dark:text-slate-400
-      hover:text-slate-900 dark:hover:text-white
-      hover:bg-slate-100/80 dark:hover:bg-white/10
-      focus-visible:ring-slate-400
+      bg-transparent hover:bg-[var(--color-bg-muted)]
+      text-[var(--color-text-muted)] hover:text-[var(--color-text)]
+      border border-transparent
+      focus-visible:outline-[var(--color-primary)]
       disabled:opacity-50
     `,
     success: `
-      bg-gradient-to-br from-emerald-500 to-green-600
-      text-white shadow-md shadow-emerald-500/20
-      hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5
-      focus-visible:ring-emerald-400
-      disabled:opacity-60 disabled:shadow-none disabled:translate-y-0
+      bg-[var(--color-success)] hover:bg-green-800
+      text-white border border-transparent
+      focus-visible:outline-[var(--color-success)]
+      disabled:opacity-50
     `,
   };
 
   const sizeClasses = {
-    sm: "px-3.5 py-2 text-xs rounded-lg gap-1.5",
-    md: "px-5 py-2.5 text-sm rounded-xl gap-2",
-    lg: "px-7 py-3.5 text-base rounded-xl gap-2.5",
-    icon: "p-2.5 rounded-xl",
+    sm: "px-3 py-1.5 text-xs gap-1.5",
+    md: "px-4 py-2 text-sm gap-2",
+    lg: "px-5 py-2.5 text-base gap-2.5",
+    icon: "p-2",
   };
 
   // Warn in development if icon button has no aria-label

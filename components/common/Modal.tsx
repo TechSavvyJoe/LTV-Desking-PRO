@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "./Icons";
+import { useFocusTrap, useRestoreFocus, useKeyboardShortcuts } from "../../hooks/useKeyboard";
 
 interface ModalProps {
   isOpen: boolean;
@@ -24,6 +25,13 @@ const Modal: React.FC<ModalProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const scrollPositionRef = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Accessibility: trap focus inside the dialog, restore it to the trigger on
+  // close, and close on Escape. The hooks existed but were wired to nothing. [a11y]
+  useFocusTrap(panelRef as React.RefObject<HTMLElement>, isOpen);
+  useRestoreFocus(isOpen);
+  useKeyboardShortcuts({ escape: () => onClose() }, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -75,8 +83,8 @@ const Modal: React.FC<ModalProps> = ({
       {/* Backdrop */}
       <div
         className={`
-          fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm
-          transition-opacity duration-300 ease-out
+          fixed inset-0 bg-slate-950/60
+          transition-opacity duration-200 ease-out
           ${isAnimating ? "opacity-100" : "opacity-0"}
         `}
         onClick={onClose}
@@ -87,15 +95,16 @@ const Modal: React.FC<ModalProps> = ({
       <div
         className={`
           relative w-full ${sizeClasses[size]}
-          bg-white dark:bg-slate-900
-          border border-slate-200 dark:border-slate-800
-          rounded-2xl shadow-2xl shadow-slate-900/20
-          transform transition-all duration-300 cubic-bezier(0.16, 1, 0.3, 1)
+          bg-[var(--color-bg)]
+          border border-[var(--color-border)]
+          rounded-lg shadow-md
+          transform transition-all duration-200 ease-out
           flex flex-col max-h-[calc(100vh-3rem)]
           ${
             isAnimating ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
           }
         `}
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
@@ -119,7 +128,7 @@ const Modal: React.FC<ModalProps> = ({
               -mr-2 p-2
               text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300
               hover:bg-slate-100 dark:hover:bg-slate-800
-              rounded-xl transition-colors
+              rounded transition-colors
             "
             aria-label="Close modal"
           >
@@ -132,7 +141,7 @@ const Modal: React.FC<ModalProps> = ({
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-2xl flex-shrink-0">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-lg flex-shrink-0">
             {footer}
           </div>
         )}

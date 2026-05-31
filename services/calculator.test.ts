@@ -139,5 +139,81 @@ describe("Calculator Service", () => {
         expect(result.frontEndLtv).toBeCloseTo(115.3, 1);
       }
     });
+
+    // --- Regression: silent-wrong-number paths (B5/B6/B7) ---
+
+    it("treats a blank APR as unset (N/A payment), not a free 0% loan [B6]", () => {
+      const blankRate = { ...mockDealData, interestRate: "" as unknown as number };
+      const result = calculateFinancials(mockVehicle, blankRate, mockSettings);
+      expect(result.monthlyPayment).toBe("N/A");
+    });
+
+    it("still honors an explicit 0% promotional APR as a real payment [B6]", () => {
+      const promo = { ...mockDealData, interestRate: 0 };
+      const result = calculateFinancials(mockVehicle, promo, mockSettings);
+      expect(result.monthlyPayment).not.toBe("N/A");
+      expect(result.monthlyPayment).not.toBe("Error");
+      // 0% => OTD / term, financed amount spread evenly.
+      if (typeof result.monthlyPayment === "number" && typeof result.amountToFinance === "number") {
+        expect(result.monthlyPayment).toBeCloseTo(result.amountToFinance / 60, 2);
+      }
+    });
+
+    it("rounds OTD, amount-to-finance, and payment to whole cents [B7]", () => {
+      const result = calculateFinancials(mockVehicle, mockDealData, mockSettings);
+      for (const v of [result.baseOutTheDoorPrice, result.amountToFinance, result.monthlyPayment]) {
+        if (typeof v === "number") {
+          const cents = v * 100;
+          expect(Math.abs(cents - Math.round(cents))).toBeLessThan(1e-6);
+        }
+      }
+    });
+
+    it("applies the out-of-state transit fee even when a custom tax rate is set [B5]", () => {
+      const settingsCustomOOS: Settings = {
+        ...mockSettings,
+        defaultState: "OH",
+        outOfStateTransitFee: 10,
+        customTaxRate: 6.0,
+      };
+      const deal = { ...mockDealData, stateFees: 0 };
+      const result = calculateFinancials(mockVehicle, deal, settingsCustomOOS);
+      // taxable = 30000 + 250 + 25 = 30275; custom 6% => 1816.5; + transit fee 10.
+      // OTD = 30000 + 250 + 25 + 0 + 1816.5 + 10 = 32101.5
+      expect(result.baseOutTheDoorPrice).toBeCloseTo(32101.5, 2);
+    });
+
+    it("computes out-of-state (OH) tax at the reciprocal-capped rate + transit fee", () => {
+      const settingsOOS: Settings = {
+        ...mockSettings,
+        defaultState: "OH",
+        outOfStateTransitFee: 10,
+        customTaxRate: null,
+      };
+      const deal = { ...mockDealData, stateFees: 0 };
+      const result = calculateFinancials(mockVehicle, deal, settingsOOS);
+      // OH 5.75% < MI 6% => 5.75%. taxable 30275 * 0.0575 = 1740.8125 -> 1740.81
+      expect(result.salesTax).toBeCloseTo(1740.81, 2);
+      // OTD includes the transit fee.
+      expect(result.baseOutTheDoorPrice).toBeCloseTo(30000 + 250 + 25 + 1740.81 + 10, 2);
+    });
+
+    it("does not error when down payment exceeds price (negative amount to finance)", () => {
+      const deal = { ...mockDealData, downPayment: 50000 };
+      const result = calculateFinancials(mockVehicle, deal, mockSettings);
+      // Negative principal => no payment owed, must not be "Error".
+      expect(result.monthlyPayment).toBe(0);
+    });
+  });
+
+  describe("error-contract parity [B8]", () => {
+    it("calculateLoanAmount returns 'Error' for an invalid term, matching calculateMonthlyPayment", () => {
+      expect(calculateLoanAmount(500, 5, 0)).toBe("Error");
+      expect(calculateLoanAmount(500, -5, 60)).toBe("Error");
+    });
+
+    it("calculateLoanAmount returns 0 only for a genuine zero payment", () => {
+      expect(calculateLoanAmount(0, 5, 60)).toBe(0);
+    });
   });
 });

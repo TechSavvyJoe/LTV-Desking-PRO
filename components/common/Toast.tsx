@@ -7,6 +7,7 @@ export const Toast: React.FC = () => {
   const [message, setMessage] = useState("");
   const [type, setType] = useState<"success" | "error" | "warning" | "info">("info");
   const [progress, setProgress] = useState(100);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     return subscribe((msg, t) => {
@@ -14,13 +15,18 @@ export const Toast: React.FC = () => {
       setType(t);
       setIsVisible(true);
       setProgress(100);
+      setIsPaused(false);
     });
   }, []);
 
-  useEffect(() => {
-    if (!isVisible) return;
+  // Errors and warnings persist until dismissed; success/info auto-dismiss after
+  // a comfortable window and pause while the user hovers/focuses the toast. [a11y]
+  const persistent = type === "error" || type === "warning";
 
-    const duration = 3000;
+  useEffect(() => {
+    if (!isVisible || persistent || isPaused) return;
+
+    const duration = 5500;
     const interval = 60;
     const steps = duration / interval;
     const decrement = 100 / steps;
@@ -37,17 +43,19 @@ export const Toast: React.FC = () => {
       clearInterval(progressInterval);
       clearTimeout(timer);
     };
-  }, [isVisible, message]); // Reset timer when message changes
+  }, [isVisible, message, persistent, isPaused]); // Reset timer when message changes
 
   if (!isVisible) return null;
 
+  // Opaque status surfaces (no blur). Left border carries the status color.
   const variantStyles = {
     success:
-      "bg-emerald-500/20 text-emerald-800 border-emerald-500 dark:bg-emerald-500/30 dark:text-emerald-200",
-    error: "bg-red-500/20 text-red-800 border-red-500 dark:bg-red-500/30 dark:text-red-200",
+      "bg-[var(--color-success-subtle)] text-[var(--color-success)] border-[var(--color-success)]",
+    error:
+      "bg-[var(--color-danger-subtle)] text-[var(--color-danger)] border-[var(--color-danger)]",
     warning:
-      "bg-amber-500/20 text-amber-800 border-amber-500 dark:bg-amber-500/30 dark:text-amber-200",
-    info: "bg-blue-500/20 text-blue-800 border-blue-500 dark:bg-blue-500/30 dark:text-blue-200",
+      "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border-[var(--color-warning)]",
+    info: "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border-[var(--color-primary)]",
   };
 
   const getIcon = () => {
@@ -73,18 +81,24 @@ export const Toast: React.FC = () => {
       role={role}
       aria-live={ariaLive}
       aria-atomic="true"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocus={() => setIsPaused(true)}
+      onBlur={() => setIsPaused(false)}
     >
       <div
         className={`
-          flex items-start gap-3 p-4 rounded-2xl shadow-2xl backdrop-blur-lg
+          flex items-start gap-3 p-4 rounded-md shadow-md
           border-l-4 overflow-hidden relative
           ${variantStyles[type]}
         `}
       >
-        <div
-          className="absolute bottom-0 left-0 h-1 bg-white/30 transition-all duration-75 ease-linear"
-          style={{ width: `${progress}%` }}
-        />
+        {!persistent && (
+          <div
+            className="absolute bottom-0 left-0 h-1 bg-white/30 transition-all duration-75 ease-linear"
+            style={{ width: `${progress}%` }}
+          />
+        )}
 
         <div className="flex-shrink-0 w-6 h-6" aria-hidden="true">
           {getIcon()}

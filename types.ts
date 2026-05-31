@@ -125,7 +125,7 @@ export interface LenderProfile {
 
 export interface Message {
   text: string;
-  type: "success" | "error";
+  type: "success" | "error" | "warning" | "info";
 }
 
 export type ValidationErrors = Record<string, string>;

@@ -171,7 +171,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
         {/* Left Side: Inputs */}
         <div className="space-y-6">
           <section className="space-y-4">
-            <h4 className="border-b pb-2 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <h4 className="border-b pb-2 text-xs font-bold text-slate-400 dark:text-slate-500">
               Payments & Values
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -231,7 +231,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
           </section>
 
           <section className="space-y-4">
-            <h4 className="border-b pb-2 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <h4 className="border-b pb-2 text-xs font-bold text-slate-400 dark:text-slate-500">
               Loan Details
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -295,7 +295,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
 
         {/* Right Side: Summary */}
         <div className="lg:pl-8 lg:border-l border-slate-200 dark:border-slate-800">
-          <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 sticky top-4">
+          <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-lg border border-slate-200 dark:border-slate-700/50 sticky top-4">
             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
               <Icons.CalculatorIcon className="w-5 h-5 text-blue-500" />
               Deal Analysis
@@ -348,7 +348,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
               />
 
               <div className="my-6 space-y-3">
-                <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
+                <div className="p-4 bg-[var(--color-primary)] rounded-md text-white">
                   <div className="text-blue-100 text-sm font-medium mb-1">Monthly Payment</div>
                   <div className="flex justify-between items-end">
                     <div className="text-3xl font-bold">

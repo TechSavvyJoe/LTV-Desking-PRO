@@ -22,14 +22,14 @@ const InputGroup: React.FC<{ label: string; children: React.ReactNode; htmlFor?:
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:text-slate-200"
+    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] dark:text-slate-200"
   />
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
     {...props}
-    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:text-slate-200"
+    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] dark:text-slate-200"
   />
 );
 
@@ -90,11 +90,9 @@ const LoanCalculator: React.FC = () => {
           </StyledSelect>
         </InputGroup>
         <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
-          <div className="flex justify-between items-center p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-md">
-            <span className="font-bold text-lg text-indigo-700 dark:text-indigo-400">
-              Monthly Payment
-            </span>
-            <span className="font-bold text-lg text-indigo-700 dark:text-indigo-400">
+          <div className="flex justify-between items-center p-4 bg-[var(--color-primary-subtle)] rounded-md">
+            <span className="font-bold text-lg text-[var(--color-primary)]">Monthly Payment</span>
+            <span className="font-bold text-lg text-[var(--color-primary)]">
               {formatCurrency(monthlyPayment)}
             </span>
           </div>

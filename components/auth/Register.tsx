@@ -75,7 +75,7 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
 
   if (!signupsEnabled) {
     return (
-      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn text-center">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn text-center">
         <Icons.LockClosedIcon className="w-10 h-10 mx-auto text-slate-400" />
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Signups disabled</h2>
         <p className="text-slate-600 dark:text-slate-400 text-sm">
@@ -92,7 +92,7 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onLoginClick }) =
   }
 
   return (
-    <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn">
+    <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-800 animate-fadeIn">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Create Account</h2>
         <p className="mt-2 text-slate-600 dark:text-slate-400">Join your dealership team</p>

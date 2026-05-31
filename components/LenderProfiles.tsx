@@ -5,6 +5,7 @@ import LenderProfileModal from "./LenderProfileModal";
 import { generateLenderCheatSheetPdf } from "../services/pdfGenerator";
 import { processLenderSheet } from "../services/aiProcessor";
 import * as Icons from "./common/Icons";
+import { EmptyState } from "./common/states";
 import { saveLenderProfile, updateLenderProfile, deleteLenderProfile } from "../lib/api";
 import { toast } from "../lib/toast";
 import { confirmAction } from "../lib/confirm";
@@ -47,11 +48,11 @@ const TierDetail = ({
     <div
       className={`flex items-center justify-between py-2 px-3 rounded-lg transition-colors ${
         highlight
-          ? "bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800/50"
+          ? "bg-[var(--color-success-subtle)] border border-[var(--color-success)]"
           : "bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/60"
       }`}
     >
-      <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <span className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
         {icon}
         {label}
       </span>
@@ -71,7 +72,7 @@ const TierDetail = ({
 // Premium section header for tier cards
 const TierSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="space-y-2">
-    <h5 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-700 pb-1">
+    <h5 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-700 pb-1">
       {title}
     </h5>
     <div className="space-y-1.5">{children}</div>
@@ -368,11 +369,11 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
 
     return (
       <td colSpan={9} className="p-0">
-        <div className="bg-gradient-to-b from-slate-50 to-white dark:from-slate-900/80 dark:to-slate-900 p-6 border-t-2 border-blue-500">
+        <div className="bg-[var(--color-bg-subtle)] p-6 border-t-2 border-[var(--color-primary)]">
           {/* Lender Quick Stats Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <div className="w-12 h-12 rounded-md bg-[var(--color-primary)] flex items-center justify-center">
                 <Icons.BuildingLibraryIcon className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -408,10 +409,10 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
                 return (
                   <div
                     key={index}
-                    className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-300"
+                    className="group relative bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-300"
                   >
                     {/* Tier Header with gradient */}
-                    <div className="bg-gradient-to-r from-slate-800 to-slate-700 dark:from-slate-700 dark:to-slate-600 px-4 py-3">
+                    <div className="bg-slate-800 dark:bg-slate-700 px-4 py-3">
                       <div className="flex items-center justify-between">
                         <h5 className="font-bold text-white text-sm truncate flex-1">
                           {tier.name || `Tier ${index + 1}`}
@@ -728,89 +729,106 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
             </tr>
           </thead>
           <tbody>
-            {safeProfiles.map((profile) => (
-              <React.Fragment key={profile.id}>
-                <tr
-                  className="border-b border-slate-800 last:border-b-0 hover:bg-slate-900 cursor-pointer"
-                  onClick={() => toggleRowExpansion(profile.id)}
-                >
-                  <td className="p-3 font-medium text-white">{profile.name}</td>
-                  <td className="p-3">{getRange(profile.tiers, "minFico")}</td>
-                  <td className="p-3">
-                    {(() => {
-                      const range = getRange(profile.tiers, "maxLtv");
-                      return range === "N/A" ? (
-                        <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">
-                          --
-                        </span>
-                      ) : (
-                        <span className="text-green-600 dark:text-green-400 font-medium">
-                          {range}%
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="p-3">{getRange(profile.tiers, "minYear")}</td>
-                  <td className="p-3">{getRange(profile.tiers, "maxTerm")} mo</td>
-                  <td className="p-3">
-                    {(() => {
-                      const range = getRange(profile.tiers, "maxMileage");
-                      if (range === "N/A") return range;
-                      // Format mileage with commas for readability
-                      const parts = range.split(" - ");
-                      return parts.map((p) => parseInt(p).toLocaleString()).join(" - ");
-                    })()}
-                  </td>
-                  <td className="p-3">
-                    <span
-                      className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                        profile.bookValueSource === "Retail"
-                          ? "bg-blue-900/60 text-blue-200"
-                          : "bg-slate-800 text-slate-300"
-                      }`}
-                    >
-                      {profile.bookValueSource || "Trade"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 text-xs font-medium bg-purple-900/50 text-purple-300 rounded-full">
-                      {profile.tiers && Array.isArray(profile.tiers) ? profile.tiers.length : 0}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(profile);
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                        title="Edit Profile"
-                        aria-label="Edit Profile"
+            {safeProfiles.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="p-0">
+                  <EmptyState
+                    icon={<Icons.BuildingLibraryIcon className="w-full h-full" />}
+                    title="No lenders configured yet"
+                    description="Add a lender program manually, or upload a rate sheet PDF and we'll extract the tiers automatically."
+                    primaryAction={{ label: "Add New Lender", onClick: handleAddNew }}
+                    secondaryAction={{
+                      label: "Upload Rate Sheet",
+                      onClick: () => fileInputRef.current?.click(),
+                    }}
+                  />
+                </td>
+              </tr>
+            ) : (
+              safeProfiles.map((profile) => (
+                <React.Fragment key={profile.id}>
+                  <tr
+                    className="border-b border-slate-800 last:border-b-0 hover:bg-slate-900 cursor-pointer"
+                    onClick={() => toggleRowExpansion(profile.id)}
+                  >
+                    <td className="p-3 font-medium text-white">{profile.name}</td>
+                    <td className="p-3">{getRange(profile.tiers, "minFico")}</td>
+                    <td className="p-3">
+                      {(() => {
+                        const range = getRange(profile.tiers, "maxLtv");
+                        return range === "N/A" ? (
+                          <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">
+                            --
+                          </span>
+                        ) : (
+                          <span className="text-green-600 dark:text-green-400 font-medium">
+                            {range}%
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="p-3">{getRange(profile.tiers, "minYear")}</td>
+                    <td className="p-3">{getRange(profile.tiers, "maxTerm")} mo</td>
+                    <td className="p-3">
+                      {(() => {
+                        const range = getRange(profile.tiers, "maxMileage");
+                        if (range === "N/A") return range;
+                        // Format mileage with commas for readability
+                        const parts = range.split(" - ");
+                        return parts.map((p) => parseInt(p).toLocaleString()).join(" - ");
+                      })()}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                          profile.bookValueSource === "Retail"
+                            ? "bg-blue-900/60 text-blue-200"
+                            : "bg-slate-800 text-slate-300"
+                        }`}
                       >
-                        <Icons.PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(profile.id);
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                        title="Delete Profile"
-                        aria-label="Delete Profile"
-                      >
-                        <Icons.TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                {expandedRows.has(profile.id) && (
-                  <tr className="border-b border-slate-800">
-                    <ExpandedRow profile={profile} />
+                        {profile.bookValueSource || "Trade"}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <span className="px-2 py-0.5 text-xs font-medium bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] rounded-full">
+                        {profile.tiers && Array.isArray(profile.tiers) ? profile.tiers.length : 0}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(profile);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                          title="Edit Profile"
+                          aria-label="Edit Profile"
+                        >
+                          <Icons.PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(profile.id);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                          title="Delete Profile"
+                          aria-label="Delete Profile"
+                        >
+                          <Icons.TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
+                  {expandedRows.has(profile.id) && (
+                    <tr className="border-b border-slate-800">
+                      <ExpandedRow profile={profile} />
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))
+            )}
           </tbody>
         </table>
       </div>

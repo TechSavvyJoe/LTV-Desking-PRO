@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTV Desking PRO - Redesign Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            /* Surfaces */
+            --color-bg: #FFFFFF;
+            --color-bg-subtle: #F8FAFC;
+            --color-bg-muted: #F1F5F9;
+            --color-border: #E2E8F0;
+            --color-border-strong: #CBD5E1;
+
+            /* Text */
+            --color-text: #0F172A;
+            --color-text-muted: #475569;
+            --color-text-subtle: #94A3B8;
+
+            /* Brand (Navy) */
+            --color-primary: #1E40AF;
+            --color-primary-hover: #1E3A8A;
+            --color-primary-subtle: #DBEAFE;
+
+            /* Accent (Slate) */
+            --color-accent: #475569;
+            --color-accent-hover: #334155;
+            --color-accent-subtle: #E2E8F0;
+
+            /* Status */
+            --color-success: #15803D;
+            --color-success-subtle: #DCFCE7;
+            --color-warning: #B45309;
+            --color-warning-subtle: #FEF3C7;
+            --color-danger: #B91C1C;
+            --color-danger-subtle: #FEE2E2;
+
+            /* Geometry */
+            --radius-sm: 4px;
+            --radius: 6px;
+            --radius-md: 8px;
+            --radius-lg: 10px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08);
+
+            --duration-fast: 120ms;
+        }
+
+        body {
+            background-color: var(--color-bg-subtle);
+            color: var(--color-text);
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Utility Classes Mapping */
+        .bg-primary { background-color: var(--color-primary); }
+        .hover\:bg-primary-hover:hover { background-color: var(--color-primary-hover); }
+        .text-primary { color: var(--color-primary); }
+        
+        .bg-bg { background-color: var(--color-bg); }
+        .bg-bg-subtle { background-color: var(--color-bg-subtle); }
+        .bg-bg-muted { background-color: var(--color-bg-muted); }
+        
+        .text-default { color: var(--color-text); }
+        .text-muted { color: var(--color-text-muted); }
+        .text-subtle { color: var(--color-text-subtle); }
+        
+        .border-default { border-color: var(--color-border); }
+        .border-strong { border-color: var(--color-border-strong); }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+            border: 1px solid transparent;
+            transition: background-color var(--duration-fast);
+        }
+        .btn-primary:hover {
+            background-color: var(--color-primary-hover);
+        }
+        
+        .btn-secondary {
+            background-color: white;
+            color: var(--color-text);
+            border: 1px solid var(--color-border-strong);
+            transition: background-color var(--duration-fast);
+        }
+        .btn-secondary:hover {
+            background-color: var(--color-bg-muted);
+        }
+
+        .financial-cell {
+            font-variant-numeric: tabular-nums lining-nums;
+            letter-spacing: -0.01em;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Impersonation Banner -->
+    <div class="bg-bg border-b-2 border-[#B45309] px-6 py-2 flex items-center justify-between text-sm shadow-sm">
+        <div class="flex items-center text-default font-medium">
+            <span class="inline-block w-2 h-2 rounded-full bg-[#B45309] mr-2" aria-hidden="true"></span>
+            Viewing as Bob Maxey Ford
+        </div>
+        <button class="btn-secondary px-3 py-1.5 text-xs font-medium rounded shadow-sm">Exit impersonation</button>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-bg border-b border-default shadow-sm">
+        <div class="px-6 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <!-- SVG Brandmark placeholder -->
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="28" height="28" rx="6" fill="#1E40AF"/>
+                    <path d="M7 14L12 19L21 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="text-sm font-semibold text-default">LTV Desking PRO</span>
+            </div>
+            
+            <!-- Tabs -->
+            <nav class="hidden md:flex space-x-1">
+                <a href="#" class="px-3 py-2 text-sm font-medium text-primary bg-[#DBEAFE] rounded-md">Inventory</a>
+                <a href="#" class="px-3 py-2 text-sm font-medium text-muted hover:text-default hover:bg-bg-muted rounded-md transition-colors">Lender Programs</a>
+                <a href="#" class="px-3 py-2 text-sm font-medium text-muted hover:text-default hover:bg-bg-muted rounded-md transition-colors">Saved Deals</a>
+                <a href="#" class="px-3 py-2 text-sm font-medium text-muted hover:text-default hover:bg-bg-muted rounded-md transition-colors">Finance Tools</a>
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <button class="btn-primary px-3 py-1.5 text-xs font-medium rounded shadow-sm flex items-center gap-1.5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    AI Lender Upload
+                </button>
+                <div class="w-8 h-8 rounded-full bg-bg-muted text-muted border border-default flex items-center justify-center text-xs font-semibold">
+                    JG
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+        
+        <!-- Page Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-default">Inventory</h1>
+                <p class="text-sm text-muted mt-1">Manage vehicles and run quick calculations.</p>
+            </div>
+            <div class="flex gap-2">
+                <div class="relative">
+                    <svg class="absolute left-2.5 top-2.5 h-4 w-4 text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" placeholder="Search VIN, stock, or make..." class="pl-9 pr-3 py-2 text-sm bg-bg border border-default rounded w-64 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm text-default placeholder-subtle">
+                </div>
+                <button class="btn-secondary px-3 py-2 text-sm font-medium rounded shadow-sm flex items-center gap-1.5">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Inventory Table (Institutional Style) -->
+        <div class="bg-bg border border-default rounded-md shadow-sm overflow-hidden flex flex-col">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                        <tr class="bg-bg-subtle border-b border-default">
+                            <th class="px-3 py-2 text-xs font-medium text-muted pl-4 w-10"></th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted">Year</th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted">Make</th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted">Model</th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted">Stock #</th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted text-right">Miles</th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted text-right">Price</th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted text-right">Front LTV</th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted text-right">Est. pmt</th>
+                            <th class="px-3 py-2 text-xs font-medium text-muted pr-4 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-default">
+                        
+                        <!-- Row 1 -->
+                        <tr class="hover:bg-[#DBEAFE] transition-colors duration-150 group">
+                            <td class="px-3 py-2 pl-4">
+                                <button class="p-1 rounded text-muted hover:text-[#B45309] hover:bg-[#FEF3C7] transition-colors">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                </button>
+                            </td>
+                            <td class="px-3 py-2 text-sm text-default">2021</td>
+                            <td class="px-3 py-2 text-sm text-default font-medium">Ford</td>
+                            <td class="px-3 py-2 text-sm text-default">F-150 XLT</td>
+                            <td class="px-3 py-2 text-sm text-default font-mono text-xs">P8832A</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">42,500</td>
+                            <td class="px-3 py-2 text-sm text-default text-right font-medium financial-cell">$38,900</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">112%</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">$685</td>
+                            <td class="px-3 py-2 pr-4 text-right">
+                                <button class="btn-primary px-3 py-1.5 text-xs font-medium rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">Desk deal</button>
+                            </td>
+                        </tr>
+
+                        <!-- Row 2 (Favorited) -->
+                        <tr class="hover:bg-[#DBEAFE] transition-colors duration-150 group">
+                            <td class="px-3 py-2 pl-4">
+                                <button class="p-1 rounded text-[#B45309] transition-colors">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#B45309" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                </button>
+                            </td>
+                            <td class="px-3 py-2 text-sm text-default">2023</td>
+                            <td class="px-3 py-2 text-sm text-default font-medium">Toyota</td>
+                            <td class="px-3 py-2 text-sm text-default">Camry SE</td>
+                            <td class="px-3 py-2 text-sm text-default font-mono text-xs">N1104</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">12,100</td>
+                            <td class="px-3 py-2 text-sm text-default text-right font-medium financial-cell">$26,450</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">95%</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">$460</td>
+                            <td class="px-3 py-2 pr-4 text-right">
+                                <button class="btn-primary px-3 py-1.5 text-xs font-medium rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">Desk deal</button>
+                            </td>
+                        </tr>
+
+                         <!-- Row 3 -->
+                         <tr class="hover:bg-[#DBEAFE] transition-colors duration-150 group">
+                            <td class="px-3 py-2 pl-4">
+                                <button class="p-1 rounded text-muted hover:text-[#B45309] hover:bg-[#FEF3C7] transition-colors">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                </button>
+                            </td>
+                            <td class="px-3 py-2 text-sm text-default">2019</td>
+                            <td class="px-3 py-2 text-sm text-default font-medium">Honda</td>
+                            <td class="px-3 py-2 text-sm text-default">CR-V EX-L</td>
+                            <td class="px-3 py-2 text-sm text-default font-mono text-xs">P8901</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">68,420</td>
+                            <td class="px-3 py-2 text-sm text-default text-right font-medium financial-cell">$21,000</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">104%</td>
+                            <td class="px-3 py-2 text-sm text-default text-right financial-cell">$395</td>
+                            <td class="px-3 py-2 pr-4 text-right">
+                                <button class="btn-primary px-3 py-1.5 text-xs font-medium rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">Desk deal</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="bg-bg border-t border-default px-4 py-3 flex items-center justify-between sm:px-6">
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-muted">
+                            Showing <span class="font-medium text-default">1</span> to <span class="font-medium text-default">3</span> of <span class="font-medium text-default">245</span> results
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            <button class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-default bg-bg text-sm font-medium text-muted hover:bg-bg-muted">
+                                <span class="sr-only">Previous</span>
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <button class="relative inline-flex items-center px-4 py-2 border border-default bg-[#DBEAFE] text-sm font-medium text-primary">1</button>
+                            <button class="relative inline-flex items-center px-4 py-2 border border-default bg-bg text-sm font-medium text-muted hover:bg-bg-muted">2</button>
+                            <button class="relative inline-flex items-center px-4 py-2 border border-default bg-bg text-sm font-medium text-muted hover:bg-bg-muted">3</button>
+                            <span class="relative inline-flex items-center px-4 py-2 border border-default bg-bg text-sm font-medium text-muted">...</span>
+                            <button class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-default bg-bg text-sm font-medium text-muted hover:bg-bg-muted">
+                                <span class="sr-only">Next</span>
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sample Form Area (to show input styling and section numbering) -->
+        <div class="mt-8 bg-bg border border-default rounded-md shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-default mb-4">
+                <span class="text-subtle mr-2 tabular-nums">1.</span>
+                Quick desking calculator
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-muted mb-1">Vehicle price</label>
+                    <input type="text" value="$38,900" class="w-full px-3 py-2 text-sm bg-bg border border-default rounded focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm text-default financial-cell text-right">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-muted mb-1">Trade allowance</label>
+                    <input type="text" placeholder="$0" class="w-full px-3 py-2 text-sm bg-bg border border-default rounded focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm text-default placeholder-subtle financial-cell text-right">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-muted mb-1">Trade payoff</label>
+                    <input type="text" placeholder="$0" class="w-full px-3 py-2 text-sm bg-bg border border-default rounded focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm text-default placeholder-subtle financial-cell text-right">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-muted mb-1">Cash down</label>
+                    <input type="text" value="$2,500" class="w-full px-3 py-2 text-sm bg-bg border border-default rounded focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm text-default financial-cell text-right">
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end gap-3">
+                <button class="btn-secondary px-4 py-2 text-sm font-medium rounded shadow-sm">Reset</button>
+                <button class="btn-primary px-4 py-2 text-sm font-medium rounded shadow-sm">Calculate options</button>
+            </div>
+        </div>
+
+    </main>
+</body>
+</html>

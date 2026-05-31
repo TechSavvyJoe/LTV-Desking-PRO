@@ -16,26 +16,27 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     { error = false, leftIcon, rightIcon, inputSize = "md", className = "", disabled, ...props },
     ref
   ) => {
+    // Dealer Trust: 1px borders, 6px corners, opaque surfaces, denser padding.
     const sizeClasses = {
-      sm: "px-3 py-2 text-sm",
-      md: "px-4 py-2.5 text-base",
-      lg: "px-4 py-3.5 text-lg",
+      sm: "px-3 py-1.5 text-xs",
+      md: "px-3 py-2 text-sm",
+      lg: "px-4 py-2.5 text-base",
     };
 
     const baseClasses = `
       w-full
-      bg-white dark:bg-slate-800/80
-      border-[1.5px] rounded-xl
-      text-slate-900 dark:text-slate-100
-      placeholder-slate-400 dark:placeholder-slate-500
-      transition-all duration-200 ease-out
+      bg-white dark:bg-[var(--color-bg-subtle)]
+      border rounded
+      text-[var(--color-text)]
+      placeholder-[var(--color-text-subtle)]
+      transition-colors duration-[120ms]
       focus:outline-none
-      disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800
+      disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-[var(--color-bg-subtle)]
     `;
 
     const stateClasses = error
-      ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
-      : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
+      ? "border-[var(--color-danger)] focus:border-[var(--color-danger)] focus:ring-2 focus:ring-[var(--color-danger-subtle)]"
+      : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)]";
 
     const iconPadding = {
       left: leftIcon ? "pl-11" : "",
@@ -54,6 +55,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           disabled={disabled}
+          // Announce the invalid state to assistive tech. Callers can still pass
+          // aria-invalid/aria-describedby explicitly to override. [a11y]
+          aria-invalid={error || undefined}
           className={`
             ${baseClasses}
             ${stateClasses}

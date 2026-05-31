@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LTV Desking PRO</title>
+<meta name="description" content="LTV Desking PRO — F&I desking software." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   LTV Desking PRO — simple. Header + customer pill + table. That's it.
+   ========================================================================= */
+
+:root, [data-theme="light"] {
+  --bg                : #F2F4F7;
+  --surface           : #FFFFFF;
+  --surface-2         : #F6F8FB;
+  --rule              : #D8DCE3;
+  --rule-2            : #B0B6C2;
+  --rule-soft         : #E8EAF0;
+
+  --ink               : #0F172A;
+  --ink-2             : #334155;
+  --ink-3             : #64748B;
+  --ink-4             : #94A3B8;
+  --ink-5             : #CBD5E1;
+
+  --navy              : #1E3A8A;
+  --navy-2            : #172554;
+  --navy-3            : #3151A6;
+  --navy-tint         : #DBEAFE;
+  --navy-ring         : rgba(30,58,138,0.20);
+
+  --green             : #047857;
+  --green-tint        : #D1FAE5;
+  --green-ring        : rgba(4,120,87,0.18);
+  --amber             : #B45309;
+  --amber-tint        : #FEF3C7;
+  --red               : #B91C1C;
+  --red-tint          : #FEE2E2;
+
+  --r-xs   : 3px;
+  --r-sm   : 5px;
+  --r      : 7px;
+  --r-md   : 9px;
+
+  --shadow-1    : 0 1px 0 rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.05);
+  --shadow-2    : 0 1px 2px rgba(15,23,42,0.06), 0 4px 10px -2px rgba(15,23,42,0.10), 0 12px 28px -10px rgba(15,23,42,0.14);
+  --shadow-pop  : 0 1px 3px rgba(15,23,42,0.10), 0 32px 64px -18px rgba(15,23,42,0.38);
+
+  --ui   : "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mono : "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+
+  --t-fast : 100ms cubic-bezier(.32,.72,.34,1);
+  --t      : 180ms cubic-bezier(.32,.72,.34,1);
+}
+
+[data-theme="dark"] {
+  --bg                : #0A0E1A;
+  --surface           : #131A2D;
+  --surface-2         : #182238;
+  --rule              : #232E48;
+  --rule-2            : #2F3B58;
+  --rule-soft         : #1E283E;
+
+  --ink               : #F1F4FB;
+  --ink-2             : #E0E4EF;
+  --ink-3             : #A7AFC2;
+  --ink-4             : #7B8398;
+  --ink-5             : #525B72;
+
+  --navy              : #4F6FE0;
+  --navy-2            : #6786EC;
+  --navy-3            : #314A9F;
+  --navy-tint         : #1A2658;
+  --navy-ring         : rgba(79,111,224,0.32);
+
+  --green             : #34D399;
+  --green-tint        : #103823;
+  --amber             : #F4B860;
+  --amber-tint        : #382613;
+  --red               : #F87171;
+  --red-tint          : #3A1A1A;
+
+  --shadow-1    : 0 1px 0 rgba(0,0,0,0.32), 0 1px 2px rgba(0,0,0,0.42);
+  --shadow-2    : 0 1px 2px rgba(0,0,0,0.42), 0 6px 14px -2px rgba(0,0,0,0.50);
+  --shadow-pop  : 0 1px 3px rgba(0,0,0,0.50), 0 36px 72px -16px rgba(0,0,0,0.75);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--ui);
+  font-feature-settings: "ss01", "cv11";
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background var(--t), color var(--t);
+}
+::selection { background: var(--navy); color: #fff; }
+button, input { font-family: inherit; }
+.num, .tabular { font-family: var(--mono); font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.01em; }
+svg.ic { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+svg.ic-sm { width: 13px; height: 13px; stroke-width: 1.6; }
+
+/* ─────────────────────────────────────────────────────────── header */
+.header {
+  height: 60px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 20px;
+  position: sticky; top: 0; z-index: 30;
+}
+
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand-mark {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  background: radial-gradient(120% 100% at 30% 20%, #495DCB 0%, #1E3A8A 55%, #172554 100%);
+  display: grid; place-items: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), inset 0 0 0 1px rgba(255,255,255,0.06), 0 1px 2px rgba(0,0,0,0.18);
+}
+.brand-mark svg { width: 16px; height: 16px; }
+.brand-name { font-weight: 700; font-size: 15px; letter-spacing: -0.018em; color: var(--ink); line-height: 1.1; }
+.brand-name em { font-style: normal; color: var(--ink-3); font-weight: 500; margin-left: 2px; }
+.brand-name small {
+  display: block; font-family: var(--mono);
+  font-size: 10px; font-weight: 500;
+  color: var(--ink-3); margin-top: 3px; letter-spacing: 0;
+}
+
+/* customer pill — the live F&I context, in the topbar */
+.customer-pill {
+  display: inline-grid;
+  grid-template-columns: 36px auto 1px auto 1px auto 1px auto 12px;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px 0 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--t-fast);
+  box-shadow: var(--shadow-1);
+}
+.customer-pill:hover { border-color: var(--ink-4); }
+.customer-pill .ava {
+  width: 32px; height: 32px; border-radius: 999px;
+  background: linear-gradient(180deg, #2E4FB3 0%, #1E3A8A 100%);
+  color: #fff;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.customer-pill .nm { font-weight: 700; color: var(--ink); letter-spacing: -0.005em; }
+.customer-pill .sep { width: 1px; height: 16px; background: var(--rule); }
+.customer-pill .kv { display: inline-flex; align-items: baseline; gap: 6px; color: var(--ink-3); font-size: 12px; }
+.customer-pill .kv .k { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); font-weight: 700; }
+.customer-pill .kv .v { color: var(--ink); font-weight: 700; font-family: var(--mono); letter-spacing: -0.01em; }
+.customer-pill .chev { color: var(--ink-4); }
+
+.header-r { display: flex; align-items: center; gap: 8px; }
+
+.icon-btn {
+  width: 36px; height: 36px;
+  border-radius: var(--r);
+  border: 1px solid transparent;
+  background: transparent;
+  display: grid; place-items: center;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--ink); }
+
+.user-chip {
+  display: grid; grid-template-columns: 30px 1fr auto;
+  align-items: center; gap: 10px;
+  height: 36px; padding: 0 12px 0 4px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+}
+.user-chip .ava {
+  width: 30px; height: 30px; border-radius: 999px;
+  background: linear-gradient(180deg, #3C4566 0%, #232B45 100%);
+  color: #fff;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700;
+}
+.user-chip .nm { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+.user-chip .role { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-top: 2px; }
+
+/* ─────────────────────────────────────────────────────────── workspace */
+.work {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 22px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.page-head {
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: end; gap: 18px;
+  padding-bottom: 4px;
+}
+.page-title {
+  font-size: 24px; font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0; line-height: 1.1;
+  display: flex; align-items: baseline; gap: 10px;
+}
+.page-title small {
+  font-size: 12px; font-weight: 500;
+  letter-spacing: 0; color: var(--ink-3);
+}
+.page-actions { display: flex; gap: 8px; }
+
+/* ─────────────────────────────────────────────────────────── filter row */
+.filter-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px;
+  font: 600 12.5px var(--ui);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+  box-shadow: var(--shadow-1);
+}
+.chip:hover { background: var(--surface-2); }
+.chip.active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+  box-shadow: var(--shadow-1), 0 1px 2px rgba(15,23,42,0.18);
+}
+.chip .num { font-family: var(--mono); font-weight: 700; }
+.chip.add { border-style: dashed; color: var(--ink-3); background: transparent; box-shadow: none; }
+.chip.add:hover { color: var(--ink); border-color: var(--ink-4); }
+
+.search-mini {
+  position: relative; margin-left: auto;
+  flex: 1; max-width: 280px;
+}
+.search-mini input {
+  width: 100%; height: 32px;
+  padding: 0 12px 0 32px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  font: 400 12.5px var(--ui);
+  color: var(--ink);
+  outline: none;
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.search-mini input::placeholder { color: var(--ink-4); }
+.search-mini input:focus { border-color: var(--navy-3); box-shadow: 0 0 0 4px var(--navy-ring); }
+.search-mini .ic-search { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--ink-4); pointer-events: none; }
+
+/* ─────────────────────────────────────────────────────────── table */
+.tcard {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+}
+thead th {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  font-weight: 700;
+  color: var(--ink-3);
+  padding: 11px 12px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  position: sticky; top: 60px; z-index: 4;
+  user-select: none;
+}
+thead th:first-child { padding-left: 18px; }
+thead th:last-child  { padding-right: 18px; }
+thead th.right { text-align: right; }
+thead th.sortable { cursor: pointer; transition: color var(--t-fast), background var(--t-fast); }
+thead th.sortable:hover { color: var(--ink); background: var(--bg); }
+thead th .sind {
+  display: inline-block; margin-left: 4px;
+  opacity: 0;
+  font-family: var(--mono); font-size: 8.5px; vertical-align: 1px;
+}
+thead th.sort-asc, thead th.sort-desc { color: var(--ink); }
+thead th.sort-asc .sind, thead th.sort-desc .sind { opacity: 1; color: var(--navy); }
+thead th.sort-desc .sind { transform: rotate(180deg); display: inline-block; }
+
+tbody td {
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 11px 12px;
+  vertical-align: middle;
+  color: var(--ink);
+  white-space: nowrap;
+  height: 60px;
+}
+tbody td:first-child { padding-left: 18px; }
+tbody td:last-child  { padding-right: 18px; }
+tbody td.right {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 12.5px;
+}
+tbody td.muted { color: var(--ink-3); }
+
+tbody tr.row { cursor: pointer; transition: background var(--t-fast); }
+tbody tr.row:hover { background: var(--surface-2); }
+
+/* vehicle photo cell */
+.veh-photo {
+  width: 76px; height: 44px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--bg) 100%);
+  border: 1px solid var(--rule);
+  display: grid; place-items: center;
+  position: relative; overflow: hidden;
+  filter: drop-shadow(0 1px 1px rgba(15,23,42,0.06));
+}
+.veh-photo svg { width: 64px; height: 38px; display: block; }
+
+.veh-title { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.veh-title .ttl {
+  font-weight: 700; font-size: 13px;
+  letter-spacing: -0.015em; color: var(--ink);
+}
+.veh-title .met {
+  font-size: 11px; color: var(--ink-3);
+}
+.veh-title .met .clr {
+  display: inline-block; width: 8px; height: 8px; border-radius: 999px;
+  margin-right: 5px; vertical-align: middle;
+  border: 1px solid rgba(15,23,42,0.10);
+}
+
+/* approval */
+.appr {
+  display: inline-grid;
+  grid-template-columns: 38px auto;
+  align-items: center; gap: 8px;
+  font-family: var(--mono); font-weight: 700; font-size: 12.5px;
+  letter-spacing: -0.01em;
+}
+.appr .bar { height: 6px; border-radius: 999px; background: var(--rule); overflow: hidden; }
+.appr .bar span { display: block; height: 100%; border-radius: 999px; }
+.appr[data-s="ok"]   { color: var(--green); } .appr[data-s="ok"]   .bar span { background: var(--green); }
+.appr[data-s="warn"] { color: var(--amber); } .appr[data-s="warn"] .bar span { background: var(--amber); }
+.appr[data-s="bad"]  { color: var(--red); }   .appr[data-s="bad"]  .bar span { background: var(--red); }
+
+/* badge */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: -0.005em;
+}
+.badge::before { content: ""; width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+.b-green { background: var(--green-tint); color: var(--green); }
+.b-amber { background: var(--amber-tint); color: var(--amber); }
+.b-red   { background: var(--red-tint);   color: var(--red);   }
+
+/* LTV */
+.ltv {
+  display: inline-grid;
+  grid-template-columns: 48px auto;
+  align-items: center; gap: 8px;
+  font-family: var(--mono); font-weight: 700; font-size: 12px;
+}
+.ltv .bar {
+  position: relative; height: 6px;
+  background: var(--rule);
+  border-radius: 999px; overflow: hidden;
+}
+.ltv .bar::before {
+  content: ""; position: absolute;
+  left: 35%; top: 0; bottom: 0; width: 1px;
+  background: var(--ink-4); opacity: 0.4;
+}
+.ltv .bar span { display: block; height: 100%; border-radius: 999px; background: var(--ink-4); }
+.ltv[data-s="ok"]   .bar span { background: var(--green); }
+.ltv[data-s="warn"] .bar span { background: var(--amber); }
+.ltv[data-s="bad"]  .bar span { background: var(--red); }
+
+/* ─────────────────────────────────────────────────────────── buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px;
+  padding: 0 13px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-sm);
+  font: 600 12.5px var(--ui);
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+  box-shadow: var(--shadow-1);
+}
+.btn:hover { background: var(--surface-2); border-color: var(--ink-4); }
+.btn-primary {
+  background: var(--navy); color: #fff; border-color: var(--navy);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 2px rgba(15,23,42,0.22);
+}
+.btn-primary:hover { background: var(--navy-2); border-color: var(--navy-2); }
+[data-theme="dark"] .btn-primary { color: #0A0E1A; }
+.btn-sm { height: 30px; padding: 0 11px; font-size: 12px; }
+.btn-xs { height: 26px; padding: 0 9px; font-size: 11.5px; border-radius: var(--r-xs); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ─────────────────────────────────────────────────────────── modal */
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(15,23,42,0.50);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--t);
+  display: grid; place-items: center;
+}
+.sheet-backdrop.on { opacity: 1; pointer-events: auto; }
+.sheet {
+  width: min(560px, 92vw);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  transform: scale(0.97) translateY(-8px);
+  opacity: 0;
+  transition: transform var(--t), opacity var(--t);
+}
+.sheet-backdrop.on .sheet { transform: scale(1) translateY(0); opacity: 1; }
+.sheet-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--rule);
+  display: grid; grid-template-columns: 80px 1fr auto; align-items: center; gap: 14px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+.sheet-head .veh-photo { width: 80px; height: 50px; }
+.sheet-head .veh-photo svg { width: 70px; height: 44px; }
+.sheet-head .ttl { font-weight: 700; font-size: 15px; letter-spacing: -0.015em; }
+.sheet-head .met { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; font-family: var(--mono); }
+.sheet-body { padding: 18px 20px; }
+.sheet-foot {
+  padding: 14px 20px;
+  border-top: 1px solid var(--rule);
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px;
+  background: var(--surface-2);
+}
+
+.lender-card {
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  position: relative;
+  display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center;
+}
+.lender-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: var(--r) 0 0 var(--r);
+  background: var(--ink-5);
+}
+.lender-card.recommend::before { background: var(--green); }
+.lender-card.caution::before   { background: var(--amber); }
+.lender-card .lg {
+  width: 36px; height: 36px; border-radius: 5px;
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 800;
+  color: #fff;
+  background: var(--navy);
+}
+.lender-card.alt .lg { background: #475569; }
+.lender-card.caution .lg { background: #8B2A26; }
+.lender-card .nm { font-weight: 700; font-size: 13px; letter-spacing: -0.005em; }
+.lender-card .det { font-size: 11px; color: var(--ink-3); margin-top: 2px; font-family: var(--mono); }
+.lender-card .pmt { font-family: var(--mono); font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); text-align: right; }
+.lender-card .pmt .lk { display: block; font-size: 9px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 1px; }
+
+.lender-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+
+.kv-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  padding: 14px 0 4px;
+}
+.kv-grid .cell { display: flex; flex-direction: column; gap: 3px; }
+.kv-grid .l {
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.kv-grid .v {
+  font-family: var(--mono); font-size: 15px; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--ink);
+}
+.kv-grid .v.pos { color: var(--green); }
+.kv-grid .v.neg { color: var(--red); }
+
+/* ─────────────────────────────────────────────────────────── toast */
+.toast-stack {
+  position: fixed; right: 24px; bottom: 24px; z-index: 70;
+  display: flex; flex-direction: column-reverse; gap: 10px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-pop);
+  padding: 12px 14px;
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 12px; align-items: center;
+  min-width: 260px; pointer-events: auto;
+  font-size: 13px;
+  animation: toastIn var(--t) ease-out;
+}
+.toast .tico { width: 22px; height: 22px; border-radius: 5px; background: var(--green-tint); color: var(--green); display: grid; place-items: center; }
+.toast .ttl { font-weight: 700; letter-spacing: -0.005em; }
+.toast .det { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+.toast .x { width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--ink-4); display: grid; place-items: center; cursor: pointer; }
+.toast .x:hover { background: var(--surface-2); color: var(--ink); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--navy-ring); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- vehicle silhouettes -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="car-truck" viewBox="0 0 64 40">
+      <ellipse cx="32" cy="34" rx="28" ry="2.5" fill="rgba(15,23,42,0.10)"/>
+      <path d="M5 28 L5 22 Q5 19 8 19 L16 19 L18 12 Q19 9 22 9 L34 9 Q37 9 38 12 L40 19 L55 19 Q59 19 59 23 L59 28 Z" fill="currentColor" stroke="rgba(15,23,42,0.35)" stroke-width="0.6"/>
+      <rect x="40" y="20" width="18" height="6" fill="rgba(15,23,42,0.12)"/>
+      <path d="M22 11 L33 11 Q35 11 35.7 13 L37.5 18 L21 18 L22.5 13 Q23 11 22 11 Z" fill="rgba(180,210,240,0.85)" stroke="rgba(15,23,42,0.30)" stroke-width="0.5"/>
+      <circle cx="16" cy="29" r="5" fill="#1A1F2A"/><circle cx="16" cy="29" r="2.2" fill="#525B6E"/>
+      <circle cx="48" cy="29" r="5" fill="#1A1F2A"/><circle cx="48" cy="29" r="2.2" fill="#525B6E"/>
+      <path d="M6 22 Q6 20 8 20 L28 20" stroke="rgba(255,255,255,0.20)" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="car-suv-mid" viewBox="0 0 64 40">
+      <ellipse cx="32" cy="34" rx="28" ry="2.5" fill="rgba(15,23,42,0.10)"/>
+      <path d="M4 28 L4 22 Q4 19 7 19 L11 19 L14 11 Q15 8 18 8 L46 8 Q49 8 50 11 L53 19 L57 19 Q60 19 60 22 L60 28 Z" fill="currentColor" stroke="rgba(15,23,42,0.35)" stroke-width="0.6"/>
+      <path d="M16 10 L46 10 Q48 10 48.5 12 L50.5 18 L13.5 18 L15.5 12 Q16 10 16 10 Z" fill="rgba(180,210,240,0.85)" stroke="rgba(15,23,42,0.30)" stroke-width="0.5"/>
+      <line x1="25" y1="11" x2="25" y2="18" stroke="rgba(15,23,42,0.30)" stroke-width="0.7"/>
+      <line x1="37" y1="11" x2="37" y2="18" stroke="rgba(15,23,42,0.30)" stroke-width="0.7"/>
+      <circle cx="16" cy="29" r="5" fill="#1A1F2A"/><circle cx="16" cy="29" r="2.2" fill="#525B6E"/>
+      <circle cx="48" cy="29" r="5" fill="#1A1F2A"/><circle cx="48" cy="29" r="2.2" fill="#525B6E"/>
+      <path d="M5 22 Q5 20 7 20 L55 20" stroke="rgba(255,255,255,0.20)" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="car-suv-full" viewBox="0 0 64 40">
+      <ellipse cx="32" cy="34" rx="29" ry="2.5" fill="rgba(15,23,42,0.10)"/>
+      <path d="M3 29 L3 21 Q3 18 6 18 L9 18 L11 9 Q12 7 15 7 L49 7 Q52 7 53 9 L55 18 L58 18 Q61 18 61 21 L61 29 Z" fill="currentColor" stroke="rgba(15,23,42,0.35)" stroke-width="0.6"/>
+      <path d="M14 9 L49 9 Q51 9 51.5 11 L53 17 L11 17 L12.5 11 Q13 9 14 9 Z" fill="rgba(180,210,240,0.85)" stroke="rgba(15,23,42,0.30)" stroke-width="0.5"/>
+      <line x1="22" y1="9" x2="22" y2="17" stroke="rgba(15,23,42,0.30)" stroke-width="0.7"/>
+      <line x1="32" y1="9" x2="32" y2="17" stroke="rgba(15,23,42,0.30)" stroke-width="0.7"/>
+      <line x1="42" y1="9" x2="42" y2="17" stroke="rgba(15,23,42,0.30)" stroke-width="0.7"/>
+      <circle cx="16" cy="30" r="5.5" fill="#1A1F2A"/><circle cx="16" cy="30" r="2.4" fill="#525B6E"/>
+      <circle cx="48" cy="30" r="5.5" fill="#1A1F2A"/><circle cx="48" cy="30" r="2.4" fill="#525B6E"/>
+    </symbol>
+    <symbol id="car-coupe" viewBox="0 0 64 40">
+      <ellipse cx="32" cy="34" rx="28" ry="2.5" fill="rgba(15,23,42,0.10)"/>
+      <path d="M3 28 L3 23 Q3 20 6 20 L9 20 L17 13 Q19 11 22 11 L40 11 Q44 11 46 13 L54 20 L58 20 Q61 20 61 23 L61 28 Z" fill="currentColor" stroke="rgba(15,23,42,0.35)" stroke-width="0.6"/>
+      <path d="M19 14 L41 14 Q44 14 45 16 L51 19 L15 19 L18 16 Q19 14 19 14 Z" fill="rgba(180,210,240,0.85)" stroke="rgba(15,23,42,0.30)" stroke-width="0.5"/>
+      <circle cx="16" cy="29" r="5" fill="#1A1F2A"/><circle cx="16" cy="29" r="2.2" fill="#525B6E"/>
+      <circle cx="48" cy="29" r="5" fill="#1A1F2A"/><circle cx="48" cy="29" r="2.2" fill="#525B6E"/>
+    </symbol>
+    <symbol id="car-van" viewBox="0 0 64 40">
+      <ellipse cx="32" cy="34" rx="28" ry="2.5" fill="rgba(15,23,42,0.10)"/>
+      <path d="M3 29 L3 19 Q3 16 6 14 L12 8 Q14 6 17 6 L52 6 Q56 6 56 10 L56 29 Z" fill="currentColor" stroke="rgba(15,23,42,0.35)" stroke-width="0.6"/>
+      <path d="M14 9 L26 9 L26 18 L9 18 L13 13 Q14 9 14 9 Z" fill="rgba(180,210,240,0.85)" stroke="rgba(15,23,42,0.30)" stroke-width="0.5"/>
+      <rect x="30" y="9" width="22" height="9" fill="rgba(180,210,240,0.45)" stroke="rgba(15,23,42,0.20)" stroke-width="0.4"/>
+      <circle cx="14" cy="30" r="5" fill="#1A1F2A"/><circle cx="14" cy="30" r="2.2" fill="#525B6E"/>
+      <circle cx="46" cy="30" r="5" fill="#1A1F2A"/><circle cx="46" cy="30" r="2.2" fill="#525B6E"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M5 5v14h5.2v-3.1H8.3V5H5z" fill="#fff"/>
+        <path d="M12.8 5l2.7 9.4L18.3 5h2.7L17.1 19H14L9.9 5h2.9z" fill="#fff"/>
+      </svg>
+    </span>
+    <span class="brand-name">
+      LTV Desking <em>PRO</em>
+      <small>Bob Maxey Ford · Detroit</small>
+    </span>
+  </div>
+
+  <button class="customer-pill" type="button" aria-label="Active customer">
+    <span class="ava">JR</span>
+    <span class="nm">Jordan Rivera</span>
+    <span class="sep"></span>
+    <span class="kv"><span class="k">FICO</span><span class="v">690</span></span>
+    <span class="sep"></span>
+    <span class="kv"><span class="k">Down</span><span class="v">$4,500</span></span>
+    <span class="sep"></span>
+    <span class="kv"><span class="k">Target</span><span class="v">$620/mo</span></span>
+    <svg class="ic ic-sm chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+
+  <div class="header-r">
+    <button class="icon-btn" id="themeBtn" aria-label="Theme">
+      <svg class="ic" viewBox="0 0 24 24" id="themeIcon"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+    <button class="user-chip">
+      <span class="ava">JG</span>
+      <span><div class="nm">Joe Gallant</div><div class="role">Owner</div></span>
+      <svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- WORKSPACE -->
+<main class="work">
+
+  <div class="page-head">
+    <h1 class="page-title">Inventory <small>matched to Jordan Rivera · 35 vehicles</small></h1>
+    <div class="page-actions">
+      <button class="btn">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+      <button class="btn btn-primary">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        New deal
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-row">
+    <span class="chip active" data-filter="all">All <span class="num">35</span></span>
+    <span class="chip" data-filter="match">Match <span class="num">22</span></span>
+    <span class="chip" data-filter="caution">Caution <span class="num">9</span></span>
+    <span class="chip" data-filter="decline">Decline <span class="num">4</span></span>
+    <span class="chip add">
+      <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      Add filter
+    </span>
+    <div class="search-mini">
+      <svg class="ic ic-sm ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" placeholder="Search stock or VIN…"/>
+    </div>
+  </div>
+
+  <section class="tcard">
+    <div class="table-wrap">
+      <table aria-label="Inventory">
+        <thead>
+          <tr>
+            <th style="width:90px;">Photo</th>
+            <th class="sortable" data-sort="approval">Approval <span class="sind">▼</span></th>
+            <th class="sortable" data-sort="status">Status <span class="sind">▼</span></th>
+            <th class="sortable" data-sort="ttl">Vehicle <span class="sind">▼</span></th>
+            <th class="sortable" data-sort="id">Stock <span class="sind">▼</span></th>
+            <th class="sortable right" data-sort="mi">Miles <span class="sind">▼</span></th>
+            <th class="sortable right" data-sort="price">Price <span class="sind">▼</span></th>
+            <th class="sortable right" data-sort="ltv">Front LTV <span class="sind">▼</span></th>
+            <th class="sortable right" data-sort="otd">Back LTV <span class="sind">▼</span></th>
+            <th class="sortable right" data-sort="gross">Gross <span class="sind">▼</span></th>
+            <th class="sortable right" data-sort="pmt">Payment <span class="sind">▼</span></th>
+            <th style="text-align:right; width:90px;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="invBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<!-- MODAL — lender match (opens on row click) -->
+<div class="sheet-backdrop" id="sheetBackdrop" onclick="if(event.target===this) closeSheet()">
+  <div class="sheet" role="dialog" aria-label="Lender match">
+    <div class="sheet-head">
+      <div class="veh-photo" id="sh-photo"><svg id="sh-photo-svg" style="color:#9C9FA3"><use href="#car-suv-mid"/></svg></div>
+      <div>
+        <div class="ttl" id="sh-ttl">2023 Ford Explorer ST</div>
+        <div class="met" id="sh-met">E3916 · 27,906 mi · $39,440 · 96% approval</div>
+      </div>
+      <button class="icon-btn" onclick="closeSheet()" aria-label="Close">
+        <svg class="ic" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="kv-grid">
+        <div class="cell"><div class="l">Front LTV</div><div class="v" id="sh-ltv">106.9%</div></div>
+        <div class="cell"><div class="l">Back LTV</div><div class="v" id="sh-otd">112.8%</div></div>
+        <div class="cell"><div class="l">Gross</div><div class="v pos" id="sh-gross">+$2,180</div></div>
+        <div class="cell"><div class="l">Payment</div><div class="v" id="sh-pmt">$618/mo</div></div>
+      </div>
+
+      <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--rule-soft); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3);">Best lender matches</div>
+
+      <div class="lender-list">
+        <div class="lender-card recommend">
+          <div class="lg">MC</div>
+          <div><div class="nm">Meridian Capital</div><div class="det">Tier B+ · 5.19% APR · 13.9% PTI · 24h fund</div></div>
+          <div class="pmt"><span class="lk">Pmt</span>$618/mo</div>
+        </div>
+        <div class="lender-card alt">
+          <div class="lg">HC</div>
+          <div><div class="nm">Harbor Credit</div><div class="det">Tier A · 4.99% APR · 13.6% PTI · 48h fund</div></div>
+          <div class="pmt"><span class="lk">Pmt</span>$604/mo</div>
+        </div>
+        <div class="lender-card caution">
+          <div class="lg">MA</div>
+          <div><div class="nm">Metro Accept.</div><div class="det">Subprime · 5.69% APR · stips: POI · POR</div></div>
+          <div class="pmt"><span class="lk">Pmt</span>$632/mo</div>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <span class="badge b-green">Inside Meridian envelope</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-sm" onclick="closeSheet()">Close</button>
+        <button class="btn btn-sm btn-primary">Build proposal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST STACK -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script>
+// ───── data
+const COLORS = {
+  oxford  : { hex:'#F8F8F6', name:'Oxford White' },
+  agate   : { hex:'#0F0F11', name:'Agate Black' },
+  silver  : { hex:'#9C9FA3', name:'Iconic Silver' },
+  antimatter: { hex:'#3B5275', name:'Antimatter Blue' },
+  rapidred: { hex:'#B11F2A', name:'Rapid Red' },
+  carbon  : { hex:'#6E7378', name:'Carbonized Gray' },
+  atlas   : { hex:'#1B3B5E', name:'Atlas Blue' },
+  velocity: { hex:'#1E6BB8', name:'Velocity Blue' }
+};
+const inventory = [
+  { id:'F4821', status:'match',  ttl:'Ford F-150 Lariat',          met:'5.0L V8 · 4WD',         year:2024, mi:18442, price:51880, book:47100, ltv:108.2, gross:2940,  otd:114.9, pmt:742, approval:91, mark:'car-truck',    color:'antimatter' },
+  { id:'E3916', status:'match',  ttl:'Ford Explorer ST',           met:'3.0L EcoBoost · AWD',   year:2023, mi:27906, price:39440, book:35880, ltv:106.9, gross:2180,  otd:112.8, pmt:618, approval:96, mark:'car-suv-mid',  color:'silver' },
+  { id:'M9012', status:'match',  ttl:'Ford Maverick XLT',          met:'2.0L Hybrid · FWD',     year:2024, mi:9118,  price:32210, book:30080, ltv:104.8, gross:1640,  otd:110.2, pmt:512, approval:97, mark:'car-truck',    color:'velocity' },
+  { id:'B1284', status:'caution',ttl:'Ford Bronco Outer Banks',    met:'2.7L EcoBoost · 4WD',   year:2022, mi:41882, price:48260, book:42510, ltv:114.4, gross:3420,  otd:121.5, pmt:799, approval:64, mark:'car-suv-full', color:'agate' },
+  { id:'E8843', status:'match',  ttl:'Ford Edge Titanium',         met:'2.0L EcoBoost · AWD',   year:2023, mi:22108, price:36990, book:33240, ltv:105.4, gross:1870,  otd:111.6, pmt:586, approval:94, mark:'car-suv-mid',  color:'oxford' },
+  { id:'E7711', status:'decline',ttl:'Ford Escape Titanium',       met:'2.0L EcoBoost · AWD',   year:2021, mi:68402, price:23580, book:18440, ltv:127.9, gross:-640,  otd:142.0, pmt:461, approval:18, mark:'car-suv-mid',  color:'carbon' },
+  { id:'M5520', status:'match',  ttl:'Ford Mustang GT',            met:'5.0L V8 · RWD',         year:2024, mi:4201,  price:48780, book:45910, ltv:107.0, gross:2460,  otd:111.6, pmt:702, approval:89, mark:'car-coupe',    color:'rapidred' },
+  { id:'R2208', status:'caution',ttl:'Ford Ranger Lariat',         met:'2.3L EcoBoost · 4WD',   year:2022, mi:35712, price:36200, book:31640, ltv:113.0, gross:2240,  otd:119.4, pmt:598, approval:71, mark:'car-truck',    color:'atlas' },
+  { id:'X1187', status:'match',  ttl:'Ford Expedition Limited',    met:'3.5L EcoBoost · 4WD',   year:2023, mi:19442, price:62440, book:58210, ltv:107.3, gross:3180,  otd:112.7, pmt:894, approval:86, mark:'car-suv-full', color:'oxford' },
+  { id:'B6622', status:'match',  ttl:'Ford Bronco Sport Big Bend', met:'1.5L EcoBoost · 4WD',   year:2024, mi:14210, price:34890, book:31980, ltv:106.1, gross:1980,  otd:110.4, pmt:556, approval:93, mark:'car-suv-mid',  color:'agate' },
+  { id:'T9920', status:'match',  ttl:'Ford Transit Connect XL',    met:'2.0L · FWD · Cargo',    year:2023, mi:22890, price:29440, book:27100, ltv:105.2, gross:1480,  otd:109.8, pmt:471, approval:90, mark:'car-van',      color:'oxford' },
+  { id:'F7711', status:'caution',ttl:'Ford F-250 XLT',             met:'6.7L Diesel · 4WD',     year:2022, mi:52204, price:54880, book:48910, ltv:113.6, gross:2940,  otd:120.2, pmt:868, approval:68, mark:'car-truck',    color:'carbon' },
+];
+
+const fmt = {
+  $: n => (n<0?'−$':'$') + Math.abs(n).toLocaleString('en-US'),
+  pct: n => n.toFixed(1) + '%',
+  miles: n => n.toLocaleString('en-US'),
+};
+const ltvState  = pct => pct < 112 ? 'ok' : pct < 120 ? 'warn' : 'bad';
+const apprState = p   => p >= 85 ? 'ok' : p >= 65 ? 'warn' : 'bad';
+const statusBadge = s => ({
+  match:   '<span class="badge b-green">Match</span>',
+  caution: '<span class="badge b-amber">Caution</span>',
+  decline: '<span class="badge b-red">Decline</span>',
+}[s]);
+
+function rowHTML(r){
+  const c = COLORS[r.color];
+  const gross = r.gross<0?'−$'+Math.abs(r.gross).toLocaleString():'+$'+r.gross.toLocaleString();
+  return `
+    <tr class="row" data-id="${r.id}" data-status="${r.status}">
+      <td><div class="veh-photo" title="${c.name}"><svg style="color:${c.hex}"><use href="#${r.mark}"/></svg></div></td>
+      <td><span class="appr" data-s="${apprState(r.approval)}"><span class="bar"><span style="width:${r.approval}%"></span></span>${r.approval}%</span></td>
+      <td>${statusBadge(r.status)}</td>
+      <td><div class="veh-title"><div class="ttl">${r.year} ${r.ttl}</div><div class="met"><span class="clr" style="background:${c.hex}"></span>${c.name} · ${r.met}</div></div></td>
+      <td class="muted">${r.id}</td>
+      <td class="right">${fmt.miles(r.mi)}</td>
+      <td class="right">${fmt.$(r.price)}</td>
+      <td class="right"><span class="ltv" data-s="${ltvState(r.ltv)}"><span class="bar"><span style="width:${Math.min(100, (r.ltv-100)*10)}%"></span></span><span>${fmt.pct(r.ltv)}</span></span></td>
+      <td class="right"><span class="ltv" data-s="${ltvState(r.otd)}"><span class="bar"><span style="width:${Math.min(100, (r.otd-100)*8)}%"></span></span><span>${fmt.pct(r.otd)}</span></span></td>
+      <td class="right" style="color:${r.gross<0?'var(--red)':'var(--green)'}; font-weight:700;">${gross}</td>
+      <td class="right" style="font-weight:700;">$${r.pmt}<span style="color:var(--ink-4); font-weight:400;">/mo</span></td>
+      <td style="text-align:right;">
+        <button class="btn btn-xs ${r.status==='decline'?'':'btn-primary'}" onclick="event.stopPropagation(); openSheet('${r.id}')" ${r.status==='decline'?'disabled':''}>Desk</button>
+      </td>
+    </tr>
+  `;
+}
+
+// sort
+let sortKey='approval', sortDir='desc';
+function sortedInv(){
+  const l = inventory.slice();
+  l.sort((a,b)=>{
+    let av=a[sortKey], bv=b[sortKey];
+    if (typeof av==='string'){ av=av.toLowerCase(); bv=bv.toLowerCase(); }
+    if (av<bv) return sortDir==='asc'?-1:1;
+    if (av>bv) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+  return l;
+}
+function render(){
+  const body = document.getElementById('invBody');
+  body.innerHTML = sortedInv().map(rowHTML).join('');
+  body.querySelectorAll('tr.row').forEach(tr=>tr.addEventListener('click', ()=>openSheet(tr.dataset.id)));
+  document.querySelectorAll('thead th.sortable').forEach(th=>{
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.sort===sortKey) th.classList.add(sortDir==='asc'?'sort-asc':'sort-desc');
+  });
+}
+document.querySelectorAll('thead th.sortable').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const k = th.dataset.sort;
+    if (sortKey===k) sortDir = sortDir==='asc'?'desc':'asc';
+    else { sortKey=k; sortDir = (k==='ttl'||k==='id'||k==='status')?'asc':'desc'; }
+    render();
+  });
+});
+
+// filter
+document.addEventListener('click', e=>{
+  const chip = e.target.closest('.chip[data-filter]');
+  if (!chip) return;
+  document.querySelectorAll('.chip[data-filter]').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  const f = chip.dataset.filter;
+  document.querySelectorAll('tr.row').forEach(row=>{
+    row.style.display = (f==='all' || row.dataset.status===f) ? '' : 'none';
+  });
+});
+
+// sheet
+function openSheet(id){
+  const r = inventory.find(x=>x.id===id);
+  if (!r) return;
+  const c = COLORS[r.color];
+  document.getElementById('sh-ttl').textContent = `${r.year} ${r.ttl}`;
+  document.getElementById('sh-met').textContent = `${r.id} · ${fmt.miles(r.mi)} mi · ${fmt.$(r.price)} · ${r.approval}% approval`;
+  document.getElementById('sh-photo-svg').style.color = c.hex;
+  document.getElementById('sh-photo-svg').innerHTML = `<use href="#${r.mark}"/>`;
+  document.getElementById('sh-ltv').textContent  = fmt.pct(r.ltv);
+  document.getElementById('sh-otd').textContent  = fmt.pct(r.otd);
+  document.getElementById('sh-gross').textContent = r.gross<0 ? '−$'+Math.abs(r.gross).toLocaleString() : '+$'+r.gross.toLocaleString();
+  document.getElementById('sh-gross').className = 'v ' + (r.gross<0?'neg':'pos');
+  document.getElementById('sh-pmt').textContent = '$' + r.pmt + '/mo';
+  document.getElementById('sheetBackdrop').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(){
+  document.getElementById('sheetBackdrop').classList.remove('on');
+  document.body.style.overflow = '';
+}
+window.addEventListener('keydown', e=>{ if (e.key==='Escape') closeSheet(); });
+
+// theme
+function toggleTheme(){
+  const html = document.documentElement;
+  const next = html.dataset.theme==='dark'?'light':'dark';
+  html.dataset.theme = next;
+  const ti = document.getElementById('themeIcon');
+  if (next==='dark') ti.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  else ti.innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
+}
+document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+
+// toast
+function toast({title, detail}){
+  const stack = document.getElementById('toastStack');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `
+    <div class="tico"><svg class="ic ic-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div><div class="ttl">${title}</div><div class="det">${detail}</div></div>
+    <button class="x"><svg class="ic ic-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  `;
+  stack.appendChild(t);
+  const dismiss = ()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(), 220); };
+  t.querySelector('.x').addEventListener('click', dismiss);
+  setTimeout(dismiss, 4500);
+}
+
+// boot
+render();
+setTimeout(()=>toast({ title:'Sorted by approval likelihood', detail:'Click any column header to re-sort.' }), 600);
+</script>
+
+</body>
+</html>

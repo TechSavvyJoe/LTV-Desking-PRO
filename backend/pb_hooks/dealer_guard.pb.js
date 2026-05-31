@@ -22,15 +22,23 @@ const DEALER_SCOPED = [
 
 const enforceDealer = (e) => {
   const auth = e.auth;
-  if (!auth) return e.next();
 
   // Superadmins are trusted to write across dealerships (e.g., seeding,
   // impersonation, support operations).
-  const role = auth.get("role");
-  if (role === "superadmin") return e.next();
+  if (auth && auth.get("role") === "superadmin") return e.next();
 
+  // Fail CLOSED. A write to a dealer-scoped collection with no enforceable
+  // tenant must be rejected, never passed through with a client-supplied
+  // `dealer`. Previously both branches called e.next(), so an unauthenticated
+  // request (if a create/update rule were ever loosened) or a misconfigured
+  // user with an empty `dealer` could write with an attacker-chosen tenant. [B2]
+  if (!auth) {
+    throw new ForbiddenError("Authentication is required to write dealer-scoped records.");
+  }
   const authDealer = auth.get("dealer");
-  if (!authDealer) return e.next();
+  if (!authDealer) {
+    throw new ForbiddenError("Your account is not associated with a dealership.");
+  }
 
   // Force the dealer field on the incoming record regardless of payload.
   e.record.set("dealer", authDealer);

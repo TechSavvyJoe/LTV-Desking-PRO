@@ -133,9 +133,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
       case "extracting":
         return "text-yellow-400";
       case "validating":
-        return "text-purple-400";
+        return "text-[var(--color-primary)]";
       case "enhancing":
-        return "text-cyan-400";
+        return "text-[var(--color-primary)]";
       case "complete":
         return "text-green-400";
       case "error":
@@ -336,7 +336,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         </div>
         <div className="w-full bg-x-hover-dark rounded-full h-3 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 rounded-full transition-all duration-300 ease-out"
+            className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-300 ease-out"
             style={{ width: `${overallProgress}%` }}
           />
         </div>
@@ -376,7 +376,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                       ? "bg-red-500"
                       : stage === "complete"
                         ? "bg-green-500"
-                        : "bg-gradient-to-r from-blue-500 to-purple-500"
+                        : "bg-[var(--color-primary)]"
                   }`}
                   style={{ width: `${stageProgress}%` }}
                 />
@@ -412,11 +412,11 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-x-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+      className="fixed inset-0 bg-slate-950/60 flex justify-center items-center z-50 p-4"
       onClick={handleClose}
     >
       <div
-        className="bg-x-black border border-x-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+        className="bg-x-black border border-x-border rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 flex justify-between items-center border-b border-x-border">
@@ -491,9 +491,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                     Enrich missing bank data via web search
                   </span>
                   <span className="block text-xs text-x-text-secondary mt-1">
-                    After extracting the rate sheet, search the web (Gemini grounding) to fill in any
-                    missing contact info, website, portal URL, or general bank notes. Sources are
-                    cited. Adds ~10–20s per file.
+                    After extracting the rate sheet, search the web (Gemini grounding) to fill in
+                    any missing contact info, website, portal URL, or general bank notes. Sources
+                    are cited. Adds ~10–20s per file.
                   </span>
                 </label>
               </div>
@@ -533,7 +533,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                               lender.website ||
                               lender.portalUrl ||
                               lender.generalNotes) && (
-                              <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-x-text-secondary border-l-2 border-cyan-500/40 pl-3">
+                              <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-x-text-secondary border-l-2 border-[var(--color-primary)]/40 pl-3">
                                 {lender.contactName && (
                                   <span>
                                     <strong>Contact:</strong> {lender.contactName}
@@ -592,7 +592,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                     target="_blank"
                                     rel="noreferrer"
                                     title={src.title || src.url}
-                                    className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 truncate max-w-[180px]"
+                                    className="px-2 py-0.5 rounded-full bg-[var(--color-primary-subtle)] border border-[var(--color-primary)]/30 text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] truncate max-w-[180px]"
                                   >
                                     {(() => {
                                       try {

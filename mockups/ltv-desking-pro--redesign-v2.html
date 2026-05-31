@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTV Desking PRO - Premium Redesign</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            800: '#1e40af', // Navy Primary
+                            900: '#1e3a8a', // Navy Dark
+                        },
+                        surface: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                        }
+                    },
+                    boxShadow: {
+                        'xs': '0 1px 2px 0 rgba(15, 23, 42, 0.05)',
+                        'sm': '0 1px 3px 0 rgba(15, 23, 42, 0.1), 0 1px 2px -1px rgba(15, 23, 42, 0.1)',
+                        'btn': '0 1px 2px 0 rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.05)',
+                        'btn-primary': '0 1px 2px 0 rgba(30, 64, 175, 0.4), 0 0 0 1px rgba(30, 64, 175, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f8fafc; }
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+        /* Custom scrollbar for data grid */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-slate-900 antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation (Stripe/Linear style) -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="px-6 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 bg-brand-800 rounded flex items-center justify-center shadow-sm">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 12L10 18L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <span class="text-sm font-semibold tracking-tight">LTV Desking PRO</span>
+                </div>
+                
+                <nav class="hidden md:flex items-center space-x-1">
+                    <a href="#" class="px-3 py-1.5 text-sm font-medium text-brand-800 bg-brand-50 rounded-md">Inventory</a>
+                    <a href="#" class="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">Lender Programs</a>
+                    <a href="#" class="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">Saved Deals</a>
+                    <a href="#" class="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">Finance Tools</a>
+                </nav>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="hidden sm:flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-xs font-medium text-slate-600">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    Viewing as: Bob Maxey Ford
+                </div>
+                
+                <div class="h-4 w-px bg-slate-200"></div>
+
+                <button class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-brand-800 hover:bg-brand-900 shadow-btn-primary rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    AI Lender Upload
+                </button>
+                <button class="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors">
+                    JG
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 p-6 md:p-8 max-w-[1400px] mx-auto w-full space-y-6">
+        
+        <!-- Header & Toolbar -->
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Inventory</h1>
+                <p class="text-sm text-slate-500 mt-1">Manage 245 vehicles and run quick calculations.</p>
+            </div>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <div class="relative flex-1 sm:flex-none">
+                    <svg class="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" placeholder="Search VIN, stock, or make..." class="pl-9 pr-3 py-1.5 text-sm bg-white border border-slate-300 rounded-md w-full sm:w-72 shadow-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 placeholder-slate-400 transition-shadow">
+                </div>
+                <button class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-btn rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+                    Filter
+                </button>
+            </div>
+        </div>
+
+        <!-- Premium Data Grid -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                        <tr class="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500">
+                            <th class="px-4 py-3 pl-5 w-10">
+                                <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-3.5 w-3.5 cursor-pointer">
+                            </th>
+                            <th class="px-4 py-3">Vehicle</th>
+                            <th class="px-4 py-3">Stock #</th>
+                            <th class="px-4 py-3 text-right">Miles</th>
+                            <th class="px-4 py-3 text-right">Price</th>
+                            <th class="px-4 py-3 text-right">Front LTV</th>
+                            <th class="px-4 py-3 text-right">Est. pmt</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3 pr-5 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                        
+                        <!-- Row 1 -->
+                        <tr class="hover:bg-slate-50 transition-colors group">
+                            <td class="px-4 py-3 pl-5">
+                                <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-3.5 w-3.5 cursor-pointer">
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="font-medium text-slate-900">2021 Ford F-150</div>
+                                <div class="text-xs text-slate-500">XLT SuperCrew 4x4</div>
+                            </td>
+                            <td class="px-4 py-3 text-slate-500 tabular-nums">P8832A</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">42,500</td>
+                            <td class="px-4 py-3 text-right font-medium tabular-nums text-slate-900">$38,900</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/10">112%</span>
+                            </td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">$685</td>
+                            <td class="px-4 py-3">
+                                <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-green-600"></div>
+                                    Front-line
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 pr-5 text-right">
+                                <button class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-800 bg-brand-50 hover:bg-brand-100 rounded-md ml-auto">
+                                    Desk Deal
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Row 2 -->
+                        <tr class="hover:bg-slate-50 transition-colors group">
+                            <td class="px-4 py-3 pl-5">
+                                <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-3.5 w-3.5 cursor-pointer">
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <!-- Star icon for favorited -->
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                    <div>
+                                        <div class="font-medium text-slate-900">2023 Toyota Camry</div>
+                                        <div class="text-xs text-slate-500">SE Nightshade</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-slate-500 tabular-nums">N1104</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">12,100</td>
+                            <td class="px-4 py-3 text-right font-medium tabular-nums text-slate-900">$26,450</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/10">95%</span>
+                            </td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">$460</td>
+                            <td class="px-4 py-3">
+                                <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-amber-600"></div>
+                                    In Recon
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 pr-5 text-right">
+                                <button class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-800 bg-brand-50 hover:bg-brand-100 rounded-md ml-auto">
+                                    Desk Deal
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Row 3 -->
+                        <tr class="hover:bg-slate-50 transition-colors group">
+                            <td class="px-4 py-3 pl-5">
+                                <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-3.5 w-3.5 cursor-pointer">
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="font-medium text-slate-900">2019 Honda CR-V</div>
+                                <div class="text-xs text-slate-500">EX-L AWD</div>
+                            </td>
+                            <td class="px-4 py-3 text-slate-500 tabular-nums">P8901</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">68,420</td>
+                            <td class="px-4 py-3 text-right font-medium tabular-nums text-slate-900">$21,000</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/10">104%</span>
+                            </td>
+                            <td class="px-4 py-3 text-right tabular-nums text-slate-600">$395</td>
+                            <td class="px-4 py-3">
+                                <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-green-600"></div>
+                                    Front-line
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 pr-5 text-right">
+                                <button class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-800 bg-brand-50 hover:bg-brand-100 rounded-md ml-auto">
+                                    Desk Deal
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Table Footer/Pagination -->
+            <div class="bg-white border-t border-slate-200 px-5 py-3 flex items-center justify-between">
+                <p class="text-sm text-slate-500">
+                    Showing <span class="font-medium text-slate-900">1</span> to <span class="font-medium text-slate-900">3</span> of <span class="font-medium text-slate-900">245</span> vehicles
+                </p>
+                <div class="flex items-center gap-2">
+                    <button class="px-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
+                    <button class="px-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-xs transition-colors">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forms / Inputs Section -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="border-b border-slate-200 bg-slate-50/50 px-6 py-4">
+                <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <span class="flex items-center justify-center w-5 h-5 rounded bg-slate-200 text-slate-600 text-xs tabular-nums">1</span>
+                    Quick Desking Calculator
+                </h2>
+            </div>
+            
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-slate-700">Vehicle price</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                            <input type="text" value="38,900" class="w-full pl-6 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 tabular-nums transition-shadow">
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-slate-700">Trade allowance</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                            <input type="text" placeholder="0" class="w-full pl-6 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 tabular-nums placeholder-slate-400 transition-shadow">
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-slate-700">Trade payoff</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                            <input type="text" placeholder="0" class="w-full pl-6 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 tabular-nums placeholder-slate-400 transition-shadow">
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-slate-700">Cash down</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                            <input type="text" value="2,500" class="w-full pl-6 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 tabular-nums transition-shadow">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-8 pt-5 border-t border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-slate-500">Est. LTV:</span>
+                        <span class="text-sm font-semibold text-slate-900">112%</span>
+                    </div>
+                    <div class="flex gap-3">
+                        <button class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-btn rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">Reset</button>
+                        <button class="px-4 py-2 text-sm font-medium text-white bg-brand-800 hover:bg-brand-900 shadow-btn-primary rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">Calculate Options</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</body>
+</html>

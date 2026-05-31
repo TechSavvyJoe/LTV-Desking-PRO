@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from "react";
+import React, { useState, useRef, useMemo, useEffect, lazy, Suspense } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { isAuthenticated, onAuthStateChange, logout, getCurrentUser } from "./lib/auth";
 import {
@@ -25,10 +25,10 @@ import InventoryTable from "./components/InventoryTable";
 import LenderProfiles from "./components/LenderProfiles";
 import SavedDeals from "./components/SavedDeals";
 import SettingsModal from "./components/SettingsModal";
-import FinanceTools from "./components/FinanceTools";
 import ActionBar from "./components/ActionBar";
 import { Toast } from "./components/common/Toast";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
+import { DataLoading, DataError } from "./components/common/states";
 import { TabButton } from "./components/common/TabButton";
 import { calculateFinancials } from "./services/calculator";
 import { generateFavoritesPdf } from "./services/pdfGenerator";
@@ -40,10 +40,26 @@ import AiLenderManagerModal from "./components/AiLenderManagerModal";
 import BackgroundUploadIndicator from "./components/BackgroundUploadIndicator";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
-import PrivacyPolicy from "./components/legal/PrivacyPolicy";
-import TermsOfService from "./components/legal/TermsOfService";
-import { SuperAdminDashboard } from "./components/admin/SuperAdminDashboard";
-import { DealerAdminDashboard } from "./components/admin/DealerAdminDashboard";
+// Code-split the heavy, conditionally-rendered surfaces so a salesperson on the
+// default route never downloads the admin dashboards (~3,200 lines), the legal
+// pages, or recharts (via FinanceTools) on first paint. [perf]
+const PrivacyPolicy = lazy(() => import("./components/legal/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./components/legal/TermsOfService"));
+const FinanceTools = lazy(() => import("./components/FinanceTools"));
+const SuperAdminDashboard = lazy(() =>
+  import("./components/admin/SuperAdminDashboard").then((m) => ({ default: m.SuperAdminDashboard }))
+);
+const DealerAdminDashboard = lazy(() =>
+  import("./components/admin/DealerAdminDashboard").then((m) => ({
+    default: m.DealerAdminDashboard,
+  }))
+);
+
+const PageFallback = (
+  <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
+    <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+  </div>
+);
 import { toast } from "./lib/toast";
 import { confirmAction } from "./lib/confirm";
 import { mapPocketBaseSavedDeal } from "./lib/dealMappers";
@@ -108,6 +124,9 @@ const MainLayout: React.FC = () => {
     handleInventoryUpdate,
     clearDealAndFilters,
     loadSampleData,
+    dataLoading,
+    dataError,
+    refetchData,
   } = useDealContext();
 
   const { theme, toggleTheme } = useTheme();
@@ -115,11 +134,8 @@ const MainLayout: React.FC = () => {
   // Bridge the message state to the global toast system
   useEffect(() => {
     if (message) {
-      if (message.type === "success") {
-        toast.success(message.text);
-      } else {
-        toast.error(message.text);
-      }
+      // Map all four message types so warnings/info aren't downgraded to errors.
+      toast[message.type](message.text);
       // Clear after dispatching so the same message can be set again
       setMessage(null);
     }
@@ -170,6 +186,13 @@ const MainLayout: React.FC = () => {
   const favoriteVins = useMemo(() => {
     return new Set(safeFavorites.map((v) => v.vin));
   }, [safeFavorites]);
+
+  // Compute favorites' financials once per render instead of inline (twice) in
+  // JSX, which re-ran the full calc on every MainLayout render. [perf]
+  const calculatedFavorites = useMemo(
+    () => safeFavorites.map((item) => calculateFinancials(item, dealData, settings)),
+    [safeFavorites, dealData, settings]
+  );
 
   // PDF and share handlers for expanded rows
   const isShareSupported = typeof navigator !== "undefined" && "share" in navigator;
@@ -226,7 +249,7 @@ const MainLayout: React.FC = () => {
 
     try {
       // Parse the file first
-      const data = await parseFile(file);
+      const { vehicles: data, skipped, reasons } = await parseFile(file);
       if (data.length === 0) {
         setMessage({
           type: "error",
@@ -245,10 +268,11 @@ const MainLayout: React.FC = () => {
         return;
       }
 
-      // Show syncing message
+      // Show syncing message — surface skipped rows so import loss is never silent. [B1]
+      const skippedNote = skipped > 0 ? ` Skipped ${skipped} (${reasons.join("; ")}).` : "";
       setMessage({
-        type: "success",
-        text: `Parsed ${data.length} vehicles. Syncing to database...`,
+        type: skipped > 0 ? "warning" : "success",
+        text: `Parsed ${data.length} vehicles.${skippedNote} Syncing to database...`,
       });
 
       // Prepare items for sync
@@ -273,9 +297,13 @@ const MainLayout: React.FC = () => {
       setInventory(data);
       setPagination((prev) => ({ ...prev, currentPage: 1 }));
 
+      const failedNote =
+        syncResult.failed > 0
+          ? ` ${syncResult.failed} operation(s) failed and were not saved.`
+          : "";
       setMessage({
-        type: "success",
-        text: `Synced ${data.length} vehicles: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.`,
+        type: syncResult.failed > 0 ? "warning" : "success",
+        text: `Synced: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.${failedNote}`,
       });
     } catch (err) {
       console.error(err);
@@ -339,6 +367,12 @@ const MainLayout: React.FC = () => {
           })
           .catch((err: unknown) => {
             console.error("Failed to sync VIN lookup to PocketBase:", err);
+            // Surface the silent persistence failure (e.g. no dealership selected)
+            // instead of leaving the user believing the vehicle was saved.
+            setMessage({
+              type: "warning",
+              text: "Vehicle is shown locally but couldn't be saved to the server.",
+            });
           });
 
         setMessage({
@@ -550,10 +584,11 @@ const MainLayout: React.FC = () => {
       >
         {/* Deal Controls */}
         <section>
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-200 dark:hover:border-slate-700">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20 flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                <Icons.UserIcon className="w-4 h-4" /> Customer & Deal
+          <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm overflow-hidden transition-colors duration-[120ms] hover:border-[var(--color-border-strong)]">
+            <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
+                <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" /> Customer &amp;
+                deal
               </h3>
               {/* Action Buttons moved here */}
               <ActionBar
@@ -589,7 +624,7 @@ const MainLayout: React.FC = () => {
         {/* Main Content Area (Tables) */}
         <section className="space-y-6 min-w-0">
           {/* Top Toolbar: File Upload & VIN (Refined) */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
+          <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
             {/* File Import Section */}
             <div className="flex items-center gap-3 flex-1 min-w-[280px]">
               <input
@@ -599,6 +634,7 @@ const MainLayout: React.FC = () => {
                 className="hidden"
                 ref={fileInputRef}
                 title="Upload inventory file"
+                aria-label="Upload inventory CSV or Excel file"
               />
               <Button
                 onClick={() => fileInputRef.current?.click()}
@@ -688,6 +724,7 @@ const MainLayout: React.FC = () => {
                   type="text"
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
                   placeholder="Enter VIN..."
+                  aria-label="Enter VIN to decode"
                   maxLength={17}
                   value={vinLookup}
                   onChange={(e) => setVinLookup(e.target.value.toUpperCase())}
@@ -707,10 +744,10 @@ const MainLayout: React.FC = () => {
 
           {/* Contextual Status Bar */}
           {(dealData.tradeInValue > 0 || dealData.downPayment > 0) && (
-            <div className="flex flex-wrap items-center gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 px-5 py-3 rounded-xl text-sm text-blue-800 dark:text-blue-200 animate-fadeIn">
-              <span className="font-bold flex items-center gap-2 uppercase tracking-wide text-xs">
-                <Icons.InformationCircleIcon className="w-5 h-5" />
-                Pending Structure
+            <div className="flex flex-wrap items-center gap-4 bg-[var(--color-primary-subtle)] border border-[var(--color-border)] px-5 py-3 rounded-md text-sm text-[var(--color-text)] animate-fadeIn">
+              <span className="font-semibold flex items-center gap-2 text-xs">
+                <Icons.InformationCircleIcon className="w-5 h-5 text-[var(--color-primary)]" />
+                Pending structure
               </span>
               <div className="flex items-center gap-3 ml-auto sm:ml-0">
                 <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
@@ -733,7 +770,11 @@ const MainLayout: React.FC = () => {
 
           {/* Navigation Tabs */}
           <div className="sticky top-[88px] z-20 xl:static bg-transparent">
-            <nav className="flex items-center gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/80 rounded-2xl overflow-x-auto border border-slate-200 dark:border-slate-800 backdrop-blur-md shadow-sm">
+            <nav
+              role="tablist"
+              aria-label="Dealer workspace sections"
+              className="flex items-center gap-2 p-1.5 bg-[var(--color-bg-subtle)] rounded-lg overflow-x-auto border border-[var(--color-border)] shadow-sm"
+            >
               <TabButton
                 active={activeTab === "inventory"}
                 onClick={() => handleTabChange("inventory")}
@@ -766,49 +807,109 @@ const MainLayout: React.FC = () => {
 
           {/* TAB CONTENT */}
           <div className="min-h-[500px] animate-fadeIn">
-            {activeTab === "inventory" && (
-              <div className="space-y-8">
-                {/* Favorites Section */}
-                {safeFavorites.length > 0 && (
-                  <div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30 p-1">
-                    <div className="px-4 py-3 border-b border-amber-100 dark:border-amber-900/30 flex items-center justify-between">
-                      <h2 className="text-sm font-bold text-amber-800 dark:text-amber-200 uppercase tracking-widest flex items-center gap-2">
-                        <Icons.StarIcon className="w-4 h-4 text-amber-500 fill-current" />
-                        Shortlist ({safeFavorites.length})
-                      </h2>
-                    </div>
-                    <div className="p-2">
+            {dataError ? (
+              <DataError
+                title="Couldn't load your data"
+                description={dataError}
+                onRetry={refetchData}
+              />
+            ) : dataLoading ? (
+              <DataLoading label="Loading your dealership data…" />
+            ) : (
+              <>
+                {activeTab === "inventory" && (
+                  <div className="space-y-8">
+                    {/* Favorites Section */}
+                    {safeFavorites.length > 0 && (
+                      <div className="bg-[var(--color-bg-subtle)] rounded-lg border border-[var(--color-border)] p-1">
+                        <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
+                          <h2 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
+                            <Icons.StarIcon className="w-4 h-4 text-[var(--color-warning)] fill-current" />
+                            Shortlist ({safeFavorites.length})
+                          </h2>
+                        </div>
+                        <div className="p-2">
+                          <InventoryTable
+                            data={calculatedFavorites}
+                            sortConfig={favSort}
+                            onSort={(key) =>
+                              setFavSort((prev) => ({
+                                key,
+                                direction:
+                                  prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+                              }))
+                            }
+                            expandedRows={expandedFavoriteRows}
+                            onRowClick={(vin) => handleFavoriteRowSelect(vin, calculatedFavorites)}
+                            onStructureDeal={handleSelectVehicle}
+                            favoriteVins={favoriteVins}
+                            toggleFavorite={toggleFavorite}
+                            pagination={{
+                              currentPage: 1,
+                              itemsPerPage: Infinity,
+                            }}
+                            setPagination={() => {}}
+                            totalRows={safeFavorites.length}
+                            isFavoritesView
+                            renderExpandedRow={(vehicle) => (
+                              <InventoryExpandedRow
+                                item={vehicle}
+                                lenderProfiles={safeLenderProfiles}
+                                dealData={dealData}
+                                setDealData={setDealData}
+                                onInventoryUpdate={handleInventoryUpdate}
+                                customerFilters={filters}
+                                settings={settings}
+                                onDownloadPdf={downloadPdf}
+                                onSharePdf={(e) => sharePdf(e, vehicle)}
+                                isShareSupported={isShareSupported}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Main Inventory */}
+                    <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm overflow-hidden">
                       <InventoryTable
-                        data={safeFavorites.map((item) =>
-                          calculateFinancials(item, dealData, settings)
-                        )}
-                        sortConfig={favSort}
+                        data={paginatedInventory}
+                        sortConfig={inventorySort}
                         onSort={(key) =>
-                          setFavSort((prev) => ({
+                          setInventorySort((prev) => ({
                             key,
                             direction:
                               prev.key === key && prev.direction === "asc" ? "desc" : "asc",
                           }))
                         }
-                        expandedRows={expandedFavoriteRows}
-                        onRowClick={(vin) =>
-                          handleFavoriteRowSelect(
-                            vin,
-                            safeFavorites.map((item) =>
-                              calculateFinancials(item, dealData, settings)
-                            )
-                          )
-                        }
+                        expandedRows={expandedInventoryRows}
+                        onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
                         onStructureDeal={handleSelectVehicle}
                         favoriteVins={favoriteVins}
                         toggleFavorite={toggleFavorite}
-                        pagination={{
-                          currentPage: 1,
-                          itemsPerPage: Infinity,
-                        }}
-                        setPagination={() => {}}
-                        totalRows={safeFavorites.length}
-                        isFavoritesView
+                        pagination={pagination}
+                        setPagination={setPagination}
+                        totalRows={sortedInventory.length}
+                        onLoadSampleData={loadSampleData}
+                        emptyMessage={
+                          safeInventory.length > 0 ? (
+                            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                              <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                              <p className="text-slate-500">No vehicles match your filters.</p>
+                              <Button onClick={clearDealAndFilters} variant="secondary" size="sm">
+                                Clear Filters
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                              <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                              <p className="text-slate-500">Inventory is empty.</p>
+                              <Button onClick={loadSampleData} variant="primary" size="sm">
+                                Load Sample Data
+                              </Button>
+                            </div>
+                          )
+                        }
                         renderExpandedRow={(vehicle) => (
                           <InventoryExpandedRow
                             item={vehicle}
@@ -828,127 +929,80 @@ const MainLayout: React.FC = () => {
                   </div>
                 )}
 
-                {/* Main Inventory */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                  <InventoryTable
-                    data={paginatedInventory}
-                    sortConfig={inventorySort}
-                    onSort={(key) =>
-                      setInventorySort((prev) => ({
-                        key,
-                        direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-                      }))
-                    }
-                    expandedRows={expandedInventoryRows}
-                    onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
-                    onStructureDeal={handleSelectVehicle}
-                    favoriteVins={favoriteVins}
-                    toggleFavorite={toggleFavorite}
-                    pagination={pagination}
-                    setPagination={setPagination}
-                    totalRows={sortedInventory.length}
-                    onLoadSampleData={loadSampleData}
-                    emptyMessage={
-                      safeInventory.length > 0 ? (
-                        <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                          <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                          <p className="text-slate-500">No vehicles match your filters.</p>
-                          <Button onClick={clearDealAndFilters} variant="secondary" size="sm">
-                            Clear Filters
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                          <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                          <p className="text-slate-500">Inventory is empty.</p>
-                          <Button onClick={loadSampleData} variant="primary" size="sm">
-                            Load Sample Data
-                          </Button>
-                        </div>
-                      )
-                    }
-                    renderExpandedRow={(vehicle) => (
-                      <InventoryExpandedRow
-                        item={vehicle}
-                        lenderProfiles={safeLenderProfiles}
-                        dealData={dealData}
-                        setDealData={setDealData}
-                        onInventoryUpdate={handleInventoryUpdate}
-                        customerFilters={filters}
-                        settings={settings}
-                        onDownloadPdf={downloadPdf}
-                        onSharePdf={(e) => sharePdf(e, vehicle)}
-                        isShareSupported={isShareSupported}
-                      />
-                    )}
+                {activeTab === "lenders" && (
+                  <LenderProfiles
+                    profiles={safeLenderProfiles}
+                    onUpdate={setLenderProfiles}
+                    settings={settings}
                   />
-                </div>
-              </div>
-            )}
+                )}
 
-            {activeTab === "lenders" && (
-              <LenderProfiles
-                profiles={safeLenderProfiles}
-                onUpdate={setLenderProfiles}
-                settings={settings}
-              />
-            )}
-
-            {activeTab === "saved" && (
-              <SavedDeals
-                deals={safeSavedDeals}
-                onLoad={(deal) => {
-                  setCustomerName(deal.customerName);
-                  setSalespersonName(deal.salespersonName || "");
-                  setDealData(deal.dealData);
-                  setFilters((prev) => ({
-                    ...prev,
-                    creditScore: deal.customerFilters?.creditScore ?? null,
-                    monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
-                  }));
-                  setScratchPadNotes(deal.notes || "");
-                  if (deal.vehicle) {
-                    setActiveVehicle(deal.vehicle);
-                  }
-                  setMessage({
-                    type: "success",
-                    text: "Deal loaded successfully.",
-                  });
-                }}
-                onDelete={(id) => {
-                  confirmAction({
-                    title: "Delete deal?",
-                    message: "Are you sure you want to delete this deal?",
-                    confirmLabel: "Delete",
-                    tone: "danger",
-                  }).then((confirmed) => {
-                    if (!confirmed) return;
-                    deleteDeal(id).then((success) => {
-                      if (success) {
-                        setSavedDeals(safeSavedDeals.filter((d) => d.id !== id));
-                        setMessage({
-                          type: "success",
-                          text: "Deal deleted.",
-                        });
-                      } else {
-                        setMessage({
-                          type: "error",
-                          text: "Failed to delete deal.",
-                        });
+                {activeTab === "saved" && (
+                  <SavedDeals
+                    deals={safeSavedDeals}
+                    onLoad={(deal) => {
+                      setCustomerName(deal.customerName);
+                      setSalespersonName(deal.salespersonName || "");
+                      setDealData(deal.dealData);
+                      setFilters((prev) => ({
+                        ...prev,
+                        creditScore: deal.customerFilters?.creditScore ?? null,
+                        monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
+                      }));
+                      setScratchPadNotes(deal.notes || "");
+                      if (deal.vehicle) {
+                        setActiveVehicle(deal.vehicle);
                       }
-                    });
-                  });
-                }}
-              />
-            )}
+                      setMessage({
+                        type: "success",
+                        text: "Deal loaded successfully.",
+                      });
+                    }}
+                    onDelete={(id) => {
+                      confirmAction({
+                        title: "Delete deal?",
+                        message: "Are you sure you want to delete this deal?",
+                        confirmLabel: "Delete",
+                        tone: "danger",
+                      }).then((confirmed) => {
+                        if (!confirmed) return;
+                        deleteDeal(id)
+                          .then((success) => {
+                            if (success) {
+                              // Functional updater — the realtime subscription and
+                              // saveDeal also mutate savedDeals, so a captured
+                              // render-time array would clobber concurrent changes.
+                              setSavedDeals((prev) => prev.filter((d) => d.id !== id));
+                              setMessage({
+                                type: "success",
+                                text: "Deal deleted.",
+                              });
+                            } else {
+                              setMessage({
+                                type: "error",
+                                text: "Failed to delete deal.",
+                              });
+                            }
+                          })
+                          .catch(() => {
+                            setMessage({ type: "error", text: "Failed to delete deal." });
+                          });
+                      });
+                    }}
+                  />
+                )}
 
-            {activeTab === "scratchpad" && (
-              <FinanceTools
-                scratchPadNotes={scratchPadNotes}
-                setScratchPadNotes={setScratchPadNotes}
-                dealData={dealData}
-                activeVehicle={activeVehicle}
-              />
+                {activeTab === "scratchpad" && (
+                  <Suspense fallback={<DataLoading label="Loading tools…" />}>
+                    <FinanceTools
+                      scratchPadNotes={scratchPadNotes}
+                      setScratchPadNotes={setScratchPadNotes}
+                      dealData={dealData}
+                      activeVehicle={activeVehicle}
+                    />
+                  </Suspense>
+                )}
+              </>
             )}
           </div>
         </section>
@@ -1049,9 +1103,10 @@ const ImpersonationBanner: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   if (!overrideId) return null;
 
   return (
-    <div className="sticky top-0 z-[60] bg-purple-600 text-white px-4 py-2 flex items-center justify-between text-sm shadow-md">
+    <div className="sticky top-0 z-[60] bg-[var(--color-bg)] border-b-2 border-[var(--color-warning)] text-[var(--color-text)] px-4 py-2 flex items-center justify-between text-sm">
       <div className="flex items-center gap-2">
-        <Icons.EyeIcon className="w-4 h-4" />
+        <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-warning)]" aria-hidden />
+        <Icons.EyeIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
         <span>
           Viewing as <strong>{dealer?.name || "…"}</strong>
           {dealer?.code ? ` (${dealer.code})` : ""}
@@ -1059,7 +1114,7 @@ const ImpersonationBanner: React.FC<{ onExit: () => void }> = ({ onExit }) => {
       </div>
       <button
         onClick={onExit}
-        className="px-3 py-1 bg-white/15 hover:bg-white/25 rounded-md font-medium transition-colors"
+        className="px-3 py-1 bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] rounded font-medium transition-colors"
       >
         Exit impersonation
       </button>
@@ -1123,10 +1178,10 @@ const App: React.FC = () => {
 
   // === LEGAL ROUTES (public, no auth required) ===
   if (isPrivacyRoute) {
-    return <PrivacyPolicy />;
+    return <Suspense fallback={PageFallback}>{<PrivacyPolicy />}</Suspense>;
   }
   if (isTermsRoute) {
-    return <TermsOfService />;
+    return <Suspense fallback={PageFallback}>{<TermsOfService />}</Suspense>;
   }
 
   // === OWNER (/admin) ROUTE ===
@@ -1135,22 +1190,23 @@ const App: React.FC = () => {
       return <OwnerLogin onSuccess={() => setIsAuth(true)} />;
     }
     if (!isSuperAdmin) {
-      logout();
-      navigate("/", { replace: true });
-      return null;
+      // Redirect handled by the effect above; render a neutral spinner meanwhile.
+      return PageFallback;
     }
     return (
-      <SuperAdminDashboard
-        onSwitchToDealer={() => {
-          setViewMode("dealer");
-          navigate("/");
-        }}
-        onImpersonate={(dealerId) => {
-          setSuperadminDealerOverride(dealerId);
-          setViewMode("dealer");
-          navigate("/");
-        }}
-      />
+      <Suspense fallback={PageFallback}>
+        <SuperAdminDashboard
+          onSwitchToDealer={() => {
+            setViewMode("dealer");
+            navigate("/");
+          }}
+          onImpersonate={(dealerId) => {
+            setSuperadminDealerOverride(dealerId);
+            setViewMode("dealer");
+            navigate("/");
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -1168,13 +1224,17 @@ const App: React.FC = () => {
   }
 
   // Superadmin on / without an active impersonation defaults to /admin
+  // (navigation performed by the redirect effect above).
   if (isSuperAdmin && viewMode === "auto" && !getSuperadminDealerOverride()) {
-    navigate("/admin", { replace: true });
-    return null;
+    return PageFallback;
   }
 
   if (isDealerAdmin && viewMode === "auto") {
-    return <DealerAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />;
+    return (
+      <Suspense fallback={PageFallback}>
+        <DealerAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />
+      </Suspense>
+    );
   }
 
   const handleExitImpersonation = () => {

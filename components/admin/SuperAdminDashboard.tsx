@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { getCurrentUser, User, Dealer } from "../../lib/pocketbase";
 import {
@@ -24,11 +23,7 @@ import {
   MaskedAiProviderKeys,
   AiProviderId,
 } from "../../lib/api";
-import {
-  AI_MODELS,
-  AI_PROVIDER_ORDER,
-  DEFAULT_AI_SETTINGS,
-} from "../../lib/aiModelRegistry";
+import { AI_MODELS, AI_PROVIDER_ORDER, DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
 import { logout } from "../../lib/auth";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
@@ -41,64 +36,30 @@ import { useForceDarkMode } from "../../hooks/useForceDarkMode";
 
 type StatAccent = "blue" | "emerald" | "violet" | "amber";
 
-const STAT_ACCENTS: Record<
-  StatAccent,
-  { stripe: string; iconBg: string; iconText: string; valueText: string }
-> = {
-  blue: {
-    stripe: "from-blue-500/0 via-blue-500 to-blue-500/0",
-    iconBg: "bg-blue-500/10 ring-1 ring-blue-500/30",
-    iconText: "text-blue-300",
-    valueText: "text-white",
-  },
-  emerald: {
-    stripe: "from-emerald-500/0 via-emerald-500 to-emerald-500/0",
-    iconBg: "bg-emerald-500/10 ring-1 ring-emerald-500/30",
-    iconText: "text-emerald-300",
-    valueText: "text-white",
-  },
-  violet: {
-    stripe: "from-violet-500/0 via-violet-500 to-violet-500/0",
-    iconBg: "bg-violet-500/10 ring-1 ring-violet-500/30",
-    iconText: "text-violet-300",
-    valueText: "text-white",
-  },
-  amber: {
-    stripe: "from-amber-500/0 via-amber-500 to-amber-500/0",
-    iconBg: "bg-amber-500/10 ring-1 ring-amber-500/30",
-    iconText: "text-amber-300",
-    valueText: "text-white",
-  },
-};
-
+// Dealer Trust: KPI cards are visually identical. The `accent` prop is retained
+// for call-site compatibility but no longer drives color — rhythm comes from the
+// value and typography, not a rainbow of per-card hues.
 const StatCard: React.FC<{
   label: string;
   value: number;
   hint?: string;
   icon: React.ReactNode;
   accent: StatAccent;
-}> = ({ label, value, hint, icon, accent }) => {
-  const a = STAT_ACCENTS[accent];
+}> = ({ label, value, hint, icon }) => {
   return (
-    <div className="relative overflow-hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg hover:border-slate-700 transition-colors">
-      <div
-        className={`absolute top-0 left-4 right-4 h-px bg-gradient-to-r ${a.stripe}`}
-        aria-hidden
-      />
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
-          <p className={`text-3xl font-semibold mt-2 tabular-nums tracking-tight ${a.valueText}`}>
-            {value.toLocaleString()}
-          </p>
-          <p className={`text-xs mt-1 ${hint ? "text-slate-400" : "invisible select-none"}`}>
-            {hint || "·"}
-          </p>
-        </div>
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${a.iconBg}`}>
-          <span className={a.iconText}>{icon}</span>
-        </div>
-      </div>
+    <div className="relative bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md p-5 shadow-sm hover:border-[var(--color-border-strong)] transition-colors duration-[120ms]">
+      <span className="absolute top-5 right-5 text-[var(--color-text-subtle)]" aria-hidden>
+        {icon}
+      </span>
+      <p className="text-xs font-medium text-[var(--color-text-muted)]">{label}</p>
+      <p className="text-3xl font-semibold mt-1 tabular-nums tracking-tight text-[var(--color-text)]">
+        {value.toLocaleString()}
+      </p>
+      <p
+        className={`text-xs mt-1 ${hint ? "text-[var(--color-text-subtle)]" : "invisible select-none"}`}
+      >
+        {hint || "·"}
+      </p>
     </div>
   );
 };
@@ -131,7 +92,7 @@ const TabButton: React.FC<{
     )}
     {active && (
       <span
-        className="absolute -bottom-px left-3 right-3 h-px bg-gradient-to-r from-transparent via-blue-400 to-transparent"
+        className="absolute -bottom-px left-3 right-3 h-0.5 bg-[var(--color-primary)]"
         aria-hidden
       />
     )}
@@ -177,9 +138,7 @@ const SortHeader: React.FC<{
 }> = ({ label, field, current, onSort, align = "left", className = "" }) => {
   const isActive = current.field === field;
   return (
-    <th
-      className={`px-4 py-3 text-${align} text-xs font-semibold text-slate-200 uppercase tracking-wider ${className}`}
-    >
+    <th className={`px-4 py-3 text-${align} text-xs font-semibold text-slate-200 ${className}`}>
       <button
         type="button"
         onClick={() => onSort(field)}
@@ -230,7 +189,7 @@ const EmptyState: React.FC<{
   action?: React.ReactNode;
 }> = ({ icon, title, description, action }) => (
   <div className="flex flex-col items-center justify-center text-center py-14 px-4">
-    <div className="w-12 h-12 rounded-2xl bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-slate-400 mb-3">
+    <div className="w-12 h-12 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-slate-400 mb-3">
       {icon}
     </div>
     <p className="text-sm font-semibold text-slate-100">{title}</p>
@@ -321,7 +280,10 @@ const CreateDealerWizard: React.FC<{
     setSubmitting(true);
     try {
       const result = await createDealerWithAdmin({
-        dealer: { ...dealerForm, settings: undefined } as Omit<Dealer, "id" | "created" | "updated">,
+        dealer: { ...dealerForm, settings: undefined } as Omit<
+          Dealer,
+          "id" | "created" | "updated"
+        >,
         admin: {
           email: adminForm.email,
           password: adminForm.password,
@@ -343,7 +305,15 @@ const CreateDealerWizard: React.FC<{
     onCreated();
   };
 
-  const Step = ({ n, label, state }: { n: number; label: string; state: "done" | "current" | "pending" }) => (
+  const Step = ({
+    n,
+    label,
+    state,
+  }: {
+    n: number;
+    label: string;
+    state: "done" | "current" | "pending";
+  }) => (
     <div className="flex items-center gap-2">
       <div
         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ring-1 transition-colors ${
@@ -358,7 +328,11 @@ const CreateDealerWizard: React.FC<{
       </div>
       <span
         className={`text-xs font-medium ${
-          state === "current" ? "text-white" : state === "done" ? "text-emerald-300" : "text-slate-300"
+          state === "current"
+            ? "text-white"
+            : state === "done"
+              ? "text-emerald-300"
+              : "text-slate-300"
         }`}
       >
         {label}
@@ -367,11 +341,11 @@ const CreateDealerWizard: React.FC<{
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn">
-      <div className="w-full max-w-2xl bg-slate-900 ring-1 ring-slate-800 rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 animate-fadeIn">
+      <div className="w-full max-w-2xl bg-slate-900 ring-1 ring-slate-800 rounded-lg shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-[var(--color-bg-subtle)]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center ring-1 ring-white/10 shadow-lg shadow-blue-500/20">
+            <div className="w-9 h-9 rounded-xl bg-[var(--color-primary)] flex items-center justify-center ring-1 ring-white/10">
               <Icons.BuildingLibraryIcon className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -415,7 +389,7 @@ const CreateDealerWizard: React.FC<{
           {step === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Name *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Name *</label>
                 <input
                   type="text"
                   value={dealerForm.name}
@@ -425,7 +399,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Code *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Code *</label>
                 <input
                   type="text"
                   value={dealerForm.code}
@@ -438,7 +412,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Email</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
                 <input
                   type="email"
                   value={dealerForm.email}
@@ -448,7 +422,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Phone</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Phone</label>
                 <input
                   type="tel"
                   value={dealerForm.phone}
@@ -458,7 +432,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Address</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Address</label>
                 <input
                   type="text"
                   value={dealerForm.address}
@@ -468,7 +442,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">City</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">City</label>
                 <input
                   type="text"
                   value={dealerForm.city}
@@ -478,7 +452,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">State</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">State</label>
                 <input
                   type="text"
                   value={dealerForm.state}
@@ -496,7 +470,9 @@ const CreateDealerWizard: React.FC<{
           {step === 2 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">First name *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  First name *
+                </label>
                 <input
                   type="text"
                   value={adminForm.firstName}
@@ -506,7 +482,9 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Last name *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Last name *
+                </label>
                 <input
                   type="text"
                   value={adminForm.lastName}
@@ -516,7 +494,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Email *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Email *</label>
                 <input
                   type="email"
                   value={adminForm.email}
@@ -526,7 +504,7 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Phone</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Phone</label>
                 <input
                   type="tel"
                   value={adminForm.phone}
@@ -536,7 +514,9 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Password *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Password *
+                </label>
                 <input
                   type="password"
                   value={adminForm.password}
@@ -546,15 +526,13 @@ const CreateDealerWizard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
                   Confirm password *
                 </label>
                 <input
                   type="password"
                   value={adminForm.passwordConfirm}
-                  onChange={(e) =>
-                    setAdminForm({ ...adminForm, passwordConfirm: e.target.value })
-                  }
+                  onChange={(e) => setAdminForm({ ...adminForm, passwordConfirm: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
                   placeholder="Re-enter password"
                 />
@@ -574,14 +552,15 @@ const CreateDealerWizard: React.FC<{
                 <h4 className="text-xl font-semibold text-white">{created.dealer.name} is ready</h4>
                 <p className="text-slate-400 text-sm mt-1">
                   Share these credentials with the new admin so they can sign in at{" "}
-                  <code className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono">/</code>.
+                  <code className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono">
+                    /
+                  </code>
+                  .
                 </p>
               </div>
               <div className="bg-slate-950 ring-1 ring-slate-800 rounded-xl divide-y divide-slate-800 max-w-md mx-auto text-left">
                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                  <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">
-                    Dealer code
-                  </span>
+                  <span className="text-slate-400 text-xs font-medium">Dealer code</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -595,15 +574,11 @@ const CreateDealerWizard: React.FC<{
                   </button>
                 </div>
                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                  <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">
-                    Admin email
-                  </span>
+                  <span className="text-slate-400 text-xs font-medium">Admin email</span>
                   <span className="text-slate-100">{created.admin.email}</span>
                 </div>
                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                  <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">
-                    Admin name
-                  </span>
+                  <span className="text-slate-400 text-xs font-medium">Admin name</span>
                   <span className="text-slate-100">
                     {created.admin.firstName} {created.admin.lastName}
                   </span>
@@ -823,8 +798,8 @@ const DealerManagement: React.FC<{
 
       {/* Edit Form */}
       {editingId && (
-        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-gradient-to-r from-slate-900 to-blue-950/30">
+        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg overflow-hidden shadow-sm">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-[var(--color-bg-subtle)]">
             <div className="w-9 h-9 rounded-xl bg-blue-500/15 ring-1 ring-blue-500/30 flex items-center justify-center">
               <Icons.PencilIcon className="w-4 h-4 text-blue-300" />
             </div>
@@ -835,7 +810,7 @@ const DealerManagement: React.FC<{
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Name *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Name *</label>
               <input
                 type="text"
                 value={formData.name}
@@ -845,7 +820,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Code *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Code *</label>
               <input
                 type="text"
                 value={formData.code}
@@ -861,7 +836,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Email</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
               <input
                 type="email"
                 value={formData.email}
@@ -871,7 +846,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Phone</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
@@ -881,7 +856,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">City</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">City</label>
               <input
                 type="text"
                 value={formData.city}
@@ -891,7 +866,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">State</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">State</label>
               <input
                 type="text"
                 value={formData.state}
@@ -907,7 +882,7 @@ const DealerManagement: React.FC<{
               />
             </div>
             <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Address</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Address</label>
               <input
                 type="text"
                 value={formData.address}
@@ -941,15 +916,15 @@ const DealerManagement: React.FC<{
       )}
 
       {/* Dealers Table */}
-      <div className="bg-slate-900/60 rounded-2xl ring-1 ring-slate-800 overflow-hidden shadow-sm">
+      <div className="bg-slate-900/60 rounded-lg ring-1 ring-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-900/80 backdrop-blur">
+            <thead className="bg-slate-900">
               <tr className="border-b border-slate-800">
                 <SortHeader label="Dealer" field="name" current={sort} onSort={toggleSort} />
                 <SortHeader label="Code" field="code" current={sort} onSort={toggleSort} />
                 <SortHeader label="Location" field="location" current={sort} onSort={toggleSort} />
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-200 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-200">
                   Contact
                 </th>
                 <SortHeader
@@ -966,7 +941,7 @@ const DealerManagement: React.FC<{
                   onSort={toggleSort}
                   align="center"
                 />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-200 uppercase tracking-wider">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-200">
                   Actions
                 </th>
               </tr>
@@ -975,10 +950,7 @@ const DealerManagement: React.FC<{
               {filteredDealers.map((dealer) => {
                 const userCount = usersByDealer[dealer.id] ?? 0;
                 return (
-                  <tr
-                    key={dealer.id}
-                    className="hover:bg-slate-800/40 transition-colors group"
-                  >
+                  <tr key={dealer.id} className="hover:bg-slate-800/40 transition-colors group">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-blue-300 text-xs font-bold flex-shrink-0">
@@ -1000,9 +972,7 @@ const DealerManagement: React.FC<{
                     <td className="px-4 py-3 text-slate-200 text-sm">
                       {dealer.city && dealer.state
                         ? `${dealer.city}, ${dealer.state}`
-                        : dealer.state || dealer.city || (
-                            <span className="text-slate-400">—</span>
-                          )}
+                        : dealer.state || dealer.city || <span className="text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3 text-slate-200 text-sm">
                       {dealer.email ? (
@@ -1036,8 +1006,10 @@ const DealerManagement: React.FC<{
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => handleImpersonate(dealer)}
-                          className="p-1.5 text-slate-400 hover:text-violet-300 hover:bg-violet-500/10 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          title={dealer.active ? "View as this dealership" : "Activate dealer first"}
+                          className="p-1.5 text-slate-400 hover:text-[var(--color-text)] hover:bg-[var(--color-bg-muted)] rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={
+                            dealer.active ? "View as this dealership" : "Activate dealer first"
+                          }
                           disabled={!dealer.active}
                         >
                           <Icons.EyeIcon className="w-4 h-4" />
@@ -1066,11 +1038,7 @@ const DealerManagement: React.FC<{
                   <td colSpan={7} className="px-4 py-0">
                     <EmptyState
                       icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
-                      title={
-                        search
-                          ? "No dealers match your search"
-                          : "No dealers yet"
-                      }
+                      title={search ? "No dealers match your search" : "No dealers yet"}
                       description={
                         search
                           ? "Try a different search term."
@@ -1249,7 +1217,7 @@ const UserManagement: React.FC<{
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case "superadmin":
-        return "bg-purple-500/20 text-purple-400";
+        return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
       case "admin":
         return "bg-blue-500/20 text-blue-400";
       case "manager":
@@ -1315,10 +1283,10 @@ const UserManagement: React.FC<{
 
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
-        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-gradient-to-r from-slate-900 to-violet-950/30">
-            <div className="w-9 h-9 rounded-xl bg-violet-500/15 ring-1 ring-violet-500/30 flex items-center justify-center">
-              <Icons.UserIcon className="w-4 h-4 text-violet-300" />
+        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg overflow-hidden shadow-sm">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-[var(--color-bg-subtle)]">
+            <div className="w-9 h-9 rounded-xl bg-[var(--color-bg-muted)] ring-1 ring-[var(--color-border)] flex items-center justify-center">
+              <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-white">
@@ -1333,7 +1301,9 @@ const UserManagement: React.FC<{
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">First Name *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                First Name *
+              </label>
               <input
                 type="text"
                 value={formData.firstName}
@@ -1343,7 +1313,7 @@ const UserManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Last Name *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Last Name *</label>
               <input
                 type="text"
                 value={formData.lastName}
@@ -1353,7 +1323,7 @@ const UserManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Email *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email *</label>
               <input
                 type="email"
                 value={formData.email}
@@ -1363,7 +1333,7 @@ const UserManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Phone</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
@@ -1373,7 +1343,7 @@ const UserManagement: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Dealer *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Dealer *</label>
               <select
                 value={formData.dealer}
                 onChange={(e) => setFormData({ ...formData, dealer: e.target.value })}
@@ -1388,7 +1358,7 @@ const UserManagement: React.FC<{
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">Role *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Role *</label>
               <select
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as User["role"] })}
@@ -1403,7 +1373,7 @@ const UserManagement: React.FC<{
             {!editingId && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
                     Password *
                   </label>
                   <input
@@ -1415,7 +1385,7 @@ const UserManagement: React.FC<{
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
                     Confirm Password *
                   </label>
                   <input
@@ -1450,10 +1420,10 @@ const UserManagement: React.FC<{
       )}
 
       {/* Users Table */}
-      <div className="bg-slate-900/60 rounded-2xl ring-1 ring-slate-800 overflow-hidden shadow-sm">
+      <div className="bg-slate-900/60 rounded-lg ring-1 ring-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-900/80 backdrop-blur">
+            <thead className="bg-slate-900">
               <tr className="border-b border-slate-800">
                 <SortHeader label="User" field="name" current={sort} onSort={toggleSort} />
                 <SortHeader label="Email" field="email" current={sort} onSort={toggleSort} />
@@ -1472,20 +1442,17 @@ const UserManagement: React.FC<{
                   onSort={toggleSort}
                   align="center"
                 />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-200 uppercase tracking-wider">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-200">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
               {filteredUsers.map((user) => (
-                <tr
-                  key={user.id}
-                  className="hover:bg-slate-800/40 transition-colors group"
-                >
+                <tr key={user.id} className="hover:bg-slate-800/40 transition-colors group">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-violet-500 rounded-full flex items-center justify-center text-white text-xs font-semibold ring-2 ring-slate-900 flex-shrink-0">
+                      <div className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white text-xs font-semibold ring-2 ring-slate-900 flex-shrink-0">
                         {user.firstName?.[0]}
                         {user.lastName?.[0]}
                       </div>
@@ -1515,7 +1482,7 @@ const UserManagement: React.FC<{
                       onChange={(e) => handleRoleChange(user.id, e.target.value as User["role"])}
                       className={`appearance-none px-2.5 py-1 rounded-full text-xs font-medium ring-1 ring-inset cursor-pointer focus:outline-none focus:ring-2 ${
                         user.role === "superadmin"
-                          ? "bg-violet-500/15 text-violet-200 ring-violet-500/30"
+                          ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] ring-[var(--color-border)]"
                           : user.role === "admin"
                             ? "bg-blue-500/15 text-blue-200 ring-blue-500/30"
                             : user.role === "manager"
@@ -1682,19 +1649,19 @@ const AiProvidersCard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6">
+      <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6">
         <Icons.SpinnerIcon className="w-5 h-5 text-blue-400 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-5">
+    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6 space-y-5">
       <div>
         <h3 className="text-base font-semibold text-white tracking-tight">AI Providers</h3>
         <p className="text-xs text-slate-400 mt-0.5">
-          Keys are stored in your PocketBase backend and read by the AI proxy at request time.
-          The frontend never sees full keys.
+          Keys are stored in your PocketBase backend and read by the AI proxy at request time. The
+          frontend never sees full keys.
         </p>
       </div>
 
@@ -1862,7 +1829,7 @@ const AiDefaultsCard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-5">
+    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6 space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-base font-semibold text-white tracking-tight">AI Defaults</h3>
@@ -1980,7 +1947,7 @@ const AuditLogCard: React.FC = () => {
   }, [refresh]);
 
   return (
-    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-4">
+    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-base font-semibold text-white tracking-tight">Audit Log</h3>
@@ -2013,11 +1980,16 @@ const AuditLogCard: React.FC = () => {
           {entries.map((entry) => {
             const actor = entry.expand?.actor;
             const actorName = actor
-              ? `${actor.firstName ?? ""} ${actor.lastName ?? ""}`.trim() || actor.email || entry.actor
+              ? `${actor.firstName ?? ""} ${actor.lastName ?? ""}`.trim() ||
+                actor.email ||
+                entry.actor
               : entry.actor;
             const details = entry.details as { ok?: boolean; error?: string } | null;
             return (
-              <div key={entry.id} className="px-2 py-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <div
+                key={entry.id}
+                className="px-2 py-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1"
+              >
                 <span className="text-[11px] text-slate-400 tabular-nums">
                   {new Date(entry.created).toLocaleString()}
                 </span>
@@ -2134,7 +2106,7 @@ const SystemSettingsPanel: React.FC = () => {
         </div>
       )}
 
-      <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-6 space-y-6">
+      <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6 space-y-6">
         <div>
           <label className="block text-sm font-medium text-slate-200 mb-1.5">Support email</label>
           <input
@@ -2198,7 +2170,9 @@ const SystemSettingsPanel: React.FC = () => {
             placeholder='{"700": 120, "650": 110}'
             spellCheck={false}
           />
-          <p className="text-xs text-slate-400 mt-1.5">Applied as the default for new dealerships.</p>
+          <p className="text-xs text-slate-400 mt-1.5">
+            Applied as the default for new dealerships.
+          </p>
         </div>
       </div>
 
@@ -2287,17 +2261,19 @@ const OverviewTab: React.FC<{
         <StatCard
           label="Total Deals"
           value={stats.totalDeals}
-          hint={stats.totalInventory > 0 ? `${stats.totalInventory.toLocaleString()} in inventory` : undefined}
+          hint={
+            stats.totalInventory > 0
+              ? `${stats.totalInventory.toLocaleString()} in inventory`
+              : undefined
+          }
           accent="amber"
           icon={<Icons.ClipboardDocumentIcon className="w-5 h-5" />}
         />
       </div>
 
       {/* Quick actions */}
-      <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-5">
-        <p className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-3">
-          Quick actions
-        </p>
+      <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-5">
+        <p className="text-xs font-medium text-slate-400 mb-3">Quick actions</p>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => onJumpTab("dealers")}
@@ -2307,7 +2283,7 @@ const OverviewTab: React.FC<{
           </button>
           <button
             onClick={() => onJumpTab("users")}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-violet-500/15 text-violet-200 ring-1 ring-inset ring-violet-500/30 hover:bg-violet-500/25 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[var(--color-primary-subtle)] text-[var(--color-primary)] ring-1 ring-inset ring-[var(--color-border)] hover:bg-[var(--color-bg-muted)] transition-colors"
           >
             <Icons.UserIcon className="w-4 h-4" /> Manage users
           </button>
@@ -2322,7 +2298,7 @@ const OverviewTab: React.FC<{
 
       {/* Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-5">
+        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <Icons.BuildingLibraryIcon className="w-4 h-4 text-blue-400" />
@@ -2352,10 +2328,7 @@ const OverviewTab: React.FC<{
           ) : (
             <ul className="divide-y divide-slate-800">
               {recentDealers.map((dealer) => (
-                <li
-                  key={dealer.id}
-                  className="flex items-center justify-between py-2.5 group"
-                >
+                <li key={dealer.id} className="flex items-center justify-between py-2.5 group">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-blue-300 text-xs font-bold">
                       {dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
@@ -2364,7 +2337,9 @@ const OverviewTab: React.FC<{
                       <p className="text-sm font-medium text-slate-100 truncate">{dealer.name}</p>
                       <p className="text-xs text-slate-400 truncate">
                         {dealer.code}
-                        {dealer.city ? ` · ${dealer.city}${dealer.state ? `, ${dealer.state}` : ""}` : ""}
+                        {dealer.city
+                          ? ` · ${dealer.city}${dealer.state ? `, ${dealer.state}` : ""}`
+                          : ""}
                       </p>
                     </div>
                   </div>
@@ -2384,10 +2359,10 @@ const OverviewTab: React.FC<{
           )}
         </div>
 
-        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-2xl p-5">
+        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Icons.UserIcon className="w-4 h-4 text-violet-400" />
+              <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
               Recent users
             </h3>
             <button
@@ -2408,7 +2383,7 @@ const OverviewTab: React.FC<{
               {recentUsers.map((user) => (
                 <li key={user.id} className="flex items-center justify-between py-2.5">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center text-xs font-semibold text-white ring-2 ring-slate-900">
+                    <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-xs font-semibold text-white ring-2 ring-slate-900">
                       {user.firstName?.[0]}
                       {user.lastName?.[0]}
                     </div>
@@ -2419,7 +2394,7 @@ const OverviewTab: React.FC<{
                       <p className="text-xs text-slate-400 truncate">{user.email}</p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wider bg-slate-800 text-slate-100 ring-1 ring-inset ring-slate-600">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-100 ring-1 ring-inset ring-slate-600">
                     {user.role}
                   </span>
                 </li>
@@ -2446,9 +2421,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   onImpersonate,
 }) => {
   useForceDarkMode();
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "dealers" | "users" | "settings"
-  >("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "dealers" | "users" | "settings">(
+    "overview"
+  );
   const [stats, setStats] = useState<SystemStats>({
     totalDealers: 0,
     activeDealers: 0,
@@ -2495,17 +2470,15 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(59,130,246,0.08),_transparent_50%),_radial-gradient(ellipse_at_bottom_right,_rgba(139,92,246,0.08),_transparent_50%)] bg-slate-950 text-white">
       {/* Header */}
-      <header className="bg-slate-900/70 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-40">
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
+              <div className="w-10 h-10 bg-[var(--color-primary)] rounded-xl flex items-center justify-center ring-1 ring-white/10">
                 <Icons.Cog6ToothIcon className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-base font-semibold tracking-tight text-white">
-                  Owner Console
-                </h1>
+                <h1 className="text-base font-semibold tracking-tight text-white">Owner Console</h1>
                 <p className="text-xs text-slate-400">LTV Desking PRO</p>
               </div>
             </div>
@@ -2517,7 +2490,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                 </Button>
               )}
               <div className="hidden md:flex items-center gap-2.5 pl-2 pr-3 py-1.5 bg-slate-800/70 ring-1 ring-slate-700 rounded-full">
-                <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-violet-500 rounded-full flex items-center justify-center text-xs font-semibold ring-2 ring-slate-900">
+                <div className="w-7 h-7 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-xs font-semibold ring-2 ring-slate-900">
                   {currentUser?.firstName?.[0]}
                   {currentUser?.lastName?.[0]}
                 </div>

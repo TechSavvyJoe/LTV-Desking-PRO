@@ -23,8 +23,8 @@ interface Action {
 const ActionButton: React.FC<Action> = ({ label, onClick, variant = "primary" }) => {
   const classes =
     variant === "primary"
-      ? "px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
-      : "px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-colors";
+      ? "px-4 py-2 rounded bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm font-medium transition-colors"
+      : "px-4 py-2 rounded bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] text-sm font-medium transition-colors";
   return (
     <button type="button" onClick={onClick} className={classes}>
       {label}
@@ -65,7 +65,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
       role="status"
       aria-live="polite"
     >
-      <Icons.SpinnerIcon className="w-8 h-8 text-blue-500 animate-spin" />
+      <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
       <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
     </div>
   );
@@ -97,11 +97,11 @@ export const DataError: React.FC<DataErrorProps> = ({
     role="alert"
   >
     <Icons.ExclamationCircleIcon
-      className="w-10 h-10 text-rose-500 dark:text-rose-400"
+      className="w-10 h-10 text-[var(--color-danger)]"
       aria-hidden="true"
     />
-    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-    {description && <p className="text-sm text-slate-600 dark:text-slate-400">{description}</p>}
+    <h3 className="text-base font-semibold text-[var(--color-text)]">{title}</h3>
+    {description && <p className="text-sm text-[var(--color-text-muted)]">{description}</p>}
     <div className="flex items-center gap-2 mt-2">
       {onRetry && <ActionButton label="Retry" onClick={onRetry} variant="primary" />}
       {secondaryAction && <ActionButton {...secondaryAction} variant="secondary" />}
@@ -135,13 +135,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 }) => (
   <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3 max-w-md mx-auto">
     {icon && (
-      <div className="w-12 h-12 text-slate-400 dark:text-slate-500 mb-2" aria-hidden="true">
+      <div className="w-12 h-12 text-[var(--color-text-subtle)] mb-2" aria-hidden="true">
         {icon}
       </div>
     )}
-    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
+    <h3 className="text-lg font-semibold text-[var(--color-text)]">{title}</h3>
     {description && (
-      <p className="text-sm text-slate-600 dark:text-slate-400 max-w-sm">{description}</p>
+      <p className="text-sm text-[var(--color-text-muted)] max-w-sm">{description}</p>
     )}
     {(primaryAction || secondaryAction) && (
       <div className="flex items-center gap-2 mt-3">

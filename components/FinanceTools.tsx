@@ -73,7 +73,7 @@ const InputGroup: React.FC<{
   <div className="flex flex-col">
     <label
       htmlFor={htmlFor}
-      className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400"
+      className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
     >
       {label}
     </label>
@@ -106,7 +106,7 @@ const ResultDisplay = ({
   valueColorClass?: string;
   subLabel?: string;
 }) => (
-  <div className="flex justify-between items-center p-4 bg-white/50 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
+  <div className="flex justify-between items-center p-4 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border)]">
     <div className="flex flex-col">
       <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{label}</span>
       {subLabel && (
@@ -211,19 +211,25 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     const split = Number(splitPercent) || 0;
     const flat = Number(flatPercent) || 0;
 
-    if (principal <= 0 || t <= 0) return { totalReserve: 0, dealerSplit: 0, flatFee: 0 };
+    if (principal <= 0 || t <= 0)
+      return { totalReserve: 0, dealerSplit: 0, flatFee: 0, sellBelowBuy: false };
 
     const paymentBuy = calculateMonthlyPayment(principal, buy, t);
     const paymentSell = calculateMonthlyPayment(principal, sell, t);
 
     if (typeof paymentBuy !== "number" || typeof paymentSell !== "number")
-      return { totalReserve: 0, dealerSplit: 0, flatFee: 0 };
+      return { totalReserve: 0, dealerSplit: 0, flatFee: 0, sellBelowBuy: false };
 
-    const totalReserve = (paymentSell - paymentBuy) * t;
+    // Selling below the buy rate yields a negative reserve, which is never a real
+    // structure — surface it as a warning rather than displaying a misleading
+    // negative dollar figure.
+    const sellBelowBuy = sell < buy;
+    const rawReserve = (paymentSell - paymentBuy) * t;
+    const totalReserve = sellBelowBuy ? 0 : rawReserve;
     const dealerSplit = totalReserve * (split / 100);
     const flatFee = principal * (flat / 100);
 
-    return { totalReserve, dealerSplit, flatFee };
+    return { totalReserve, dealerSplit, flatFee, sellBelowBuy };
   }, [resAmount, buyRate, sellRate, resTerm, splitPercent, flatPercent]);
 
   const paymentResult = useMemo(() => {
@@ -297,10 +303,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const navItems = NAV_ITEMS;
 
   return (
-    <div className="glass-panel flex min-h-[600px] rounded-2xl overflow-hidden shadow-sm">
+    <div className="flex min-h-[600px] rounded-lg overflow-hidden shadow-sm bg-[var(--color-bg)] border border-[var(--color-border)]">
       {/* Sidebar */}
-      <div className="w-64 bg-slate-50/50 dark:bg-slate-950/50 border-r border-slate-200/50 dark:border-slate-800/50 flex flex-col backdrop-blur-sm">
-        <div className="p-4 border-b border-slate-200/50 dark:border-slate-800/50">
+      <div className="w-64 bg-[var(--color-bg-subtle)] border-r border-[var(--color-border)] flex flex-col">
+        <div className="p-4 border-b border-[var(--color-border)]">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">Finance Tools</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Calculators & Utilities</p>
         </div>
@@ -321,10 +327,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
           ))}
         </nav>
         {dealData && (
-          <div className="p-4 border-t border-slate-200/50 dark:border-slate-800/50">
+          <div className="p-4 border-t border-[var(--color-border)]">
             <button
               onClick={handleSyncToDeal}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50/80 dark:hover:bg-slate-700/80 transition-colors shadow-sm backdrop-blur-sm"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50/80 dark:hover:bg-slate-700/80 transition-colors shadow-sm"
             >
               <Icons.ArrowPathIcon className="w-3.5 h-3.5" />
               Reset to Active Deal
@@ -355,7 +361,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             </div>
             {activeTab === "analytics" && dealData && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="p-4 bg-white/50 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
+                <div className="p-4 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border)]">
                   <h4 className="font-semibold text-slate-900 dark:text-white mb-4">
                     Payment Breakdown
                   </h4>
@@ -364,7 +370,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     activeVehicle={activeVehicle || null}
                   />
                 </div>
-                <div className="p-4 bg-white/50 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
+                <div className="p-4 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border)]">
                   <h4 className="font-semibold text-slate-900 dark:text-white mb-4">
                     Lender Comparison (Est.)
                   </h4>
@@ -458,6 +464,12 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     value={formatCurrency(reserveStats.totalReserve)}
                     valueColorClass="text-slate-900 dark:text-white"
                   />
+                  {reserveStats.sellBelowBuy && (
+                    <p role="alert" className="text-xs font-medium text-[var(--color-warning)]">
+                      Sell rate is below the buy rate — reserve would be negative. Reserve shown as
+                      $0.
+                    </p>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div
                       className={`p-4 rounded-xl border transition-colors ${
@@ -466,7 +478,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                           : "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
                       }`}
                     >
-                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
                         Split ({splitPercent}%)
                       </p>
                       <p
@@ -486,7 +498,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                           : "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
                       }`}
                     >
-                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
                         Flat ({flatPercent}%)
                       </p>
                       <p
@@ -902,7 +914,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                         : "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
                     }`}
                   >
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
                       Potential Savings
                     </p>
                     <p

@@ -22,7 +22,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
       <Button
         variant="primary"
         size="sm"
-        className="h-9 px-3 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all font-semibold"
+        className="h-9 px-3 font-medium"
         onClick={onSaveDeal}
         disabled={!canSave}
       >

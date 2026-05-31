@@ -111,13 +111,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 e.stopPropagation();
                 toggleFavorite(item.vin);
               }}
-              className="group relative p-2 hover:bg-gradient-to-br hover:from-amber-50 hover:to-yellow-50 dark:hover:from-amber-900/20 dark:hover:to-yellow-900/20 rounded-lg transition-all duration-200 hover:scale-105"
+              className="group relative p-1.5 rounded text-[var(--color-text-subtle)] hover:bg-[var(--color-warning-subtle)] hover:text-[var(--color-warning)] transition-colors"
               title={favoriteVins?.has(item.vin) ? "Remove from favorites" : "Add to favorites"}
             >
               {favoriteVins?.has(item.vin) ? (
-                <Icons.StarIcon className="w-5 h-5 text-yellow-500 fill-current drop-shadow-sm" />
+                <Icons.StarIcon className="w-5 h-5 text-[var(--color-warning)] fill-current" />
               ) : (
-                <Icons.StarIcon className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-yellow-400 transition-colors" />
+                <Icons.StarIcon className="w-5 h-5 group-hover:text-[var(--color-warning)] transition-colors" />
               )}
             </button>
             <button
@@ -130,7 +130,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     vehicle: `${item.modelYear} ${item.make} ${item.model} ${item.trim}`,
                   });
               }}
-              className="group relative px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 dark:from-blue-600 dark:to-indigo-600 dark:hover:from-blue-500 dark:hover:to-indigo-500 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
+              className="group relative px-2.5 py-1.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded transition-colors duration-[120ms]"
               title="Structure Deal"
             >
               <Icons.CurrencyDollarIcon className="w-5 h-5 text-white" />

@@ -7,7 +7,11 @@ import type {
   Settings,
   Vehicle,
 } from "../types";
-import { calculateMonthlyPayment, calculateLoanAmount } from "../services/calculator";
+import {
+  calculateMonthlyPayment,
+  calculateLoanAmount,
+  calculateFinancials,
+} from "../services/calculator";
 import { checkBankEligibility } from "../services/lenderMatcher";
 import { formatCurrency, formatNumber } from "./common/TableCell";
 import Button from "./common/Button";
@@ -383,7 +387,7 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
   );
 };
 
-const DealComparison = ({ activeVehicle, dealData, onDealDataChange }: ToolProps) => {
+const DealComparison = ({ activeVehicle, dealData, onDealDataChange, settings }: ToolProps) => {
   const [dealA, setDealA] = useState<DealData>(dealData);
   const [dealB, setDealB] = useState<DealData>(dealData);
 
@@ -399,16 +403,10 @@ const DealComparison = ({ activeVehicle, dealData, onDealDataChange }: ToolProps
       price: typeof activeVehicle.price === "number" ? activeVehicle.price : 0,
     };
     const tempDeal = { ...dealA };
-    const principal =
-      tempVehicle.price -
-      tempDeal.downPayment -
-      (tempDeal.tradeInValue - tempDeal.tradeInPayoff) +
-      tempDeal.backendProducts +
-      tempDeal.stateFees +
-      304; // Rough tax/fee estimate
-    const payment = calculateMonthlyPayment(principal, tempDeal.interestRate, tempDeal.loanTerm);
-    return { monthlyPayment: payment };
-  }, [activeVehicle, dealA]);
+    // Use the real deal calculator (tax/fees included) instead of a flat estimate.
+    const result = calculateFinancials(tempVehicle, tempDeal, settings);
+    return { monthlyPayment: result.monthlyPayment };
+  }, [activeVehicle, dealA, settings]);
 
   const calculatedB = useMemo(() => {
     if (!activeVehicle) return null;
@@ -417,16 +415,10 @@ const DealComparison = ({ activeVehicle, dealData, onDealDataChange }: ToolProps
       price: typeof activeVehicle.price === "number" ? activeVehicle.price : 0,
     };
     const tempDeal = { ...dealB };
-    const principal =
-      tempVehicle.price -
-      tempDeal.downPayment -
-      (tempDeal.tradeInValue - tempDeal.tradeInPayoff) +
-      tempDeal.backendProducts +
-      tempDeal.stateFees +
-      304; // Rough tax/fee estimate
-    const payment = calculateMonthlyPayment(principal, tempDeal.interestRate, tempDeal.loanTerm);
-    return { monthlyPayment: payment };
-  }, [activeVehicle, dealB]);
+    // Use the real deal calculator (tax/fees included) instead of a flat estimate.
+    const result = calculateFinancials(tempVehicle, tempDeal, settings);
+    return { monthlyPayment: result.monthlyPayment };
+  }, [activeVehicle, dealB, settings]);
 
   const handleAChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setDealA((prev) => ({ ...prev, [e.target.name]: Number(e.target.value) }));
@@ -454,7 +446,7 @@ const DealComparison = ({ activeVehicle, dealData, onDealDataChange }: ToolProps
     title: string;
     deal: DealData;
     handler: any;
-    calculated: { monthlyPayment: number | "Error" } | null;
+    calculated: { monthlyPayment: number | "Error" | "N/A" } | null;
     onCopy: () => void;
   }) => (
     <div className="space-y-2 p-3 bg-slate-100 dark:bg-slate-900 rounded-lg">
@@ -714,7 +706,7 @@ const FloatingToolsPanel: React.FC<ToolProps> = (props) => {
                 title={tool.name}
                 className={`w-20 h-20 p-2 rounded-md flex flex-col items-center justify-center text-center transition-colors ${
                   activeToolId === tool.id
-                    ? "bg-slate-800 text-sky-400"
+                    ? "bg-slate-800 text-[var(--color-primary)]"
                     : "text-slate-400 hover:bg-slate-800"
                 }`}
               >
@@ -729,7 +721,7 @@ const FloatingToolsPanel: React.FC<ToolProps> = (props) => {
         </div>
       </div>
       <div
-        className="absolute top-0 right-0 bg-gradient-to-b from-sky-500 to-indigo-600 text-white px-3 py-4 rounded-l-xl shadow-2xl cursor-pointer pointer-events-auto"
+        className="absolute top-0 right-0 bg-[var(--color-primary)] text-white px-3 py-4 rounded-l-lg shadow-md cursor-pointer pointer-events-auto"
         aria-hidden="true"
       >
         <div className="flex flex-col items-center gap-2">

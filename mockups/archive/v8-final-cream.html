@@ -1,0 +1,1452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LTV Desking PRO — v8 "Final"</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   v8 — "Final"
+   The everything-I've-got pass. Signature moves: customer-aware context,
+   best-match callout, inline-expanded row with deal calc, real charts,
+   smart filter chips, inline LTV meters, typography discipline (Inter only),
+   custom icons, voice in microcopy.
+   ============================================================================ */
+:root {
+  /* Surfaces — warmer, more saturated cream than v7 */
+  --color-bg            : #F4ECD9;
+  --color-bg-paper      : #FEFCF7;   /* very-light warm white */
+  --color-bg-subtle     : #EBE1C9;
+  --color-bg-muted      : #DDD0B0;
+
+  --color-text          : #0A1020;
+  --color-text-muted    : #3A4358;
+  --color-text-subtle   : #7B8295;
+
+  --color-border        : #C7BC9F;
+  --color-border-strong : #8F8569;
+  --color-divider-hair  : #D8CDB0;
+
+  /* Brand — deep navy, premium */
+  --color-primary       : #0A1F45;
+  --color-primary-hover : #04122E;
+  --color-primary-bright: #1A3666;
+  --color-primary-subtle: #D1D9E7;
+
+  /* Signature — amber gold */
+  --color-accent        : #B8861A;
+  --color-accent-hover  : #8E6310;
+  --color-accent-bright : #DBA838;
+  --color-accent-subtle : #F4E5C2;
+
+  /* Status — refined warm */
+  --color-success       : #1F7544;
+  --color-success-bright: #2EA163;
+  --color-success-subtle: #DDF0E2;
+  --color-warning       : #A36B0A;
+  --color-warning-subtle: #F4E5C2;
+  --color-danger        : #8E342D;
+  --color-danger-subtle : #F0D9D5;
+
+  /* Sidebar */
+  --color-bg-sidebar    : #050D1C;
+  --color-sidebar-text  : #98A3BA;
+  --color-sidebar-text-active: #FFFFFF;
+  --color-sidebar-divider: #0F1A33;
+  --color-sidebar-accent: #DBA838;
+
+  --radius-sm: 4px; --radius: 7px; --radius-md: 10px; --radius-lg: 14px;
+
+  --shadow-soft     : 0 1px 2px rgba(10,16,32,.04), 0 2px 8px -2px rgba(10,16,32,.06);
+  --shadow-elevated : 0 2px 4px rgba(10,16,32,.04), 0 12px 28px -8px rgba(10,16,32,.12);
+  --shadow-expanded : 0 4px 8px rgba(10,16,32,.06), 0 20px 48px -10px rgba(10,16,32,.18);
+  --shadow-input    : 0 1px 2px rgba(10,16,32,.06);
+
+  --duration-fast: 130ms; --duration: 220ms;
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  background-image:
+    radial-gradient(circle at 18% 22%, rgba(184,134,26,.04) 0, transparent 50%),
+    radial-gradient(circle at 82% 75%, rgba(10,31,69,.035) 0, transparent 55%);
+}
+.tabular { font-variant-numeric: tabular-nums lining-nums; }
+
+/* ============================================================================
+   Layout
+   ============================================================================ */
+.app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+/* ----------- SIDEBAR ----------- */
+.sidebar {
+  background: var(--color-bg-sidebar);
+  background-image:
+    linear-gradient(180deg, rgba(219,168,56,.025) 0%, transparent 25%),
+    radial-gradient(ellipse 80% 30% at 50% 0%, rgba(26,54,102,.6) 0%, transparent 100%);
+  border-right: 1px solid var(--color-sidebar-divider);
+  color: var(--color-sidebar-text);
+  display: flex; flex-direction: column;
+  padding: 20px 0 16px;
+  position: sticky; top: 0; height: 100vh;
+}
+.sidebar-brand {
+  padding: 0 22px 18px;
+  display: flex; align-items: center; gap: 13px;
+  border-bottom: 1px solid var(--color-sidebar-divider);
+  margin-bottom: 16px;
+  position: relative;
+}
+.sidebar-brand::after {
+  content: ""; position: absolute; bottom: -1px; left: 22px; width: 36px;
+  height: 1px; background: var(--color-sidebar-accent);
+}
+.brand-mark {
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  background:
+    linear-gradient(135deg, #F2BB55 0%, #C9851D 50%, #7A5610 100%);
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 -1px 0 rgba(0,0,0,.25),
+    0 3px 8px rgba(0,0,0,.4);
+}
+.brand-name {
+  font-size: 16px; font-weight: 800;
+  color: var(--color-sidebar-text-active);
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+}
+.brand-tagline {
+  font-size: 9px;
+  color: var(--color-sidebar-accent);
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.sidebar-dealer {
+  padding: 11px 13px;
+  margin: 0 14px 16px;
+  background: linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 9px;
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+}
+.sidebar-dealer-logo {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--color-accent-bright), var(--color-accent));
+  color: #050D1C;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+}
+.sidebar-dealer-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.sidebar-dealer-name { font-size: 13px; font-weight: 700; color: var(--color-sidebar-text-active); letter-spacing: -0.01em; }
+.sidebar-dealer-sub { font-size: 11px; color: var(--color-sidebar-text); }
+.sidebar-dealer-caret { color: var(--color-sidebar-text); opacity: 0.55; font-size: 10px; }
+
+.sidebar-section-label {
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--color-sidebar-accent);
+  padding: 12px 26px 8px;
+  opacity: 0.9;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 1px; padding: 0 14px; }
+.sidebar-nav-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 11px;
+  font-size: 13px; font-weight: 500;
+  color: var(--color-sidebar-text);
+  border-radius: 7px;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: -0.005em;
+  transition: background-color var(--duration-fast), color var(--duration-fast);
+}
+.sidebar-nav-item:hover { background: rgba(255,255,255,.04); color: var(--color-sidebar-text-active); }
+.sidebar-nav-item.active {
+  background: linear-gradient(90deg, rgba(219,168,56,.2) 0%, rgba(219,168,56,.06) 100%);
+  color: var(--color-sidebar-text-active);
+  font-weight: 700;
+}
+.sidebar-nav-item.active::before {
+  content: ""; position: absolute; left: -14px; top: 7px; bottom: 7px;
+  width: 3px;
+  background: linear-gradient(180deg, var(--color-accent-bright), var(--color-accent));
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 10px rgba(219,168,56,.5);
+}
+.sidebar-nav-icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; opacity: 0.85; }
+.sidebar-nav-count {
+  margin-left: auto;
+  font-size: 11px; font-weight: 700;
+  padding: 1px 7px; border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  color: var(--color-sidebar-text);
+  font-variant-numeric: tabular-nums;
+}
+.sidebar-nav-item.active .sidebar-nav-count { background: rgba(219,168,56,.3); color: #FFE6B5; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 14px 22px 0;
+  border-top: 1px solid var(--color-sidebar-divider);
+  display: flex; align-items: center; gap: 11px;
+}
+.sidebar-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-accent-bright), var(--color-accent-hover));
+  color: #050D1C;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
+}
+.sidebar-user-name { font-size: 13px; font-weight: 700; color: var(--color-sidebar-text-active); letter-spacing: -0.005em; }
+.sidebar-user-role { font-size: 10px; color: var(--color-sidebar-text); letter-spacing: 0.02em; }
+
+/* ============================================================================
+   MAIN
+   ============================================================================ */
+.main { display: flex; flex-direction: column; min-width: 0; }
+
+/* HEADER */
+.header {
+  background: linear-gradient(180deg, var(--color-primary-bright) 0%, var(--color-primary) 100%);
+  color: #fff;
+  padding: 12px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px;
+  position: relative;
+  border-bottom: 1px solid #000;
+}
+.header::after {
+  content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 5%, var(--color-accent) 50%, transparent 95%);
+}
+
+.header-left { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.header-logo {
+  width: 42px; height: 42px; border-radius: 9px;
+  background: linear-gradient(135deg, var(--color-accent-bright), var(--color-accent-hover));
+  color: #050D1C;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 900;
+  flex-shrink: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.45),
+    0 2px 5px rgba(0,0,0,.35);
+}
+.header-info { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.header-title {
+  font-size: 17px; font-weight: 800;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  color: #fff;
+}
+.header-sub {
+  font-size: 12px;
+  color: rgba(255,255,255,.7);
+  display: flex; align-items: center; gap: 9px;
+}
+.header-sub .pill {
+  font-size: 9px; font-weight: 800;
+  padding: 2px 8px;
+  background: rgba(46,161,99,.22);
+  color: #6FE099;
+  border-radius: 4px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.header-sub .pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.header-sub .divider { color: rgba(255,255,255,.3); }
+
+.header-kpis {
+  display: flex; gap: 26px;
+  padding: 0 16px;
+  border-left: 1px solid rgba(255,255,255,.08);
+  border-right: 1px solid rgba(255,255,255,.08);
+  margin: -4px 0;
+  height: 52px;
+  align-items: center;
+}
+.header-kpi { display: flex; flex-direction: column; }
+.header-kpi-label {
+  font-size: 9px; font-weight: 800;
+  color: rgba(255,255,255,.5);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.header-kpi-value {
+  font-size: 22px; font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-top: 1px;
+}
+.header-kpi-trend {
+  font-size: 10px; font-weight: 700;
+  margin-top: 2px;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.header-kpi-trend.up   { color: #6FE099; }
+.header-kpi-trend.down { color: #E89084; }
+
+.header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Impersonation strip */
+.impersonation {
+  background: linear-gradient(180deg, var(--color-accent-subtle) 0%, #F1DEA4 100%);
+  border-bottom: 1px solid var(--color-accent);
+  padding: 8px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: #6B4E0E;
+}
+.impersonation strong { font-weight: 800; color: var(--color-text); }
+
+/* Customer context — SINGLE PILL, condensed (signature move) */
+.customer-bar {
+  background: var(--color-bg-paper);
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 1px 0 rgba(10,16,32,.04);
+}
+.customer-bar::before {
+  content: ""; position: absolute; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-divider-hair), transparent);
+}
+.customer-pill {
+  display: flex; align-items: center; gap: 14px;
+}
+.customer-pill-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary-bright), var(--color-primary));
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+}
+.customer-pill-info { display: flex; flex-direction: column; line-height: 1.25; }
+.customer-pill-name {
+  font-size: 14px; font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+.customer-pill-attrs {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 1px;
+}
+.customer-pill-attrs strong { color: var(--color-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.customer-pill-attrs .sep { color: var(--color-border-strong); }
+.customer-actions { display: flex; gap: 8px; }
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+.btn {
+  font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px; font-weight: 600;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+  letter-spacing: -0.003em;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 6px 11px; font-size: 12px; }
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--color-primary-bright) 0%, var(--color-primary) 100%);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 1px 2px rgba(10,16,32,.25);
+}
+.btn-primary:hover { background: linear-gradient(180deg, var(--color-primary-bright) 0%, var(--color-primary-hover) 100%); }
+
+.btn-accent {
+  background: linear-gradient(180deg, var(--color-accent-bright) 0%, var(--color-accent) 100%);
+  color: #050D1C;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 1px 2px rgba(184,134,26,.4);
+  font-weight: 700;
+}
+.btn-accent:hover { background: linear-gradient(180deg, var(--color-accent-bright) 0%, var(--color-accent-hover) 100%); }
+
+.btn-secondary {
+  background: var(--color-bg-paper);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  box-shadow: 0 1px 2px rgba(10,16,32,.04);
+}
+.btn-secondary:hover { background: var(--color-bg-subtle); border-color: var(--color-text-muted); }
+
+.btn-ghost {
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  border-color: rgba(255,255,255,.15);
+}
+.btn-ghost:hover { background: rgba(255,255,255,.14); }
+
+/* ============================================================================
+   WORKSPACE
+   ============================================================================ */
+.workspace { padding: 20px 28px 32px; flex: 1; display: flex; flex-direction: column; gap: 18px; }
+
+/* TOP STRIP — real chart + activity feed + key metrics */
+.top-strip {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+}
+
+.chart-card {
+  background: var(--color-bg-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px 14px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+}
+.chart-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-divider-hair), transparent);
+}
+.chart-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.chart-title {
+  font-size: 12px; font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.chart-value-row {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-top: 2px;
+}
+.chart-value {
+  font-size: 28px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  letter-spacing: -0.028em;
+  line-height: 1.1;
+}
+.chart-delta {
+  font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.chart-delta.up   { color: var(--color-success); background: var(--color-success-subtle); }
+.chart-delta.down { color: var(--color-danger);  background: var(--color-danger-subtle); }
+.chart-context { font-size: 11px; color: var(--color-text-subtle); }
+.chart-legend {
+  display: flex; gap: 14px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.chart-legend .swatch {
+  display: inline-block; width: 10px; height: 2px;
+  vertical-align: middle; margin-right: 5px;
+  border-radius: 1px;
+}
+.chart-legend .swatch.actual { background: var(--color-accent); height: 2px; }
+.chart-legend .swatch.target { background: var(--color-primary); height: 2px; border: 1px dashed; border-width: 1px 0; }
+
+.chart-svg { width: 100%; height: 130px; margin-top: 8px; }
+
+/* Activity card */
+.activity-card {
+  background: var(--color-bg-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+}
+.activity-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-divider-hair), transparent);
+}
+.activity-label {
+  font-size: 12px; font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.activity-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--color-divider-hair);
+}
+.activity-row:last-child { border-bottom: 0; }
+.activity-icon {
+  width: 22px; height: 22px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.activity-icon.success { background: var(--color-success-subtle); color: var(--color-success); }
+.activity-icon.info { background: var(--color-primary-subtle); color: var(--color-primary); }
+.activity-icon.accent { background: var(--color-accent-subtle); color: var(--color-accent); }
+.activity-body { flex: 1; min-width: 0; }
+.activity-text { font-size: 12.5px; color: var(--color-text); line-height: 1.35; font-weight: 500; letter-spacing: -0.005em; }
+.activity-text strong { font-weight: 700; }
+.activity-time { font-size: 10.5px; color: var(--color-text-subtle); font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+/* INVENTORY section */
+.inv-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px;
+}
+.inv-toolbar-left { display: flex; align-items: baseline; gap: 12px; }
+.inv-title {
+  font-size: 24px; font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1;
+}
+.inv-count {
+  font-size: 13px; color: var(--color-text-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.inv-count strong { color: var(--color-text); font-weight: 700; }
+.inv-count .for-customer {
+  color: var(--color-accent-hover);
+  font-weight: 700;
+}
+.inv-toolbar-right { display: flex; align-items: center; gap: 8px; }
+.toolbar-search { width: 280px; }
+
+.input {
+  display: block; width: 100%;
+  padding: 9px 12px;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  background: var(--color-bg-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text);
+  box-shadow: var(--shadow-input);
+  transition: all var(--duration-fast);
+}
+.input::placeholder { color: var(--color-text-subtle); font-weight: 400; }
+.input:hover { border-color: var(--color-border-strong); }
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-input), 0 0 0 3px var(--color-primary-subtle);
+}
+
+/* Smart filter chips */
+.filter-chips {
+  display: flex; gap: 7px; flex-wrap: wrap;
+  align-items: center;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  background: var(--color-bg-paper);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 12px; font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  box-shadow: 0 1px 1px rgba(10,16,32,.03);
+  letter-spacing: -0.003em;
+}
+.chip:hover { border-color: var(--color-border-strong); color: var(--color-text); }
+.chip.active {
+  background: linear-gradient(180deg, var(--color-primary-bright) 0%, var(--color-primary) 100%);
+  border-color: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 1px 2px rgba(10,16,32,.2);
+}
+.chip.smart {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-hover);
+  font-weight: 600;
+}
+.chip.smart:hover { background: #F1DEA4; }
+.chip .count { font-variant-numeric: tabular-nums; font-weight: 700; opacity: 0.75; }
+.chip.active .count { color: var(--color-accent-bright); opacity: 1; }
+.chip.smart .count { opacity: 0.85; }
+
+/* INVENTORY TABLE */
+.table-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-paper);
+  box-shadow: var(--shadow-elevated);
+  position: relative;
+}
+.table-wrap::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-divider-hair), transparent);
+  z-index: 2;
+}
+table { width: 100%; border-collapse: collapse; }
+thead {
+  background: linear-gradient(180deg, var(--color-primary-bright) 0%, var(--color-primary) 100%);
+  position: relative;
+}
+thead::after {
+  content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+}
+th {
+  text-align: left;
+  font-size: 10px; font-weight: 800;
+  color: rgba(255,255,255,.85);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 13px 14px;
+  white-space: nowrap;
+  position: relative;
+}
+th.right { text-align: right; }
+th + th::before {
+  content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; width: 1px;
+  background: rgba(255,255,255,.06);
+}
+td {
+  padding: 13px 14px;
+  font-size: 14px; color: var(--color-text);
+  border-bottom: 1px solid var(--color-divider-hair);
+  white-space: nowrap;
+  vertical-align: middle;
+  font-weight: 500;
+}
+td.right { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+tbody tr {
+  position: relative;
+  transition: background-color var(--duration-fast);
+  cursor: pointer;
+}
+tbody tr:nth-child(even):not(.best-match):not(.expanded):not(.expanded-content) { background: rgba(245,239,226,.4); }
+tbody tr:hover:not(.expanded-content) { background: var(--color-accent-subtle); }
+tbody tr:hover td:first-child::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--color-accent-bright), var(--color-accent));
+}
+tbody tr.best-match {
+  background: linear-gradient(90deg, rgba(219,168,56,.16) 0%, rgba(219,168,56,.06) 100%);
+}
+tbody tr.best-match td:first-child::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--color-accent-bright), var(--color-accent));
+  box-shadow: 0 0 12px rgba(219,168,56,.6);
+}
+tbody tr.expanded {
+  background: var(--color-primary);
+  color: #fff;
+}
+tbody tr.expanded td { border-bottom: 0; color: #fff; }
+tbody tr.expanded td:first-child::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--color-accent-bright);
+}
+tbody tr.expanded .vehicle-name { color: #fff; }
+tbody tr.expanded .vehicle-meta { color: rgba(255,255,255,.6); }
+tbody tr.expanded .badge { box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+tbody tr:last-child td { border-bottom: 0; }
+
+.vehicle-cell { display: flex; flex-direction: column; gap: 1px; }
+.vehicle-name {
+  font-weight: 700; color: var(--color-text);
+  letter-spacing: -0.008em;
+  font-size: 14.5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.vehicle-meta {
+  font-size: 11px; color: var(--color-text-subtle);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.best-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--color-accent-bright), var(--color-accent));
+  color: #050D1C;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
+}
+
+/* Inline LTV meter — signature move */
+.ltv-cell {
+  display: inline-flex; align-items: center; gap: 8px;
+  justify-content: flex-end;
+}
+.ltv-meter {
+  width: 36px; height: 4px;
+  background: var(--color-bg-muted);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+.ltv-meter::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  border-radius: 2px;
+}
+.ltv-meter.ltv-good::before { width: 70%; background: var(--color-success); }
+.ltv-meter.ltv-warn::before { width: 92%; background: var(--color-warning); }
+.ltv-meter.ltv-high::before { width: 100%; background: var(--color-danger); }
+
+.row-actions { display: flex; gap: 5px; }
+.icon-btn {
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all var(--duration-fast);
+  font-size: 13px;
+}
+.icon-btn:hover { color: var(--color-text); background: var(--color-bg-paper); border-color: var(--color-border-strong); }
+.icon-btn.fav.is-on { color: var(--color-accent); background: var(--color-accent-subtle); border-color: var(--color-accent); }
+tbody tr.expanded .icon-btn {
+  border-color: rgba(255,255,255,.2);
+  color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.06);
+}
+
+.cta-deal {
+  background: linear-gradient(180deg, var(--color-accent-bright) 0%, var(--color-accent) 100%);
+  color: #050D1C;
+  border: 1px solid var(--color-accent);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 12px; font-weight: 800;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 1px 2px rgba(184,134,26,.35);
+  letter-spacing: -0.003em;
+  transition: all var(--duration-fast);
+}
+.cta-deal:hover { background: linear-gradient(180deg, var(--color-accent-bright) 0%, var(--color-accent-hover) 100%); }
+.cta-saved {
+  background: var(--color-primary);
+  color: #fff;
+  border: 1px solid var(--color-primary);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+tbody tr.expanded .cta-deal {
+  background: var(--color-bg-paper);
+  color: var(--color-primary);
+  border-color: var(--color-accent-bright);
+  font-weight: 800;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11.5px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.003em;
+}
+.badge-success { background: linear-gradient(180deg, #E8F5DC 0%, var(--color-success-subtle) 100%); color: var(--color-success); border: 1px solid rgba(31,117,68,.15); }
+.badge-warning { background: linear-gradient(180deg, #FBEFC6 0%, var(--color-warning-subtle) 100%); color: var(--color-warning); border: 1px solid rgba(163,107,10,.2); }
+.badge-danger  { background: var(--color-danger-subtle); color: var(--color-danger); border: 1px solid rgba(142,52,45,.15); }
+.badge-neutral { background: var(--color-bg-subtle); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+
+/* EXPANDED ROW CONTENT — signature interaction */
+.expanded-content {
+  background: linear-gradient(180deg, #051634 0%, #04122E 100%) !important;
+  color: #fff;
+}
+.expanded-content td {
+  padding: 0;
+  background: none;
+}
+.expanded-content:hover { background: linear-gradient(180deg, #051634 0%, #04122E 100%) !important; }
+.expanded-content:hover td:first-child::before { display: none; }
+.expanded-panel {
+  padding: 22px 28px 24px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 22px;
+  border-top: 1px solid rgba(219,168,56,.2);
+  border-bottom: 1px solid rgba(219,168,56,.2);
+  position: relative;
+}
+.expanded-panel::before {
+  content: ""; position: absolute; top: -1px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+}
+.exp-section-label {
+  font-size: 10px; font-weight: 800;
+  color: var(--color-accent-bright);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.exp-field-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+}
+.exp-field { display: flex; flex-direction: column; gap: 4px; }
+.exp-field-label {
+  font-size: 10px; font-weight: 700;
+  color: rgba(255,255,255,.55);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.exp-input {
+  padding: 7px 10px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+.exp-result {
+  display: flex; flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(219,168,56,.15) 0%, rgba(219,168,56,.05) 100%);
+  border: 1px solid rgba(219,168,56,.3);
+  border-radius: 8px;
+}
+.exp-result-label {
+  font-size: 10px; font-weight: 800;
+  color: var(--color-accent-bright);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.exp-result-value {
+  font-size: 30px; font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.exp-result-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,.6);
+  font-weight: 500;
+}
+.exp-result-sub strong { color: #6FE099; font-weight: 700; }
+
+.exp-lenders {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.exp-lender {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.exp-lender.match {
+  background: rgba(46,161,99,.12);
+  border-color: rgba(46,161,99,.3);
+}
+.exp-lender-name { font-weight: 700; color: #fff; }
+.exp-lender-rate { font-variant-numeric: tabular-nums; color: rgba(255,255,255,.7); }
+.exp-lender-match {
+  font-size: 9px; font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(46,161,99,.25);
+  color: #6FE099;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.exp-actions {
+  display: flex; gap: 8px;
+  margin-top: 14px;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.pagination strong { color: var(--color-text); font-weight: 700; }
+.pagination-right { display: flex; gap: 6px; align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!--===========================================================
+       SIDEBAR
+  ============================================================-->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-mark" aria-hidden>
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+          <path d="M8 7v18h7v-3h-4V7H8z" fill="#050D1C"/>
+          <path d="M16 7l5 13 5-13h3l-7 18h-2L13 7h3z" fill="#050D1C"/>
+        </svg>
+      </span>
+      <div>
+        <div class="brand-name">LTV Desking</div>
+        <div class="brand-tagline">Pro · F&amp;I</div>
+      </div>
+    </div>
+
+    <div class="sidebar-dealer">
+      <span class="sidebar-dealer-logo">BM</span>
+      <div class="sidebar-dealer-info">
+        <span class="sidebar-dealer-name">Bob Maxey Ford</span>
+        <span class="sidebar-dealer-sub">Detroit, MI · 0001</span>
+      </div>
+      <span class="sidebar-dealer-caret">▾</span>
+    </div>
+
+    <div class="sidebar-section-label">Workspace</div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-item active">
+        <span class="sidebar-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-7 9 7M5 10v10h14V10"/></svg></span>
+        Inventory
+        <span class="sidebar-nav-count">35</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></span>
+        Lender programs
+        <span class="sidebar-nav-count">7</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8M3 8l9-5 9 5M3 8h18"/></svg></span>
+        Saved deals
+        <span class="sidebar-nav-count">12</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 9h11a3 3 0 1 1 0 6H6a3 3 0 1 0 0 6h13"/></svg></span>
+        Finance tools
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 16l4-4 3 3 6-7"/></svg></span>
+        Reports
+      </div>
+    </nav>
+
+    <div class="sidebar-section-label">Admin</div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
+        Settings
+      </div>
+      <div class="sidebar-nav-item">
+        <span class="sidebar-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+        Owner Console
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="sidebar-avatar">JG</span>
+      <div>
+        <div class="sidebar-user-name">Joe Gallant</div>
+        <div class="sidebar-user-role">Superadmin</div>
+      </div>
+    </div>
+  </aside>
+
+  <!--===========================================================
+       MAIN
+  ============================================================-->
+  <div class="main">
+
+    <header class="header">
+      <div class="header-left">
+        <span class="header-logo">BM</span>
+        <div class="header-info">
+          <div class="header-title">Bob Maxey Ford</div>
+          <div class="header-sub">
+            <span class="pill"><span class="dot"></span>Active</span>
+            <span>Detroit, MI · 0001</span>
+            <span class="divider">·</span>
+            <span>35 vehicles · 7 active deals</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-kpis">
+        <div class="header-kpi">
+          <span class="header-kpi-label">Inventory</span>
+          <span class="header-kpi-value">35</span>
+          <span class="header-kpi-trend up">↑ 4 wk</span>
+        </div>
+        <div class="header-kpi">
+          <span class="header-kpi-label">Active deals</span>
+          <span class="header-kpi-value">7</span>
+          <span class="header-kpi-trend up">↑ 2 wk</span>
+        </div>
+        <div class="header-kpi">
+          <span class="header-kpi-label">Avg gross</span>
+          <span class="header-kpi-value">$1,742</span>
+          <span class="header-kpi-trend up">↑ 8.2%</span>
+        </div>
+        <div class="header-kpi">
+          <span class="header-kpi-label">Avg pmt</span>
+          <span class="header-kpi-value">$378</span>
+          <span class="header-kpi-trend down">↓ 1.4%</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button class="btn btn-sm btn-ghost">Desk mode</button>
+        <button class="btn btn-sm btn-accent">AI Lender Upload</button>
+      </div>
+    </header>
+
+    <div class="impersonation">
+      <span>Viewing as <strong>Bob Maxey Ford</strong> · superadmin impersonation session</span>
+      <button class="btn btn-sm btn-secondary">Exit impersonation</button>
+    </div>
+
+    <!-- Customer context — single pill, condensed (signature) -->
+    <section class="customer-bar">
+      <div class="customer-pill">
+        <span class="customer-pill-avatar">JD</span>
+        <div class="customer-pill-info">
+          <span class="customer-pill-name">John Doe</span>
+          <span class="customer-pill-attrs">
+            <span>Credit <strong>720</strong></span>
+            <span class="sep">·</span>
+            <span>Income <strong>$5,000/mo</strong></span>
+            <span class="sep">·</span>
+            <span>Max payment <strong>$450</strong></span>
+            <span class="sep">·</span>
+            <span>Term <strong>72 mo @ 8.9%</strong></span>
+            <span class="sep">·</span>
+            <span>Salesperson <strong>Jane Smith</strong></span>
+          </span>
+        </div>
+      </div>
+      <div class="customer-actions">
+        <button class="btn btn-sm btn-secondary">Edit customer</button>
+        <button class="btn btn-sm btn-primary">Save deal</button>
+      </div>
+    </section>
+
+    <main class="workspace">
+
+      <!-- TOP STRIP: real chart + activity feed -->
+      <div class="top-strip">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Deals per week</div>
+              <div class="chart-value-row">
+                <span class="chart-value">7</span>
+                <span class="chart-delta up">↑ 40%</span>
+                <span class="chart-context">vs. 5 last week · target 6</span>
+              </div>
+            </div>
+            <div class="chart-legend">
+              <span><span class="swatch actual"></span>Actual</span>
+              <span><span class="swatch target"></span>Target</span>
+            </div>
+          </div>
+
+          <!-- Real line chart with axes + gridlines + target line -->
+          <svg class="chart-svg" viewBox="0 0 480 130" preserveAspectRatio="none">
+            <!-- Gridlines -->
+            <g stroke="#D8CDB0" stroke-width="0.5">
+              <line x1="32" y1="20"  x2="480" y2="20"/>
+              <line x1="32" y1="50"  x2="480" y2="50"/>
+              <line x1="32" y1="80"  x2="480" y2="80"/>
+              <line x1="32" y1="110" x2="480" y2="110"/>
+            </g>
+            <!-- Y-axis labels -->
+            <g font-family="Inter, sans-serif" font-size="9" fill="#7B8295" font-weight="600">
+              <text x="22" y="23" text-anchor="end">10</text>
+              <text x="22" y="53" text-anchor="end">7</text>
+              <text x="22" y="83" text-anchor="end">4</text>
+              <text x="22" y="113" text-anchor="end">0</text>
+            </g>
+            <!-- X-axis labels -->
+            <g font-family="Inter, sans-serif" font-size="9" fill="#7B8295" font-weight="600" letter-spacing="0.06em">
+              <text x="48" y="125">W-7</text>
+              <text x="112" y="125">W-6</text>
+              <text x="176" y="125">W-5</text>
+              <text x="240" y="125">W-4</text>
+              <text x="304" y="125">W-3</text>
+              <text x="368" y="125">W-2</text>
+              <text x="432" y="125">LAST</text>
+            </g>
+            <!-- Target dashed line at y=60 (target 6) -->
+            <line x1="40" y1="60" x2="464" y2="60" stroke="#0A1F45" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.6"/>
+            <!-- Actual line: weekly values 3, 5, 4, 6, 5, 5, 7 → mapped to y (max 10 at y=20, 0 at y=110, so y = 110 - val * 9) -->
+            <polyline
+              points="48,83 112,65 176,74 240,56 304,65 368,65 432,47"
+              fill="none"
+              stroke="#B8861A"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <!-- Filled area under line -->
+            <polyline
+              points="48,83 112,65 176,74 240,56 304,65 368,65 432,47 432,110 48,110"
+              fill="url(#actualGradient)"
+              opacity="0.18"
+            />
+            <defs>
+              <linearGradient id="actualGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#DBA838"/>
+                <stop offset="100%" stop-color="#DBA838" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <!-- Data points -->
+            <g fill="#B8861A" stroke="#FEFCF7" stroke-width="1.5">
+              <circle cx="48"  cy="83" r="3"/>
+              <circle cx="112" cy="65" r="3"/>
+              <circle cx="176" cy="74" r="3"/>
+              <circle cx="240" cy="56" r="3"/>
+              <circle cx="304" cy="65" r="3"/>
+              <circle cx="368" cy="65" r="3"/>
+              <circle cx="432" cy="47" r="4" fill="#DBA838"/>
+            </g>
+          </svg>
+        </div>
+
+        <div class="activity-card">
+          <div class="activity-label">Today's activity</div>
+          <div class="activity-row">
+            <span class="activity-icon success">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <div class="activity-body">
+              <div class="activity-text"><strong>Deal saved</strong> · 2018 Honda Accord Sport · $14,800 to fin</div>
+              <div class="activity-time">2 minutes ago · by Jane Smith</div>
+            </div>
+          </div>
+          <div class="activity-row">
+            <span class="activity-icon info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>
+            </span>
+            <div class="activity-body">
+              <div class="activity-text"><strong>Capital One</strong> matched · 7.99% APR · approved up to $22k</div>
+              <div class="activity-time">18 minutes ago</div>
+            </div>
+          </div>
+          <div class="activity-row">
+            <span class="activity-icon accent">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </span>
+            <div class="activity-body">
+              <div class="activity-text"><strong>VIN decoded</strong> · 2020 Toyota Camry SE · added to inventory</div>
+              <div class="activity-time">42 minutes ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div class="inv-toolbar">
+        <div class="inv-toolbar-left">
+          <h1 class="inv-title">Inventory</h1>
+          <span class="inv-count">
+            <strong>35</strong> vehicles ·
+            <span class="for-customer"><strong>6</strong> within John's $450/mo budget</span> ·
+            <strong>11</strong> credit-tier match
+          </span>
+        </div>
+        <div class="inv-toolbar-right">
+          <input class="input toolbar-search tabular" placeholder="Search VIN, stock #, year, make…" />
+          <button class="btn btn-secondary">Import CSV</button>
+          <button class="btn btn-primary">Decode VIN</button>
+        </div>
+      </div>
+
+      <div class="filter-chips">
+        <span class="chip active">All <span class="count">35</span></span>
+        <span class="chip smart">★ Within John's budget <span class="count">6</span></span>
+        <span class="chip smart">Credit tier match <span class="count">11</span></span>
+        <span class="chip">Favorites <span class="count">12</span></span>
+        <span class="chip">Above book <span class="count">8</span></span>
+        <span class="chip">≤ 100k mi <span class="count">14</span></span>
+        <span class="chip">Front LTV &lt; 110% <span class="count">6</span></span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:48px"></th>
+              <th>Vehicle</th>
+              <th class="right">Miles</th>
+              <th class="right">Price</th>
+              <th class="right">Book</th>
+              <th class="right" style="min-width:120px">Front LTV</th>
+              <th class="right">Front gross</th>
+              <th class="right">Amt to fin</th>
+              <th class="right">Payment</th>
+              <th style="width:150px"></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- BEST MATCH ROW -->
+            <tr class="best-match">
+              <td><div class="row-actions"><button class="icon-btn fav is-on">★</button></div></td>
+              <td>
+                <div class="vehicle-cell">
+                  <span class="vehicle-name">
+                    2020 Toyota Camry SE
+                    <span class="best-tag">★ Best for John</span>
+                  </span>
+                  <span class="vehicle-meta">STK1011 · SAMPLE12AAAA1011 · saves $75/mo under budget</span>
+                </div>
+              </td>
+              <td class="right">55,000</td>
+              <td class="right">$20,500</td>
+              <td class="right">$19,500</td>
+              <td class="right">
+                <span class="ltv-cell">
+                  <span class="ltv-meter ltv-good" aria-hidden></span>
+                  <span class="badge badge-success">107%</span>
+                </span>
+              </td>
+              <td class="right">$2,300</td>
+              <td class="right">$20,835</td>
+              <td class="right">$375</td>
+              <td><button class="cta-deal">Structure deal →</button></td>
+            </tr>
+
+            <!-- EXPANDED ROW (signature interaction shown) -->
+            <tr class="expanded">
+              <td><div class="row-actions"><button class="icon-btn fav is-on" style="color:var(--color-accent-bright);background:rgba(219,168,56,.2);border-color:var(--color-accent)">★</button></div></td>
+              <td>
+                <div class="vehicle-cell">
+                  <span class="vehicle-name">2018 Honda Accord Sport</span>
+                  <span class="vehicle-meta">STK1007 · SAMPLE08AAAA1007 · structuring deal for John Doe</span>
+                </div>
+              </td>
+              <td class="right">75,000</td>
+              <td class="right">$15,500</td>
+              <td class="right">$14,800</td>
+              <td class="right">
+                <span class="ltv-cell">
+                  <span class="ltv-meter ltv-warn" aria-hidden></span>
+                  <span class="badge badge-warning">107%</span>
+                </span>
+              </td>
+              <td class="right">$1,700</td>
+              <td class="right">$15,835</td>
+              <td class="right">$285</td>
+              <td><button class="cta-deal">Save deal</button></td>
+            </tr>
+            <tr class="expanded-content">
+              <td colspan="10">
+                <div class="expanded-panel">
+                  <div>
+                    <div class="exp-section-label">Deal structure</div>
+                    <div class="exp-field-grid">
+                      <div class="exp-field">
+                        <span class="exp-field-label">Down payment</span>
+                        <input class="exp-input" value="$2,000" />
+                      </div>
+                      <div class="exp-field">
+                        <span class="exp-field-label">Trade value</span>
+                        <input class="exp-input" value="$0" />
+                      </div>
+                      <div class="exp-field">
+                        <span class="exp-field-label">Trade payoff</span>
+                        <input class="exp-input" value="$0" />
+                      </div>
+                      <div class="exp-field">
+                        <span class="exp-field-label">Backend</span>
+                        <input class="exp-input" value="$1,200" />
+                      </div>
+                      <div class="exp-field">
+                        <span class="exp-field-label">Term</span>
+                        <input class="exp-input" value="72 mo" />
+                      </div>
+                      <div class="exp-field">
+                        <span class="exp-field-label">APR</span>
+                        <input class="exp-input" value="7.99%" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="exp-section-label">Projected payment</div>
+                    <div class="exp-result">
+                      <span class="exp-result-label">Monthly</span>
+                      <span class="exp-result-value">$268</span>
+                      <span class="exp-result-sub"><strong>↓ $182/mo</strong> under John's $450 max</span>
+                    </div>
+                    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.55);display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-variant-numeric:tabular-nums">
+                      <span>OTD LTV</span><strong style="color:#fff;font-weight:700">107%</strong>
+                      <span>PTI</span><strong style="color:#fff;font-weight:700">5.4%</strong>
+                      <span>Amount financed</span><strong style="color:#fff;font-weight:700">$15,035</strong>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="exp-section-label">Lender matches</div>
+                    <div class="exp-lenders">
+                      <div class="exp-lender match">
+                        <span class="exp-lender-name">Capital One</span>
+                        <span class="exp-lender-rate">7.99% · 72mo</span>
+                        <span class="exp-lender-match">Match</span>
+                      </div>
+                      <div class="exp-lender match">
+                        <span class="exp-lender-name">Ally Financial</span>
+                        <span class="exp-lender-rate">8.49% · 72mo</span>
+                        <span class="exp-lender-match">Match</span>
+                      </div>
+                      <div class="exp-lender">
+                        <span class="exp-lender-name">Westlake</span>
+                        <span class="exp-lender-rate">9.89% · 60mo</span>
+                        <span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);letter-spacing:0.06em;text-transform:uppercase">Backup</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="exp-actions">
+                    <button class="btn btn-sm btn-ghost">Collapse</button>
+                    <button class="btn btn-sm btn-secondary">Generate PDF</button>
+                    <button class="cta-deal">Save deal · $268/mo</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Remaining rows -->
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn fav is-on">★</button></div></td>
+              <td><div class="vehicle-cell"><span class="vehicle-name">2021 Hyundai Kona SEL</span><span class="vehicle-meta">STK1014 · SAMPLE15AAAA1014 · $99 under budget</span></div></td>
+              <td class="right">40,000</td>
+              <td class="right">$19,200</td>
+              <td class="right">$18,400</td>
+              <td class="right"><span class="ltv-cell"><span class="ltv-meter ltv-good"></span><span class="badge badge-success">106%</span></span></td>
+              <td class="right">$1,900</td>
+              <td class="right">$19,535</td>
+              <td class="right">$351</td>
+              <td><button class="cta-deal">Structure deal →</button></td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn fav">☆</button></div></td>
+              <td><div class="vehicle-cell"><span class="vehicle-name">2019 Subaru Outback 2.5i</span><span class="vehicle-meta">STK1013 · SAMPLE14AAAA1013 · $88 under budget</span></div></td>
+              <td class="right">68,000</td>
+              <td class="right">$19,800</td>
+              <td class="right">$18,900</td>
+              <td class="right"><span class="ltv-cell"><span class="ltv-meter ltv-good"></span><span class="badge badge-success">107%</span></span></td>
+              <td class="right">$2,100</td>
+              <td class="right">$20,135</td>
+              <td class="right">$362</td>
+              <td><button class="cta-deal">Structure deal →</button></td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn fav is-on">★</button></div></td>
+              <td><div class="vehicle-cell"><span class="vehicle-name">2015 Nissan Altima S</span><span class="vehicle-meta">STK1003 · SAMPLE04AAAA1003 · $255 under budget</span></div></td>
+              <td class="right">110,000</td>
+              <td class="right">$10,500</td>
+              <td class="right">$9,800</td>
+              <td class="right"><span class="ltv-cell"><span class="ltv-meter ltv-warn"></span><span class="badge badge-warning">111%</span></span></td>
+              <td class="right">$1,700</td>
+              <td class="right">$10,835</td>
+              <td class="right">$195</td>
+              <td><button class="cta-deal">Structure deal →</button></td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn fav">☆</button></div></td>
+              <td><div class="vehicle-cell"><span class="vehicle-name">2013 Ford Focus SE</span><span class="vehicle-meta">STK1001 · SAMPLE02AAAA1001 · $340 under budget</span></div></td>
+              <td class="right">140,000</td>
+              <td class="right">$5,800</td>
+              <td class="right">$5,100</td>
+              <td class="right"><span class="ltv-cell"><span class="ltv-meter ltv-high"></span><span class="badge badge-danger">120%</span></span></td>
+              <td class="right">$1,600</td>
+              <td class="right">$6,135</td>
+              <td class="right">$110</td>
+              <td><button class="cta-deal">Structure deal →</button></td>
+            </tr>
+            <tr>
+              <td><div class="row-actions"><button class="icon-btn fav is-on">★</button></div></td>
+              <td><div class="vehicle-cell"><span class="vehicle-name">2012 Honda Civic LX</span><span class="vehicle-meta">STK1000 · SAMPLE01AAAA1000 · $345 under budget</span></div></td>
+              <td class="right">155,000</td>
+              <td class="right">$5,500</td>
+              <td class="right">$4,800</td>
+              <td class="right"><span class="ltv-cell"><span class="ltv-meter ltv-high"></span><span class="badge badge-danger">122%</span></span></td>
+              <td class="right">$1,500</td>
+              <td class="right">$5,835</td>
+              <td class="right">$105</td>
+              <td><button class="cta-deal">Structure deal →</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span>Showing <strong>1–7</strong> of <strong>35</strong> · sorted by <strong>best match for John</strong></span>
+        <div class="pagination-right">
+          <span>Rows:</span>
+          <button class="btn btn-sm btn-secondary">15 ▾</button>
+          <button class="btn btn-sm btn-secondary" disabled>Previous</button>
+          <button class="btn btn-sm btn-secondary">1</button>
+          <button class="btn btn-sm btn-secondary">2</button>
+          <button class="btn btn-sm btn-secondary">3</button>
+          <button class="btn btn-sm btn-secondary">Next</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+</body>
+</html>

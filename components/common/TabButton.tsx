@@ -12,24 +12,27 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
   return (
     <button
       onClick={onClick}
+      role="tab"
+      aria-selected={active}
+      // The label is visually hidden on small screens, so always expose it as
+      // the button's accessible name. [a11y]
+      aria-label={label}
       className={`
-        group relative px-6 py-3 text-sm font-semibold rounded-xl
-        transition-all duration-300 ease-out
-        hover:scale-105 active:scale-95
+        group relative px-5 py-2 text-sm font-medium rounded
+        transition-colors duration-[120ms]
         ${
           active
-            ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-sm"
-            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
+            ? "text-[var(--color-primary)] bg-[var(--color-bg)] shadow-sm"
+            : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-muted)]"
         }
       `}
-      aria-current={active ? "page" : undefined}
     >
       {/* Active indicator bar with smooth slide animation */}
       <span
         className={`flex items-center justify-center transition-colors ${
           active
-            ? "text-blue-600 dark:text-blue-400"
-            : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+            ? "text-[var(--color-primary)]"
+            : "text-[var(--color-text-subtle)] group-hover:text-[var(--color-text-muted)]"
         }`}
       >
         {icon}
@@ -48,8 +51,8 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
             transition-all duration-200
             ${
               active
-                ? "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-300"
-                : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
+                : "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]"
             }
           `}
         >
@@ -60,7 +63,7 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
       {/* Active indicator underline */}
       {active && (
         <span
-          className="absolute bottom-0 left-4 right-4 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-full shadow-[0_-2px_10px_rgba(59,130,246,0.5)]"
+          className="absolute bottom-0 left-3 right-3 h-0.5 bg-[var(--color-primary)] rounded-t"
           aria-hidden="true"
         />
       )}

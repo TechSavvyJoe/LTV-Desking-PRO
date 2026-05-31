@@ -95,12 +95,19 @@ export const mapPocketBaseSavedDeal = (deal: PocketBaseSavedDeal): AppSavedDeal 
       ? deal.dealData
       : {};
 
+  const vehicle = mapCalculatedVehicle(deal.vehicleData);
+
   return {
     id: deal.id,
     date: deal.created,
+    // Populate createdAt + vehicleSnapshot so DealHistoryPanel sorts by date and
+    // renders the stored payment instead of N/A. [frontend-state]
+    createdAt: deal.created,
     customerName: deal.customerName || "Unknown",
     salespersonName: deal.salespersonName || "Unknown",
-    vehicle: mapCalculatedVehicle(deal.vehicleData),
+    vehicle,
+    vehicleSnapshot: vehicle,
+    vehicleVin: vehicle.vin !== "N/A" ? vehicle.vin : undefined,
     dealData: mapDealData(deal.dealData),
     customerFilters: {
       creditScore: toOptionalNumber(customerFilterSource.creditScore),

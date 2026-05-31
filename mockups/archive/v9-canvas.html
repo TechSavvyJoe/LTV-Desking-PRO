@@ -1,0 +1,1254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LTV Desking PRO — v9 "Canvas"</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   v9 — "Canvas"
+   Last attempt. Fundamentally different direction:
+   - Deep dark + champagne gold (private banking / Robinhood Gold energy)
+   - Split-pane: inventory left, persistent deal canvas right
+   - Geist Sans + Geist Mono (trader-terminal typography)
+   - Real car illustrations in inventory
+   - Huge display typography
+   ============================================================================ */
+:root {
+  /* Surfaces — deep, premium dark */
+  --bg            : #0A1020;
+  --bg-elevated   : #131A2E;
+  --bg-card       : #1A2238;
+  --bg-card-hover : #232C46;
+  --bg-input      : #0A1020;
+
+  /* Champagne gold — signature */
+  --gold          : #D4B062;
+  --gold-bright   : #E8C880;
+  --gold-dim      : #A8884B;
+  --gold-subtle   : rgba(212,176,98,.12);
+
+  /* Text */
+  --text          : #FFFFFF;
+  --text-muted    : #98A3BC;
+  --text-subtle   : #56638A;
+  --text-faint    : #3A4366;
+
+  /* Borders */
+  --border        : #2A3552;
+  --border-strong : #3D4A6F;
+  --hairline      : rgba(212,176,98,.15);
+
+  /* Status */
+  --success       : #34D399;
+  --success-subtle: rgba(52,211,153,.12);
+  --warning       : #FBBF24;
+  --warning-subtle: rgba(251,191,36,.15);
+  --danger        : #F87171;
+  --danger-subtle : rgba(248,113,113,.12);
+
+  /* Geometry */
+  --r-sm: 4px; --r: 8px; --r-md: 12px; --r-lg: 18px;
+
+  /* Shadows */
+  --shadow-soft : 0 1px 3px rgba(0,0,0,.4), 0 4px 12px -2px rgba(0,0,0,.3);
+  --shadow-card : 0 2px 6px rgba(0,0,0,.4), 0 16px 48px -12px rgba(0,0,0,.5);
+
+  --font: "Geist", -apple-system, "Inter", BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01", "ss03";
+
+  /* Subtle vignette + grain */
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(212,176,98,.04) 0%, transparent 40%),
+    radial-gradient(ellipse at 80% 100%, rgba(52,73,134,.08) 0%, transparent 50%);
+}
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ============================================================================
+   Layout — 3 columns: sidebar | inventory | deal canvas
+   ============================================================================ */
+.app {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1.4fr) 460px;
+  min-height: 100vh;
+}
+
+/* ----------- SIDEBAR ----------- */
+.sidebar {
+  background: linear-gradient(180deg, #060B17 0%, #0A1020 100%);
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  display: flex; flex-direction: column;
+  padding: 22px 0 16px;
+  position: sticky; top: 0; height: 100vh;
+}
+.sidebar-brand {
+  padding: 0 22px 22px;
+  display: flex; align-items: center; gap: 12px;
+  position: relative;
+}
+.sidebar-brand::after {
+  content: ""; position: absolute; bottom: 0; left: 22px; right: 22px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hairline), transparent);
+}
+.brand-mark {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--gold-bright) 0%, var(--gold) 50%, var(--gold-dim) 100%);
+  color: #06101F;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: -0.04em;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.45),
+    inset 0 -1px 0 rgba(0,0,0,.25),
+    0 3px 10px rgba(212,176,98,.3);
+}
+.brand-name {
+  font-size: 15px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.brand-tagline {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--gold);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.sidebar-section { padding: 18px 0 4px; }
+.sidebar-section-label {
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding: 0 26px 8px;
+  opacity: 0.7;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 1px; padding: 0 14px; }
+.sidebar-nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-muted);
+  border-radius: 7px;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: -0.005em;
+  transition: all 130ms;
+}
+.sidebar-nav-item:hover { background: rgba(255,255,255,.04); color: var(--text); }
+.sidebar-nav-item.active {
+  background: linear-gradient(90deg, rgba(212,176,98,.22) 0%, rgba(212,176,98,.04) 100%);
+  color: var(--text);
+  font-weight: 600;
+}
+.sidebar-nav-item.active::before {
+  content: ""; position: absolute; left: -14px; top: 7px; bottom: 7px;
+  width: 3px;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 14px rgba(212,176,98,.6);
+}
+.sidebar-nav-icon { width: 16px; height: 16px; opacity: 0.85; }
+.sidebar-nav-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  padding: 1px 7px; border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  color: var(--text-muted);
+}
+.sidebar-nav-item.active .sidebar-nav-count { background: rgba(212,176,98,.25); color: var(--gold-bright); }
+
+.sidebar-dealer {
+  margin: 14px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.01) 100%);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 10px;
+  display: flex; align-items: center; gap: 11px;
+  cursor: pointer;
+}
+.sidebar-dealer-logo {
+  width: 34px; height: 34px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  color: #06101F;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+}
+.sidebar-dealer-info { flex: 1; min-width: 0; }
+.sidebar-dealer-name { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -0.005em; }
+.sidebar-dealer-sub { font-family: var(--font-mono); font-size: 10px; color: var(--text-subtle); }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 14px 22px 0;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 11px;
+}
+.sidebar-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  color: #06101F;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+}
+.sidebar-user-name { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -0.005em; }
+.sidebar-user-role { font-family: var(--font-mono); font-size: 10px; color: var(--text-subtle); }
+
+/* ============================================================================
+   MAIN COLUMN — inventory work surface
+   ============================================================================ */
+.main {
+  display: flex; flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+}
+
+.main-top {
+  padding: 22px 28px 0;
+  background: var(--bg);
+}
+
+.context {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.customer-pill {
+  display: flex; align-items: center; gap: 14px;
+}
+.customer-pill-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, #4A5778, #2D3756);
+  color: var(--text);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+  border: 1px solid var(--border-strong);
+}
+.customer-pill-info { display: flex; flex-direction: column; }
+.customer-pill-name {
+  font-size: 14px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.012em;
+}
+.customer-pill-attrs {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 2px;
+}
+.customer-pill-attrs strong { color: var(--gold-bright); font-weight: 600; }
+.customer-pill-attrs .sep { color: var(--text-faint); }
+
+.context-actions { display: flex; gap: 8px; }
+
+/* HERO BAND — huge editorial number */
+.hero-band {
+  padding: 28px 0 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.hero-stat { display: flex; flex-direction: column; gap: 6px; }
+.hero-stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.hero-stat-value {
+  font-size: 56px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.hero-stat-value .gold { color: var(--gold-bright); }
+.hero-stat-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 4px;
+}
+.hero-stat-meta .delta {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.hero-stat-meta .delta.up { color: var(--success); background: var(--success-subtle); }
+.hero-stat-meta .delta.down { color: var(--danger); background: var(--danger-subtle); }
+
+/* Inventory list */
+.inv-section {
+  padding: 22px 28px 32px;
+  flex: 1;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.inv-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.inv-title {
+  font-size: 18px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.018em;
+  margin: 0;
+  display: flex; align-items: center; gap: 12px;
+}
+.inv-title-meta {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.inv-title-meta strong { color: var(--gold-bright); font-weight: 600; }
+
+.inv-controls { display: flex; align-items: center; gap: 8px; }
+
+.input {
+  display: block;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  transition: all 130ms;
+  min-width: 220px;
+}
+.input::placeholder { color: var(--text-faint); }
+.input:hover { border-color: var(--border-strong); }
+.input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-subtle);
+}
+
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 130ms;
+  letter-spacing: 0.01em;
+}
+.chip:hover { border-color: var(--border-strong); color: var(--text); }
+.chip.active {
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+  border-color: var(--border-strong);
+  color: var(--text);
+  font-weight: 600;
+}
+.chip.smart {
+  border-color: var(--gold-dim);
+  background: var(--gold-subtle);
+  color: var(--gold-bright);
+  font-weight: 600;
+}
+.chip .count { color: inherit; opacity: 0.7; font-weight: 600; }
+.chip.smart .count { opacity: 0.95; }
+
+/* INVENTORY rows — list with photos */
+.inv-list { display: flex; flex-direction: column; gap: 2px; }
+
+.inv-row {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 64px 1fr auto auto auto;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  transition: all 130ms;
+  position: relative;
+}
+.inv-row:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-strong);
+}
+.inv-row.best {
+  background: linear-gradient(90deg, rgba(212,176,98,.10), var(--bg-elevated) 80%);
+  border-color: var(--gold-dim);
+}
+.inv-row.active {
+  background: linear-gradient(90deg, rgba(212,176,98,.18), var(--bg-card) 70%);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), 0 4px 14px rgba(212,176,98,.18);
+}
+.inv-row.active::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
+  width: 3px; background: var(--gold-bright); border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 12px var(--gold-bright);
+}
+
+.car-illu {
+  width: 64px; height: 40px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2D3756 0%, #1A2238 100%);
+  display: inline-flex; align-items: center; justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.car-illu svg { width: 90%; height: 80%; }
+.car-illu.best { background: linear-gradient(135deg, #4A4128 0%, #2A2415 100%); }
+
+.inv-row-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.inv-row-name {
+  font-size: 14px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.012em;
+  display: flex; align-items: center; gap: 8px;
+}
+.inv-row-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-subtle);
+  letter-spacing: 0;
+}
+.inv-row-meta .ok { color: var(--success); }
+
+.best-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  color: #06101F;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.inv-row-num {
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  min-width: 80px;
+}
+.inv-row-num-label {
+  display: block;
+  font-size: 9px;
+  color: var(--text-subtle);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.inv-row-ltv {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+}
+.ltv-bar {
+  width: 60px; height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+.ltv-bar::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px;
+}
+.ltv-bar.good::before { width: 70%; background: var(--success); box-shadow: 0 0 6px var(--success); }
+.ltv-bar.warn::before { width: 90%; background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+.ltv-bar.high::before { width: 100%; background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.ltv-num {
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.ltv-num.good { color: var(--success); }
+.ltv-num.warn { color: var(--warning); }
+.ltv-num.high { color: var(--danger); }
+
+.cta-deal {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
+  color: #06101F;
+  border: 1px solid var(--gold);
+  padding: 7px 12px;
+  border-radius: var(--r);
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 1px 2px rgba(0,0,0,.3);
+  letter-spacing: -0.005em;
+}
+.cta-deal:hover { background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold-dim) 100%); }
+.inv-row.active .cta-deal { background: var(--bg-elevated); color: var(--gold-bright); border-color: var(--gold-bright); }
+
+/* ============================================================================
+   DEAL CANVAS — right pane, always present
+   ============================================================================ */
+.canvas {
+  background: linear-gradient(180deg, #0E1525 0%, #0A1020 100%);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh;
+  overflow-y: auto;
+}
+
+.canvas-header {
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative;
+}
+.canvas-header::after {
+  content: ""; position: absolute; bottom: -1px; left: 26px; width: 60px;
+  height: 1px; background: var(--gold);
+}
+.canvas-title {
+  font-size: 11px; font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+.canvas-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--success);
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--success-subtle);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.canvas-status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Selected vehicle hero */
+.canvas-vehicle {
+  padding: 24px 26px 20px;
+}
+.canvas-vehicle-illu {
+  height: 110px;
+  background: linear-gradient(135deg, #2D3756 0%, #1A2238 50%, #131A2E 100%);
+  border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.canvas-vehicle-illu::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at center, rgba(212,176,98,.06) 0%, transparent 60%);
+}
+.canvas-vehicle-illu svg { width: 80%; height: 75%; position: relative; }
+.canvas-vehicle-name {
+  font-size: 22px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+.canvas-vehicle-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.canvas-vehicle-meta .sep { color: var(--text-faint); }
+
+/* Hero payment display */
+.payment-hero {
+  margin: 24px 26px;
+  padding: 24px 22px 20px;
+  background: linear-gradient(135deg, rgba(212,176,98,.15) 0%, rgba(212,176,98,.03) 100%);
+  border: 1px solid var(--gold-dim);
+  border-radius: var(--r-md);
+  position: relative;
+  overflow: hidden;
+}
+.payment-hero::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
+}
+.payment-label {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  color: var(--gold-bright);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.payment-value {
+  font-size: 64px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
+.payment-value .per { font-size: 24px; color: var(--text-muted); font-weight: 500; letter-spacing: -0.02em; }
+.payment-sub {
+  margin-top: 12px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.payment-sub strong { color: var(--success); font-weight: 700; font-family: var(--font-mono); }
+.payment-grid {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+}
+.payment-stat { display: flex; flex-direction: column; }
+.payment-stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px; color: var(--text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.payment-stat-value {
+  font-family: var(--font-mono);
+  font-size: 16px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+}
+
+/* Deal structure inputs */
+.canvas-section { padding: 0 26px 18px; }
+.canvas-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.canvas-section-title {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.canvas-section-action {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.canvas-section-action:hover { color: var(--text); }
+
+.canvas-field-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.canvas-field { display: flex; flex-direction: column; gap: 5px; }
+.canvas-field-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.canvas-input {
+  padding: 8px 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 600;
+  transition: all 130ms;
+}
+.canvas-input:hover { border-color: var(--border-strong); }
+.canvas-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-subtle);
+}
+
+/* Lender stack */
+.lenders { display: flex; flex-direction: column; gap: 6px; }
+.lender {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 13px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.lender.match { border-color: rgba(52,211,153,.3); background: linear-gradient(90deg, rgba(52,211,153,.08), var(--bg-card) 60%); }
+.lender.best  { border-color: var(--gold-dim); background: linear-gradient(90deg, rgba(212,176,98,.12), var(--bg-card) 60%); }
+.lender-rank {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 700;
+  color: var(--text-muted);
+}
+.lender.best .lender-rank { background: var(--gold); color: #06101F; }
+.lender-info { min-width: 0; }
+.lender-name {
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.lender-rate {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.lender-tag {
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.lender-tag.match { background: var(--success-subtle); color: var(--success); }
+.lender-tag.best  { background: linear-gradient(135deg, var(--gold-bright), var(--gold)); color: #06101F; }
+.lender-tag.backup{ background: rgba(255,255,255,.06); color: var(--text-muted); }
+
+/* Canvas footer actions */
+.canvas-actions {
+  margin-top: auto;
+  padding: 18px 26px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 8px;
+  background: rgba(255,255,255,.02);
+}
+.btn {
+  font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 14px;
+  font-size: 13px; font-weight: 700;
+  border-radius: var(--r);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 130ms;
+  white-space: nowrap;
+}
+.btn-sm { padding: 7px 12px; font-size: 12px; }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.btn-ghost:hover { background: var(--bg-elevated); color: var(--text); }
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.btn-secondary:hover { background: var(--bg-card-hover); }
+.btn-gold {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
+  color: #06101F;
+  flex: 1;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 1px 4px rgba(212,176,98,.3);
+}
+.btn-gold:hover { background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold-dim) 100%); }
+
+.icon-btn {
+  width: 30px; height: 30px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 130ms;
+}
+.icon-btn:hover { color: var(--text); background: var(--bg-elevated); border-color: var(--border-strong); }
+.icon-btn.fav.on { color: var(--gold-bright); background: var(--gold-subtle); border-color: var(--gold-dim); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!--===========================================================
+       SIDEBAR
+  ============================================================-->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-mark">LV</span>
+      <div>
+        <div class="brand-name">LTV Desking</div>
+        <div class="brand-tagline">Pro · F&amp;I</div>
+      </div>
+    </div>
+
+    <div class="sidebar-dealer">
+      <span class="sidebar-dealer-logo">BM</span>
+      <div class="sidebar-dealer-info">
+        <div class="sidebar-dealer-name">Bob Maxey Ford</div>
+        <div class="sidebar-dealer-sub">DETROIT, MI · 0001</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Workspace</div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-item active">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-7 9 7M5 10v10h14V10"/></svg>
+          Inventory
+          <span class="sidebar-nav-count">35</span>
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>
+          Lender programs
+          <span class="sidebar-nav-count">7</span>
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8M3 8l9-5 9 5M3 8h18"/></svg>
+          Saved deals
+          <span class="sidebar-nav-count">12</span>
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 9h11a3 3 0 1 1 0 6H6a3 3 0 1 0 0 6h13"/></svg>
+          Finance tools
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 16l4-4 3 3 6-7"/></svg>
+          Reports
+        </div>
+      </nav>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Admin</div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          Settings
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Owner Console
+        </div>
+      </nav>
+    </div>
+
+    <div class="sidebar-footer">
+      <span class="sidebar-avatar">JG</span>
+      <div>
+        <div class="sidebar-user-name">Joe Gallant</div>
+        <div class="sidebar-user-role">SUPERADMIN</div>
+      </div>
+    </div>
+  </aside>
+
+  <!--===========================================================
+       MAIN — inventory work surface
+  ============================================================-->
+  <div class="main">
+
+    <div class="main-top">
+      <div class="context">
+        <div class="customer-pill">
+          <span class="customer-pill-avatar">JD</span>
+          <div class="customer-pill-info">
+            <div class="customer-pill-name">John Doe</div>
+            <div class="customer-pill-attrs">
+              <span>CREDIT <strong>720</strong></span>
+              <span class="sep">·</span>
+              <span>INCOME <strong>$5,000</strong>/mo</span>
+              <span class="sep">·</span>
+              <span>MAX PMT <strong>$450</strong></span>
+              <span class="sep">·</span>
+              <span>72mo <strong>@ 8.9%</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="context-actions">
+          <button class="btn btn-sm btn-ghost">Edit</button>
+          <button class="btn btn-sm btn-secondary">⌘K</button>
+        </div>
+      </div>
+
+      <!-- HERO BAND with huge editorial numbers -->
+      <div class="hero-band">
+        <div class="hero-stat">
+          <span class="hero-stat-label">Inventory</span>
+          <span class="hero-stat-value">35</span>
+          <span class="hero-stat-meta">
+            <span class="delta up">↑ 4</span>
+            <span>vs. last week</span>
+          </span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-label">Avg gross</span>
+          <span class="hero-stat-value"><span class="gold">$1,742</span></span>
+          <span class="hero-stat-meta">
+            <span class="delta up">↑ 8.2%</span>
+            <span>$1,610 target</span>
+          </span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-label">For John</span>
+          <span class="hero-stat-value">6</span>
+          <span class="hero-stat-meta">
+            <span style="color:var(--gold-bright);font-weight:700">within budget</span>
+            <span>· 11 credit-tier</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="inv-section">
+      <div class="inv-header">
+        <h2 class="inv-title">
+          Inventory
+          <span class="inv-title-meta"><strong>6</strong> within John's budget · sorted by best match</span>
+        </h2>
+        <div class="inv-controls">
+          <input class="input" placeholder="Search VIN, stock #, year…" />
+          <button class="btn btn-sm btn-ghost">Filters</button>
+        </div>
+      </div>
+
+      <div class="filter-chips">
+        <span class="chip active">ALL <span class="count">35</span></span>
+        <span class="chip smart">★ WITHIN BUDGET <span class="count">6</span></span>
+        <span class="chip smart">CREDIT MATCH <span class="count">11</span></span>
+        <span class="chip">FAVORITES <span class="count">12</span></span>
+        <span class="chip">ABOVE BOOK <span class="count">8</span></span>
+        <span class="chip">LTV &lt; 110% <span class="count">6</span></span>
+      </div>
+
+      <div class="inv-list">
+
+        <!-- BEST MATCH -->
+        <div class="inv-row best">
+          <div class="car-illu best">
+            <svg viewBox="0 0 100 50" fill="none">
+              <path d="M10 36 L18 22 Q22 18 28 18 L72 18 Q78 18 82 22 L90 36 Z" fill="#D4B062" opacity="0.85"/>
+              <rect x="22" y="22" width="56" height="10" fill="#06101F" opacity="0.4" rx="2"/>
+              <circle cx="26" cy="38" r="5" fill="#06101F"/>
+              <circle cx="74" cy="38" r="5" fill="#06101F"/>
+              <circle cx="26" cy="38" r="2" fill="#98A3BC"/>
+              <circle cx="74" cy="38" r="2" fill="#98A3BC"/>
+            </svg>
+          </div>
+          <div class="inv-row-main">
+            <div class="inv-row-name">
+              2020 Toyota Camry SE
+              <span class="best-tag">★ Best for John</span>
+            </div>
+            <div class="inv-row-meta">STK1011 · 55K MI · <span class="ok">SAVES $75/MO UNDER BUDGET</span></div>
+          </div>
+          <div class="inv-row-num">
+            <span class="inv-row-num-label">Price</span>
+            $20,500
+          </div>
+          <div class="inv-row-ltv">
+            <span class="ltv-bar good"></span>
+            <span class="ltv-num good">107%</span>
+          </div>
+          <button class="cta-deal">Structure →</button>
+        </div>
+
+        <!-- ACTIVE -->
+        <div class="inv-row active">
+          <div class="car-illu">
+            <svg viewBox="0 0 100 50" fill="none">
+              <path d="M10 36 L18 22 Q22 18 28 18 L72 18 Q78 18 82 22 L90 36 Z" fill="#98A3BC" opacity="0.6"/>
+              <rect x="22" y="22" width="56" height="10" fill="#06101F" opacity="0.5" rx="2"/>
+              <circle cx="26" cy="38" r="5" fill="#06101F"/>
+              <circle cx="74" cy="38" r="5" fill="#06101F"/>
+              <circle cx="26" cy="38" r="2" fill="#D4B062"/>
+              <circle cx="74" cy="38" r="2" fill="#D4B062"/>
+            </svg>
+          </div>
+          <div class="inv-row-main">
+            <div class="inv-row-name">2018 Honda Accord Sport</div>
+            <div class="inv-row-meta">STK1007 · 75K MI · STRUCTURING DEAL</div>
+          </div>
+          <div class="inv-row-num">
+            <span class="inv-row-num-label">Price</span>
+            $15,500
+          </div>
+          <div class="inv-row-ltv">
+            <span class="ltv-bar warn"></span>
+            <span class="ltv-num warn">107%</span>
+          </div>
+          <button class="cta-deal">Active →</button>
+        </div>
+
+        <!-- Others -->
+        <div class="inv-row">
+          <div class="car-illu">
+            <svg viewBox="0 0 100 50" fill="none">
+              <path d="M8 36 L14 20 Q18 14 26 14 L74 14 Q82 14 86 20 L92 36 Z" fill="#98A3BC" opacity="0.5"/>
+              <rect x="20" y="20" width="60" height="12" fill="#06101F" opacity="0.5" rx="2"/>
+              <circle cx="24" cy="38" r="5" fill="#06101F"/>
+              <circle cx="76" cy="38" r="5" fill="#06101F"/>
+            </svg>
+          </div>
+          <div class="inv-row-main">
+            <div class="inv-row-name">2021 Hyundai Kona SEL</div>
+            <div class="inv-row-meta">STK1014 · 40K MI · <span class="ok">$99 UNDER BUDGET</span></div>
+          </div>
+          <div class="inv-row-num">
+            <span class="inv-row-num-label">Price</span>
+            $19,200
+          </div>
+          <div class="inv-row-ltv">
+            <span class="ltv-bar good"></span>
+            <span class="ltv-num good">106%</span>
+          </div>
+          <button class="cta-deal">Structure →</button>
+        </div>
+
+        <div class="inv-row">
+          <div class="car-illu">
+            <svg viewBox="0 0 100 50" fill="none">
+              <path d="M6 36 L12 18 Q18 12 28 12 L72 12 Q82 12 88 18 L94 36 Z" fill="#98A3BC" opacity="0.5"/>
+              <rect x="22" y="18" width="56" height="14" fill="#06101F" opacity="0.5" rx="2"/>
+              <circle cx="26" cy="38" r="5" fill="#06101F"/>
+              <circle cx="74" cy="38" r="5" fill="#06101F"/>
+            </svg>
+          </div>
+          <div class="inv-row-main">
+            <div class="inv-row-name">2019 Subaru Outback 2.5i</div>
+            <div class="inv-row-meta">STK1013 · 68K MI · <span class="ok">$88 UNDER BUDGET</span></div>
+          </div>
+          <div class="inv-row-num">
+            <span class="inv-row-num-label">Price</span>
+            $19,800
+          </div>
+          <div class="inv-row-ltv">
+            <span class="ltv-bar good"></span>
+            <span class="ltv-num good">107%</span>
+          </div>
+          <button class="cta-deal">Structure →</button>
+        </div>
+
+        <div class="inv-row">
+          <div class="car-illu">
+            <svg viewBox="0 0 100 50" fill="none">
+              <path d="M10 36 L18 22 Q22 18 28 18 L72 18 Q78 18 82 22 L90 36 Z" fill="#98A3BC" opacity="0.5"/>
+              <rect x="22" y="22" width="56" height="10" fill="#06101F" opacity="0.5" rx="2"/>
+              <circle cx="26" cy="38" r="5" fill="#06101F"/>
+              <circle cx="74" cy="38" r="5" fill="#06101F"/>
+            </svg>
+          </div>
+          <div class="inv-row-main">
+            <div class="inv-row-name">2015 Nissan Altima S</div>
+            <div class="inv-row-meta">STK1003 · 110K MI · <span class="ok">$255 UNDER BUDGET</span></div>
+          </div>
+          <div class="inv-row-num">
+            <span class="inv-row-num-label">Price</span>
+            $10,500
+          </div>
+          <div class="inv-row-ltv">
+            <span class="ltv-bar warn"></span>
+            <span class="ltv-num warn">111%</span>
+          </div>
+          <button class="cta-deal">Structure →</button>
+        </div>
+
+        <div class="inv-row">
+          <div class="car-illu">
+            <svg viewBox="0 0 100 50" fill="none">
+              <path d="M10 36 L18 22 Q22 18 28 18 L72 18 Q78 18 82 22 L90 36 Z" fill="#98A3BC" opacity="0.5"/>
+              <rect x="22" y="22" width="56" height="10" fill="#06101F" opacity="0.5" rx="2"/>
+              <circle cx="26" cy="38" r="5" fill="#06101F"/>
+              <circle cx="74" cy="38" r="5" fill="#06101F"/>
+            </svg>
+          </div>
+          <div class="inv-row-main">
+            <div class="inv-row-name">2013 Ford Focus SE</div>
+            <div class="inv-row-meta">STK1001 · 140K MI · <span class="ok">$340 UNDER BUDGET</span></div>
+          </div>
+          <div class="inv-row-num">
+            <span class="inv-row-num-label">Price</span>
+            $5,800
+          </div>
+          <div class="inv-row-ltv">
+            <span class="ltv-bar high"></span>
+            <span class="ltv-num high">120%</span>
+          </div>
+          <button class="cta-deal">Structure →</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!--===========================================================
+       DEAL CANVAS — persistent right pane
+  ============================================================-->
+  <aside class="canvas">
+
+    <div class="canvas-header">
+      <span class="canvas-title">Deal Canvas</span>
+      <span class="canvas-status"><span class="dot"></span>Live · for John</span>
+    </div>
+
+    <div class="canvas-vehicle">
+      <div class="canvas-vehicle-illu">
+        <svg viewBox="0 0 100 50" fill="none">
+          <path d="M10 36 L18 22 Q22 18 28 18 L72 18 Q78 18 82 22 L90 36 Z" fill="#D4B062" opacity="0.9"/>
+          <rect x="22" y="22" width="56" height="10" fill="#06101F" opacity="0.5" rx="2"/>
+          <circle cx="26" cy="38" r="5" fill="#06101F"/>
+          <circle cx="74" cy="38" r="5" fill="#06101F"/>
+          <circle cx="26" cy="38" r="2" fill="#E8C880"/>
+          <circle cx="74" cy="38" r="2" fill="#E8C880"/>
+        </svg>
+      </div>
+      <div class="canvas-vehicle-name">2018 Honda Accord Sport</div>
+      <div class="canvas-vehicle-meta">
+        <span>STK1007</span>
+        <span class="sep">·</span>
+        <span>75,000 mi</span>
+        <span class="sep">·</span>
+        <span>$15,500 list</span>
+        <span class="sep">·</span>
+        <span>$14,800 book</span>
+      </div>
+    </div>
+
+    <div class="payment-hero">
+      <div class="payment-label">Projected payment</div>
+      <div class="payment-value">$268<span class="per">/mo</span></div>
+      <div class="payment-sub">
+        <strong>↓ $182/mo</strong>
+        <span>under John's $450 max</span>
+      </div>
+      <div class="payment-grid">
+        <div class="payment-stat">
+          <span class="payment-stat-label">OTD LTV</span>
+          <span class="payment-stat-value">107%</span>
+        </div>
+        <div class="payment-stat">
+          <span class="payment-stat-label">PTI</span>
+          <span class="payment-stat-value">5.4%</span>
+        </div>
+        <div class="payment-stat">
+          <span class="payment-stat-label">Financed</span>
+          <span class="payment-stat-value">$15,035</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-section">
+      <div class="canvas-section-head">
+        <span class="canvas-section-title">Deal structure</span>
+        <span class="canvas-section-action">Reset →</span>
+      </div>
+      <div class="canvas-field-grid">
+        <div class="canvas-field">
+          <span class="canvas-field-label">Down</span>
+          <input class="canvas-input" value="$2,000" />
+        </div>
+        <div class="canvas-field">
+          <span class="canvas-field-label">Trade value</span>
+          <input class="canvas-input" value="$0" />
+        </div>
+        <div class="canvas-field">
+          <span class="canvas-field-label">Trade payoff</span>
+          <input class="canvas-input" value="$0" />
+        </div>
+        <div class="canvas-field">
+          <span class="canvas-field-label">Backend</span>
+          <input class="canvas-input" value="$1,200" />
+        </div>
+        <div class="canvas-field">
+          <span class="canvas-field-label">Term</span>
+          <input class="canvas-input" value="72 mo" />
+        </div>
+        <div class="canvas-field">
+          <span class="canvas-field-label">APR</span>
+          <input class="canvas-input" value="7.99%" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-section">
+      <div class="canvas-section-head">
+        <span class="canvas-section-title">Lender matches</span>
+        <span class="canvas-section-action">View all 7 →</span>
+      </div>
+      <div class="lenders">
+        <div class="lender best">
+          <span class="lender-rank">1</span>
+          <div class="lender-info">
+            <div class="lender-name">Capital One</div>
+            <div class="lender-rate">7.99% · 72mo · up to $22k</div>
+          </div>
+          <span class="lender-tag best">Best</span>
+        </div>
+        <div class="lender match">
+          <span class="lender-rank">2</span>
+          <div class="lender-info">
+            <div class="lender-name">Ally Financial</div>
+            <div class="lender-rate">8.49% · 72mo · up to $25k</div>
+          </div>
+          <span class="lender-tag match">Match</span>
+        </div>
+        <div class="lender">
+          <span class="lender-rank">3</span>
+          <div class="lender-info">
+            <div class="lender-name">Westlake</div>
+            <div class="lender-rate">9.89% · 60mo · up to $18k</div>
+          </div>
+          <span class="lender-tag backup">Backup</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-actions">
+      <button class="btn btn-ghost">PDF</button>
+      <button class="btn btn-secondary">Compare</button>
+      <button class="btn btn-gold">Save deal · $268/mo</button>
+    </div>
+
+  </aside>
+
+</div>
+
+</body>
+</html>
