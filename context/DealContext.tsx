@@ -31,7 +31,6 @@ import type {
   Settings,
 } from "../types";
 import { useLocalStorage } from "../hooks/useLocalStorage";
-import { useSettings } from "../hooks/useSettings";
 import { useSafeData } from "../hooks/useSafeData";
 import { useDebouncedValue } from "../hooks/useDebounce";
 import {
@@ -262,11 +261,14 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stock: i.stockNumber || "N/A",
     vin: i.vin,
     modelYear: i.year,
-    mileage: i.mileage || "N/A",
+    // typeof, not ||: a legitimate 0-mile unit must stay 0 — `0 || "N/A"`
+    // coerced new/in-transit units to "N/A", which blocked Structure Deal. [C-tables]
+    mileage: typeof i.mileage === "number" ? i.mileage : "N/A",
     price: i.price,
-    jdPower: i.jdPower || "N/A",
-    jdPowerRetail: i.jdPowerRetail || "N/A",
-    unitCost: i.unitCost || "N/A",
+    jdPower: typeof i.jdPower === "number" && i.jdPower > 0 ? i.jdPower : "N/A",
+    jdPowerRetail:
+      typeof i.jdPowerRetail === "number" && i.jdPowerRetail > 0 ? i.jdPowerRetail : "N/A",
+    unitCost: typeof i.unitCost === "number" && i.unitCost > 0 ? i.unitCost : "N/A",
     baseOutTheDoorPrice: "N/A",
     make: i.make,
     model: i.model,
@@ -285,11 +287,14 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDataLoading(true);
     setDataError(null);
     try {
+      // throwOnError makes failures reach THIS catch — without it the API layer
+      // swallows errors and returns [], rendering "Inventory is empty" instead
+      // of the error/retry state on a network failure. [C10]
       const [inv, lenders, deals, dealerSettings] = await Promise.all([
-        getInventory(),
-        getLenderProfiles(),
-        getSavedDeals(),
-        getDealerSettings(),
+        getInventory({ throwOnError: true }),
+        getLenderProfiles({ throwOnError: true }),
+        getSavedDeals({ throwOnError: true }),
+        getDealerSettings({ throwOnError: true }),
       ]);
 
       if (seq !== loadSeqRef.current) return; // superseded by a newer load
@@ -322,9 +327,23 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Bumped whenever the superadmin dealer override changes so the effect below
+  // tears down and re-creates the realtime subscriptions for the NEW dealer.
+  // Previously the handler only re-ran loadData; the subscriptions stayed bound
+  // to the old dealer context (or stayed permanently no-op if none existed at
+  // subscribe time). [C-regression]
+  const [dealerEpoch, setDealerEpoch] = useState(0);
+
+  useEffect(() => {
+    const handleDealerChange = () => setDealerEpoch((n) => n + 1);
+    window.addEventListener("dealerOverrideChanged", handleDealerChange);
+    return () => window.removeEventListener("dealerOverrideChanged", handleDealerChange);
+  }, []);
+
   // Effects: initial load + realtime subscriptions. The subscribe helpers no
   // longer fetch on mount (loadData owns the initial fetch), avoiding a
-  // double-fetch race. [frontend-state]
+  // double-fetch race. Re-runs on dealerEpoch so a dealer switch rebinds the
+  // subscriptions, not just the fetch. [frontend-state]
   useEffect(() => {
     if (!isAuthenticated()) return;
 
@@ -335,16 +354,24 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSavedDeals(data.map(mapPocketBaseSavedDeal))
     );
 
-    // Superadmin switching dealers re-runs loadData (new seq invalidates old).
-    const handleDealerChange = () => loadData();
-    window.addEventListener("dealerOverrideChanged", handleDealerChange);
-
     return () => {
       unsubInv();
       unsubDeals();
-      window.removeEventListener("dealerOverrideChanged", handleDealerChange);
     };
-  }, [loadData]);
+  }, [loadData, dealerEpoch]);
+
+  // Warn before the page unloads with an unsaved in-progress deal — a reload,
+  // accidental tab close, or logout otherwise silently discards the customer's
+  // structure mid-conversation. [C-auth/G65-adjacent]
+  useEffect(() => {
+    if (!isDealDirty || !activeVehicle) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDealDirty, activeVehicle]);
 
   // Sync settings changes to PocketBase
   const updateSettings: React.Dispatch<React.SetStateAction<Settings>> = useCallback((action) => {
@@ -463,10 +490,26 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       itemsPerPage: 15,
     };
     if (itemsPerPage === Infinity) return sortedInventory;
-    const start = (currentPage - 1) * itemsPerPage;
+    // Clamp to the last real page: narrowing filters while on page 2+ used to
+    // leave currentPage past the end, showing a false "No vehicles match your
+    // filters" even when matches existed. [C18]
+    const totalPages = Math.max(1, Math.ceil(sortedInventory.length / itemsPerPage));
+    const page = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (page - 1) * itemsPerPage;
     const end = start + itemsPerPage;
     return sortedInventory.slice(start, end);
   }, [sortedInventory, pagination]);
+
+  // Keep the pagination STATE in range too, so the pager control never shows
+  // "page 5 of 2" after filters narrow the list. [C18]
+  useEffect(() => {
+    const { currentPage, itemsPerPage } = pagination;
+    if (itemsPerPage === Infinity) return;
+    const totalPages = Math.max(1, Math.ceil(sortedInventory.length / itemsPerPage));
+    if (currentPage > totalPages) {
+      setPagination((prev) => ({ ...prev, currentPage: totalPages }));
+    }
+  }, [sortedInventory.length, pagination]);
 
   // Actions
   const toggleFavorite = useCallback(

@@ -113,7 +113,7 @@ describe("checkBankEligibility", () => {
 
       expect(result.eligible).toBe(false);
       expect(result.reasons).toContain(
-        "No eligible lending tier found for this deal structure and vehicle."
+        "No fitting lending tier found for this deal structure and vehicle."
       );
     });
 

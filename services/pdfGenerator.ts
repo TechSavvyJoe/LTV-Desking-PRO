@@ -3,7 +3,26 @@ import ReactDOM from "react-dom/client";
 import { PdfTemplate } from "../components/pdf/PdfTemplate";
 import { FavoritesPdfTemplate } from "../components/pdf/FavoritesPdfTemplate";
 import { LenderCheatSheetTemplate } from "../components/pdf/LenderCheatSheetTemplate";
+import { mapDealData } from "../lib/dealMappers";
 import type { DealPdfData, LenderProfile, Settings } from "../types";
+
+/**
+ * Deal data persisted via localStorage can contain "" for cleared numeric
+ * fields (DealControls stores "" on clear). Normalize through mapDealData so
+ * the PDF templates always receive real numbers — EXCEPT interestRate, where
+ * "unset" must stay unset: mapDealData would substitute the default APR, and
+ * printing a rate nobody entered is exactly the wrong-number-presented-
+ * confidently failure this app must never have. The templates render "—" and
+ * the payment is already "N/A" for an unset rate. [G5/C-services]
+ */
+const normalizePdfData = (data: DealPdfData): DealPdfData => {
+  const raw = data.dealData as unknown as Record<string, unknown>;
+  const mapped = mapDealData(raw);
+  const rawRate = raw?.interestRate;
+  const interestRate =
+    typeof rawRate === "number" && Number.isFinite(rawRate) ? rawRate : ("" as unknown as number); // sentinel the templates explicitly guard for
+  return { ...data, dealData: { ...mapped, interestRate } };
+};
 
 // jspdf + html2canvas combined add ~400 KB gzipped to the initial bundle.
 // Defer until the user actually clicks "Download PDF" — they're then loaded
@@ -67,11 +86,22 @@ const renderComponentAsPdfBlob = async (
       windowHeight: container.scrollHeight,
     });
 
+    // Guard against silently-blank output: iOS Safari caps canvas area and
+    // returns an empty canvas / "data:," past the limit. Fail with a clear
+    // message instead of handing the user an empty PDF. [C-services]
     const imgData = canvas.toDataURL("image/png");
+    if (!canvas.width || !canvas.height || imgData.length < 256) {
+      throw new Error(
+        "The PDF could not be rendered (the page is too large for this device's browser). " +
+          "Try fewer vehicles per PDF or generate from a desktop browser."
+      );
+    }
+
     const pdf = new jsPDF({
       orientation,
       unit: "mm",
-      format: "a4",
+      // US dealers print Letter; A4 output scales/shifts on every printout. [G69]
+      format: "letter",
     });
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -112,7 +142,7 @@ const renderComponentAsPdfBlob = async (
 };
 
 export const generateDealPdf = async (data: DealPdfData, settings: Settings): Promise<Blob> => {
-  const props = { ...data, settings };
+  const props = { ...normalizePdfData(data), settings };
   return renderComponentAsPdfBlob(React.createElement(PdfTemplate, props), "portrait");
 };
 
@@ -120,7 +150,7 @@ export const generateFavoritesPdf = async (
   data: DealPdfData[],
   settings: Settings
 ): Promise<Blob> => {
-  const props = { deals: data, settings };
+  const props = { deals: data.map(normalizePdfData), settings };
   return renderComponentAsPdfBlob(React.createElement(FavoritesPdfTemplate, props), "portrait");
 };
 

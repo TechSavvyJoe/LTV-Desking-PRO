@@ -1,11 +1,12 @@
 import React from "react";
+import { SUPPORT_EMAIL } from "../../constants";
 
 /**
  * Stub Terms of Service. **Not legal advice. Not a final document.**
  *
- * Replace with a real ToS before charging customers. Until then, this
- * stub fulfils the launch-checklist gate of "there is a /terms URL that
- * doesn't 404."
+ * Truth-passed 2026-06-11: false claims removed (Stripe billing that doesn't
+ * exist, a 99.9% uptime target we can't honor, an always-today "Last updated"
+ * stamp). Counsel review is still required before the first paid invoice.
  */
 const TermsOfService: React.FC = () => {
   return (
@@ -15,7 +16,7 @@ const TermsOfService: React.FC = () => {
       className="max-w-3xl mx-auto px-6 py-12 prose prose-slate dark:prose-invert focus:outline-none"
     >
       <h1>Terms of Service</h1>
-      <p className="text-sm text-slate-500">Last updated: {new Date().toLocaleDateString()}</p>
+      <p className="text-sm text-slate-500">Last updated: June 11, 2026</p>
       <p className="text-xs text-amber-600 dark:text-amber-400">
         ⚠️ This is a placeholder pending lawyer review. Not legal advice.
       </p>
@@ -44,23 +45,27 @@ const TermsOfService: React.FC = () => {
         <li>Resell the service without a written reseller agreement.</li>
       </ul>
 
-      <h2>4. AI features</h2>
+      <h2>4. AI features and calculations</h2>
       <p>
-        AI-assisted features (rate-sheet extraction, deal analysis) are provided as-is. You are
-        responsible for verifying AI output before relying on it for any deal you present to a
-        customer.
+        AI-assisted features (rate-sheet extraction, deal analysis) are provided as-is and may
+        produce inaccurate output. All payments, rates, taxes, and lender-fit indications shown by
+        the service are <strong>estimates and preliminary screens only</strong> — they are not
+        offers or extensions of credit and are not Truth-in-Lending disclosures. You are responsible
+        for verifying every figure and every lender program before relying on it for any deal you
+        present to a customer.
       </p>
 
       <h2>5. Billing</h2>
       <p>
-        Subscription terms are presented at signup. We bill via Stripe. Refunds at our discretion.
-        You can cancel at any time; access continues through the end of the billing period.
+        During the pilot program, fees and billing terms are set in your written Pilot Agreement and
+        invoiced directly. You can cancel per that agreement; access continues through the end of
+        the paid period.
       </p>
 
       <h2>6. Service availability</h2>
       <p>
-        We target 99.9% monthly uptime but make no guarantees. We are not liable for consequential
-        damages from downtime.
+        We provide the service on a commercially reasonable efforts basis and make no uptime
+        guarantee. We are not liable for consequential damages from downtime.
       </p>
 
       <h2>7. Compliance disclaimer</h2>
@@ -87,7 +92,7 @@ const TermsOfService: React.FC = () => {
 
       <h2>Contact</h2>
       <p>
-        Legal: <a href="mailto:legal@ltvdeskingpro.com">legal@ltvdeskingpro.com</a>
+        Legal: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
       </p>
     </main>
   );

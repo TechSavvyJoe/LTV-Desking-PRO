@@ -12,12 +12,18 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { DealData, CalculatedVehicle } from "../types";
+import { DealData, CalculatedVehicle, LenderProfile, FilterData } from "../types";
 import { calculateMonthlyPayment } from "../services/calculator";
+import { checkBankEligibility } from "../services/lenderMatcher";
 
 interface DealChartsProps {
   dealData: DealData;
   activeVehicle: CalculatedVehicle | null;
+}
+
+interface LenderComparisonChartProps extends DealChartsProps {
+  lenderProfiles?: LenderProfile[];
+  customerFilters?: FilterData;
 }
 
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
@@ -100,49 +106,106 @@ export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({ dealData, act
   );
 };
 
-export const LenderComparisonChart: React.FC<DealChartsProps> = ({ dealData, activeVehicle }) => {
-  // Mock data for now - in a real app, this would come from the LenderMatcher service
+// Stable fallbacks so default props don't churn the useMemo below.
+const NO_PROFILES: LenderProfile[] = [];
+
+const EMPTY_FILTERS: FilterData = {
+  creditScore: null,
+  monthlyIncome: null,
+  vehicle: "",
+  maxPrice: null,
+  maxPayment: null,
+  maxMiles: null,
+  maxOtdLtv: null,
+  vin: "",
+};
+
+const MAX_CHARTED_LENDERS = 6;
+
+export const LenderComparisonChart: React.FC<LenderComparisonChartProps> = ({
+  dealData,
+  activeVehicle,
+  lenderProfiles = NO_PROFILES,
+  customerFilters = EMPTY_FILTERS,
+}) => {
+  // Real data: run each dealer-entered lender program through the eligibility
+  // matcher and chart the estimated payment for programs that actually fit.
   const data = useMemo(() => {
     if (!activeVehicle) return [];
 
-    // Simulate a few lenders with different rates/terms
-    return [
-      { name: "Chase", rate: 6.99, payment: 550 },
-      { name: "Ally", rate: 7.49, payment: 565 },
-      { name: "Wells", rate: 7.99, payment: 580 },
-      { name: "CapOne", rate: 8.49, payment: 595 },
-    ];
-  }, [activeVehicle]);
+    const principal = activeVehicle.amountToFinance;
+    if (typeof principal !== "number" || !Number.isFinite(principal)) return [];
+
+    const dealWithFilters = { ...dealData, ...customerFilters };
+
+    return lenderProfiles
+      .filter((profile): profile is LenderProfile => Boolean(profile))
+      .flatMap((profile) => {
+        const result = checkBankEligibility(activeVehicle, dealWithFilters, profile);
+        if (!result.eligible || !result.matchedTier) return [];
+
+        const { baseInterestRate, rateAdder } = result.matchedTier;
+        if (typeof baseInterestRate !== "number" || !Number.isFinite(baseInterestRate)) return [];
+
+        const rate =
+          baseInterestRate +
+          (typeof rateAdder === "number" && Number.isFinite(rateAdder) ? rateAdder : 0);
+
+        const payment = calculateMonthlyPayment(principal, rate, dealData.loanTerm);
+        if (typeof payment !== "number" || !Number.isFinite(payment)) return [];
+
+        return [{ name: profile.name, rate, payment }];
+      })
+      .sort((a, b) => a.payment - b.payment)
+      .slice(0, MAX_CHARTED_LENDERS);
+  }, [dealData, activeVehicle, lenderProfiles, customerFilters]);
 
   if (!activeVehicle) return null;
 
   return (
-    <div className="h-64 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          margin={{
-            top: 5,
-            right: 30,
-            left: 20,
-            bottom: 5,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-          <XAxis dataKey="name" axisLine={false} tickLine={false} />
-          <YAxis hide />
-          <Tooltip
-            cursor={{ fill: "transparent" }}
-            contentStyle={{
-              backgroundColor: "rgba(255, 255, 255, 0.9)",
-              borderRadius: "8px",
-              border: "none",
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-            }}
-          />
-          <Bar dataKey="payment" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Monthly Payment" />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="w-full">
+      <p className="text-xs text-[var(--color-text-muted)] mb-2">
+        Based on dealer-entered programs — verify with lender.
+      </p>
+      {data.length === 0 ? (
+        <div className="flex items-center justify-center h-64 text-slate-400">
+          No fitting lender programs for this deal yet
+        </div>
+      ) : (
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={data}
+              margin={{
+                top: 5,
+                right: 30,
+                left: 20,
+                bottom: 5,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} />
+              <YAxis hide />
+              <Tooltip
+                cursor={{ fill: "transparent" }}
+                formatter={(value) =>
+                  new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  }).format(typeof value === "number" ? value : Number(value ?? 0))
+                }
+                contentStyle={{
+                  backgroundColor: "rgba(255, 255, 255, 0.9)",
+                  borderRadius: "8px",
+                  border: "none",
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                }}
+              />
+              <Bar dataKey="payment" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Monthly Payment" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 };

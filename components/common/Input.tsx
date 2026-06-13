@@ -16,6 +16,20 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     { error = false, leftIcon, rightIcon, inputSize = "md", className = "", disabled, ...props },
     ref
   ) => {
+    // iPad/desktop hardening for numeric fields [G67]:
+    // - blur on wheel so a scroll over a focused number input can't silently
+    //   change a money value;
+    // - default inputMode="decimal" so touch keyboards show a numeric pad.
+    // Explicitly passed onWheel/inputMode always win over these defaults.
+    const isNumber = props.type === "number";
+    const inputMode = props.inputMode ?? (isNumber ? "decimal" : undefined);
+    const onWheel =
+      props.onWheel ??
+      (isNumber
+        ? (e: React.WheelEvent<HTMLInputElement>) => {
+            e.currentTarget.blur();
+          }
+        : undefined);
     // Dealer Trust: 1px borders, 6px corners, opaque surfaces, denser padding.
     const sizeClasses = {
       sm: "px-3 py-1.5 text-xs",
@@ -67,6 +81,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ${className}
           `}
           {...props}
+          inputMode={inputMode}
+          onWheel={onWheel}
         />
 
         {/* Right Icon */}

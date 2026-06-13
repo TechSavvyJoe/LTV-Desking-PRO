@@ -1,4 +1,10 @@
-import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Vehicle } from "../../../types.js";
+import type {
+  CalculatedVehicle,
+  DealData,
+  FilterData,
+  LenderProfile,
+  Vehicle,
+} from "../../../types.js";
 
 export const LENDER_EXTRACTION_SYSTEM_PROMPT =
   "You are an expert automotive finance data extraction system. Return only valid JSON. Never invent lender program numbers, rates, or LTV values. If a field is not explicit or clearly inferable from the document, omit it. When confidence is low, lower the confidence score rather than guess.";
@@ -94,6 +100,13 @@ Return exactly:
   ]
 }`;
 
+// Defense-in-depth for consumer NPI heading to third-party AI providers:
+// free-text notes are the one uncontrolled channel where staff could paste an
+// SSN or license number. Notes are excluded from the AI payload entirely, and
+// the final prompt is scrubbed for SSN-shaped tokens regardless. [G8/G15]
+const SSN_PATTERN = /\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b/g;
+const redactSsnLike = (text: string): string => text.replace(SSN_PATTERN, "[REDACTED]");
+
 export const buildDealAnalysisPrompt = (
   vehicle: CalculatedVehicle,
   dealData: DealData,
@@ -121,13 +134,17 @@ export const buildDealAnalysisPrompt = (
     tiers: profile.tiers,
   }));
 
-  return `You are an expert automotive finance manager. Analyze this deal against the lender guidelines and inventory below.
+  // Exclude free-text notes from the provider payload — the model doesn't
+  // need them and they're the uncontrolled NPI channel. [G8/G15]
+  const { notes: _notes, ...dealSnapshot } = dealData;
+
+  return redactSsnLike(`You are an expert automotive finance manager. Analyze this deal against the lender guidelines and inventory below.
 
 Current vehicle:
 ${JSON.stringify(vehicle, null, 2)}
 
 Deal structure:
-${JSON.stringify(dealData, null, 2)}
+${JSON.stringify(dealSnapshot, null, 2)}
 
 Customer filters:
 ${JSON.stringify(filters, null, 2)}
@@ -142,7 +159,7 @@ Tasks:
 1. Explain approval risk in plain dealership language.
 2. Suggest concrete deal changes that improve approval odds or gross.
 3. If the current unit is a poor fit, suggest one alternative inventory VIN from the provided list.
-4. Keep proposedChanges limited to fields in DealData: downPayment, tradeInValue, tradeInPayoff, backendProducts, loanTerm, interestRate, stateFees, notes.
+4. Keep proposedChanges limited to these DealData fields: downPayment, tradeInValue, tradeInPayoff, backendProducts, loanTerm, interestRate, stateFees. Never include "notes".
 
 Return exactly:
 {
@@ -154,5 +171,5 @@ Return exactly:
       "proposedChanges": { "downPayment": 2500 }
     }
   ]
-}`;
+}`);
 };

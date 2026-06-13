@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { login, logout } from "../../lib/auth";
-import { getCurrentUser } from "../../lib/pocketbase";
+import { login } from "../../lib/auth";
+import { pb, getCurrentUser } from "../../lib/pocketbase";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
 import { AnnouncementBanner } from "../common/AnnouncementBanner";
@@ -37,7 +37,9 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
       }
 
       if (getCurrentUser()?.role !== "superadmin") {
-        logout();
+        // Clear the token WITHOUT logout() — logout() reloads the page, which
+        // unmounted this component before the error could ever render. [C-auth]
+        pb.authStore.clear();
         setError("Owner access required. This account is not authorized for the Owner Console.");
         return;
       }

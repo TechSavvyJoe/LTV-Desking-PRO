@@ -31,7 +31,18 @@ const asTypeArray = <T>(records: RecordModel[]): T[] => asRecordArray<T>(records
 // INVENTORY OPERATIONS
 // ============================================
 
-export const getInventory = async (): Promise<InventoryItem[]> => {
+/**
+ * Fetch options for the read APIs. `throwOnError: true` makes a network/server
+ * failure THROW instead of silently returning [] — required by DealContext's
+ * loadData so its error/retry UI is actually reachable (previously the catch
+ * that sets dataError was dead code, and a network failure rendered as
+ * "Inventory is empty"). [C10]
+ */
+interface FetchOpts {
+  throwOnError?: boolean;
+}
+
+export const getInventory = async (opts?: FetchOpts): Promise<InventoryItem[]> => {
   const dealerId = getCurrentDealerId();
   if (!dealerId) return [];
 
@@ -43,6 +54,7 @@ export const getInventory = async (): Promise<InventoryItem[]> => {
     return asTypeArray<InventoryItem>(records);
   } catch (error) {
     console.error("Failed to fetch inventory:", error);
+    if (opts?.throwOnError) throw error;
     return [];
   }
 };
@@ -222,7 +234,7 @@ export const syncInventory = async (
 // LENDER PROFILES OPERATIONS
 // ============================================
 
-export const getLenderProfiles = async (): Promise<LenderProfile[]> => {
+export const getLenderProfiles = async (opts?: FetchOpts): Promise<LenderProfile[]> => {
   const dealerId = getCurrentDealerId();
   if (import.meta.env.DEV) {
     console.log("[API] getLenderProfiles - dealerId:", dealerId);
@@ -250,6 +262,7 @@ export const getLenderProfiles = async (): Promise<LenderProfile[]> => {
     return asTypeArray<LenderProfile>(records);
   } catch (error) {
     console.error("Failed to fetch lender profiles:", error);
+    if (opts?.throwOnError) throw error;
     return [];
   }
 };
@@ -269,14 +282,25 @@ export const saveLenderProfile = async (
   }
 
   try {
-    // Check if lender(s) with the same name already exist for this dealer
-    const existingRecords = await collections.lenderProfiles.getFullList({
+    // Check if lender(s) with the same name already exist for this dealer.
+    // The `~` (contains) fetch is only a candidate net — dedupe on EXACT
+    // case-insensitive name equality. The old substring semantics meant saving
+    // "Chase" overwrote "Chase Auto Finance" and deleted other near-matches as
+    // "duplicates" — wrong lender terms presented confidently. [C11]
+    const candidateRecords = await collections.lenderProfiles.getFullList({
       filter: pb.filter("dealer = {:dealer} && name ~ {:name}", {
         dealer: sanitizeId(dealerId),
         name: profile.name,
       }),
       sort: "-updated", // Most recently updated first
     });
+    const targetName = profile.name.trim().toLowerCase();
+    const existingRecords = candidateRecords.filter(
+      (r) =>
+        String((r as { name?: unknown }).name ?? "")
+          .trim()
+          .toLowerCase() === targetName
+    );
 
     if (import.meta.env.DEV) {
       console.log("[API] Found", existingRecords.length, "existing records for", profile.name);
@@ -442,7 +466,7 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
 // SAVED DEALS OPERATIONS
 // ============================================
 
-export const getSavedDeals = async (): Promise<SavedDeal[]> => {
+export const getSavedDeals = async (opts?: FetchOpts): Promise<SavedDeal[]> => {
   const dealerId = getCurrentDealerId();
   if (!dealerId) return [];
 
@@ -455,6 +479,7 @@ export const getSavedDeals = async (): Promise<SavedDeal[]> => {
     return asTypeArray<SavedDeal>(records);
   } catch (error) {
     console.error("Failed to fetch saved deals:", error);
+    if (opts?.throwOnError) throw error;
     return [];
   }
 };
@@ -503,10 +528,51 @@ export const deleteDeal = async (id: string): Promise<boolean> => {
 };
 
 // ============================================
+// DEAL EVENTS — append-only evidentiary log [G44/G45]
+// ============================================
+
+export type DealEventAction =
+  | "pdf_generated"
+  | "pdf_shared"
+  | "deal_saved"
+  | "deal_updated"
+  | "deal_deleted";
+
+/**
+ * Record a customer-facing event (PDF handed across the desk, deal saved or
+ * deleted) into the append-only `deal_events` collection, with a snapshot of
+ * exactly what was shown. This is the dealer's answer to "what payment did we
+ * quote this customer, when, and who showed it." Fire-and-forget: evidence
+ * logging must never break the user's action.
+ */
+export const logDealEvent = async (input: {
+  action: DealEventAction;
+  customerName?: string;
+  vin?: string;
+  snapshot?: unknown;
+}): Promise<void> => {
+  try {
+    const dealerId = getCurrentDealerId();
+    const userId = pb.authStore.model?.id;
+    if (!dealerId || !userId) return;
+    await pb.collection("deal_events").create({
+      dealer: dealerId,
+      user: userId,
+      action: input.action,
+      customerName: input.customerName ?? "",
+      vin: input.vin ?? "",
+      snapshot: input.snapshot ?? {},
+    });
+  } catch (error) {
+    console.warn("deal_events write failed (action still completed):", error);
+  }
+};
+
+// ============================================
 // DEALER SETTINGS OPERATIONS
 // ============================================
 
-export const getDealerSettings = async (): Promise<DealerSettings | null> => {
+export const getDealerSettings = async (opts?: FetchOpts): Promise<DealerSettings | null> => {
   const dealerId = getCurrentDealerId();
   if (!dealerId) return null;
 
@@ -517,6 +583,7 @@ export const getDealerSettings = async (): Promise<DealerSettings | null> => {
     return records.items[0] ? asType<DealerSettings>(records.items[0]) : null;
   } catch (error) {
     console.error("Failed to fetch dealer settings:", error);
+    if (opts?.throwOnError) throw error;
     return null;
   }
 };
@@ -1041,30 +1108,42 @@ export const createDealerWithAdmin = async (input: {
   }
 };
 
-export const updateDealer = async (id: string, data: Partial<Dealer>): Promise<Dealer | null> => {
+// Admin mutation helpers THROW on failure. The old swallow-and-return-null
+// contract let the owner console close forms and toast success for writes that
+// never happened — "false success presented confidently." Callers catch and
+// surface the message. [C16]
+export const updateDealer = async (id: string, data: Partial<Dealer>): Promise<Dealer> => {
   const user = getCurrentUser();
-  if (user?.role !== "superadmin") return null;
-
-  try {
-    const record = await collections.dealers.update(sanitizeId(id), data);
-    return asType<Dealer>(record);
-  } catch (error) {
-    console.error("Failed to update dealer:", error);
-    return null;
+  if (user?.role !== "superadmin") {
+    throw new Error("Owner access required to update a dealership.");
   }
+  const record = await collections.dealers.update(sanitizeId(id), data);
+  return asType<Dealer>(record);
 };
 
-export const deleteDealer = async (id: string): Promise<boolean> => {
+/**
+ * Dealer-admin variant: lets a dealership admin update their OWN dealership's
+ * details. The old DealerAdminDashboard called the superadmin-only
+ * updateDealer, which returned null without any API call — the "Dealership
+ * Details" save was 100% broken for its only audience, then toasted success. [C13]
+ */
+export const updateCurrentDealer = async (data: Partial<Dealer>): Promise<Dealer> => {
   const user = getCurrentUser();
-  if (user?.role !== "superadmin") return false;
-
-  try {
-    await collections.dealers.delete(sanitizeId(id));
-    return true;
-  } catch (error) {
-    console.error("Failed to delete dealer:", error);
-    return false;
+  const dealerId = getCurrentDealerId();
+  if (!dealerId) throw new Error("No dealership is associated with this account.");
+  if (user?.role !== "admin" && user?.role !== "superadmin") {
+    throw new Error("Admin access required to update dealership details.");
   }
+  const record = await collections.dealers.update(sanitizeId(dealerId), data);
+  return asType<Dealer>(record);
+};
+
+export const deleteDealer = async (id: string): Promise<void> => {
+  const user = getCurrentUser();
+  if (user?.role !== "superadmin") {
+    throw new Error("Owner access required to delete a dealership.");
+  }
+  await collections.dealers.delete(sanitizeId(id));
 };
 
 // ============================================
@@ -1148,51 +1227,47 @@ export const getAllUsers = async (): Promise<User[]> => {
   }
 };
 
-export const updateUserRole = async (id: string, role: User["role"]): Promise<User | null> => {
+export const updateUserRole = async (id: string, role: User["role"]): Promise<User> => {
   const user = getCurrentUser();
-  if (user?.role !== "superadmin") return null;
-
-  try {
-    const record = await pb.collection("users").update(sanitizeId(id), { role });
-    return asType<User>(record);
-  } catch (error) {
-    console.error("Failed to update user role:", error);
-    return null;
-  }
+  if (user?.role !== "superadmin") throw new Error("Owner access required to change roles.");
+  const record = await pb.collection("users").update(sanitizeId(id), { role });
+  return asType<User>(record);
 };
 
 export const updateUser = async (
   id: string,
   data: Partial<Pick<User, "firstName" | "lastName" | "email" | "phone" | "role" | "dealer">>
-): Promise<User | null> => {
+): Promise<User> => {
   const user = getCurrentUser();
-  if (user?.role !== "superadmin") return null;
+  if (user?.role !== "superadmin") throw new Error("Owner access required to update users.");
 
-  try {
-    // Always flip emailVisibility on. Belt-and-braces — heals previously-created
-    // users whose flag was never set (PB defaults it to false, which hides email
-    // in API responses to other admins and makes edits look like they didn't save).
-    const record = await pb
-      .collection("users")
-      .update(sanitizeId(id), { ...data, emailVisibility: true });
-    return asType<User>(record);
-  } catch (error) {
-    console.error("Failed to update user:", error);
-    return null;
-  }
+  // Always flip emailVisibility on. Belt-and-braces — heals previously-created
+  // users whose flag was never set (PB defaults it to false, which hides email
+  // in API responses to other admins and makes edits look like they didn't save).
+  const record = await pb
+    .collection("users")
+    .update(sanitizeId(id), { ...data, emailVisibility: true });
+  return asType<User>(record);
 };
 
-export const deleteUser = async (id: string): Promise<boolean> => {
+export const deleteUser = async (id: string): Promise<void> => {
   const user = getCurrentUser();
-  if (user?.role !== "superadmin") return false;
+  if (user?.role !== "superadmin") throw new Error("Owner access required to delete users.");
+  await pb.collection("users").delete(sanitizeId(id));
+};
 
-  try {
-    await pb.collection("users").delete(sanitizeId(id));
-    return true;
-  } catch (error) {
-    console.error("Failed to delete user:", error);
-    return false;
+/**
+ * Instant employee offboarding: flip the `active` flag instead of hard-deleting
+ * the account (a deactivated user fails the server auth hook on next request;
+ * their history and deal attribution survive). [G40]
+ */
+export const setUserActive = async (id: string, active: boolean): Promise<User> => {
+  const user = getCurrentUser();
+  if (user?.role !== "admin" && user?.role !== "superadmin") {
+    throw new Error("Admin access required to activate or deactivate users.");
   }
+  const record = await pb.collection("users").update(sanitizeId(id), { active });
+  return asType<User>(record);
 };
 
 // ============================================

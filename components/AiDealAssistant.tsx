@@ -59,9 +59,13 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
   };
 
   const applySuggestion = (changes: Partial<DealData>) => {
+    // Never merge AI-written free text into the deal: `notes` prints verbatim
+    // on the customer-facing deal sheet, and AI prose must not reach customer
+    // paper unreviewed. Numeric structure changes only. [G32]
+    const { notes: _aiNotes, ...numericChanges } = changes;
     onDealDataChange((prev) => ({
       ...prev,
-      ...changes,
+      ...numericChanges,
     }));
   };
 
@@ -103,6 +107,10 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
         <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
           Powered by {aiSettings.provider} / {aiSettings.dealAnalysisModel}. Analyzes your deal
           against {lenderCount} lender profiles to optimize approval odds and profit.
+        </p>
+        <p className="text-xs text-[var(--color-text-subtle)] mt-1">
+          Internal desking aid — verify every figure before presenting to a customer. Not for
+          customer-facing use.
         </p>
       </div>
 

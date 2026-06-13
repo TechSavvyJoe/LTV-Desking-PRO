@@ -104,6 +104,17 @@ const DealControls: React.FC<DealControlsProps> = ({
     setDealData((prev) => ({ ...prev, [id]: numValue }));
   };
 
+  // Buyer state is a string field — it cannot go through handleDealChange,
+  // which coerces every value with Number(). An empty value means "use the
+  // dealership default" (buyerState stays undefined). [G18]
+  const handleBuyerStateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setDealData((prev) => ({
+      ...prev,
+      buyerState: value === "" ? undefined : (value as DealData["buyerState"]),
+    }));
+  };
+
   const vinResultColor = vinLookupResult?.toLowerCase().startsWith("error")
     ? "text-red-500"
     : "text-green-500";
@@ -138,6 +149,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             <Input
               type="number"
               id="creditScore"
+              inputMode="numeric"
               value={filters.creditScore ?? ""}
               onChange={handleFilterChange}
               placeholder="e.g., 720"
@@ -222,6 +234,7 @@ const DealControls: React.FC<DealControlsProps> = ({
             <Input
               type="number"
               id="maxMiles"
+              inputMode="numeric"
               value={filters.maxMiles ?? ""}
               onChange={handleFilterChange}
               placeholder="e.g., 100000"
@@ -334,6 +347,17 @@ const DealControls: React.FC<DealControlsProps> = ({
               error={!!errors.interestRate}
               placeholder="8.5"
             />
+          </InputGroup>
+          <InputGroup label="Buyer State" htmlFor="buyerState">
+            <Select
+              id="buyerState"
+              value={dealData.buyerState ?? ""}
+              onChange={handleBuyerStateChange}
+            >
+              <option value="">MI (default)</option>
+              <option value="OH">OH</option>
+              <option value="IN">IN</option>
+            </Select>
           </InputGroup>
         </div>
       </div>

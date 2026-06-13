@@ -1,6 +1,6 @@
 import React from "react";
 import type { DealPdfData, Settings } from "../../types";
-import { formatCurrency, formatNumber, formatPercentage } from "../common/TableCell";
+import { formatCurrency, formatCurrencyExact, formatNumber } from "../common/TableCell";
 
 const el = React.createElement;
 const logoSvg = encodeURIComponent(
@@ -206,7 +206,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
     el(
       "div",
       { className: "page" },
-      el("div", { className: "watermark" }, "OSHIP"),
+      el("div", { className: "watermark" }, "ESTIMATE"),
       el(
         "header",
         { className: "header" },
@@ -216,16 +216,16 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
           el("img", {
             className: "logo",
             src: `data:image/svg+xml,${logoSvg}`,
-            alt: "OSHIP",
+            alt: "LTV Desking PRO",
           }),
           el(
             "div",
             null,
-            el("h1", null, "OSHIP Deal Sheet"),
+            el("h1", null, "Deal Worksheet"),
             el(
               "p",
               { style: { fontSize: "10pt", color: "#374151", margin: 0 } },
-              "Vehicle Purchase Proposal"
+              "Preliminary Estimate — Not an Offer of Credit"
             )
           )
         ),
@@ -253,8 +253,10 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
               InfoListItem("Stock #", vehicle.stock),
               InfoListItem("VIN", vehicle.vin),
               InfoListItem("Mileage", formatNumber(vehicle.mileage)),
-              InfoListItem("JD Power (Trade)", formatCurrency(vehicle.jdPower)),
-              InfoListItem("JD Power (Retail)", formatCurrency(vehicle.jdPowerRetail))
+              // Dealer-entered book values — never imply a live licensed feed
+              // on customer-facing paper. [G26/G80]
+              InfoListItem("Book Value (Trade)", formatCurrency(vehicle.jdPower)),
+              InfoListItem("Book Value (Retail)", formatCurrency(vehicle.jdPowerRetail))
             )
           ),
           el(
@@ -266,10 +268,19 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
               { className: "info-list" },
               InfoListItem("Customer", customerName || "N/A"),
               InfoListItem("Salesperson", salespersonName || "N/A"),
-              InfoListItem("Credit Score", customerFilters.creditScore || "N/A"),
+              // FCRA hygiene: this is a dealer/customer estimate, not a pull. [G29]
+              InfoListItem("Credit Score (est.)", customerFilters.creditScore || "N/A"),
               InfoListItem("Loan Term", `${dealData.loanTerm} Months`),
-              InfoListItem("Interest Rate", `${dealData.interestRate.toFixed(2)}% APR`),
-              InfoListItem("Front-End Gross", formatCurrency(vehicle.frontEndGross))
+              // A cleared APR field arrives as "" at runtime — never call
+              // toFixed on it (crashed the whole PDF). [G5]
+              InfoListItem(
+                "Est. Interest Rate",
+                typeof dealData.interestRate === "number"
+                  ? `${dealData.interestRate.toFixed(2)}% APR`
+                  : "—"
+              )
+              // Front-End Gross deliberately removed: dealer-internal profit
+              // must never print on the sheet a shopper takes home. [G1]
             )
           )
         ),
@@ -283,22 +294,34 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
             el(
               "tbody",
               null,
-              FinancialsRow("Selling Price", formatCurrency(vehicle.price)),
-              FinancialsRow("Doc Fee", `+ ${formatCurrency(settings.docFee)}`),
-              FinancialsRow("CVR Fee", `+ ${formatCurrency(settings.cvrFee)}`),
-              FinancialsRow("State/Title Fees", `+ ${formatCurrency(dealData.stateFees)}`),
-              FinancialsRow("Sales Tax", `+ ${formatCurrency(vehicle.salesTax)}`),
+              FinancialsRow("Selling Price", formatCurrencyExact(vehicle.price)),
+              FinancialsRow("Doc Fee", `+ ${formatCurrencyExact(settings.docFee)}`),
+              FinancialsRow("CVR Fee", `+ ${formatCurrencyExact(settings.cvrFee)}`),
+              FinancialsRow("State/Title Fees", `+ ${formatCurrencyExact(dealData.stateFees)}`),
+              FinancialsRow("Sales Tax (est.)", `+ ${formatCurrencyExact(vehicle.salesTax)}`),
               FinancialsRow(
-                "Total OTD Price",
-                formatCurrency(vehicle.baseOutTheDoorPrice),
+                "Total OTD Price (est.)",
+                formatCurrencyExact(vehicle.baseOutTheDoorPrice),
                 true,
                 false
               ),
-              FinancialsRow("Cash Down", `- ${formatCurrency(dealData.downPayment)}`, false, true),
-              FinancialsRow("Net Trade-In", `- ${formatCurrency(netTradeIn)}`),
+              FinancialsRow(
+                "Cash Down",
+                `- ${formatCurrencyExact(dealData.downPayment)}`,
+                false,
+                true
+              ),
+              // An upside-down trade must read as an explicit rollover line,
+              // not the garbled "- -$3,000". [G21]
+              netTradeIn >= 0
+                ? FinancialsRow("Net Trade-In", `- ${formatCurrencyExact(netTradeIn)}`)
+                : FinancialsRow(
+                    "Negative Equity (added to amount financed)",
+                    `+ ${formatCurrencyExact(Math.abs(netTradeIn))}`
+                  ),
               FinancialsRow(
                 "Sub-Total",
-                formatCurrency(
+                formatCurrencyExact(
                   typeof vehicle.baseOutTheDoorPrice === "number"
                     ? vehicle.baseOutTheDoorPrice - totalDown
                     : "Error"
@@ -308,13 +331,13 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
               ),
               FinancialsRow(
                 "Backend Products",
-                `+ ${formatCurrency(dealData.backendProducts)}`,
+                `+ ${formatCurrencyExact(dealData.backendProducts)}`,
                 false,
                 true
               ),
               FinancialsRow(
-                "Total Amount to Finance",
-                formatCurrency(vehicle.amountToFinance),
+                "Total Amount to Finance (est.)",
+                formatCurrencyExact(vehicle.amountToFinance),
                 true,
                 false
               )
@@ -325,12 +348,21 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
           "div",
           { className: "payment-summary" },
           el("div", { className: "label" }, "Estimated Monthly Payment"),
-          el("div", { className: "value" }, formatCurrency(vehicle.monthlyPayment))
+          el("div", { className: "value" }, formatCurrencyExact(vehicle.monthlyPayment)),
+          el(
+            "div",
+            { style: { fontSize: "8pt", color: "#1e40af", marginTop: "4px" } },
+            typeof dealData.interestRate === "number"
+              ? `Estimate at ${dealData.interestRate.toFixed(2)}% APR for ${dealData.loanTerm} months — not an offer of credit`
+              : "Estimate — enter a rate for payment terms; not an offer of credit"
+          )
         ),
         el(
           "div",
           { className: "lender-section" },
-          el("h2", { className: "section-title" }, "Eligible Lenders"),
+          // "Eligible" overstated what the matcher checks — these are screens,
+          // not approvals. [G77]
+          el("h2", { className: "section-title" }, "Preliminary Lender Fits — verify with lender"),
           el(
             "div",
             { className: "lender-list" },
@@ -343,7 +375,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
                         "div",
                         { key: lender.name, className: "lender-item" },
                         el("p", { className: "name" }, lender.name),
-                        el("p", { className: "tier" }, lender.matchedTier?.name || "Eligible")
+                        el("p", { className: "tier" }, lender.matchedTier?.name || "Possible fit")
                       )
                     ),
                   eligibleLenders.length > 9 &&
@@ -369,31 +401,37 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
                             fontStyle: "italic",
                           },
                         },
-                        `+ ${eligibleLenders.length - 9} more eligible`
+                        `+ ${eligibleLenders.length - 9} more possible fits`
                       )
                     ),
                 ]
               : el(
                   "p",
                   { style: { color: "#6b7280" } },
-                  "No eligible lenders found with current customer info."
+                  "No preliminary lender fits found with current customer info."
                 )
+          ),
+          el(
+            "p",
+            { style: { fontSize: "8pt", color: "#6b7280", marginTop: "0.3cm" } },
+            "Lender fits are a preliminary screen against dealer-entered program data; they are not " +
+              "credit decisions or approvals. Final approval, rate, and terms are determined solely by the lender."
           )
         )
       ),
+      // Signature lines deliberately removed: a customer-signed itemized payment
+      // worksheet is the classic "signed four-square" payment-packing exhibit.
+      // This sheet is an estimate, and estimates aren't signed. [G2]
       el(
         "footer",
         { className: "footer" },
         el(
           "p",
           null,
-          "This is a preliminary proposal and not a final contract. All figures are estimates and subject to lender approval."
-        ),
-        el(
-          "div",
-          { className: "signature-lines" },
-          el("div", { className: "signature-box" }, "Customer Signature"),
-          el("div", { className: "signature-box" }, "Salesperson Signature")
+          "This worksheet is a preliminary estimate for discussion only. It is not a contract, not an " +
+            "offer or extension of credit, and not a Truth-in-Lending disclosure. All figures are " +
+            "estimates; final pricing, taxes, fees, APR, and payment are subject to lender credit " +
+            "approval and final contract documents. Book values are entered by the dealership."
         )
       )
     )

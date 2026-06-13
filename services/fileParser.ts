@@ -107,9 +107,11 @@ export const parseNumber = (str: string | undefined): number | "N/A" => {
     s = s.slice(1, -1).trim();
   }
 
-  // Ambiguous European decimal (comma as the decimal separator with a thousands
-  // dot), e.g. "1.234,56" — refuse rather than mis-parse to 1.23456.
-  if (s.includes(".") && /\d,\d{1,2}$/.test(s)) return "N/A";
+  // Comma used as a decimal separator, e.g. "1.234,56" or "28500,50" — 1-2
+  // digits after the final comma is never a US thousands separator. Refuse
+  // rather than mis-parse ("28500,50" must not become 2850050). A trailing
+  // 3-digit group ("1,234", "1,234,567") remains a valid thousands separator.
+  if (/\d,\d{1,2}$/.test(s)) return "N/A";
 
   const cleaned = s.replace(/[^0-9.-]+/g, "");
   // Prevent multiple dots/dashes that would yield NaN.
@@ -123,9 +125,20 @@ export const parseNumber = (str: string | undefined): number | "N/A" => {
 
 /** Stable, order-independent fallback id for rows with no VIN. Derived from
  * identity fields (no row index), so re-uploading shifted rows does not churn
- * the dataset or flip vehicles to "sold". [B11] */
-const syntheticVin = (stock: string, make: string, model: string, year: string): string => {
-  const basis = [stock, make, model, year].map((p) => (p || "").trim().toUpperCase()).join("|");
+ * the dataset or flip vehicles to "sold". Trim and mileage are part of the
+ * basis so two otherwise-identical units (e.g. same model, different trim) do
+ * not collide. [B11] */
+const syntheticVin = (
+  stock: string,
+  make: string,
+  model: string,
+  year: string,
+  trim: string,
+  mileage: string
+): string => {
+  const basis = [stock, make, model, year, trim, mileage]
+    .map((p) => (p || "").trim().toUpperCase())
+    .join("|");
   // Small deterministic hash (djb2) — no randomness, no row index.
   let hash = 5381;
   for (let i = 0; i < basis.length; i++) {
@@ -197,6 +210,10 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
 
   let skippedMissingData = 0;
   const seenVins = new Set<string>();
+  // Occurrence counter for synthetic ids: identical no-VIN rows are real
+  // physical units, not duplicates — disambiguate with "-2", "-3" suffixes
+  // instead of dropping them. [B11]
+  const syntheticCounts = new Map<string, number>();
   let duplicateVins = 0;
 
   const vehicles: Vehicle[] = [];
@@ -236,16 +253,33 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
 
     const stock = vals[idx.stock] ?? "N/A";
     const rawVin = idx.vin !== -1 ? (vals[idx.vin] ?? "").trim() : "";
-    const vin =
-      rawVin !== "" ? rawVin : syntheticVin(stock, make ?? "", model ?? "", String(modelYear));
 
-    // Detect duplicate VINs in the upload instead of silently last-write-wins.
-    const vinKey = vin.toUpperCase();
-    if (seenVins.has(vinKey)) {
-      duplicateVins++;
-      continue;
+    let vin: string;
+    if (rawVin !== "") {
+      vin = rawVin;
+      // Detect duplicate real VINs in the upload instead of silently last-write-wins.
+      const vinKey = vin.toUpperCase();
+      if (seenVins.has(vinKey)) {
+        duplicateVins++;
+        continue;
+      }
+      seenVins.add(vinKey);
+    } else {
+      const base = syntheticVin(
+        stock,
+        make ?? "",
+        model ?? "",
+        String(modelYear),
+        trim ?? "",
+        String(mileage)
+      );
+      const occurrence = (syntheticCounts.get(base) ?? 0) + 1;
+      syntheticCounts.set(base, occurrence);
+      // First occurrence keeps the stable hash id (re-upload friendly);
+      // repeats get "-2", "-3"... so both rows survive. [B11]
+      vin = occurrence === 1 ? base : `${base}-${occurrence}`;
+      seenVins.add(vin.toUpperCase());
     }
-    seenVins.add(vinKey);
 
     vehicles.push({
       vehicle: vehicleDescription,

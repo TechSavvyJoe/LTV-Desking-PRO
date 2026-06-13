@@ -51,6 +51,11 @@ export const mapDealData = (value: unknown): DealData => {
     interestRate: toNumberOr(record.interestRate, INITIAL_DEAL_DATA.interestRate),
     stateFees: toNumberOr(record.stateFees, INITIAL_DEAL_DATA.stateFees),
     notes: toStringOr(record.notes, INITIAL_DEAL_DATA.notes),
+    // Carry per-deal buyer state through persistence/PDF round-trips so an
+    // out-of-state buyer's tax basis isn't silently lost on reload. [G18]
+    buyerState: APP_STATES.includes(record.buyerState as AppState)
+      ? (record.buyerState as DealData["buyerState"])
+      : undefined,
   };
 };
 

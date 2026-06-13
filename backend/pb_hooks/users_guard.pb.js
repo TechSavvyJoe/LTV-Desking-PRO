@@ -23,11 +23,18 @@
  * dealer value on the *create* path is not validated against that code here, so
  * a crafted signup could still attach to an arbitrary dealer at the lowest
  * (sales) role. Validating the dealer code server-side is a follow-up.
+ *
+ * IMPORTANT — PocketBase JSVM scoping: handler callbacks run in pooled runtimes
+ * that DO NOT capture this file's module scope. Anything a handler references
+ * (e.g. a shared PRIVILEGED_FIELDS const) must be declared INSIDE the handler,
+ * or it throws "ReferenceError: ... is not defined" on every matching request. [JSVM]
  */
 
-const PRIVILEGED_FIELDS = ["role", "dealer"];
-
 onRecordUpdateRequest((e) => {
+  // `active` is admin-gated too: the offboarding switch shouldn't be writable
+  // by a sales/manager user on their own record. role/dealer block escalation;
+  // active blocks self-reactivation games. [minor]
+  const PRIVILEGED_FIELDS = ["role", "dealer", "active"];
   const auth = e.auth;
   const actorRole = auth ? auth.get("role") : "";
 
@@ -37,6 +44,13 @@ onRecordUpdateRequest((e) => {
   // The persisted (pre-update) state of the record being modified.
   const original = e.record.original();
   const actorDealer = auth ? String(auth.get("dealer") || "") : "";
+
+  // A non-superadmin must never modify a SUPERADMIN's record at all. Without
+  // this, a tenant admin could demote or deactivate a dealer-assigned platform
+  // owner (the guard below only blocked GRANTING superadmin, not stripping it). [C15]
+  if (original.get("role") === "superadmin") {
+    throw new ForbiddenError("Only the platform owner can modify a superadmin account.");
+  }
 
   for (const field of PRIVILEGED_FIELDS) {
     const incoming = e.record.get(field);
@@ -53,8 +67,13 @@ onRecordUpdateRequest((e) => {
       if (String(incoming) !== actorDealer) e.record.set("dealer", stored);
       continue;
     }
+    if (actorRole === "admin" && field === "active") {
+      // An admin MAY activate/deactivate users in their dealership — that's the
+      // offboarding feature. (Cross-dealer scope is enforced by the API rule.)
+      continue;
+    }
 
-    // Everyone else (sales/user) cannot change role or dealer at all.
+    // Everyone else (sales/user) cannot change role, dealer, or active.
     e.record.set(field, stored);
   }
 
@@ -64,6 +83,14 @@ onRecordUpdateRequest((e) => {
 onRecordCreateRequest((e) => {
   const auth = e.auth;
   const actorRole = auth ? auth.get("role") : "";
+
+  // CRITICAL: PocketBase BoolField is non-nullable and defaults to the zero
+  // value `false` when omitted on create — and NO create path (register,
+  // createUser, createDealerUser, admin) sets `active`. Without this, every new
+  // user is born active=false and the deactivation auth hook locks them out
+  // immediately (self-registration auto-login fails; admin-created users can
+  // never sign in). Stamp active=true unless explicitly being deactivated. [G40]
+  if (e.record.get("active") !== false) e.record.set("active", true);
 
   // Only a superadmin may create a user with an arbitrary role / dealership.
   if (actorRole === "superadmin") return e.next();
@@ -83,3 +110,33 @@ onRecordCreateRequest((e) => {
   e.record.set("role", "sales");
   return e.next();
 }, "users");
+
+// A non-superadmin must never DELETE a superadmin account (the same gap as the
+// update path: tenant admins could remove a dealer-assigned platform owner). [C15]
+onRecordDeleteRequest((e) => {
+  const auth = e.auth;
+  const actorRole = auth ? auth.get("role") : "";
+  if (actorRole !== "superadmin" && e.record.get("role") === "superadmin") {
+    throw new ForbiddenError("Only the platform owner can delete a superadmin account.");
+  }
+  return e.next();
+}, "users");
+
+// Employee offboarding: a user whose `active` flag has been switched off can
+// no longer authenticate or refresh a session. Missing/undefined `active` is
+// treated as active so pre-flag accounts keep working. [G40]
+onRecordAuthRequest((e) => {
+  try {
+    const record = e.record;
+    if (record && record.collection().name === "users") {
+      const raw = record.get("active");
+      if (raw === false) {
+        throw new ForbiddenError("This account has been deactivated. Contact your administrator.");
+      }
+    }
+  } catch (err) {
+    // Re-throw real denials; never let introspection errors block login.
+    if (err instanceof ForbiddenError) throw err;
+  }
+  return e.next();
+});

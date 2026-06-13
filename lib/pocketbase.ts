@@ -1,10 +1,35 @@
 import PocketBase, { type RecordModel } from "pocketbase";
 import type { LenderTier } from "../types";
 
-// PocketBase client singleton
-const POCKETBASE_URL = import.meta.env.VITE_POCKETBASE_URL || "https://ltv-desking-pro-api.fly.dev";
+// PocketBase client singleton.
+//
+// NO production fallback: the prod URL used to be hardcoded here, which meant
+// every Vercel preview deploy and every env-less local checkout silently ran
+// against LIVE DEALER DATA. Environments must now opt in explicitly —
+// production sets VITE_POCKETBASE_URL in Vercel; previews/dev without it fail
+// loudly against localhost instead of touching prod. [G54]
+const POCKETBASE_URL = import.meta.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+if (!import.meta.env.VITE_POCKETBASE_URL) {
+  console.error(
+    "[pocketbase] VITE_POCKETBASE_URL is not set — defaulting to http://127.0.0.1:8090. " +
+      "This build will NOT reach production data. Set the env var explicitly for real backends."
+  );
+}
 
 export const pb = new PocketBase(POCKETBASE_URL);
+
+// Global session-expiry detection: when any API call returns 401 while we
+// believe we're authenticated, the token has expired or been revoked. Clear it
+// and broadcast so the app can show the login screen with an explanation
+// instead of leaving a zombie "logged in" UI where every call fails. The
+// in-progress deal survives in localStorage. [G65]
+pb.afterSend = (response, data) => {
+  if (response.status === 401 && pb.authStore.isValid) {
+    pb.authStore.clear();
+    window.dispatchEvent(new CustomEvent("sessionExpired"));
+  }
+  return data;
+};
 
 // ============================================
 // TYPE-SAFE RECORD CASTING

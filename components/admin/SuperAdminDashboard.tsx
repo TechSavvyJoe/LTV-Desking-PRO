@@ -11,6 +11,7 @@ import {
   updateUserRole,
   updateUser,
   deleteUser,
+  setUserActive,
   getSystemSettings,
   updateSystemSettings,
   getMaskedAiProviderKeys,
@@ -28,6 +29,7 @@ import { logout } from "../../lib/auth";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
 import { confirmAction } from "../../lib/confirm";
+import { toast } from "../../lib/toast";
 import { useForceDarkMode } from "../../hooks/useForceDarkMode";
 
 // ============================================
@@ -712,7 +714,13 @@ const DealerManagement: React.FC<{
 
   const handleSubmit = async () => {
     if (!editingId) return;
-    await updateDealer(editingId, formData);
+    try {
+      await updateDealer(editingId, formData);
+    } catch (err) {
+      // Surface the real failure and keep the form open so nothing is lost. [C16]
+      toast.error(err instanceof Error ? err.message : "Failed to update dealership");
+      return;
+    }
     resetForm();
     onRefresh();
   };
@@ -753,13 +761,23 @@ const DealerManagement: React.FC<{
         tone: "danger",
       })
     ) {
-      await deleteDealer(id);
+      try {
+        await deleteDealer(id);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to delete dealership");
+        return;
+      }
       onRefresh();
     }
   };
 
   const handleToggleActive = async (dealer: Dealer) => {
-    await updateDealer(dealer.id, { active: !dealer.active });
+    try {
+      await updateDealer(dealer.id, { active: !dealer.active });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update dealership status");
+      return;
+    }
     onRefresh();
   };
 
@@ -1065,6 +1083,7 @@ const UserManagement: React.FC<{
   dealers: Dealer[];
   onRefresh: () => void;
 }> = ({ users, dealers, onRefresh }) => {
+  const currentUser = getCurrentUser();
   const [filterDealer, setFilterDealer] = useState<string>("");
   const [filterRole, setFilterRole] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -1196,7 +1215,20 @@ const UserManagement: React.FC<{
     );
 
   const handleRoleChange = async (userId: string, newRole: User["role"]) => {
-    await updateUserRole(userId, newRole);
+    const ok = await confirmAction({
+      title: "Change role?",
+      message: `Change this user's role to ${newRole}? Their permissions update immediately.`,
+      confirmLabel: "Change role",
+    });
+    if (ok) {
+      try {
+        await updateUserRole(userId, newRole);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to change role");
+      }
+    }
+    // Refresh in every path so the controlled <select> resyncs with the server
+    // state after a cancel or a failed write. [C16]
     onRefresh();
   };
 
@@ -1209,9 +1241,27 @@ const UserManagement: React.FC<{
         tone: "danger",
       })
     ) {
-      await deleteUser(userId);
+      try {
+        await deleteUser(userId);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to delete user");
+        return;
+      }
       onRefresh();
     }
+  };
+
+  // Deactivation is the preferred offboarding path — it preserves the user's
+  // deal history while revoking access on their next request. [G40]
+  const handleToggleUserActive = async (user: User) => {
+    const isActive = (user as User & { active?: boolean }).active ?? true;
+    try {
+      await setUserActive(user.id, !isActive);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update user status");
+      return;
+    }
+    onRefresh();
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -1448,77 +1498,114 @@ const UserManagement: React.FC<{
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-800/40 transition-colors group">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white text-xs font-semibold ring-2 ring-slate-900 flex-shrink-0">
-                        {user.firstName?.[0]}
-                        {user.lastName?.[0]}
+              {filteredUsers.map((user) => {
+                const isSelf = user.id === currentUser?.id;
+                const isActive = (user as User & { active?: boolean }).active ?? true;
+                return (
+                  <tr
+                    key={user.id}
+                    className={`hover:bg-slate-800/40 transition-colors group ${
+                      isActive ? "" : "opacity-60"
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white text-xs font-semibold ring-2 ring-slate-900 flex-shrink-0">
+                          {user.firstName?.[0]}
+                          {user.lastName?.[0]}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white truncate">
+                            {user.firstName} {user.lastName}
+                            {!isActive && (
+                              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/60 text-slate-300 ring-1 ring-inset ring-slate-600 align-middle">
+                                Inactive
+                              </span>
+                            )}
+                          </p>
+                          {user.phone && (
+                            <p className="text-xs text-slate-400 truncate">{user.phone}</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
-                          {user.firstName} {user.lastName}
-                        </p>
-                        {user.phone && (
-                          <p className="text-xs text-slate-400 truncate">{user.phone}</p>
-                        )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-200 text-sm truncate max-w-[220px]">
+                      {user.email}
+                    </td>
+                    <td className="px-4 py-3 text-slate-200 text-sm">
+                      {user.dealer ? (
+                        getDealerName(user.dealer)
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user.id, e.target.value as User["role"])}
+                        disabled={isSelf}
+                        title={isSelf ? "You can't change your own role" : "Change role"}
+                        className={`appearance-none px-2.5 py-1 rounded-full text-xs font-medium ring-1 ring-inset cursor-pointer focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          user.role === "superadmin"
+                            ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] ring-[var(--color-border)]"
+                            : user.role === "admin"
+                              ? "bg-blue-500/15 text-blue-200 ring-blue-500/30"
+                              : user.role === "manager"
+                                ? "bg-amber-500/15 text-amber-200 ring-amber-500/30"
+                                : "bg-slate-700/50 text-slate-200 ring-slate-600"
+                        }`}
+                      >
+                        <option value="sales">Sales</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                        <option value="superadmin">SuperAdmin</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-center text-slate-400 text-xs tabular-nums">
+                      {new Date(user.created).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="p-1.5 text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors"
+                          title="Edit"
+                        >
+                          <Icons.PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleToggleUserActive(user)}
+                          disabled={isSelf}
+                          className={`px-2.5 py-1 rounded-md text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                            isActive
+                              ? "bg-amber-500/10 text-amber-200 ring-amber-500/30 hover:bg-amber-500/20"
+                              : "bg-emerald-500/10 text-emerald-200 ring-emerald-500/30 hover:bg-emerald-500/20"
+                          }`}
+                          title={
+                            isSelf
+                              ? "You can't deactivate your own account"
+                              : isActive
+                                ? "Deactivate user (keeps their history)"
+                                : "Reactivate user"
+                          }
+                        >
+                          {isActive ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          disabled={isSelf}
+                          className="p-1.5 text-slate-500 hover:text-rose-300 hover:bg-rose-500/10 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={
+                            isSelf ? "You can't delete your own account" : "Delete permanently"
+                          }
+                        >
+                          <Icons.TrashIcon className="w-4 h-4" />
+                        </button>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-200 text-sm truncate max-w-[220px]">
-                    {user.email}
-                  </td>
-                  <td className="px-4 py-3 text-slate-200 text-sm">
-                    {user.dealer ? (
-                      getDealerName(user.dealer)
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value as User["role"])}
-                      className={`appearance-none px-2.5 py-1 rounded-full text-xs font-medium ring-1 ring-inset cursor-pointer focus:outline-none focus:ring-2 ${
-                        user.role === "superadmin"
-                          ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] ring-[var(--color-border)]"
-                          : user.role === "admin"
-                            ? "bg-blue-500/15 text-blue-200 ring-blue-500/30"
-                            : user.role === "manager"
-                              ? "bg-amber-500/15 text-amber-200 ring-amber-500/30"
-                              : "bg-slate-700/50 text-slate-200 ring-slate-600"
-                      }`}
-                    >
-                      <option value="sales">Sales</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                      <option value="superadmin">SuperAdmin</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 text-center text-slate-400 text-xs tabular-nums">
-                    {new Date(user.created).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => handleEdit(user)}
-                        className="p-1.5 text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors"
-                        title="Edit"
-                      >
-                        <Icons.PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-md transition-colors"
-                        title="Delete"
-                      >
-                        <Icons.TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-0">
@@ -1700,6 +1787,12 @@ const AiProvidersCard: React.FC = () => {
                   <span className="inline-block px-2 py-1 rounded bg-slate-950 ring-1 ring-slate-800 text-xs font-mono text-slate-300">
                     {configured ? masked || "••••" : "—"}
                   </span>
+                )}
+                {p.id === "gemini" && (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Use a paid-tier (billed project) Gemini key — free-tier keys allow Google to
+                    train on submitted data.
+                  </p>
                 )}
                 {lastTest && !isEditing && (
                   <p

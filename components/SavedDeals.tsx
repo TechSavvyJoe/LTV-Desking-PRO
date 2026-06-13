@@ -11,6 +11,60 @@ interface SavedDealsProps {
   onDelete: (id: string) => void;
 }
 
+/**
+ * Client-side CSV export of saved deals — the dealer's data-portability /
+ * pilot-rollback path promised in the Privacy Policy. [G75]
+ */
+const exportDealsCsv = (deals: SavedDeal[]): void => {
+  const esc = (v: unknown): string => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = [
+    [
+      "Date",
+      "Customer",
+      "Salesperson",
+      "Vehicle",
+      "VIN",
+      "Price",
+      "Down Payment",
+      "Trade Value",
+      "Trade Payoff",
+      "Term (mo)",
+      "APR (%)",
+      "Backend ($)",
+      "Monthly Payment",
+      "Amount Financed",
+      "Notes",
+    ].map(esc),
+    ...deals.map((d) =>
+      [
+        d.date || d.createdAt || "",
+        d.customerName,
+        d.salespersonName,
+        d.vehicle?.vehicle ?? "",
+        d.vehicle?.vin ?? "",
+        d.vehicle?.price ?? "",
+        d.dealData?.downPayment ?? "",
+        d.dealData?.tradeInValue ?? "",
+        d.dealData?.tradeInPayoff ?? "",
+        d.dealData?.loanTerm ?? "",
+        d.dealData?.interestRate ?? "",
+        d.dealData?.backendProducts ?? "",
+        d.vehicle?.monthlyPayment ?? "",
+        d.vehicle?.amountToFinance ?? "",
+        d.notes ?? "",
+      ].map(esc)
+    ),
+  ];
+  const csv = rows.map((r) => r.join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `saved-deals-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+};
+
 const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
   const visibleItems = useStaggerAnimation(deals.length, 100, 60);
   if (deals.length === 0) {
@@ -32,6 +86,10 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
             {deals.length} {deals.length === 1 ? "deal" : "deals"} saved
           </p>
         </div>
+        <Button variant="secondary" size="sm" onClick={() => exportDealsCsv(deals)}>
+          <Icons.DocumentArrowDownIcon className="w-4 h-4 mr-1.5" />
+          Export CSV
+        </Button>
       </div>
 
       <div className="grid gap-4">
@@ -76,8 +134,12 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
                       <Icons.CarIcon className="w-4 h-4 text-slate-400" />
                       <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {deal.vehicle?.modelYear || deal.vehicleSnapshot?.modelYear || "N/A"}{" "}
-                        {deal.vehicle?.vehicle || deal.vehicleSnapshot?.vehicle || ""}
+                        {/* The vehicle name string already starts with the model
+                            year — prefixing it again rendered "2021 2021 Honda". */}
+                        {deal.vehicle?.vehicle ||
+                          deal.vehicleSnapshot?.vehicle ||
+                          deal.vehicle?.modelYear ||
+                          "N/A"}
                       </span>
                     </div>
 

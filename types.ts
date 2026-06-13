@@ -34,6 +34,12 @@ export interface DealData {
   interestRate: number;
   stateFees: number;
   notes: string;
+  /**
+   * Per-deal buyer state for sales-tax purposes. When set, it overrides
+   * settings.defaultState in the tax engine; undefined preserves the
+   * settings-level behavior. [G18]
+   */
+  buyerState?: "MI" | "OH" | "IN";
 }
 
 export interface FilterData {
@@ -185,6 +191,11 @@ export interface Settings {
   defaultStateFees: number;
   outOfStateTransitFee: number;
   customTaxRate: number | null;
+  /**
+   * Michigan statutory cap on the sales-tax trade-in credit, in dollars. [G17]
+   * TODO(owner): verify current MI statutory trade-in credit cap before pilot.
+   */
+  miTradeInCreditCap: number;
   ltvThresholds: {
     warn: number;
     danger: number;

@@ -6,7 +6,8 @@ import {
   updateDealerUser,
   deleteDealerUser,
   getCurrentDealerDetails,
-  updateDealer,
+  updateCurrentDealer,
+  setUserActive,
 } from "../../lib/api";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
@@ -146,14 +147,39 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         tone: "danger",
       })
     ) {
-      await deleteDealerUser(userId);
+      try {
+        await deleteDealerUser(userId);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to delete user");
+        return;
+      }
       toast.success("User deleted");
       loadData();
     }
   };
 
   const handleRoleChange = async (userId: string, newRole: User["role"]) => {
-    await updateDealerUser(userId, { role: newRole });
+    try {
+      await updateDealerUser(userId, { role: newRole });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update role");
+      loadData(); // resync the role select after a rejected change
+      return;
+    }
+    loadData();
+  };
+
+  // Deactivation is the preferred offboarding path — it revokes access while
+  // preserving the user's deal history and attribution. [G40]
+  const handleToggleUserActive = async (u: User) => {
+    const isActive = (u as User & { active?: boolean }).active ?? true;
+    try {
+      await setUserActive(u.id, !isActive);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update user status");
+      return;
+    }
+    toast.success(isActive ? "User deactivated" : "User reactivated");
     loadData();
   };
 
@@ -162,12 +188,14 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
   const handleDealerSubmit = async () => {
     if (!dealer) return;
     try {
-      await updateDealer(dealer.id, dealerFormData);
+      // Dealer-admin-scoped update; the superadmin-only updateDealer silently
+      // no-oped for this audience. [C13]
+      await updateCurrentDealer(dealerFormData);
       toast.success("Dealership details updated");
       setIsEditingDealer(false);
       loadData();
     } catch (error) {
-      toast.error("Failed to update dealership details");
+      toast.error(error instanceof Error ? error.message : "Failed to update dealership details");
     }
   };
 
@@ -422,67 +450,96 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {users.map((u) => (
-                    <tr
-                      key={u.id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                    >
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-[var(--color-primary-subtle)] text-[var(--color-primary)] rounded-full flex items-center justify-center font-bold">
-                            {u.firstName?.[0]}
-                            {u.lastName?.[0]}
+                  {users.map((u) => {
+                    const isSelf = u.id === currentUser?.id;
+                    const isActive = (u as User & { active?: boolean }).active ?? true;
+                    return (
+                      <tr
+                        key={u.id}
+                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${
+                          isActive ? "" : "opacity-60"
+                        }`}
+                      >
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-[var(--color-primary-subtle)] text-[var(--color-primary)] rounded-full flex items-center justify-center font-bold">
+                              {u.firstName?.[0]}
+                              {u.lastName?.[0]}
+                            </div>
+                            <div>
+                              <p className="font-medium text-slate-900 dark:text-white">
+                                {u.firstName} {u.lastName}
+                                {!isActive && (
+                                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 align-middle">
+                                    Inactive
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-slate-500">{u.phone}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-slate-900 dark:text-white">
-                              {u.firstName} {u.lastName}
-                            </p>
-                            <p className="text-xs text-slate-500">{u.phone}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
-                        {u.email}
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <select
-                          value={u.role}
-                          onChange={(e) => handleRoleChange(u.id, e.target.value as User["role"])}
-                          disabled={u.id === currentUser?.id}
-                          className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer outline-none ${getRoleBadgeColor(
-                            u.role
-                          )}`}
-                        >
-                          <option value="sales">Sales</option>
-                          <option value="manager">Manager</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                        {new Date(u.created).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleEditUser(u)}
-                            className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                            title="Edit"
+                        </td>
+                        <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
+                          {u.email}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleRoleChange(u.id, e.target.value as User["role"])}
+                            disabled={isSelf}
+                            className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer outline-none ${getRoleBadgeColor(
+                              u.role
+                            )}`}
                           >
-                            <Icons.PencilIcon className="w-4 h-4" />
-                          </button>
-                          {u.id !== currentUser?.id && (
+                            <option value="sales">Sales</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </td>
+                        <td className="px-4 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                          {new Date(u.created).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => handleDeleteUser(u.id)}
-                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                              title="Delete"
+                              onClick={() => handleEditUser(u)}
+                              className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                              title="Edit"
                             >
-                              <Icons.TrashIcon className="w-4 h-4" />
+                              <Icons.PencilIcon className="w-4 h-4" />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            <button
+                              onClick={() => handleToggleUserActive(u)}
+                              disabled={isSelf}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                                isActive
+                                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30 hover:bg-amber-500/20"
+                                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/20"
+                              }`}
+                              title={
+                                isSelf
+                                  ? "You can't deactivate your own account"
+                                  : isActive
+                                    ? "Deactivate user (keeps their history)"
+                                    : "Reactivate user"
+                              }
+                            >
+                              {isActive ? "Deactivate" : "Activate"}
+                            </button>
+                            {!isSelf && (
+                              <button
+                                onClick={() => handleDeleteUser(u.id)}
+                                className="p-2 text-slate-300 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                title="Delete permanently"
+                              >
+                                <Icons.TrashIcon className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {users.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
