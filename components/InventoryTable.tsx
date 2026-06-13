@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import type { CalculatedVehicle, SortConfig } from "../types";
 import { useDealContext } from "../context/DealContext";
 import { useSafeData } from "../hooks/useSafeData";
@@ -123,11 +123,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                // item.vehicle is already the correct display name — the old
+                // template rebuild rendered literal "undefined" for missing
+                // trim and persisted it into saved deals and PDFs. [C-tables]
                 onStructureDeal &&
                   onStructureDeal({
                     ...item,
                     stock: item.stock || "",
-                    vehicle: `${item.modelYear} ${item.make} ${item.model} ${item.trim}`,
                   });
               }}
               className="group relative px-2.5 py-1.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded transition-colors duration-[120ms]"
@@ -266,9 +268,28 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
     [expandedRows, favoriteVins, toggleFavorite, onStructureDeal]
   );
 
+  // iPad portrait used to scroll Payment (column 14) off-screen — the one
+  // number a desk conversation is about. Below the lg breakpoint, drop the
+  // reference columns so Price / Payment / OTD LTV always stay visible. [G66]
+  const [isWide, setIsWide] = useState(
+    typeof window === "undefined" ? true : window.matchMedia("(min-width: 1024px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = (e: MediaQueryListEvent) => setIsWide(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const NARROW_HIDDEN = useMemo(
+    () => new Set(["Stock #", "Book (Trade)", "Front LTV", "Front Gross", "Amt to Fin", "VIN"]),
+    []
+  );
+
   const visibleColumns = useMemo(() => {
-    return columns;
-  }, [columns]);
+    if (isWide) return columns;
+    return columns.filter((c) => !NARROW_HIDDEN.has(c.header));
+  }, [columns, isWide, NARROW_HIDDEN]);
 
   return (
     <div className="h-full flex flex-col">

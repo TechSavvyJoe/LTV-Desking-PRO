@@ -122,6 +122,10 @@ const callOpenAiJson = async (request: AiJsonRequest): Promise<unknown> => {
       model: request.model,
       instructions: request.systemPrompt,
       input: [{ role: "user", content }],
+      // GLBA/Safeguards: deal payloads include consumer financial data
+      // (credit estimate, income). `store` defaults to TRUE on the Responses
+      // API, persisting prompts in the OpenAI dashboard ~30 days. Always off. [G8]
+      store: false,
       temperature: request.temperature ?? 0.1,
       max_output_tokens: request.maxTokens ?? 6000,
       text: {

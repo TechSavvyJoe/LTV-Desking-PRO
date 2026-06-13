@@ -13,6 +13,19 @@ export const validateInput = (id: string, value: number | null): string | null =
     case "stateFees":
       if (value < 0) return "Value cannot be negative.";
       break;
+    case "tradeInValue":
+    case "tradeInPayoff":
+      if (value < 0) return "Value cannot be negative.";
+      if (value > 500000) return "Value is unusually high (max $500,000).";
+      break;
+    case "maxMiles":
+      if (value < 0) return "Value cannot be negative.";
+      if (value > 1000000) return "Mileage is unusually high (max 1,000,000).";
+      break;
+    case "maxOtdLtv":
+      if (value < 0) return "Value cannot be negative.";
+      if (value > 500) return "LTV filter is unusually high (max 500%).";
+      break;
     case "loanTerm":
       if (!Number.isInteger(value) || value <= 0) return "Term must be a positive whole number.";
       if (value > 120) return "Term is unusually high (max 120 mo).";

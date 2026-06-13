@@ -8,13 +8,17 @@
  * request (>500ms) or 5xx response so `fly logs | grep '"kind":"pb_log"'`
  * returns a clean filterable stream.
  *
- * Pure synchronous middleware — no I/O, no allocation outside the log line
- * itself — so it can't become a perf problem.
+ * IMPORTANT — PocketBase JSVM scoping: handler callbacks execute in pooled
+ * goja runtimes that DO NOT capture this file's module scope. A top-level
+ * `const SLOW_MS = 500` referenced inside the handler throws
+ * "ReferenceError: SLOW_MS is not defined" on EVERY request — which silently
+ * broke all API responses with a generic 400. Everything the handler needs is
+ * therefore declared INSIDE the handler. (This was the real cause of the
+ * production system_settings 400.)
  */
 
-const SLOW_MS = 500;
-
 routerUse((e) => {
+  const SLOW_MS = 500;
   const start = Date.now();
   let status = 200;
   try {

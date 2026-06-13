@@ -1,6 +1,11 @@
 import React from "react";
 import type { DealPdfData, Settings, LenderEligibilityStatus } from "../../types";
-import { formatCurrency, formatNumber, formatPercentage } from "../common/TableCell";
+import {
+  formatCurrency,
+  formatCurrencyExact,
+  formatNumber,
+  formatPercentage,
+} from "../common/TableCell";
 
 const el = React.createElement;
 const logoSvg = encodeURIComponent(
@@ -227,7 +232,7 @@ const CoverPage: React.FC<{
   salespersonName: string;
   creditScore: number | null;
   loanTerm: number;
-  apr: number;
+  apr: number | null;
   downPayment: number;
 }> = ({ deals, customerName, salespersonName, creditScore, loanTerm, apr, downPayment }) => {
   const eligibleCount = deals.filter((d) => countEligible(d.lenderEligibility) > 0).length;
@@ -235,16 +240,16 @@ const CoverPage: React.FC<{
   return el(
     "div",
     { className: "page" },
-    el("div", { className: "watermark" }, "OSHIP"),
+    el("div", { className: "watermark" }, "ESTIMATE"),
     el(
       "div",
       { className: "cover-hero" },
-      el("img", { src: `data:image/svg+xml,${logoSvg}`, alt: "OSHIP" }),
+      el("img", { src: `data:image/svg+xml,${logoSvg}`, alt: "LTV Desking PRO" }),
       el("h1", null, "Vehicle Deal Comparison"),
       el(
         "p",
         null,
-        `${deals.length} favorited vehicle${deals.length === 1 ? "" : "s"} · ${eligibleCount} with eligible lender${eligibleCount === 1 ? "" : "s"}`
+        `${deals.length} favorited vehicle${deals.length === 1 ? "" : "s"} · ${eligibleCount} with possible lender fit${eligibleCount === 1 ? "" : "s"}`
       ),
       el(
         "p",
@@ -270,7 +275,7 @@ const CoverPage: React.FC<{
       el(
         "div",
         { className: "field" },
-        el("div", { className: "label" }, "Credit Score"),
+        el("div", { className: "label" }, "Credit Score (est.)"),
         el("div", { className: "value" }, creditScore ?? "—")
       ),
       el(
@@ -289,7 +294,9 @@ const CoverPage: React.FC<{
         "div",
         { className: "field" },
         el("div", { className: "label" }, "APR"),
-        el("div", { className: "value" }, `${apr.toFixed(2)}%`)
+        // A cleared APR arrives as "" (typed-around via `as number`). Guard like
+        // every other APR site so the cover page doesn't crash the whole PDF. [G5]
+        el("div", { className: "value" }, typeof apr === "number" ? `${apr.toFixed(2)}%` : "—")
       )
     ),
     el("h2", { className: "section-title" }, "Vehicles in this Report"),
@@ -346,7 +353,8 @@ const CoverPage: React.FC<{
                 {
                   className: `badge ${eligible > 0 ? "badge-eligible" : "badge-noeligible"}`,
                 },
-                eligible > 0 ? "Eligible" : "No match"
+                // ✓/✗ glyphs keep the distinction on B&W laser printouts. [G69]
+                eligible > 0 ? "✓ Possible fit" : "✗ No fit"
               )
             )
           );
@@ -381,7 +389,7 @@ const VehiclePage: React.FC<{
   return el(
     "div",
     { className: "page" },
-    el("div", { className: "watermark" }, "OSHIP"),
+    el("div", { className: "watermark" }, "ESTIMATE"),
     el(
       "header",
       { className: "header" },
@@ -390,7 +398,7 @@ const VehiclePage: React.FC<{
         { className: "brand" },
         el("img", {
           src: `data:image/svg+xml,${logoSvg}`,
-          alt: "OSHIP",
+          alt: "LTV Desking PRO",
           style: { width: "34px", height: "34px" },
         }),
         el(
@@ -428,8 +436,9 @@ const VehiclePage: React.FC<{
             InfoListItem("Stock #", vehicle?.stock),
             InfoListItem("VIN", vehicle?.vin),
             InfoListItem("Mileage", formatNumber(vehicle?.mileage)),
-            InfoListItem("JD Power (Trade)", formatCurrency(vehicle?.jdPower)),
-            InfoListItem("JD Power (Retail)", formatCurrency(vehicle?.jdPowerRetail))
+            // Dealer-entered book values — never imply a licensed feed. [G26/G80]
+            InfoListItem("Book Value (Trade)", formatCurrency(vehicle?.jdPower)),
+            InfoListItem("Book Value (Retail)", formatCurrency(vehicle?.jdPowerRetail))
           )
         ),
         el(
@@ -441,10 +450,17 @@ const VehiclePage: React.FC<{
             { className: "info-list" },
             InfoListItem("Customer", customerName || "N/A"),
             InfoListItem("Salesperson", salespersonName || "N/A"),
-            InfoListItem("Credit Score", customerFilters?.creditScore || "N/A"),
+            InfoListItem("Credit Score (est.)", customerFilters?.creditScore || "N/A"),
             InfoListItem("Loan Term", `${dealData?.loanTerm} Months`),
-            InfoListItem("Interest Rate", `${dealData?.interestRate?.toFixed(2)}% APR`),
-            InfoListItem("Front-End Gross", formatCurrency(vehicle?.frontEndGross))
+            // Blank APR arrives as "" — guard the toFixed crash. [G5]
+            InfoListItem(
+              "Est. Interest Rate",
+              typeof dealData?.interestRate === "number"
+                ? `${dealData.interestRate.toFixed(2)}% APR`
+                : "—"
+            )
+            // Front-End Gross removed: dealer-internal profit never prints on
+            // customer paper. [G1]
           )
         )
       ),
@@ -458,17 +474,32 @@ const VehiclePage: React.FC<{
           el(
             "tbody",
             null,
-            FinancialsRow("Selling Price", formatCurrency(vehicle?.price)),
-            FinancialsRow("Doc Fee", `+ ${formatCurrency(settings.docFee)}`),
-            FinancialsRow("CVR Fee", `+ ${formatCurrency(settings.cvrFee)}`),
-            FinancialsRow("State/Title Fees", `+ ${formatCurrency(dealData?.stateFees)}`),
-            FinancialsRow("Sales Tax", `+ ${formatCurrency(vehicle?.salesTax)}`),
-            FinancialsRow("Total OTD Price", formatCurrency(vehicle?.baseOutTheDoorPrice), true),
-            FinancialsRow("Cash Down", `- ${formatCurrency(dealData?.downPayment)}`, false, true),
-            FinancialsRow("Net Trade-In", `- ${formatCurrency(netTradeIn)}`),
+            FinancialsRow("Selling Price", formatCurrencyExact(vehicle?.price)),
+            FinancialsRow("Doc Fee", `+ ${formatCurrencyExact(settings.docFee)}`),
+            FinancialsRow("CVR Fee", `+ ${formatCurrencyExact(settings.cvrFee)}`),
+            FinancialsRow("State/Title Fees", `+ ${formatCurrencyExact(dealData?.stateFees)}`),
+            FinancialsRow("Sales Tax (est.)", `+ ${formatCurrencyExact(vehicle?.salesTax)}`),
+            FinancialsRow(
+              "Total OTD Price (est.)",
+              formatCurrencyExact(vehicle?.baseOutTheDoorPrice),
+              true
+            ),
+            FinancialsRow(
+              "Cash Down",
+              `- ${formatCurrencyExact(dealData?.downPayment)}`,
+              false,
+              true
+            ),
+            // Explicit rollover line instead of "- -$3,000". [G21]
+            netTradeIn >= 0
+              ? FinancialsRow("Net Trade-In", `- ${formatCurrencyExact(netTradeIn)}`)
+              : FinancialsRow(
+                  "Negative Equity (added to amount financed)",
+                  `+ ${formatCurrencyExact(Math.abs(netTradeIn))}`
+                ),
             FinancialsRow(
               "Sub-Total",
-              formatCurrency(
+              formatCurrencyExact(
                 typeof vehicle?.baseOutTheDoorPrice === "number"
                   ? vehicle.baseOutTheDoorPrice - totalDown
                   : "Error"
@@ -477,11 +508,15 @@ const VehiclePage: React.FC<{
             ),
             FinancialsRow(
               "Backend Products",
-              `+ ${formatCurrency(dealData?.backendProducts)}`,
+              `+ ${formatCurrencyExact(dealData?.backendProducts)}`,
               false,
               true
             ),
-            FinancialsRow("Total Amount to Finance", formatCurrency(vehicle?.amountToFinance), true)
+            FinancialsRow(
+              "Total Amount to Finance (est.)",
+              formatCurrencyExact(vehicle?.amountToFinance),
+              true
+            )
           )
         )
       ),
@@ -489,7 +524,14 @@ const VehiclePage: React.FC<{
         "div",
         { className: "payment-summary" },
         el("div", { className: "label" }, "Estimated Monthly Payment"),
-        el("div", { className: "value" }, formatCurrency(vehicle?.monthlyPayment))
+        el("div", { className: "value" }, formatCurrencyExact(vehicle?.monthlyPayment)),
+        el(
+          "div",
+          { style: { fontSize: "8pt", color: "#1e40af", marginTop: "4px" } },
+          typeof dealData?.interestRate === "number"
+            ? `Estimate at ${dealData.interestRate.toFixed(2)}% APR for ${dealData?.loanTerm} months — not an offer of credit`
+            : "Estimate — enter a rate for payment terms; not an offer of credit"
+        )
       ),
       el(
         "div",
@@ -497,7 +539,7 @@ const VehiclePage: React.FC<{
         el(
           "h2",
           { className: "section-title" },
-          `Eligible Lenders (${eligibleLenders.length} of ${safeEligibility.length})`
+          `Preliminary Lender Fits (${eligibleLenders.length} of ${safeEligibility.length}) — verify with lender`
         ),
         eligibleLenders.length > 0
           ? el(
@@ -510,7 +552,7 @@ const VehiclePage: React.FC<{
                     "div",
                     { key: lender.name, className: "lender-item" },
                     el("p", { className: "name" }, lender.name),
-                    el("p", { className: "tier" }, lender.matchedTier?.name || "Eligible")
+                    el("p", { className: "tier" }, lender.matchedTier?.name || "Possible fit")
                   )
                 ),
               eligibleLenders.length > 9 &&
@@ -530,16 +572,21 @@ const VehiclePage: React.FC<{
                   el(
                     "p",
                     {
-                      style: { fontSize: "8.5pt", color: "#6b7280", fontStyle: "italic", margin: 0 },
+                      style: {
+                        fontSize: "8.5pt",
+                        color: "#6b7280",
+                        fontStyle: "italic",
+                        margin: 0,
+                      },
                     },
-                    `+ ${eligibleLenders.length - 9} more eligible`
+                    `+ ${eligibleLenders.length - 9} more possible fits`
                   )
                 )
             )
           : el(
               "div",
               { className: "no-lender-banner" },
-              "No lenders currently approve this vehicle for this customer based on credit, income, or LTV criteria."
+              "No preliminary lender fits for this vehicle with current customer info (credit, income, or LTV screens)."
             )
       )
     ),
@@ -549,7 +596,11 @@ const VehiclePage: React.FC<{
       el(
         "p",
         null,
-        "This is a preliminary proposal and not a final contract. All figures are estimates and subject to lender approval."
+        "This worksheet is a preliminary estimate for discussion only. It is not a contract, not an " +
+          "offer or extension of credit, and not a Truth-in-Lending disclosure. Lender fits are a " +
+          "preliminary screen against dealer-entered program data, not credit decisions. All figures " +
+          "are estimates; final pricing, taxes, fees, APR, and payment are subject to lender credit " +
+          "approval and final contract documents. Book values are entered by the dealership."
       )
     )
   );
@@ -574,7 +625,10 @@ export const FavoritesPdfTemplate: React.FC<{ deals: DealPdfData[]; settings: Se
   const salespersonName = first.salespersonName || "";
   const creditScore = first.customerFilters?.creditScore ?? null;
   const loanTerm = first.dealData?.loanTerm ?? 0;
-  const apr = first.dealData?.interestRate ?? 0;
+  // interestRate may be "" (cleared field, typed-around) — coerce to null, not 0,
+  // so the cover page shows "—" rather than a fabricated 0% or a toFixed crash. [G5]
+  const rawApr = first.dealData?.interestRate;
+  const apr = typeof rawApr === "number" && Number.isFinite(rawApr) ? rawApr : null;
   const downPayment = first.dealData?.downPayment ?? 0;
 
   return el(

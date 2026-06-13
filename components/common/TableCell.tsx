@@ -13,6 +13,32 @@ export const formatCurrency = (value: number | string | undefined): string => {
       }).format(num);
 };
 
+/**
+ * Currency with cents. Use for figures a customer reconciles against a
+ * contract — monthly payment, sales tax, OTD, amount financed — where
+ * whole-dollar rounding visibly disagrees with the financed math.
+ */
+export const formatCurrencyExact = (value: number | string | undefined): string => {
+  if (value === undefined || value === null || value === "N/A" || value === "Error") return "N/A";
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  return isNaN(num)
+    ? "N/A"
+    : new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(num);
+};
+
+/**
+ * PocketBase serializes datetimes as "YYYY-MM-DD HH:MM:SS.sssZ" (space
+ * separator) — a non-ISO form WebKit's Date parser rejects, so iPads render
+ * "Invalid Date". Normalize the space to "T" before parsing.
+ */
+const normalizePbDate = (dateString: string): string =>
+  /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(dateString) ? dateString.replace(" ", "T") : dateString;
+
 export const formatPercentage = (
   value: number | string | undefined,
   decimals: number = 2
@@ -31,7 +57,7 @@ export const formatNumber = (value: number | string | undefined): string => {
 export const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return "N/A";
   try {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(normalizePbDate(dateString)).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -44,7 +70,7 @@ export const formatDate = (dateString: string | undefined): string => {
 export const formatDateTime = (dateString: string | undefined): string => {
   if (!dateString) return "N/A";
   try {
-    return new Date(dateString).toLocaleString("en-US", {
+    return new Date(normalizePbDate(dateString)).toLocaleString("en-US", {
       year: "2-digit",
       month: "numeric",
       day: "numeric",

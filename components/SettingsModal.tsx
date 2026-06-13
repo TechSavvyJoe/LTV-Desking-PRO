@@ -14,6 +14,7 @@ import {
 } from "../lib/aiModelRegistry";
 import { toast } from "../lib/toast";
 import { confirmAction } from "../lib/confirm";
+import { MI_DOC_FEE_WARN_THRESHOLD, INITIAL_SETTINGS } from "../constants";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -212,7 +213,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               <InputGroup
                 label="Dealership State"
                 htmlFor="defaultState"
-                description="Sets the base for tax calculations."
+                description="This app currently models Michigan dealerships. Set per-deal buyer state on the deal screen for out-of-state buyers."
               >
                 <StyledSelect
                   name="defaultState"
@@ -220,9 +221,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   value={localSettings.defaultState}
                   onChange={handleChange}
                 >
-                  <option value="MI">Michigan</option>
-                  <option value="OH">Ohio</option>
-                  <option value="IN">Indiana</option>
+                  <option value="MI">MI — Michigan</option>
+                  <option value="OH">OH — buyer from Ohio (MI dealer)</option>
+                  <option value="IN">IN — buyer from Indiana (MI dealer)</option>
                 </StyledSelect>
               </InputGroup>
               <InputGroup label="Doc Fee ($)" htmlFor="docFee">
@@ -233,6 +234,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   value={localSettings.docFee}
                   onChange={handleChange}
                 />
+                {localSettings.docFee > MI_DOC_FEE_WARN_THRESHOLD && (
+                  <p className="mt-1 text-xs text-amber-500">
+                    Above Michigan&apos;s typical doc-fee cap — verify the current statutory cap.
+                  </p>
+                )}
               </InputGroup>
               <InputGroup label="CVR Fee ($)" htmlFor="cvrFee">
                 <StyledInput
@@ -240,6 +246,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   name="cvrFee"
                   id="cvrFee"
                   value={localSettings.cvrFee}
+                  onChange={handleChange}
+                />
+              </InputGroup>
+              <InputGroup
+                label="MI trade-in tax credit cap ($)"
+                htmlFor="miTradeInCreditCap"
+                description="Verify the current statutory cap"
+              >
+                <StyledInput
+                  type="number"
+                  name="miTradeInCreditCap"
+                  id="miTradeInCreditCap"
+                  value={localSettings.miTradeInCreditCap ?? INITIAL_SETTINGS.miTradeInCreditCap}
                   onChange={handleChange}
                 />
               </InputGroup>
@@ -473,32 +492,35 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
             <Button type="button" variant="danger" size="sm" onClick={handleResetAllData}>
               Reset All Data
             </Button>
-            {/* Temporary Seed Button */}
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={async () => {
-                if (
-                  await confirmAction({
-                    title: "Seed database?",
-                    message: "Seed database with default inventory and lenders?",
-                    confirmLabel: "Seed",
-                  })
-                ) {
-                  try {
-                    const { seedDatabase } = await import("../lib/seeder");
-                    await seedDatabase();
-                    toast.success("Database seeded! Reloading application...");
-                    setTimeout(() => window.location.reload(), 1500);
-                  } catch (e) {
-                    console.error(e);
+            {/* Dev-only seed button — seeding is gated to development builds [C12] */}
+            {import.meta.env.DEV && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  if (
+                    await confirmAction({
+                      title: "Seed database?",
+                      message: "Seed database with default inventory and lenders?",
+                      confirmLabel: "Seed",
+                    })
+                  ) {
+                    try {
+                      const { seedDatabase } = await import("../lib/seeder");
+                      await seedDatabase();
+                      toast.success("Database seeded! Reloading application...");
+                      setTimeout(() => window.location.reload(), 1500);
+                    } catch (e) {
+                      console.error(e);
+                      toast.error(e instanceof Error ? e.message : "Failed to seed database.");
+                    }
                   }
-                }
-              }}
-            >
-              Seed DB
-            </Button>
+                }}
+              >
+                Seed DB
+              </Button>
+            )}
           </div>
           <div className="flex gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>

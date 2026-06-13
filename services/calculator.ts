@@ -57,10 +57,20 @@ export const calculateLoanAmount = (
   return roundCents(principal);
 };
 
+/**
+ * SCOPE OF THE TAX ENGINE [G16]
+ *
+ * This engine models a Michigan DEALER selling to MI/OH/IN BUYERS. For an
+ * out-of-state (OH/IN) buyer, Michigan reciprocity applies: the dealer collects
+ * the buyer's home-state rate capped at the MI statutory rate. OH/IN
+ * DEALERSHIPS are NOT modeled — the state here is the BUYER's state for a
+ * Michigan dealership, not the dealership's own state.
+ */
 const calculateSalesTax = (
   price: number,
   tradeInValue: number,
-  settings: Settings
+  settings: Settings,
+  buyerState?: DealData["buyerState"]
 ): { tax: number; extraFees: number } => {
   const { docFee, cvrFee, defaultState, outOfStateTransitFee, customTaxRate } = settings;
 
@@ -74,7 +84,19 @@ const calculateSalesTax = (
     throw new Error("Michigan tax rate must be configured for reciprocal tax calculations.");
   }
 
-  let taxRate = 0.06;
+  // Per-deal buyer state overrides the settings-level default; undefined
+  // preserves the prior settings-only behavior. [G18]
+  const taxState = buyerState ?? defaultState;
+
+  // Fail loudly instead of silently taxing an unknown state at 6%. AppState is
+  // limited to MI/OH/IN so this should be unreachable — if it fires, data
+  // outside the modeled domain reached the tax engine. [G16]
+  const stateRate = TAX_RATES[taxState];
+  if (stateRate === undefined) {
+    throw new Error(`Unsupported tax state: ${String(taxState)}`);
+  }
+
+  let taxRate: number;
   let extraFees = 0;
 
   if (typeof customTaxRate === "number" && customTaxRate >= 0) {
@@ -82,14 +104,14 @@ const calculateSalesTax = (
     taxRate = customTaxRate / 100;
   } else {
     // Default logic
-    taxRate = TAX_RATES[defaultState] ?? 0.06;
+    taxRate = stateRate;
 
-    if (defaultState !== "MI") {
+    if (taxState !== "MI") {
       // Michigan reciprocity caps out-of-state tax at the Michigan statutory rate.
       // NOTE (flagged for F&I review): this caps the *collected* rate at MI's 6%.
       // For a buyer whose home state rate is higher than 6%, the remaining
       // differential is collected by the buyer's home state at registration — it
-      // is intentionally not added here. Revisit if modeling dealer vs. buyer state.
+      // is intentionally not added here.
       taxRate = Math.min(michiganTaxRate, taxRate);
     }
   }
@@ -98,11 +120,21 @@ const calculateSalesTax = (
   // regardless of whether a custom tax rate is in play. Previously it was only
   // added inside the default-rate branch, so a custom-rate out-of-state deal
   // silently dropped it and understated OTD. [B5]
-  if (defaultState !== "MI") {
+  if (taxState !== "MI") {
     extraFees += toNumber(outOfStateTransitFee);
   }
 
-  const taxableAmount = Math.max(0, price - tradeInValue) + docFee + cvrFee;
+  // Michigan caps the sales-tax trade-in credit by statute. [G17]
+  // Stale stored settings may predate this field; fall back to the shipped
+  // default rather than silently zeroing the trade credit.
+  // TODO(owner): verify current MI statutory trade-in credit cap before pilot.
+  const miTradeInCreditCap = Number.isFinite(settings.miTradeInCreditCap)
+    ? settings.miTradeInCreditCap
+    : 12000;
+  const taxableTradeCredit =
+    taxState === "MI" ? Math.min(tradeInValue, miTradeInCreditCap) : tradeInValue;
+
+  const taxableAmount = Math.max(0, price - taxableTradeCredit) + docFee + cvrFee;
   const tax = roundCents(taxableAmount * taxRate); // [B7]
 
   return { tax, extraFees: roundCents(extraFees) };
@@ -153,7 +185,12 @@ export const calculateFinancials = (
   if (typeof vehicle.price === "number") {
     const netTradeIn = tradeInValue - tradeInPayoff;
 
-    const { tax, extraFees } = calculateSalesTax(price, tradeInValue, settings);
+    const { tax, extraFees } = calculateSalesTax(
+      price,
+      tradeInValue,
+      settings,
+      dealData.buyerState // per-deal buyer state overrides settings.defaultState [G18]
+    );
     salesTax = tax;
 
     // Round OTD and amount-to-finance to cents so the payment is amortized off the

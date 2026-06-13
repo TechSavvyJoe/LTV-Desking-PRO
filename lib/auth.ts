@@ -1,5 +1,6 @@
 import { pb, User, Dealer, clearSuperadminDealerOverride, asRecord } from "./pocketbase";
 import { validatePassword } from "./passwordPolicy";
+import { STORAGE_KEYS } from "../constants";
 
 // Local alias delegates to the shared helper in lib/pocketbase.ts so the
 // cast lives in exactly one place.
@@ -87,11 +88,43 @@ export const register = async (
 };
 
 /**
+ * Renew the auth token. PocketBase tokens hard-expire (~14 days from login,
+ * not sliding); without periodic refresh an active user dies mid-deal with
+ * cryptic save failures. Called on app boot and on a timer. 401s are handled
+ * globally by pb.afterSend (sessionExpired broadcast). [G65]
+ */
+export const refreshSession = async (): Promise<void> => {
+  if (!pb.authStore.isValid) return;
+  try {
+    await pb.collection("users").authRefresh();
+  } catch {
+    // afterSend already broadcast sessionExpired on 401; network errors are
+    // non-fatal here — the next call will retry.
+  }
+};
+
+/**
  * Logout current user
  */
 export const logout = (): void => {
   clearSuperadminDealerOverride(); // Clear any superadmin dealer override
   sessionStorage.removeItem("superadmin_view_mode"); // Clear view mode
+  // Shared-desk hygiene: remove the previous user's in-progress deal, customer
+  // identifiers, favorites, and notes — they used to survive logout in
+  // localStorage and bleed into the next login on the same machine. [C1]
+  try {
+    for (const key of [
+      STORAGE_KEYS.DEAL_DATA,
+      STORAGE_KEYS.FILTERS,
+      STORAGE_KEYS.FAVORITES,
+      STORAGE_KEYS.SCRATCH_PAD,
+      STORAGE_KEYS.SETTINGS,
+    ]) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // localStorage unavailable — nothing to clear
+  }
   pb.authStore.clear();
   // Reload to clear all cached data (inventory, deals, lender profiles) from the previous session
   window.location.reload();

@@ -13,39 +13,45 @@
  * are exempt — they may need to seed data for any dealership.
  */
 
-const DEALER_SCOPED = [
-  "inventory",
-  "lender_profiles",
-  "saved_deals",
-  "dealer_settings",
-];
+/**
+ * IMPORTANT — PocketBase JSVM scoping: handler callbacks run in pooled runtimes
+ * that DO NOT capture this file's module scope. A shared top-level helper or
+ * const referenced inside a handler throws "ReferenceError: ... is not defined"
+ * on every matching request. So the guard is defined INSIDE each handler, and
+ * the collection list is registered with literal names (the `for` loop's
+ * closure over `name` is itself a scope hazard across runtimes). [JSVM]
+ */
+const registerDealerGuard = (collectionName) => {
+  const enforce = (e) => {
+    const auth = e.auth;
 
-const enforceDealer = (e) => {
-  const auth = e.auth;
+    // Superadmins are trusted to write across dealerships (seeding, support).
+    if (auth && auth.get("role") === "superadmin") return e.next();
 
-  // Superadmins are trusted to write across dealerships (e.g., seeding,
-  // impersonation, support operations).
-  if (auth && auth.get("role") === "superadmin") return e.next();
+    // Fail CLOSED. A write to a dealer-scoped collection with no enforceable
+    // tenant must be rejected, never passed through with a client-supplied
+    // `dealer`. [B2]
+    if (!auth) {
+      throw new ForbiddenError("Authentication is required to write dealer-scoped records.");
+    }
+    const authDealer = auth.get("dealer");
+    if (!authDealer) {
+      throw new ForbiddenError("Your account is not associated with a dealership.");
+    }
 
-  // Fail CLOSED. A write to a dealer-scoped collection with no enforceable
-  // tenant must be rejected, never passed through with a client-supplied
-  // `dealer`. Previously both branches called e.next(), so an unauthenticated
-  // request (if a create/update rule were ever loosened) or a misconfigured
-  // user with an empty `dealer` could write with an attacker-chosen tenant. [B2]
-  if (!auth) {
-    throw new ForbiddenError("Authentication is required to write dealer-scoped records.");
-  }
-  const authDealer = auth.get("dealer");
-  if (!authDealer) {
-    throw new ForbiddenError("Your account is not associated with a dealership.");
-  }
+    // Force the dealer field on the incoming record regardless of payload.
+    e.record.set("dealer", authDealer);
+    return e.next();
+  };
 
-  // Force the dealer field on the incoming record regardless of payload.
-  e.record.set("dealer", authDealer);
-  return e.next();
+  onRecordCreateRequest(enforce, collectionName);
+  onRecordUpdateRequest(enforce, collectionName);
 };
 
-for (const name of DEALER_SCOPED) {
-  onRecordCreateRequest((e) => enforceDealer(e), name);
-  onRecordUpdateRequest((e) => enforceDealer(e), name);
-}
+// registerDealerGuard runs at load time (module scope), so referencing it here
+// is fine; the closures it builds capture only their own `collectionName` arg.
+registerDealerGuard("inventory");
+registerDealerGuard("lender_profiles");
+registerDealerGuard("saved_deals");
+registerDealerGuard("dealer_settings");
+registerDealerGuard("deal_events");

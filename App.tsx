@@ -1,7 +1,14 @@
 import React, { useState, useRef, useMemo, useEffect, lazy, Suspense } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { isAuthenticated, onAuthStateChange, logout, getCurrentUser } from "./lib/auth";
 import {
+  isAuthenticated,
+  onAuthStateChange,
+  logout,
+  getCurrentUser,
+  refreshSession,
+} from "./lib/auth";
+import {
+  pb,
   setSuperadminDealerOverride,
   getSuperadminDealerOverride,
   clearSuperadminDealerOverride,
@@ -10,7 +17,8 @@ import {
 import type { Dealer } from "./lib/pocketbase";
 import { OwnerLogin } from "./components/auth/OwnerLogin";
 import { AnnouncementBanner } from "./components/common/AnnouncementBanner";
-import { saveDeal, deleteDeal, updateInventoryItem, syncInventory } from "./lib/api";
+import { saveDeal, deleteDeal, updateInventoryItem, syncInventory, logDealEvent } from "./lib/api";
+import { capture, identify } from "./lib/analytics";
 import { Login } from "./components/auth/Login";
 import { Register } from "./components/auth/Register";
 import { AuthLayout } from "./components/auth/AuthLayout";
@@ -61,6 +69,7 @@ const PageFallback = (
   </div>
 );
 import { toast } from "./lib/toast";
+import { SUPPORT_EMAIL } from "./constants";
 import { confirmAction } from "./lib/confirm";
 import { mapPocketBaseSavedDeal } from "./lib/dealMappers";
 import type { SavedDeal as PocketBaseSavedDeal } from "./lib/pocketbase";
@@ -189,10 +198,46 @@ const MainLayout: React.FC = () => {
 
   // Compute favorites' financials once per render instead of inline (twice) in
   // JSX, which re-ran the full calc on every MainLayout render. [perf]
-  const calculatedFavorites = useMemo(
-    () => safeFavorites.map((item) => calculateFinancials(item, dealData, settings)),
-    [safeFavorites, dealData, settings]
+  // Then APPLY favSort — the Shortlist's sort arrows toggled state that nothing
+  // consumed, so clicking a column header never reordered anything. Reuses the
+  // same sentinel-aware comparator semantics as the main inventory sort. [C17]
+  const calculatedFavorites = useMemo(() => {
+    const rows = safeFavorites.map((item) => calculateFinancials(item, dealData, settings));
+    if (!favSort.key) return rows;
+    const sortKey = favSort.key as keyof CalculatedVehicle;
+    return [...rows].sort((a, b) => {
+      const valA = a[sortKey];
+      const valB = b[sortKey];
+      const isAInvalid = valA === null || valA === "Error" || valA === "N/A" || valA === undefined;
+      const isBInvalid = valB === null || valB === "Error" || valB === "N/A" || valB === undefined;
+      if (isAInvalid && isBInvalid) return 0;
+      if (isAInvalid) return 1;
+      if (isBInvalid) return -1;
+      if (typeof valA === "number" && typeof valB === "number") {
+        return favSort.direction === "asc" ? valA - valB : valB - valA;
+      }
+      if (typeof valA === "string" && typeof valB === "string") {
+        return favSort.direction === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return 0;
+    });
+  }, [safeFavorites, dealData, settings, favSort]);
+
+  // Offline awareness: a dealership Wi-Fi blip used to be indistinguishable
+  // from a broken app — saves just failed with generic errors. [G68]
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine
   );
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   // PDF and share handlers for expanded rows
   const isShareSupported = typeof navigator !== "undefined" && "share" in navigator;
@@ -305,22 +350,36 @@ const MainLayout: React.FC = () => {
         type: syncResult.failed > 0 ? "warning" : "success",
         text: `Synced: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.${failedNote}`,
       });
+      capture("import_completed", {
+        vehicles: data.length,
+        skipped,
+        failed: syncResult.failed,
+      });
     } catch (err) {
       console.error(err);
+      // The parser writes user-safe, actionable messages (missing columns,
+      // skipped-row reasons) — show them instead of a generic toast. [C-regression]
       setMessage({
         type: "error",
-        text: "Error syncing inventory. Please try again.",
+        text:
+          err instanceof Error && err.message
+            ? err.message
+            : "Error syncing inventory. Please try again.",
       });
     } finally {
       setIsUploadingInventory(false);
+      // Always reset the input so re-selecting the SAME file re-fires onChange
+      // (after a failure or even a success, re-upload used to be a silent no-op).
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   // VIN Lookup Handler
   const handleVinLookup = async () => {
-    if (!vinLookup || vinLookup.length < 11) {
-      // Basic length check
-      setVinLookupResult("Error: Invalid VIN length");
+    // NHTSA decode needs the full 17-character VIN (the old 11-char gate let
+    // short VINs through to fail server-side with a generic error).
+    if (!vinLookup || vinLookup.length !== 17) {
+      setVinLookupResult("Error: VIN must be 17 characters");
       return;
     }
     setIsVinLoading(true);
@@ -383,7 +442,11 @@ const MainLayout: React.FC = () => {
         setVinLookupResult("Error: Could not decode VIN");
       }
     } catch (err) {
-      setVinLookupResult("Error: Service unavailable");
+      // vinDecoder crafts specific user-facing errors (timeout, not found,
+      // invalid VIN) — surface them instead of a blanket "Service unavailable".
+      setVinLookupResult(
+        `Error: ${err instanceof Error && err.message ? err.message : "Service unavailable"}`
+      );
     } finally {
       setIsVinLoading(false);
     }
@@ -409,6 +472,12 @@ const MainLayout: React.FC = () => {
     setActiveVehicle(vehicle);
     setIsDealModalOpen(true);
     setMessage({ type: "success", text: "Vehicle staged for structuring." });
+    // Pilot metric: a real deal was desked. Deal SHAPE only — never customer PII.
+    capture("deal_desked", {
+      term: dealData.loanTerm,
+      hasTrade: dealData.tradeInValue > 0,
+      ltv: typeof vehicle.otdLtv === "number" ? Math.round(vehicle.otdLtv) : null,
+    });
   };
 
   // Save Deal Handler
@@ -442,6 +511,18 @@ const MainLayout: React.FC = () => {
     }
 
     const now = new Date().toISOString();
+    // Lender grid + settings snapshot make the saved deal self-contained
+    // evidence of what was on screen at save time. [G48]
+    const eligibilitySnapshot = safeLenderProfiles.map((profile) => {
+      const result = checkBankEligibility(vehicleToSave, { ...dealData, ...filters }, profile);
+      return {
+        name: profile.name,
+        eligible: result.eligible,
+        matchedTier: result.matchedTier?.name ?? null,
+        uncheckedConstraints: result.uncheckedConstraints,
+      };
+    });
+
     const newDealData: NewSavedDealPayload = {
       name: `${now.split("T")[0]} - ${customerName}`, // Or ask for name
       customerName,
@@ -455,6 +536,11 @@ const MainLayout: React.FC = () => {
       },
       notes: scratchPadNotes,
       status: "draft" as const,
+      calculatedData: {
+        lenderEligibility: eligibilitySnapshot,
+        settings: { ...settings, ai: undefined },
+        savedAt: now,
+      } as unknown as Record<string, unknown>,
     };
 
     // Optimistic Update or Wait?
@@ -465,6 +551,13 @@ const MainLayout: React.FC = () => {
         setSavedDeals((prev) => [mappedSaved, ...prev]);
         setMessage({ type: "success", text: "Deal saved successfully." });
         setIsDealModalOpen(false);
+        void logDealEvent({
+          action: "deal_saved",
+          customerName,
+          vin: vehicleToSave.vin,
+          snapshot: { dealData, monthlyPayment: vehicleToSave.monthlyPayment },
+        });
+        capture("deal_saved", { term: dealData.loanTerm });
       } else {
         setMessage({ type: "error", text: "Failed to save deal to backend." });
       }
@@ -543,6 +636,26 @@ const MainLayout: React.FC = () => {
       window.open(url, "_blank");
       setTimeout(() => URL.revokeObjectURL(url), 60000);
       setMessage({ type: "success", text: "Favorites PDF generated." });
+      // Evidence trail: record exactly what was handed across the desk —
+      // the PDF itself is ephemeral client-side output. [G44]
+      void logDealEvent({
+        action: "pdf_generated",
+        customerName,
+        vin: pdfData.map((d) => d.vehicle.vin).join(","),
+        snapshot: {
+          type: "favorites",
+          dealData,
+          settings: { ...settings, ai: undefined },
+          vehicles: pdfData.map((d) => ({
+            vin: d.vehicle.vin,
+            price: d.vehicle.price,
+            monthlyPayment: d.vehicle.monthlyPayment,
+            otdLtv: d.vehicle.otdLtv,
+            fits: d.lenderEligibility.filter((l) => l.eligible).map((l) => l.name),
+          })),
+        },
+      });
+      capture("pdf_generated", { type: "favorites", vehicles: pdfData.length });
     } catch (err) {
       console.error("PDF generation failed", err);
       setMessage({
@@ -560,6 +673,16 @@ const MainLayout: React.FC = () => {
     >
       {/* Skip navigation for accessibility */}
       <SkipNavLink />
+
+      {!isOnline && (
+        <div
+          role="status"
+          className="sticky top-0 z-[70] bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border-b border-[var(--color-warning)]/30 px-4 py-2 text-sm font-medium text-center"
+        >
+          Working offline — your edits stay on this device and saves will fail until the connection
+          returns.
+        </div>
+      )}
 
       <Header
         onOpenAiModal={() => setIsAiModalOpen(true)}
@@ -734,7 +857,7 @@ const MainLayout: React.FC = () => {
               </div>
               <Button
                 onClick={handleVinLookup}
-                disabled={isVinLoading || vinLookup.length < 11}
+                disabled={isVinLoading || vinLookup.length !== 17}
                 className="shrink-0"
               >
                 {isVinLoading ? <Icons.SpinnerIcon className="w-4 h-4 animate-spin" /> : "Decode"}
@@ -966,6 +1089,7 @@ const MainLayout: React.FC = () => {
                         tone: "danger",
                       }).then((confirmed) => {
                         if (!confirmed) return;
+                        const target = safeSavedDeals.find((d) => d.id === id);
                         deleteDeal(id)
                           .then((success) => {
                             if (success) {
@@ -976,6 +1100,12 @@ const MainLayout: React.FC = () => {
                               setMessage({
                                 type: "success",
                                 text: "Deal deleted.",
+                              });
+                              void logDealEvent({
+                                action: "deal_deleted",
+                                customerName: target?.customerName,
+                                vin: target?.vehicle?.vin,
+                                snapshot: { deletedDealId: id },
                               });
                             } else {
                               setMessage({
@@ -1024,11 +1154,29 @@ const MainLayout: React.FC = () => {
             Terms
           </a>
           <a
-            href="mailto:support@ltvdeskingpro.com"
+            href={`mailto:${SUPPORT_EMAIL}`}
             className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
           >
             Support
           </a>
+          <button
+            type="button"
+            onClick={() => {
+              // Pre-filled problem report: page, user, version, timestamp —
+              // the pilot's lightweight feedback channel. [G74]
+              const user = getCurrentUser();
+              const subject = encodeURIComponent("LTV Desking PRO — problem report");
+              const body = encodeURIComponent(
+                `What happened:\n\n\n---\nPage: ${window.location.pathname}${window.location.search}\n` +
+                  `User: ${user?.email ?? "unknown"}\nTime: ${new Date().toISOString()}\n` +
+                  `Browser: ${navigator.userAgent}`
+              );
+              window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+            }}
+            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors underline-offset-2 hover:underline"
+          >
+            Report a problem
+          </button>
         </nav>
       </footer>
 
@@ -1156,9 +1304,30 @@ const App: React.FC = () => {
 
     const unsubscribe = onAuthStateChange((user) => {
       setIsAuth(!!user);
+      if (user?.id) {
+        identify(user.id, { role: user.role, dealer: user.dealer });
+      }
     });
+
+    // Keep the session alive: PB tokens hard-expire ~14 days after LOGIN (not
+    // last use), which used to kill active users mid-deal with only a cryptic
+    // "Failed to save". Refresh on boot and twice a day while open. [G65]
+    void refreshSession();
+    const refreshTimer = setInterval(() => void refreshSession(), 12 * 60 * 60 * 1000);
+
+    // Global 401 broadcast from lib/pocketbase: show the login screen with an
+    // explanation instead of a zombie "logged in" UI. The in-progress deal
+    // survives in localStorage.
+    const onSessionExpired = () => {
+      setIsAuth(false);
+      toast.warning("Your session expired. Sign in again — your in-progress deal is saved.");
+    };
+    window.addEventListener("sessionExpired", onSessionExpired);
+
     return () => {
       unsubscribe();
+      clearInterval(refreshTimer);
+      window.removeEventListener("sessionExpired", onSessionExpired);
     };
   }, []);
 
@@ -1175,8 +1344,9 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isLoading) return;
     if (isAdminRoute && isAuth && !isSuperAdmin) {
-      // A non-superadmin hit /admin — drop them to the dealer app.
-      logout();
+      // A non-superadmin hit /admin — just send them to the dealer app. The old
+      // logout() here ended their whole session and reloaded, destroying an
+      // in-progress deal because of a mistyped URL. [C-auth]
       navigate("/", { replace: true });
     } else if (
       !isPrivacyRoute &&

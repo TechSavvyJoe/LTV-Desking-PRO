@@ -6,6 +6,17 @@ import { DEFAULT_AI_SETTINGS } from "./lib/aiModelRegistry";
 // Centralized storage keys to ensure consistency across the application.
 // Update version suffix when making breaking changes to data structure.
 // ============================================================================
+// Interim support/legal contact until the ltvdeskingpro.com domain is
+// registered and a monitored mailbox exists — the old hardcoded
+// support@ltvdeskingpro.com addresses pointed at an UNREGISTERED domain, so
+// every email sent to them bounced (and the domain was hijackable). [G59]
+export const SUPPORT_EMAIL = "joejgallant@gmail.com";
+
+// Michigan's typical statutory doc-fee cap, used only for a non-blocking
+// Settings warning when the configured doc fee exceeds it.
+// TODO(owner): verify the current statutory cap before pilot. [G24]
+export const MI_DOC_FEE_WARN_THRESHOLD = 260;
+
 export const STORAGE_KEYS = {
   INVENTORY: "ltvInventory_v3",
   DEAL_DATA: "ltvDealData_v2",
@@ -28,6 +39,10 @@ export const INITIAL_SETTINGS: Settings = {
   defaultStateFees: 31,
   outOfStateTransitFee: 10,
   customTaxRate: null,
+  // TODO(owner): verify current MI statutory trade-in credit cap before pilot.
+  // The 2026 figure is on the order of ~$12,000–13,000; 12000 is a conservative
+  // placeholder, adjustable in Settings. [G17]
+  miTradeInCreditCap: 12000,
   ltvThresholds: {
     warn: 115,
     danger: 125,

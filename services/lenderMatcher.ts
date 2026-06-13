@@ -12,11 +12,24 @@ const formatCurrencySimple = (value: number | string | undefined): string => {
   }
 };
 
-interface EligibilityResult {
+export interface EligibilityResult {
   eligible: boolean;
   reasons: string[];
   matchedTier: LenderTier | null;
+  /**
+   * Constraints that exist on the lender/tier but could NOT be evaluated
+   * (missing deal data or unsupported semantics). Surfaced in the UI so a
+   * green check never silently overstates what was verified. [G20/G77]
+   */
+  uncheckedConstraints: string[];
 }
+
+const fail = (reasons: string[], unchecked: string[] = []): EligibilityResult => ({
+  eligible: false,
+  reasons,
+  matchedTier: null,
+  uncheckedConstraints: unchecked,
+});
 
 export const checkBankEligibility = (
   vehicle: CalculatedVehicle,
@@ -25,19 +38,11 @@ export const checkBankEligibility = (
 ): EligibilityResult => {
   // Extreme defensive programming to prevent crashes
   if (!bank || typeof bank !== "object") {
-    return {
-      eligible: false,
-      reasons: ["Invalid bank profile data."],
-      matchedTier: null,
-    };
+    return fail(["Invalid bank profile data."]);
   }
 
   if (!deal || typeof deal !== "object") {
-    return {
-      eligible: false,
-      reasons: ["Invalid deal data."],
-      matchedTier: null,
-    };
+    return fail(["Invalid deal data."]);
   }
 
   const { creditScore, monthlyIncome } = deal;
@@ -52,7 +57,24 @@ export const checkBankEligibility = (
     monthlyPayment = 0,
   } = vehicle || {};
 
+  // Sentinel guard: amountToFinance can be "N/A"/"Error" (no price, bad calc).
+  // Previously Number() => NaN slid through every bounds check and could show
+  // a bank as ELIGIBLE — fail closed with an explicit reason instead. [C-NaN]
+  const amt = Number(amountToFinance);
+  if (!Number.isFinite(amt)) {
+    return fail([
+      "Cannot evaluate — financed amount unavailable (vehicle is missing a price or the deal can't be calculated).",
+    ]);
+  }
+
+  // Quoted APR may legitimately be unset ("" at runtime) — rate-cap checks are
+  // then reported as unchecked rather than guessed. [G20]
+  const rawRate = (deal as { interestRate?: unknown }).interestRate;
+  const quotedRate = typeof rawRate === "number" && Number.isFinite(rawRate) ? rawRate : null;
+  const backendAmount = Number(deal.backendProducts) || 0;
+
   const reasons: string[] = [];
+  const unchecked = new Set<string>();
 
   // General bank-level checks
   if (bank.minIncome !== undefined && bank.minIncome > 0) {
@@ -65,27 +87,29 @@ export const checkBankEligibility = (
   }
 
   const income = Number(monthlyIncome) || 0;
-  if (bank.maxPti !== undefined && bank.maxPti > 0 && income > 0) {
-    const pment = Number(monthlyPayment);
-    if (Number.isFinite(pment) && pment > 0) {
-      const pti = (pment / income) * 100;
+  const payment = Number(monthlyPayment);
+  const canCheckPti = income > 0 && Number.isFinite(payment) && payment > 0;
+  if (bank.maxPti !== undefined && bank.maxPti > 0) {
+    if (canCheckPti) {
+      const pti = (payment / income) * 100;
       if (pti > bank.maxPti) {
         reasons.push(`PTI too high (${pti.toFixed(1)}% > ${bank.maxPti}%)`);
       }
+    } else {
+      unchecked.add("max PTI (needs income + a computed payment)");
     }
   }
 
   // If general checks fail, we can stop here.
   if (reasons.length > 0) {
-    return { eligible: false, reasons, matchedTier: null };
+    return fail(reasons, [...unchecked]);
   }
 
   // Find a matching tier
   const tiers = bank.tiers;
   // Defensive check: Ensure tiers is an array before iterating
   if (!tiers || !Array.isArray(tiers)) {
-    reasons.push("Bank profile has invalid tiers structure.");
-    return { eligible: false, reasons, matchedTier: null };
+    return fail(["Bank profile has invalid tiers structure."], [...unchecked]);
   }
 
   for (const tier of tiers) {
@@ -116,15 +140,69 @@ export const checkBankEligibility = (
     if (tier.maxMileage !== undefined && (isNaN(miles) || miles > tier.maxMileage)) continue;
 
     // Amount Financed Check
-    const amt = Number(amountToFinance);
-    if (tier.minAmountFinanced !== undefined && (isNaN(amt) || amt < tier.minAmountFinanced))
-      continue;
-    if (tier.maxAmountFinanced !== undefined && (isNaN(amt) || amt > tier.maxAmountFinanced))
-      continue;
+    if (tier.minAmountFinanced !== undefined && amt < tier.minAmountFinanced) continue;
+    if (tier.maxAmountFinanced !== undefined && amt > tier.maxAmountFinanced) continue;
 
     // Loan Term Check
     if (tier.minTerm !== undefined && deal.loanTerm < tier.minTerm) continue;
     if (tier.maxTerm !== undefined && deal.loanTerm > tier.maxTerm) continue;
+
+    // Make exclusions / inclusions — previously extracted from rate sheets but
+    // silently ignored by matching. [G20]
+    const make = (vehicle?.make || "").trim().toLowerCase();
+    const excluded = Array.isArray(tier.excludedMakes) ? tier.excludedMakes : [];
+    const included = Array.isArray(tier.includedMakes) ? tier.includedMakes : [];
+    if (excluded.length > 0) {
+      if (make) {
+        if (excluded.some((m) => String(m).trim().toLowerCase() === make)) continue;
+      } else {
+        unchecked.add("excluded makes (vehicle make unknown)");
+      }
+    }
+    if (included.length > 0) {
+      if (make) {
+        if (!included.some((m) => String(m).trim().toLowerCase() === make)) continue;
+      } else {
+        unchecked.add("included makes (vehicle make unknown)");
+      }
+    }
+
+    // Tier-level PTI — same semantics as the bank-level check. [G20]
+    if (tier.maxPti !== undefined && tier.maxPti > 0) {
+      if (canCheckPti) {
+        const pti = (payment / income) * 100;
+        if (pti > tier.maxPti) continue;
+      } else {
+        unchecked.add("tier max PTI (needs income + a computed payment)");
+      }
+    }
+
+    // Max buy/contract rate vs the quoted APR. [G20]
+    if (tier.maxRate !== undefined && tier.maxRate > 0) {
+      if (quotedRate !== null) {
+        if (quotedRate > tier.maxRate) continue;
+      } else {
+        unchecked.add("max APR (no rate entered on the deal)");
+      }
+    }
+
+    // Backend caps vs the deal's backend dollars. maxBackendPercent is
+    // evaluated against book value when one exists. [G20]
+    if (tier.maxBackend !== undefined && tier.maxBackend > 0 && backendAmount > tier.maxBackend)
+      continue;
+    if (tier.maxBackendPercent !== undefined && tier.maxBackendPercent > 0 && backendAmount > 0) {
+      const bookForBackend =
+        typeof jdPower === "number" && jdPower > 0
+          ? jdPower
+          : typeof jdPowerRetail === "number" && jdPowerRetail > 0
+            ? jdPowerRetail
+            : null;
+      if (bookForBackend !== null) {
+        if ((backendAmount / bookForBackend) * 100 > tier.maxBackendPercent) continue;
+      } else {
+        unchecked.add("max backend % (no book value)");
+      }
+    }
 
     // LTV (Loan-to-Value) Check
     if (tier.maxLtv !== undefined) {
@@ -143,11 +221,33 @@ export const checkBankEligibility = (
       if (otdLtv > tier.maxLtv) continue;
     }
 
-    // If all checks pass, this tier is a match.
-    return { eligible: true, reasons: [], matchedTier: tier };
+    // Front-end LTV cap, using the calculator's front-end figure. [G20]
+    if (tier.frontEndLtv !== undefined && tier.frontEndLtv > 0) {
+      const fe = Number(vehicle?.frontEndLtv);
+      if (Number.isFinite(fe)) {
+        if (fe > tier.frontEndLtv) continue;
+      } else {
+        unchecked.add("front-end LTV cap (not computable)");
+      }
+    }
+
+    // Constraints extracted from rate sheets whose lender-specific semantics we
+    // don't model yet — say so instead of pretending they passed. [G20]
+    if (tier.maxAdvance !== undefined && tier.maxAdvance > 0) {
+      unchecked.add("max advance (semantics vary by lender — verify on the rate sheet)");
+    }
+    if (tier.vehicleType) {
+      unchecked.add(`vehicle type "${tier.vehicleType}" (no body-type data on inventory)`);
+    }
+    if (tier.maxDti !== undefined && tier.maxDti > 0) {
+      unchecked.add("max DTI (customer debts not collected)");
+    }
+
+    // If all evaluable checks pass, this tier is a preliminary fit.
+    return { eligible: true, reasons: [], matchedTier: tier, uncheckedConstraints: [...unchecked] };
   }
 
   // If the loop completes without finding a matching tier.
-  reasons.push("No eligible lending tier found for this deal structure and vehicle.");
-  return { eligible: false, reasons, matchedTier: null };
+  reasons.push("No fitting lending tier found for this deal structure and vehicle.");
+  return fail(reasons, [...unchecked]);
 };

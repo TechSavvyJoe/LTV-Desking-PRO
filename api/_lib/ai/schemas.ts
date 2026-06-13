@@ -135,7 +135,9 @@ export const dealSuggestionJsonSchema = {
               loanTerm: { type: "number" },
               interestRate: { type: "number" },
               stateFees: { type: "number" },
-              notes: { type: "string" },
+              // `notes` intentionally omitted: AI free text must not flow into
+              // the deal (it prints on customer paper). Structural enforcement
+              // of the prompt rule + the applySuggestion drop. [G32]
             },
           },
           alternativeVehicleVin: { type: "string" },
@@ -257,7 +259,7 @@ export const AiDealSuggestionSchema = z.object({
           loanTerm: optionalNumber,
           interestRate: optionalNumber,
           stateFees: optionalNumber,
-          notes: z.string().optional(),
+          // `notes` intentionally omitted — see jsonSchema above. [G32]
         })
         .partial()
         .default({}),

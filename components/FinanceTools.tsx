@@ -3,7 +3,7 @@ import { calculateMonthlyPayment, calculateLoanAmount } from "../services/calcul
 import { formatCurrency } from "./common/TableCell";
 import * as Icons from "./common/Icons";
 import { PaymentBreakdownChart, LenderComparisonChart } from "./DealCharts";
-import { DealData, CalculatedVehicle } from "../types";
+import { DealData, CalculatedVehicle, LenderProfile, FilterData } from "../types";
 import { DocumentScanner } from "./DocumentScanner";
 
 type ToolTab =
@@ -122,6 +122,10 @@ interface FinanceToolsProps {
   setScratchPadNotes: (notes: string) => void;
   dealData?: DealData;
   activeVehicle?: CalculatedVehicle | null;
+  // Optional: provided by FloatingToolsPanel (ToolProps); used by the
+  // lender comparison chart so it reflects real dealer-entered programs.
+  lenderProfiles?: LenderProfile[];
+  customerFilters?: FilterData;
 }
 
 const FinanceTools: React.FC<FinanceToolsProps> = ({
@@ -129,6 +133,8 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   setScratchPadNotes,
   dealData,
   activeVehicle,
+  lenderProfiles,
+  customerFilters,
 }) => {
   const [activeTab, setActiveTab] = useState<ToolTab>("reserve");
 
@@ -183,23 +189,34 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const handleSyncToDeal = () => {
     if (!dealData || !activeVehicle) return;
     const price = typeof activeVehicle.price === "number" ? activeVehicle.price : 30000;
-    const rate = dealData.interestRate;
+    // A cleared APR arrives as "" at runtime (the DealData type lies). The old
+    // code string-concatenated it: "" + 2 → "2" → a fabricated 2% sell rate fed
+    // into the reserve calc. Skip rate syncing when no real rate exists. [C-modals]
+    const rawRate = dealData.interestRate as number | "";
+    const rate = typeof rawRate === "number" && Number.isFinite(rawRate) ? rawRate : null;
     const term = dealData.loanTerm;
 
-    setResAmount(price);
-    setBuyRate(rate);
-    setSellRate(rate + 2);
+    // Sync the financed amount, not the sticker price, into the reserve calc —
+    // reserve is earned on the amount financed.
+    const principal =
+      typeof activeVehicle.amountToFinance === "number" ? activeVehicle.amountToFinance : price;
+
+    setResAmount(principal);
+    if (rate !== null) {
+      setBuyRate(rate);
+      setSellRate(rate + 2);
+      setPayRate(rate);
+      setBudgetRate(rate);
+      setCompRate(rate);
+    }
     setResTerm(term);
 
     setPayAmount(price);
-    setPayRate(rate);
     setPayTerm(term);
 
-    setBudgetRate(rate);
     setBudgetTerm(term);
 
     setCompAmount(price);
-    setCompRate(rate);
   };
 
   // --- Calculations ---
@@ -372,11 +389,13 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 </div>
                 <div className="p-4 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border)]">
                   <h4 className="font-semibold text-slate-900 dark:text-white mb-4">
-                    Lender Comparison (Est.)
+                    Matched Lender Payments (est.)
                   </h4>
                   <LenderComparisonChart
                     dealData={dealData}
                     activeVehicle={activeVehicle || null}
+                    lenderProfiles={lenderProfiles}
+                    customerFilters={customerFilters}
                   />
                 </div>
               </div>

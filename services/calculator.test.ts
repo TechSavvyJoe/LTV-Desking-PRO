@@ -77,6 +77,7 @@ describe("Calculator Service", () => {
       defaultApr: 7.99,
       defaultStateFees: 200,
       customTaxRate: null,
+      miTradeInCreditCap: 12000,
       ai: DEFAULT_AI_SETTINGS,
     };
 
@@ -196,6 +197,61 @@ describe("Calculator Service", () => {
       expect(result.salesTax).toBeCloseTo(1740.81, 2);
       // OTD includes the transit fee.
       expect(result.baseOutTheDoorPrice).toBeCloseTo(30000 + 250 + 25 + 1740.81 + 10, 2);
+    });
+
+    // --- MI trade-in credit cap [G17] ---
+
+    it("caps the MI sales-tax trade-in credit at the statutory cap [G17]", () => {
+      const bigTrade = { ...mockDealData, tradeInValue: 20000 };
+      const result = calculateFinancials(mockVehicle, bigTrade, mockSettings);
+      // Trade credit clamped to 12000: taxable (30000 - 12000) + 250 + 25 = 18275
+      // Tax (MI 6%): 18275 * 0.06 = 1096.5
+      expect(result.salesTax).toBeCloseTo(1096.5, 2);
+    });
+
+    it("does not cap the trade-in credit below the MI cap [G17]", () => {
+      const smallTrade = { ...mockDealData, tradeInValue: 10000 };
+      const result = calculateFinancials(mockVehicle, smallTrade, mockSettings);
+      // Full credit: taxable (30000 - 10000) + 250 + 25 = 20275 -> 1216.5
+      expect(result.salesTax).toBeCloseTo(1216.5, 2);
+    });
+
+    it("does not apply the MI cap to out-of-state (OH) buyers [G17]", () => {
+      const deal = { ...mockDealData, tradeInValue: 20000, buyerState: "OH" as const };
+      const settingsOOS: Settings = { ...mockSettings, outOfStateTransitFee: 0 };
+      const result = calculateFinancials(mockVehicle, deal, settingsOOS);
+      // Full 20000 credit: taxable (30000 - 20000) + 250 + 25 = 10275
+      // OH 5.75% (< MI 6% reciprocal cap): 10275 * 0.0575 = 590.8125 -> 590.81
+      expect(result.salesTax).toBeCloseTo(590.81, 2);
+    });
+
+    // --- per-deal buyer state [G18] ---
+
+    it("uses the deal's buyerState instead of settings.defaultState when present [G18]", () => {
+      const settingsMI: Settings = { ...mockSettings, outOfStateTransitFee: 10 };
+      const deal = { ...mockDealData, stateFees: 0, buyerState: "OH" as const };
+      const result = calculateFinancials(mockVehicle, deal, settingsMI);
+      // OH 5.75% on 30275 = 1740.8125 -> 1740.81, plus the transit fee in OTD.
+      expect(result.salesTax).toBeCloseTo(1740.81, 2);
+      expect(result.baseOutTheDoorPrice).toBeCloseTo(30000 + 250 + 25 + 1740.81 + 10, 2);
+    });
+
+    it("falls back to settings.defaultState when buyerState is undefined [G18]", () => {
+      const result = calculateFinancials(mockVehicle, mockDealData, mockSettings);
+      // Identical to the settings-only MI path: 30275 * 0.06 = 1816.5
+      expect(result.salesTax).toBeCloseTo(1816.5, 2);
+    });
+
+    // --- fail loudly on unknown states [G16] ---
+
+    it("throws on an unsupported tax state instead of silently taxing at 6% [G16]", () => {
+      const deal = {
+        ...mockDealData,
+        buyerState: "TX" as unknown as DealData["buyerState"],
+      };
+      expect(() => calculateFinancials(mockVehicle, deal, mockSettings)).toThrow(
+        /Unsupported tax state: TX/
+      );
     });
 
     it("does not error when down payment exceeds price (negative amount to finance)", () => {

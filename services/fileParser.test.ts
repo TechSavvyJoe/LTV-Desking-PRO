@@ -26,6 +26,17 @@ describe("fileParser", () => {
       expect(parseNumber("1.234,56")).toBe("N/A");
     });
 
+    it("refuses a pure comma-decimal value instead of parsing it as thousands [C-regression]", () => {
+      // "28500,50" previously parsed as 2850050 — 1-2 digits after the final
+      // comma is never a US thousands separator.
+      expect(parseNumber("28500,50")).toBe("N/A");
+    });
+
+    it("still accepts trailing 3-digit thousands groups [C-regression]", () => {
+      expect(parseNumber("1,234")).toBe(1234);
+      expect(parseNumber("1,234,567")).toBe(1234567);
+    });
+
     it("returns N/A for blank/non-numeric", () => {
       expect(parseNumber("")).toBe("N/A");
       expect(parseNumber(undefined)).toBe("N/A");
@@ -85,6 +96,31 @@ describe("fileParser", () => {
       // Same car gets the same id regardless of position in the file.
       expect(vinFor(first, "S1")).toBe(vinFor(second, "S1"));
       expect(vinFor(first, "S1")).toMatch(/^SYN-/);
+    });
+
+    it("gives no-VIN rows differing only by trim distinct synthetic ids [C-regression]", () => {
+      const trimHeader = "Make,Model,Trim,Stock #,Price,Mileage";
+      const csv = [
+        trimHeader,
+        "Toyota,Camry,SE,S1,25000,30000",
+        "Toyota,Camry,XLE,S1,25000,30000",
+      ].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+      expect(vehicles).toHaveLength(2);
+      expect(skipped).toBe(0);
+      expect(vehicles[0]?.vin).not.toBe(vehicles[1]?.vin);
+    });
+
+    it("keeps two IDENTICAL no-VIN rows with distinct suffixed ids [C-regression]", () => {
+      const noVinHeader = "Vehicle,Stock #,Price,Mileage";
+      const row = "2020 Toyota Camry,S1,25000,30000";
+      const csv = [noVinHeader, row, row].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+      expect(vehicles).toHaveLength(2);
+      expect(skipped).toBe(0);
+      const [first, second] = vehicles;
+      expect(first?.vin).toMatch(/^SYN-/);
+      expect(second?.vin).toBe(`${first?.vin}-2`);
     });
 
     it("parses tab-delimited files [B10]", () => {

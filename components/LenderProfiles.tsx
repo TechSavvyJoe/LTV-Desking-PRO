@@ -79,6 +79,62 @@ const TierSection = ({ title, children }: { title: string; children: React.React
   </div>
 );
 
+// Provenance metadata that may ride along on profiles loaded from PocketBase
+// (the app-level LenderProfile type omits these record fields). [G27]
+type LenderProfileProvenance = LenderProfile & {
+  updated?: string;
+  extractionSource?: string;
+  confidence?: number;
+};
+
+const STALE_AFTER_DAYS = 60;
+const MS_PER_DAY = 86_400_000;
+
+/** Days since the PocketBase `updated` timestamp, or null if missing/unparseable. */
+const getDaysSinceUpdated = (updated: unknown): number | null => {
+  if (typeof updated !== "string" || updated.trim() === "") return null;
+  // PocketBase may use a space separator ("YYYY-MM-DD HH:MM:SS"); normalize it.
+  const parsed = new Date(updated.replace(" ", "T"));
+  if (Number.isNaN(parsed.getTime())) return null;
+  const days = Math.floor((Date.now() - parsed.getTime()) / MS_PER_DAY);
+  return days >= 0 ? days : null;
+};
+
+// Compact staleness/provenance badges rendered inline next to the lender name. [G27]
+const ProfileBadges = ({ profile }: { profile: LenderProfile }) => {
+  const meta = profile as LenderProfileProvenance;
+  const daysSinceUpdated = getDaysSinceUpdated(meta.updated);
+  const isStale = daysSinceUpdated !== null && daysSinceUpdated > STALE_AFTER_DAYS;
+  const isAiImported =
+    (typeof meta.extractionSource === "string" && meta.extractionSource.trim() !== "") ||
+    typeof meta.confidence === "number";
+
+  if (!profile.effectiveDate && !isStale && !isAiImported) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1.5 flex-wrap">
+      {profile.effectiveDate && (
+        <span className="text-xs font-normal text-[var(--color-text-muted)] whitespace-nowrap">
+          Effective {profile.effectiveDate}
+        </span>
+      )}
+      {isStale && (
+        <span className="bg-[var(--color-warning-subtle)] text-[var(--color-warning)] rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap">
+          Not verified in {daysSinceUpdated} days
+        </span>
+      )}
+      {isAiImported && (
+        <span
+          title="Extracted from a rate sheet by AI — verify against the source PDF"
+          className="bg-[var(--color-primary-subtle)] text-[var(--color-primary)] rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap"
+        >
+          AI-imported
+        </span>
+      )}
+    </span>
+  );
+};
+
 type EditableLenderProfilePayload = Omit<PocketBaseLenderProfile, "dealer" | "created" | "updated">;
 type NewLenderProfilePayload = Omit<EditableLenderProfilePayload, "id">;
 type NamedPartialLenderProfile = Partial<LenderProfile> & { name: string };
@@ -751,7 +807,12 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
                     className="border-b border-slate-800 last:border-b-0 hover:bg-slate-900 cursor-pointer"
                     onClick={() => toggleRowExpansion(profile.id)}
                   >
-                    <td className="p-3 font-medium text-white">{profile.name}</td>
+                    <td className="p-3 font-medium text-white">
+                      <span className="inline-flex items-center gap-2 flex-wrap">
+                        {profile.name}
+                        <ProfileBadges profile={profile} />
+                      </span>
+                    </td>
                     <td className="p-3">{getRange(profile.tiers, "minFico")}</td>
                     <td className="p-3">
                       {(() => {
