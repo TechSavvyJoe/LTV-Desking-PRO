@@ -465,7 +465,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
                 return (
                   <div
                     key={index}
-                    className="group relative bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-300"
+                    className="group relative bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-xl hover:border-green-300 dark:hover:border-green-600 transition-all duration-300"
                   >
                     {/* Tier Header with gradient */}
                     <div className="bg-slate-800 dark:bg-slate-700 px-4 py-3">
@@ -479,7 +479,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
                               tier.vehicleType === "new"
                                 ? "bg-emerald-500 text-white"
                                 : tier.vehicleType === "certified"
-                                  ? "bg-blue-500 text-white"
+                                  ? "bg-green-500 text-white"
                                   : "bg-slate-600 text-slate-200"
                             }`}
                           >
@@ -707,7 +707,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Icons.BuildingLibraryIcon className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+            <Icons.BuildingLibraryIcon className="w-7 h-7 text-green-600 dark:text-green-400" />
             Lender Profiles
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -728,7 +728,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
           <select
             value={targetLenderId}
             onChange={(e) => setTargetLenderId(e.target.value)}
-            className="bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+            className="bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block p-2.5"
             title="Select target lender for rate sheet upload"
             aria-label="Select target lender for rate sheet upload"
           >
@@ -745,9 +745,9 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
             disabled={isUploading}
           >
             {isUploading ? (
-              <Icons.SpinnerIcon className="animate-spin w-5 h-5 text-blue-500" />
+              <Icons.SpinnerIcon className="animate-spin w-5 h-5 text-green-500" />
             ) : (
-              <Icons.CloudArrowDownIcon className="w-5 h-5 text-blue-400" />
+              <Icons.CloudArrowDownIcon className="w-5 h-5 text-green-400" />
             )}
             <span className="ml-2">{isUploading ? "Analyzing..." : "Upload Rate Sheet(s)"}</span>
           </Button>
@@ -843,7 +843,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
                       <span
                         className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
                           profile.bookValueSource === "Retail"
-                            ? "bg-blue-900/60 text-blue-200"
+                            ? "bg-green-900/60 text-green-200"
                             : "bg-slate-800 text-slate-300"
                         }`}
                       >
@@ -862,7 +862,7 @@ const LenderProfiles: React.FC<LenderProfilesProps> = ({ profiles, onUpdate, set
                             e.stopPropagation();
                             handleEdit(profile);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
                           title="Edit Profile"
                           aria-label="Edit Profile"
                         >

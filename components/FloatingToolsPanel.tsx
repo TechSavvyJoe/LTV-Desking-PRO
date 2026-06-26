@@ -39,25 +39,25 @@ const InputGroup: React.FC<{
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-3 py-2 text-base bg-transparent border border-slate-300 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-0 transition-colors duration-200 ease-in-out"
+    className="w-full px-3 py-2 text-base bg-transparent border border-slate-300 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-green-500 focus:ring-0 transition-colors duration-200 ease-in-out"
   />
 );
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
     {...props}
-    className="w-full px-3 py-2 text-base bg-slate-50 dark:bg-black border border-slate-300 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-0 transition-colors duration-200 ease-in-out"
+    className="w-full px-3 py-2 text-base bg-slate-50 dark:bg-black border border-slate-300 dark:border-slate-700 rounded-lg placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-green-500 focus:ring-0 transition-colors duration-200 ease-in-out"
   />
 );
 const ResultDisplay = ({
   label,
   value,
-  valueColorClass = "text-blue-500",
+  valueColorClass = "text-green-500",
 }: {
   label: string;
   value: string | React.ReactNode;
   valueColorClass?: string;
 }) => (
-  <div className="flex justify-between items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+  <div className="flex justify-between items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-md">
     <span className={`font-bold text-lg ${valueColorClass}`}>{label}</span>
     <span className={`font-bold text-lg ${valueColorClass}`}>{value}</span>
   </div>
@@ -378,7 +378,9 @@ const GrossProfit = ({ inventory, favorites, toggleFavorite }: ToolProps) => {
             label="Total Gross"
             value={formatCurrency(frontEndGross + backEndGross)}
             valueColorClass={
-              frontEndGross + backEndGross > 0 ? "text-blue-600 dark:text-blue-400" : "text-red-500"
+              frontEndGross + backEndGross > 0
+                ? "text-green-600 dark:text-green-400"
+                : "text-red-500"
             }
           />
         </div>

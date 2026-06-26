@@ -22,6 +22,82 @@ interface DealControlsProps {
   isVinLoading: boolean;
 }
 
+/* Stroke-1.6 inline group icons — one consistent set, matching the desk redesign. */
+const Stroke: React.FC<{ d: string; className?: string }> = ({ d, className }) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden
+  >
+    <path d={d} />
+  </svg>
+);
+
+const ICONS = {
+  customer: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
+  cash: "M2 7h20v10H2z M2 11h20",
+  incentive:
+    "M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7 M2 7h20v5H2z M12 22V7 M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z",
+  structure: "M3 3v18h18 M7 14l4-4 3 3 5-6",
+  search: "M21 21l-4.3-4.3 M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14",
+};
+
+/** A labeled group within the deal-terms panel: uppercase eyebrow + green icon, then fields. */
+const Group: React.FC<{
+  icon: keyof typeof ICONS;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}> = ({ icon, title, children, className = "" }) => (
+  <div className={className}>
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-[var(--color-primary)]">
+        <Stroke d={ICONS[icon]} />
+      </span>
+      <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+        {title}
+      </span>
+    </div>
+    <div className="space-y-3">{children}</div>
+  </div>
+);
+
+const Panel: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  badge?: string;
+  hint?: string;
+  children: React.ReactNode;
+}> = ({ icon, title, badge, hint, children }) => (
+  <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-md)] overflow-hidden">
+    <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[var(--color-border)]">
+      <span className="text-[var(--color-primary)]">{icon}</span>
+      <h3 className="font-display text-[15px] font-semibold text-[var(--color-text)] tracking-tight">
+        {title}
+      </h3>
+      {badge && (
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-2 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
+          {badge}
+        </span>
+      )}
+      {hint && (
+        <span className="ml-auto hidden lg:block text-xs text-[var(--color-text-subtle)]">
+          {hint}
+        </span>
+      )}
+    </div>
+    <div className="p-5">{children}</div>
+  </section>
+);
+
 const DealControls: React.FC<DealControlsProps> = ({
   filters,
   setFilters,
@@ -120,86 +196,207 @@ const DealControls: React.FC<DealControlsProps> = ({
     : "text-green-500";
 
   return (
-    <div className="border-b border-slate-200 dark:border-gray-700 py-4 grid grid-cols-1 2xl:grid-cols-2 gap-6">
-      <div className="border border-[var(--color-border)] rounded-md p-5 space-y-2 bg-[var(--color-bg)] shadow-sm">
-        <h3 className="text-lg font-semibold mb-2 text-[var(--color-text)]">
-          <span className="text-[var(--color-text-subtle)] mr-2 tabular-nums">1.</span>
-          Customer &amp; Deal Info
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-4 gap-4">
-          <InputGroup label="Customer Name" htmlFor="customerName" className="lg:col-span-1">
-            <Input
-              type="text"
-              id="customerName"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="e.g., John Doe"
-            />
-          </InputGroup>
-          <InputGroup label="Salesperson Name" htmlFor="salespersonName" className="lg:col-span-1">
-            <Input
-              type="text"
-              id="salespersonName"
-              value={salespersonName}
-              onChange={(e) => setSalespersonName(e.target.value)}
-              placeholder="e.g., Jane Smith"
-            />
-          </InputGroup>
-          <InputGroup label="Credit Score" htmlFor="creditScore" error={errors.creditScore}>
-            <Input
-              type="number"
-              id="creditScore"
-              inputMode="numeric"
-              value={filters.creditScore ?? ""}
-              onChange={handleFilterChange}
-              placeholder="e.g., 720"
-              min="300"
-              max="850"
-              error={!!errors.creditScore}
-            />
-          </InputGroup>
-          <InputGroup
-            label="Monthly Income ($)"
-            htmlFor="monthlyIncome"
-            error={errors.monthlyIncome}
-          >
-            <Input
-              type="number"
-              id="monthlyIncome"
-              value={filters.monthlyIncome ?? ""}
-              onChange={handleFilterChange}
-              placeholder="e.g., 5000"
-              min="0"
-              error={!!errors.monthlyIncome}
-            />
-          </InputGroup>
-          <div className="lg:col-span-2 xl:col-span-1">
-            <InputGroup label="VIN Lookup" htmlFor="vin">
-              <div className="relative">
-                <Input
-                  type="text"
-                  id="vin"
-                  value={filters.vin}
-                  onChange={handleFilterChange}
-                  placeholder="Enter 17-digit VIN"
-                  maxLength={17}
-                />
-                {isVinLoading && (
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                    <Icons.SpinnerIcon className="animate-spin h-5 w-5 text-blue-500" />
-                  </div>
-                )}
-              </div>
-              {vinLookupResult && (
-                <p className={`mt-1 text-xs ${vinResultColor}`}>{vinLookupResult}</p>
-              )}
+    <div className="space-y-5 pb-2">
+      {/* ───── Deal terms — re-prices & re-ranks all inventory ───── */}
+      <Panel
+        icon={
+          <Stroke d="M12 20h9 M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" className="!w-4 !h-4" />
+        }
+        title="Deal terms"
+        badge="LIVE"
+        hint="Every change re-prices & re-ranks all inventory instantly"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
+          <Group icon="customer" title="Customer & credit">
+            <InputGroup label="Customer Name" htmlFor="customerName">
+              <Input
+                type="text"
+                id="customerName"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="e.g., John Doe"
+              />
             </InputGroup>
-          </div>
-          <InputGroup
-            label="Filter Vehicle"
-            htmlFor="vehicle"
-            className="lg:col-span-2 xl:col-span-2"
-          >
+            <InputGroup label="Salesperson Name" htmlFor="salespersonName">
+              <Input
+                type="text"
+                id="salespersonName"
+                value={salespersonName}
+                onChange={(e) => setSalespersonName(e.target.value)}
+                placeholder="e.g., Jane Smith"
+              />
+            </InputGroup>
+            <div className="grid grid-cols-2 gap-3">
+              <InputGroup label="Credit Score" htmlFor="creditScore" error={errors.creditScore}>
+                <Input
+                  type="number"
+                  id="creditScore"
+                  inputMode="numeric"
+                  value={filters.creditScore ?? ""}
+                  onChange={handleFilterChange}
+                  placeholder="720"
+                  min="300"
+                  max="850"
+                  error={!!errors.creditScore}
+                />
+              </InputGroup>
+              <InputGroup label="Buyer State" htmlFor="buyerState">
+                <Select
+                  id="buyerState"
+                  value={dealData.buyerState ?? ""}
+                  onChange={handleBuyerStateChange}
+                >
+                  <option value="">MI (default)</option>
+                  <option value="OH">OH</option>
+                  <option value="IN">IN</option>
+                </Select>
+              </InputGroup>
+            </div>
+            <InputGroup
+              label="Monthly Income ($)"
+              htmlFor="monthlyIncome"
+              error={errors.monthlyIncome}
+            >
+              <Input
+                type="number"
+                id="monthlyIncome"
+                value={filters.monthlyIncome ?? ""}
+                onChange={handleFilterChange}
+                placeholder="e.g., 5000"
+                min="0"
+                error={!!errors.monthlyIncome}
+              />
+            </InputGroup>
+          </Group>
+
+          <Group icon="cash" title="Cash & trade">
+            <InputGroup label="Down Pmt ($)" htmlFor="downPayment" error={errors.downPayment}>
+              <Input
+                type="number"
+                id="downPayment"
+                value={dealData.downPayment === 0 ? "" : dealData.downPayment}
+                onChange={handleDealChange}
+                min="0"
+                step="100"
+                error={!!errors.downPayment}
+                placeholder="0"
+              />
+            </InputGroup>
+            <InputGroup label="Trade Value ($)" htmlFor="tradeInValue" error={errors.tradeInValue}>
+              <Input
+                type="number"
+                id="tradeInValue"
+                value={dealData.tradeInValue === 0 ? "" : dealData.tradeInValue}
+                onChange={handleDealChange}
+                min="0"
+                step="100"
+                error={!!errors.tradeInValue}
+                placeholder="0"
+              />
+            </InputGroup>
+            <InputGroup
+              label="Trade Payoff ($)"
+              htmlFor="tradeInPayoff"
+              error={errors.tradeInPayoff}
+            >
+              <Input
+                type="number"
+                id="tradeInPayoff"
+                value={dealData.tradeInPayoff === 0 ? "" : dealData.tradeInPayoff}
+                onChange={handleDealChange}
+                min="0"
+                step="100"
+                error={!!errors.tradeInPayoff}
+                placeholder="0"
+              />
+            </InputGroup>
+          </Group>
+
+          <Group icon="incentive" title="Incentives & fees">
+            <InputGroup
+              label="Backend ($)"
+              htmlFor="backendProducts"
+              error={errors.backendProducts}
+            >
+              <Input
+                type="number"
+                id="backendProducts"
+                value={dealData.backendProducts === 0 ? "" : dealData.backendProducts}
+                onChange={handleDealChange}
+                min="0"
+                step="50"
+                error={!!errors.backendProducts}
+                placeholder="0"
+              />
+            </InputGroup>
+            <InputGroup label="State Fees ($)" htmlFor="stateFees" error={errors.stateFees}>
+              <Input
+                type="number"
+                id="stateFees"
+                value={dealData.stateFees === 0 ? "" : dealData.stateFees}
+                onChange={handleDealChange}
+                min="0"
+                step="1"
+                error={!!errors.stateFees}
+                placeholder="0"
+              />
+            </InputGroup>
+          </Group>
+
+          <Group icon="structure" title="Structure">
+            <InputGroup label="Term (Months)" htmlFor="loanTerm">
+              <Select id="loanTerm" value={dealData.loanTerm} onChange={handleDealChange}>
+                <option value="36">36</option>
+                <option value="48">48</option>
+                <option value="54">54</option>
+                <option value="60">60</option>
+                <option value="66">66</option>
+                <option value="72">72</option>
+                <option value="75">75</option>
+                <option value="84">84</option>
+              </Select>
+            </InputGroup>
+            <InputGroup label="APR (%)" htmlFor="interestRate" error={errors.interestRate}>
+              <Input
+                type="number"
+                id="interestRate"
+                value={dealData.interestRate}
+                onChange={handleDealChange}
+                min="0"
+                max="50"
+                step="0.1"
+                error={!!errors.interestRate}
+                placeholder="8.5"
+              />
+            </InputGroup>
+          </Group>
+        </div>
+      </Panel>
+
+      {/* ───── Inventory filters ───── */}
+      <Panel icon={<Stroke d={ICONS.search} className="!w-4 !h-4" />} title="Find a vehicle">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+          <InputGroup label="VIN Lookup" htmlFor="vin" className="col-span-2 md:col-span-1">
+            <div className="relative">
+              <Input
+                type="text"
+                id="vin"
+                value={filters.vin}
+                onChange={handleFilterChange}
+                placeholder="17-digit VIN"
+                maxLength={17}
+              />
+              {isVinLoading && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <Icons.SpinnerIcon className="animate-spin h-5 w-5 text-[var(--color-primary)]" />
+                </div>
+              )}
+            </div>
+            {vinLookupResult && (
+              <p className={`mt-1 text-xs ${vinResultColor}`}>{vinLookupResult}</p>
+            )}
+          </InputGroup>
+          <InputGroup label="Filter Vehicle" htmlFor="vehicle" className="col-span-2 md:col-span-2">
             <Input
               type="text"
               id="vehicle"
@@ -214,7 +411,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               id="maxPrice"
               value={filters.maxPrice ?? ""}
               onChange={handleFilterChange}
-              placeholder="e.g., 25000"
+              placeholder="25000"
               min="0"
               error={!!errors.maxPrice}
             />
@@ -225,7 +422,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               id="maxPayment"
               value={filters.maxPayment ?? ""}
               onChange={handleFilterChange}
-              placeholder="e.g., 450"
+              placeholder="450"
               min="0"
               error={!!errors.maxPayment}
             />
@@ -237,7 +434,7 @@ const DealControls: React.FC<DealControlsProps> = ({
               inputMode="numeric"
               value={filters.maxMiles ?? ""}
               onChange={handleFilterChange}
-              placeholder="e.g., 100000"
+              placeholder="100000"
               min="0"
               error={!!errors.maxMiles}
             />
@@ -248,119 +445,14 @@ const DealControls: React.FC<DealControlsProps> = ({
               id="maxOtdLtv"
               value={filters.maxOtdLtv ?? ""}
               onChange={handleFilterChange}
-              placeholder="e.g., 125"
+              placeholder="125"
               min="0"
               max="200"
               error={!!errors.maxOtdLtv}
             />
           </InputGroup>
         </div>
-      </div>
-
-      <div className="border border-[var(--color-border)] rounded-md p-5 space-y-2 bg-[var(--color-bg)] shadow-sm">
-        <h3 className="text-lg font-semibold mb-2 text-[var(--color-text)]">
-          <span className="text-[var(--color-text-subtle)] mr-2 tabular-nums">2.</span>
-          Global Deal Structure
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 2xl:grid-cols-4 gap-4">
-          <InputGroup label="Down Pmt ($)" htmlFor="downPayment" error={errors.downPayment}>
-            <Input
-              type="number"
-              id="downPayment"
-              value={dealData.downPayment === 0 ? "" : dealData.downPayment}
-              onChange={handleDealChange}
-              min="0"
-              step="100"
-              error={!!errors.downPayment}
-              placeholder="0"
-            />
-          </InputGroup>
-          <InputGroup label="Trade Value ($)" htmlFor="tradeInValue" error={errors.tradeInValue}>
-            <Input
-              type="number"
-              id="tradeInValue"
-              value={dealData.tradeInValue === 0 ? "" : dealData.tradeInValue}
-              onChange={handleDealChange}
-              min="0"
-              step="100"
-              error={!!errors.tradeInValue}
-              placeholder="0"
-            />
-          </InputGroup>
-          <InputGroup label="Trade Payoff ($)" htmlFor="tradeInPayoff" error={errors.tradeInPayoff}>
-            <Input
-              type="number"
-              id="tradeInPayoff"
-              value={dealData.tradeInPayoff === 0 ? "" : dealData.tradeInPayoff}
-              onChange={handleDealChange}
-              min="0"
-              step="100"
-              error={!!errors.tradeInPayoff}
-              placeholder="0"
-            />
-          </InputGroup>
-          <InputGroup label="Backend ($)" htmlFor="backendProducts" error={errors.backendProducts}>
-            <Input
-              type="number"
-              id="backendProducts"
-              value={dealData.backendProducts === 0 ? "" : dealData.backendProducts}
-              onChange={handleDealChange}
-              min="0"
-              step="50"
-              error={!!errors.backendProducts}
-              placeholder="0"
-            />
-          </InputGroup>
-          <InputGroup label="State Fees ($)" htmlFor="stateFees" error={errors.stateFees}>
-            <Input
-              type="number"
-              id="stateFees"
-              value={dealData.stateFees === 0 ? "" : dealData.stateFees}
-              onChange={handleDealChange}
-              min="0"
-              step="1"
-              error={!!errors.stateFees}
-              placeholder="0"
-            />
-          </InputGroup>
-          <InputGroup label="Term (Mo)" htmlFor="loanTerm">
-            <Select id="loanTerm" value={dealData.loanTerm} onChange={handleDealChange}>
-              <option value="36">36</option>
-              <option value="48">48</option>
-              <option value="54">54</option>
-              <option value="60">60</option>
-              <option value="66">66</option>
-              <option value="72">72</option>
-              <option value="75">75</option>
-              <option value="84">84</option>
-            </Select>
-          </InputGroup>
-          <InputGroup label="APR (%)" htmlFor="interestRate" error={errors.interestRate}>
-            <Input
-              type="number"
-              id="interestRate"
-              value={dealData.interestRate}
-              onChange={handleDealChange}
-              min="0"
-              max="50"
-              step="0.1"
-              error={!!errors.interestRate}
-              placeholder="8.5"
-            />
-          </InputGroup>
-          <InputGroup label="Buyer State" htmlFor="buyerState">
-            <Select
-              id="buyerState"
-              value={dealData.buyerState ?? ""}
-              onChange={handleBuyerStateChange}
-            >
-              <option value="">MI (default)</option>
-              <option value="OH">OH</option>
-              <option value="IN">IN</option>
-            </Select>
-          </InputGroup>
-        </div>
-      </div>
+      </Panel>
     </div>
   );
 };

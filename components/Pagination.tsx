@@ -61,7 +61,7 @@ const Pagination: React.FC<PaginationProps> = ({ totalItems, pagination, setPagi
           id="rowsPerPage"
           value={rowsPerPage}
           onChange={handleRowsPerPageChange}
-          className="px-3 py-1.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-slate-700 dark:text-slate-200"
+          className="px-3 py-1.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 text-slate-700 dark:text-slate-200"
         >
           <option value="15">15</option>
           <option value="25">25</option>

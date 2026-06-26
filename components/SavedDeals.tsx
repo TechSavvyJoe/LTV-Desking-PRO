@@ -96,7 +96,7 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
         {deals.map((deal, index) => (
           <div
             key={deal.id}
-            className={`group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden hover:shadow-lg hover:border-blue-200 dark:hover:border-slate-700 transition-all duration-300 ${
+            className={`group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden hover:shadow-lg hover:border-green-200 dark:hover:border-slate-700 transition-all duration-300 ${
               visibleItems[index] ? "animate-slideInUp" : "opacity-0"
             }`}
           >
@@ -108,8 +108,8 @@ const SavedDeals: React.FC<SavedDealsProps> = ({ deals, onLoad, onDelete }) => {
                 {/* Left: Deal Info */}
                 <div className="flex-1 space-y-3">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <Icons.UserIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <Icons.UserIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-slate-900 dark:text-white">

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LTV Desking PRO — Direction B · Refined</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #101218;
+        --panel: #161922;
+        --panel-2: #1c2030;
+        --raise: #21263a;
+        --line: rgba(255, 255, 255, 0.07);
+        --line-2: rgba(255, 255, 255, 0.12);
+        --txt: #f2f4f9;
+        --txt-2: #aab2c5;
+        --txt-3: #6b7388;
+        --iris: #7c9cff;
+        --iris-2: #5b7cf0;
+        --iris-dim: rgba(124, 156, 255, 0.14);
+        --mint: #56d6a0;
+        --mint-dim: rgba(86, 214, 160, 0.14);
+        --amber: #e7b24a;
+        --amber-dim: rgba(231, 178, 74, 0.14);
+        --rose: #f0697a;
+        --rose-dim: rgba(240, 105, 122, 0.14);
+        --display: "Sora", ui-sans-serif, sans-serif;
+        --body: "Manrope", ui-sans-serif, system-ui, sans-serif;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background:
+          radial-gradient(1100px 600px at 100% -5%, rgba(124, 156, 255, 0.08), transparent 55%),
+          var(--bg);
+        color: var(--txt); font-family: var(--body); font-size: 13.5px; line-height: 1.5;
+        -webkit-font-smoothing: antialiased; min-height: 100vh;
+      }
+      .num { font-variant-numeric: tabular-nums; }
+      svg { display: block; }
+
+      header {
+        display: flex; align-items: center; gap: 16px;
+        padding: 14px 24px; border-bottom: 1px solid var(--line);
+      }
+      .brand { display: flex; align-items: center; gap: 11px; }
+      .mark {
+        width: 32px; height: 32px; border-radius: 9px;
+        background: linear-gradient(145deg, var(--iris), var(--iris-2));
+        display: grid; place-items: center; color: #0b0e16; font-weight: 800; font-size: 14px;
+        box-shadow: 0 4px 14px rgba(124, 156, 255, 0.3);
+      }
+      .wm { font-family: var(--display); font-weight: 600; font-size: 15px; letter-spacing: -0.3px; }
+      .wm span { color: var(--txt-3); font-weight: 500; }
+      .store { margin-left: 8px; display: flex; align-items: center; gap: 8px; color: var(--txt-2); font-size: 13px; cursor: pointer; padding: 7px 12px; border-radius: 9px; border: 1px solid var(--line); }
+      .store b { color: var(--txt); font-weight: 600; }
+      .sp { flex: 1; }
+      .ghost { background: transparent; border: 1px solid var(--line-2); color: var(--txt); border-radius: 9px; padding: 8px 14px; font-family: var(--body); font-weight: 600; font-size: 13px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+      .ghost:hover { background: var(--panel-2); }
+      .cta { background: linear-gradient(145deg, var(--iris), var(--iris-2)); border: 0; color: #0b0e16; border-radius: 9px; padding: 9px 16px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; box-shadow: 0 4px 14px rgba(124,156,255,0.25); }
+
+      .shell { display: grid; grid-template-columns: 1fr 360px; gap: 22px; padding: 22px 24px; align-items: start; }
+
+      /* deal inputs — calm card with a row of fields */
+      .deal-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+      .deal-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+      .deal-head h2 { font-family: var(--display); font-size: 15px; font-weight: 600; }
+      .deal-head .who { margin-left: auto; color: var(--txt-3); font-size: 12.5px; }
+      .fields { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; padding: 18px 20px; }
+      .f label { display: block; font-size: 11px; color: var(--txt-3); font-weight: 600; margin-bottom: 6px; letter-spacing: 0.2px; }
+      .f .input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-family: var(--body); font-size: 14px; color: var(--txt); font-variant-numeric: tabular-nums; }
+      .f .input.ph { color: var(--txt-3); }
+      .f.focus .input { border-color: var(--iris); box-shadow: 0 0 0 3px var(--iris-dim); }
+
+      /* inventory hero */
+      .inv { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; margin-top: 20px; overflow: hidden; }
+      .inv-head { display: flex; align-items: center; gap: 14px; padding: 15px 20px; border-bottom: 1px solid var(--line); }
+      .inv-head h2 { font-family: var(--display); font-size: 15px; font-weight: 600; }
+      .inv-head .c { color: var(--txt-3); font-size: 13px; }
+      .sortby { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--txt-2); font-size: 12.5px; }
+      .chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--txt); font-weight: 600; font-size: 12.5px; cursor: pointer; }
+      .chip.on { background: var(--iris-dim); border-color: transparent; color: var(--iris); }
+
+      table { width: 100%; border-collapse: collapse; }
+      thead th { text-align: right; font-size: 11px; color: var(--txt-3); font-weight: 600; letter-spacing: 0.3px; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+      thead th.l { text-align: left; }
+      tbody td { padding: 14px 18px; border-bottom: 1px solid var(--line); text-align: right; }
+      tbody td.l { text-align: left; }
+      tbody tr { cursor: pointer; transition: background 0.12s; }
+      tbody tr:hover { background: var(--panel-2); }
+      tbody tr.sel { background: linear-gradient(90deg, var(--iris-dim), transparent 70%); }
+      tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--iris); }
+      .veh b { font-weight: 700; font-size: 14px; }
+      .veh span { display: block; color: var(--txt-3); font-size: 12px; margin-top: 1px; }
+      .n { font-variant-numeric: tabular-nums; font-size: 13.5px; }
+      .muted { color: var(--txt-2); }
+      .pay-n { font-family: var(--display); font-weight: 600; }
+
+      .score { display: inline-flex; align-items: center; gap: 10px; justify-content: flex-end; }
+      .ring { width: 30px; height: 30px; }
+      .score b { font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; width: 26px; text-align: right; }
+      .pilltag { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+      .pt-g { background: var(--mint-dim); color: var(--mint); }
+      .pt-a { background: var(--amber-dim); color: var(--amber); }
+      .pt-r { background: var(--rose-dim); color: var(--rose); }
+
+      /* right rail */
+      aside { position: sticky; top: 22px; display: flex; flex-direction: column; gap: 18px; }
+      .quote { background: linear-gradient(160deg, var(--panel-2), var(--panel)); border: 1px solid var(--line-2); border-radius: 18px; padding: 22px; }
+      .quote .stk { font-size: 12px; color: var(--txt-3); font-weight: 600; }
+      .quote h3 { font-family: var(--display); font-size: 18px; font-weight: 600; margin: 3px 0 18px; }
+      .quote .paylab { font-size: 11px; color: var(--txt-3); font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+      .quote .pay { font-family: var(--display); font-size: 40px; font-weight: 700; letter-spacing: -1.5px; margin-top: 2px; }
+      .quote .terms { color: var(--txt-2); font-size: 12.5px; margin-top: 4px; }
+      .ledger { margin-top: 18px; }
+      .ledger .r { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+      .ledger .r:last-child { border: 0; }
+      .ledger .r .k { color: var(--txt-2); }
+      .ledger .r .v { font-variant-numeric: tabular-nums; }
+      .ledger .r.tot { margin-top: 4px; padding-top: 12px; }
+      .ledger .r.tot .k { color: var(--txt); font-weight: 700; }
+      .ledger .r.tot .v { color: var(--txt); font-weight: 700; font-family: var(--display); }
+      .actions { display: flex; gap: 10px; margin-top: 18px; }
+      .actions .cta, .actions .ghost { flex: 1; justify-content: center; }
+
+      .fits { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; }
+      .fits h4 { font-family: var(--display); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+      .fits .sub { color: var(--txt-3); font-size: 12px; margin-bottom: 12px; }
+      .lf { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-top: 1px solid var(--line); }
+      .lf .nm { display: flex; align-items: center; gap: 9px; font-weight: 600; }
+      .lf .meta { color: var(--txt-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+      .disc { color: var(--txt-3); font-size: 11px; line-height: 1.5; margin-top: 14px; }
+      .note { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 16px; font-size: 12px; color: var(--txt-2); }
+      .note b { color: var(--iris); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <div class="mark">LV</div>
+        <div class="wm">LTV Desking <span>PRO</span></div>
+      </div>
+      <div class="store">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+        <b>Bob Maxey Ford</b>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <div class="sp"></div>
+      <button class="ghost"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Import inventory</button>
+      <button class="cta"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 1.9 5.8H20l-5 3.6 1.9 5.8L12 14.6 6.1 18.2 8 12.4l-5-3.6h6.1z"/></svg> AI Lender Import</button>
+    </header>
+
+    <div class="shell">
+      <div>
+        <div class="deal-card">
+          <div class="deal-head">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--iris)" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            <h2>Deal terms</h2>
+            <span class="who">Customer: <b style="color:var(--txt)">— add —</b> · Salesperson: J. Smith</span>
+          </div>
+          <div class="fields">
+            <div class="f"><label>Credit score</label><div class="input">712</div></div>
+            <div class="f"><label>Down payment</label><div class="input">$2,000</div></div>
+            <div class="f"><label>Trade equity</label><div class="input">$0</div></div>
+            <div class="f"><label>Term</label><div class="input">72 mo</div></div>
+            <div class="f focus"><label>APR</label><div class="input">8.9%</div></div>
+            <div class="f"><label>Buyer state</label><div class="input">MI</div></div>
+          </div>
+        </div>
+
+        <div class="inv">
+          <div class="inv-head">
+            <h2>Inventory</h2>
+            <span class="c">14 units · sorted by approval odds</span>
+            <div class="sortby">
+              <span class="chip on">Approval</span>
+              <span class="chip">Payment</span>
+              <span class="chip">LTV</span>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="l">Vehicle</th>
+                <th>Price</th>
+                <th>OTD LTV</th>
+                <th>Est. payment</th>
+                <th>Approval odds</th>
+              </tr>
+            </thead>
+            <tbody id="tb"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <aside>
+        <div class="quote">
+          <div class="stk">STK 4471 · 38,140 mi</div>
+          <h3>2021 Toyota RAV4 XLE</h3>
+          <div class="paylab">Estimated monthly payment</div>
+          <div class="pay">$486<span style="font-size:24px;color:var(--txt-2)">.20</span></div>
+          <div class="terms">72 months · 8.9% APR · estimate only, not an offer of credit</div>
+          <div class="ledger">
+            <div class="r"><span class="k">Selling price</span><span class="v">$24,980.00</span></div>
+            <div class="r"><span class="k">Tax + fees (MI)</span><span class="v">$1,793.80</span></div>
+            <div class="r"><span class="k">Cash down</span><span class="v">−$2,000.00</span></div>
+            <div class="r tot"><span class="k">Amount financed</span><span class="v">$24,773.80</span></div>
+          </div>
+          <div class="actions">
+            <button class="ghost"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5h20v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> PDF</button>
+            <button class="cta"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg> Save deal</button>
+          </div>
+        </div>
+
+        <div class="fits">
+          <h4>Lender fits</h4>
+          <div class="sub">5 of 7 programs · preliminary screen</div>
+          <div class="lf"><span class="nm"><span class="pilltag pt-g">Fit</span> Lake Trust CU</span><span class="meta">145% · 84 mo</span></div>
+          <div class="lf"><span class="nm"><span class="pilltag pt-g">Fit</span> Capital One</span><span class="meta">130% · 75 mo</span></div>
+          <div class="lf"><span class="nm"><span class="pilltag pt-g">Fit</span> Ally</span><span class="meta">125% · 75 mo</span></div>
+          <div class="lf"><span class="nm"><span class="pilltag pt-a">Check</span> Ford Credit</span><span class="meta">backend cap</span></div>
+          <div class="lf"><span class="nm"><span class="pilltag pt-r">No</span> Crescent Bank</span><span class="meta">min amount</span></div>
+          <p class="disc">Preliminary screen against dealer-entered programs — not a credit decision. Final rate &amp; terms determined by the lender.</p>
+        </div>
+      </aside>
+    </div>
+
+    <div class="note">Direction B · <b>Refined</b> — Linear/Ramp calm, inventory-first, Sora + Manrope, iris accent + approval rings</div>
+
+    <script>
+      const rows = [
+        { v: "2021 Toyota RAV4 XLE", s: "STK 4471 · 38,140 mi", pr: "24,980", ltv: 118, pay: "486.20", ap: 88 },
+        { v: "2020 Honda CR-V EX", s: "STK 4419 · 44,300 mi", pr: "23,400", ltv: 113, pay: "455.10", ap: 91 },
+        { v: "2022 Ford F-150 XLT", s: "STK 4502 · 29,870 mi", pr: "41,200", ltv: 109, pay: "742.80", ap: 86 },
+        { v: "2021 Mazda CX-5 Touring", s: "STK 4460 · 41,050 mi", pr: "22,100", ltv: 116, pay: "430.90", ap: 80 },
+        { v: "2020 Subaru Outback", s: "STK 4433 · 52,600 mi", pr: "21,800", ltv: 119, pay: "428.70", ap: 78 },
+        { v: "2019 Chevy Equinox LT", s: "STK 4388 · 61,420 mi", pr: "16,900", ltv: 125, pay: "352.40", ap: 71 },
+        { v: "2018 Jeep Grand Cherokee", s: "STK 4301 · 78,900 mi", pr: "18,500", ltv: 131, pay: "401.10", ap: 48 },
+        { v: "2013 Ford Focus SE", s: "STK 4112 · 140,000 mi", pr: "5,800", ltv: 139, pay: "168.40", ap: 34 },
+      ];
+      const tone = (p) => (p >= 80 ? "g" : p >= 55 ? "a" : "r");
+      const col = (p) => (p >= 80 ? "#56d6a0" : p >= 55 ? "#e7b24a" : "#f0697a");
+      const ltvCol = (n) => (n <= 115 ? "#56d6a0" : n <= 128 ? "#e7b24a" : "#f0697a");
+      const ring = (p) => {
+        const c = 2 * Math.PI * 13, off = c * (1 - p / 100);
+        return `<svg class="ring" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/><circle cx="15" cy="15" r="13" fill="none" stroke="${col(p)}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 15 15)"/></svg>`;
+      };
+      document.getElementById("tb").innerHTML = rows
+        .map(
+          (r, i) => `
+        <tr class="${i === 0 ? "sel" : ""}">
+          <td class="l"><div class="veh"><b>${r.v}</b><span>${r.s}</span></div></td>
+          <td><span class="n">$${r.pr}</span></td>
+          <td><span class="n" style="color:${ltvCol(r.ltv)};font-weight:600">${r.ltv}%</span></td>
+          <td><span class="n pay-n">$${r.pay}</span><span class="muted" style="font-size:11px">/mo</span></td>
+          <td><span class="score">${ring(r.ap)}<b style="color:${col(r.ap)}">${r.ap}</b><span class="pilltag pt-${tone(r.ap)}">${r.ap >= 80 ? "Strong" : r.ap >= 55 ? "Fair" : "Tough"}</span></span></td>
+        </tr>`
+        )
+        .join("");
+    </script>
+  </body>
+</html>

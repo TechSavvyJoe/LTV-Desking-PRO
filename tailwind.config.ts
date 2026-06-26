@@ -14,14 +14,21 @@ export default {
   content: ["./index.html", "./**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        // Manrope = UI/body, Bricolage Grotesque = display/headings, IBM Plex Mono = money/tabular
+        sans: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Bricolage Grotesque", "ui-sans-serif", "sans-serif"],
+        mono: ["IBM Plex Mono", "ui-monospace", "monospace"],
+      },
       colors: {
-        "x-black": "#0f172a", // slate-900 — dark surface (was #000000)
-        "x-blue": "#3b82f6", // blue-500 — navy primary on dark (was #1D9BF0)
-        "x-border": "#334155", // slate-700
-        "x-hover-dark": "#1e293b", // slate-800
-        "x-hover-light": "#334155", // slate-700
-        "x-text-primary": "#f1f5f9", // slate-100
-        "x-text-secondary": "#94a3b8", // slate-400
+        // Legacy x-* aliases remapped onto the unified near-black + green identity.
+        "x-black": "#0e1117", // near-black surface (was slate-900)
+        "x-blue": "#43c05a", // brand green (was navy/blue)
+        "x-border": "#232a36",
+        "x-hover-dark": "#161a23",
+        "x-hover-light": "#1b212d",
+        "x-text-primary": "#eaeff7",
+        "x-text-secondary": "#9aa4b6",
       },
     },
   },

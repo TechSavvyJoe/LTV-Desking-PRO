@@ -38,7 +38,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
           <BrandMark className="w-16 h-16" />
         </div>
         <h1 className="text-center text-3xl font-semibold tracking-tight text-white">
-          LTV Desking <span className="text-blue-400">PRO</span>
+          LTV Desking <span className="text-green-400">PRO</span>
         </h1>
         <p className="text-center text-slate-400 text-sm mt-3 max-w-sm mx-auto">
           Precision deal structuring, lender intelligence, and F&amp;I tooling for US automotive

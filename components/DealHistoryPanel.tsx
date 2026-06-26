@@ -241,7 +241,7 @@ const DealHistoryPanel: React.FC<DealHistoryPanelProps> = ({ deals, onLoadDeal, 
                         <p className="font-bold text-base text-slate-900 dark:text-slate-100">
                           Deal {deal.id}
                         </p>
-                        <p className="font-medium text-blue-600 dark:text-blue-400">
+                        <p className="font-medium text-green-600 dark:text-green-400">
                           {deal.vehicle?.vehicle ||
                             deal.vehicleSnapshot?.vehicle ||
                             "Unknown Vehicle"}

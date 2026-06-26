@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LTV Desking PRO — Automotive desking, lender matching, F&amp;I tooling</title>
     <meta name="description" content="LTV Desking PRO helps US dealerships structure deals, match lenders, and run F&I workflows — with AI-assisted rate-sheet extraction and integrated audit logging." />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#0a0c10" />
     <meta name="color-scheme" content="dark light" />
 
     <!-- Favicon + manifest -->
@@ -28,44 +28,43 @@
     <!-- Performance hints -->
     <link rel="preconnect" href="https://ltv-desking-pro-api.fly.dev" crossorigin />
     <link rel="dns-prefetch" href="https://o4510200651382784.ingest.us.sentry.io" />
+
+    <!-- Brand typography: Bricolage Grotesque (display) · Manrope (UI) · IBM Plex Mono (numbers) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       body {
         font-family:
-          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
           "Segoe UI", sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         font-size: 16px;
-        transition: background-color 0.3s, color 0.3s;
       }
-      /* Light mode styles */
+      /* Unified single dark theme — pre-paint background prevents a light flash. */
+      html,
       body {
-        background-color: #f8fafc; /* slate-50 */
-        color: #0f172a; /* slate-900 */
+        background-color: #0a0c10;
+        color: #eaeff7;
       }
-      /* Dark mode styles */
-      .dark body {
-        background-color: #000000;
-        color: #f3f4f6; /* gray-100 - using standard color for safety */
-      }
-      /* Custom scrollbar */
+      /* Custom scrollbar — dark */
       ::-webkit-scrollbar {
         width: 12px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f5f9;
-      }
-      .dark ::-webkit-scrollbar-track {
-        background: #000;
+        background: #0a0c10;
       }
       ::-webkit-scrollbar-thumb {
-        background-color: #cbd5e1;
-        border-radius: 6px;
-        border: 3px solid #f1f5f9;
+        background-color: #2a313f;
+        border-radius: 8px;
+        border: 3px solid #0a0c10;
       }
-      .dark ::-webkit-scrollbar-thumb {
-        background-color: #374151; /* gray-700 */
-        border: 3px solid #000;
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: #3a4151;
       }
     </style>
     <link rel="stylesheet" href="/index.css">

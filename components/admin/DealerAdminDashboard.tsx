@@ -202,7 +202,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-blue-600 animate-spin" />
+        <Icons.SpinnerIcon className="w-8 h-8 text-green-600 animate-spin" />
       </div>
     );
   }
@@ -214,7 +214,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
       case "superadmin":
         return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
       case "admin":
-        return "bg-blue-500/20 text-blue-700 dark:text-blue-400";
+        return "bg-green-500/20 text-green-700 dark:text-green-400";
       case "manager":
         return "bg-amber-500/20 text-amber-700 dark:text-amber-400";
       default:
@@ -262,7 +262,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               onClick={() => setActiveTab("users")}
               className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium transition-colors ${
                 activeTab === "users"
-                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  ? "border-green-500 text-green-600 dark:text-green-400"
                   : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
               }`}
             >
@@ -273,7 +273,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               onClick={() => setActiveTab("dealership")}
               className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium transition-colors ${
                 activeTab === "dealership"
-                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  ? "border-green-500 text-green-600 dark:text-green-400"
                   : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
               }`}
             >
@@ -503,7 +503,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleEditUser(u)}
-                              className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                              className="p-2 text-slate-400 hover:text-green-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                               title="Edit"
                             >
                               <Icons.PencilIcon className="w-4 h-4" />

@@ -120,46 +120,47 @@
   --z-toast: 200;
 }
 
-/* Dark Mode Tokens — same restraint, darker surfaces. */
+/* Unified dark identity — near-black surfaces, green = money/approval/action.
+   Single source of truth for the redesign palette (mirrors mockup Direction C). */
 .dark {
-  --color-bg: #0f172a; /* slate-900 */
-  --color-bg-subtle: #1e293b; /* slate-800 */
-  --color-bg-muted: #334155; /* slate-700 */
-  --color-border: #334155; /* slate-700 */
-  --color-border-strong: #475569; /* slate-600 */
+  --color-bg: #11141b; /* cards / panels (lifted off the app background) */
+  --color-bg-subtle: #0a0c10; /* app background (darkest) */
+  --color-bg-muted: #1b212d; /* hover / nested / inputs */
+  --color-border: #232a36;
+  --color-border-strong: #313a49;
 
-  --color-text: #f1f5f9; /* slate-100 */
-  --color-text-muted: #94a3b8; /* slate-400 */
-  --color-text-subtle: #64748b; /* slate-500 */
+  --color-text: #eaeff7;
+  --color-text-muted: #9aa4b6;
+  --color-text-subtle: #6b7488;
 
-  --color-primary: #3b82f6; /* blue-500 — lighter for dark bg */
-  --color-primary-hover: #60a5fa; /* blue-400 */
-  --color-primary-subtle: #1e3a8a; /* blue-900 */
+  --color-primary: #43c05a; /* brand green — actions, links, focus, money */
+  --color-primary-hover: #56d06b;
+  --color-primary-subtle: #16271b; /* dark green tint — selected row / focus */
 
-  --color-accent: #94a3b8; /* slate-400 */
-  --color-accent-hover: #cbd5e1; /* slate-300 */
-  --color-accent-subtle: #334155; /* slate-700 */
+  --color-accent: #9aa4b6; /* neutral slate for secondary */
+  --color-accent-hover: #cbd5e1;
+  --color-accent-subtle: #1b212d;
 
-  --color-success: #4ade80; /* green-400 */
-  --color-success-subtle: #14532d; /* green-900 */
-  --color-warning: #fbbf24; /* amber-400 */
-  --color-warning-subtle: #78350f; /* amber-900 */
-  --color-danger: #f87171; /* red-400 */
-  --color-danger-subtle: #7f1d1d; /* red-900 */
+  --color-success: #43c05a; /* green-500 */
+  --color-success-subtle: #16271b;
+  --color-warning: #e0ad3a; /* amber */
+  --color-warning-subtle: #382c10;
+  --color-danger: #f0656f; /* red */
+  --color-danger-subtle: #3a1418;
 
   --gradient-surface: var(--color-bg-subtle);
-  --glass-bg: #1e293b;
-  --glass-bg-elevated: #1e293b;
-  --glass-border: #334155;
-  --glass-border-subtle: #334155;
+  --glass-bg: #11141b;
+  --glass-bg-elevated: #161a23;
+  --glass-border: #232a36;
+  --glass-border-subtle: #232a36;
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 16px -4px rgba(0, 0, 0, 0.45);
-  --shadow-xl: 0 16px 28px -8px rgba(0, 0, 0, 0.5);
-  --shadow-2xl: 0 24px 48px -12px rgba(0, 0, 0, 0.55);
-  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 10px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 22px -4px rgba(0, 0, 0, 0.55);
+  --shadow-xl: 0 18px 34px -8px rgba(0, 0, 0, 0.6);
+  --shadow-2xl: 0 26px 52px -12px rgba(0, 0, 0, 0.65);
+  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-glow-primary: var(--shadow-md);
 }
 
@@ -203,7 +204,7 @@ main {
 }
 
 .dark body {
-  background: var(--color-bg);
+  background: var(--color-bg-subtle);
 }
 
 /* Selection Color */

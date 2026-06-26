@@ -32,11 +32,11 @@ const SortIcon = ({ direction }: { direction: "asc" | "desc" | null }) => {
     `}
     >
       {direction === "asc" ? (
-        <svg className="w-3.5 h-3.5 text-blue-500" fill="currentColor" viewBox="0 0 16 16">
+        <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 16 16">
           <path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" />
         </svg>
       ) : direction === "desc" ? (
-        <svg className="w-3.5 h-3.5 text-blue-500" fill="currentColor" viewBox="0 0 16 16">
+        <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 16 16">
           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
         </svg>
       ) : (
@@ -143,7 +143,7 @@ export const Table = <T extends { [key: string]: any }>({
                       transition-colors duration-150
                       ${
                         onRowClick
-                          ? "cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-500/5"
+                          ? "cursor-pointer hover:bg-green-50/50 dark:hover:bg-green-500/5"
                           : ""
                       }
                       ${isExpanded ? "bg-slate-50 dark:bg-slate-800/30" : ""}

@@ -1,0 +1,480 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic "LTV Desking PRO" [ref=e4]:
+        - img [ref=e5]
+      - generic [ref=e9]: LTV Desking PRO
+    - generic [ref=e10]:
+      - img [ref=e11]
+      - generic [ref=e13]: Bob Maxey Ford
+      - img [ref=e14]
+    - generic [ref=e16]:
+      - generic [ref=e17]: Viewing as
+      - combobox [ref=e18] [cursor=pointer]:
+        - option "Sales Manager" [selected]
+        - option "F&I Manager"
+        - option "Salesperson"
+    - button "Import" [ref=e19] [cursor=pointer]:
+      - img [ref=e20]
+      - text: Import
+    - button "AI Lender Import" [ref=e22] [cursor=pointer]:
+      - img [ref=e23]
+      - text: AI Lender Import
+    - button "Settings" [ref=e25] [cursor=pointer]:
+      - img [ref=e26]
+    - generic [ref=e29]: JS
+  - generic [ref=e30]:
+    - generic [ref=e31]:
+      - heading "Deal terms LIVE" [level=2] [ref=e32]:
+        - img [ref=e33]
+        - text: Deal terms
+        - generic [ref=e35]: LIVE
+      - generic [ref=e37]:
+        - generic [ref=e38]: Every change re-prices & re-ranks all inventory instantly
+        - button "Reset" [ref=e39] [cursor=pointer]
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - img [ref=e43]
+          - text: Customer & credit
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e48]: Customer name
+            - textbox [ref=e49]: — add customer —
+          - generic [ref=e50]:
+            - generic [ref=e51]: Credit score
+            - textbox [ref=e52]: "712"
+          - generic [ref=e53]:
+            - generic [ref=e54]: Buyer state
+            - combobox [ref=e55] [cursor=pointer]:
+              - option "MI · 6.0%" [selected]
+              - option "OH · 5.75%"
+              - option "IN · 7.0%"
+              - option "FL · 6.0%"
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - img [ref=e58]
+          - text: Cash & trade
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - generic [ref=e62]: Cash down ($)
+            - textbox [ref=e63]: "2000"
+          - generic [ref=e64]:
+            - generic [ref=e65]: Trade value ($)
+            - textbox [ref=e66]: "0"
+          - generic [ref=e67]:
+            - generic [ref=e68]: Trade payoff ($)
+            - textbox [ref=e69]: "0"
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - img [ref=e72]
+          - text: Incentives & fees
+        - generic [ref=e76]:
+          - generic [ref=e77]:
+            - generic [ref=e78]: Rebate ($)
+            - textbox [ref=e79]: "0"
+          - generic [ref=e80]:
+            - generic [ref=e81]: Doc fee ($)
+            - textbox [ref=e82]: "260"
+          - generic [ref=e83]:
+            - generic [ref=e84]: Title / reg ($)
+            - textbox [ref=e85]: "195"
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - img [ref=e88]
+          - text: Structure
+        - generic [ref=e91]:
+          - generic [ref=e92]: Term (months)
+          - generic [ref=e93]:
+            - button "60" [ref=e94] [cursor=pointer]
+            - button "72" [ref=e95] [cursor=pointer]
+            - button "84" [ref=e96] [cursor=pointer]
+            - button "96" [ref=e97] [cursor=pointer]
+        - generic [ref=e98]:
+          - generic [ref=e99]: APR (%)
+          - textbox [ref=e100]: "8.9"
+  - generic [ref=e101]:
+    - generic [ref=e102]:
+      - generic [ref=e103]:
+        - heading "Inventory" [level=2] [ref=e104]
+        - generic [ref=e105]: 10 units · sorted by approval odds
+        - generic [ref=e106]:
+          - img [ref=e107]
+          - 'textbox "Search make, model, stock #…" [ref=e110]'
+      - table [ref=e112]:
+        - rowgroup [ref=e113]:
+          - row "Vehicle Price Book / Trade Front LTV Front Gross Amt Fin'd OTD LTV Payment Lenders Approval▼" [ref=e114]:
+            - columnheader [ref=e115]
+            - columnheader "Vehicle" [ref=e116] [cursor=pointer]
+            - columnheader "Price" [ref=e117] [cursor=pointer]
+            - columnheader "Book / Trade" [ref=e118] [cursor=pointer]
+            - columnheader "Front LTV" [ref=e119] [cursor=pointer]
+            - columnheader "Front Gross" [ref=e120] [cursor=pointer]
+            - columnheader "Amt Fin'd" [ref=e121] [cursor=pointer]
+            - columnheader "OTD LTV" [ref=e122] [cursor=pointer]
+            - columnheader "Payment" [ref=e123] [cursor=pointer]
+            - columnheader "Lenders" [ref=e124] [cursor=pointer]
+            - columnheader "Approval▼" [ref=e125] [cursor=pointer]
+        - rowgroup [ref=e126]:
+          - row "2013 Ford Focus SE STK 4112 · 140,000 mi $5,800 $4,200 138% $1,200 $4,603 110% $82.74/mo 0/7 71" [ref=e127] [cursor=pointer]:
+            - cell [ref=e128]:
+              - img [ref=e130]
+            - cell "2013 Ford Focus SE STK 4112 · 140,000 mi" [ref=e132]:
+              - generic [ref=e133]:
+                - text: 2013 Ford Focus SE
+                - generic [ref=e134]: STK 4112 · 140,000 mi
+            - cell "$5,800" [ref=e135]
+            - cell "$4,200" [ref=e136]
+            - cell "138%" [ref=e137]
+            - cell "$1,200" [ref=e138]
+            - cell "$4,603" [ref=e139]
+            - cell "110%" [ref=e140]
+            - cell "$82.74/mo" [ref=e141]
+            - cell "0/7" [ref=e142]:
+              - generic [ref=e143]: 0/7
+            - cell "71" [ref=e144]:
+              - generic [ref=e145]:
+                - img [ref=e146]
+                - generic [ref=e149]: "71"
+          - row "2022 Ford F-150 XLT STK 4502 · 29,870 mi $41,200 $37,800 109% $4,100 $42,127 111% $757.27/mo 6/7 70" [ref=e150] [cursor=pointer]:
+            - cell [ref=e151]:
+              - img [ref=e153]
+            - cell "2022 Ford F-150 XLT STK 4502 · 29,870 mi" [ref=e155]:
+              - generic [ref=e156]:
+                - text: 2022 Ford F-150 XLT
+                - generic [ref=e157]: STK 4502 · 29,870 mi
+            - cell "$41,200" [ref=e158]
+            - cell "$37,800" [ref=e159]
+            - cell "109%" [ref=e160]
+            - cell "$4,100" [ref=e161]
+            - cell "$42,127" [ref=e162]
+            - cell "111%" [ref=e163]
+            - cell "$757.27/mo" [ref=e164]
+            - cell "6/7" [ref=e165]:
+              - generic [ref=e166]: 6/7
+            - cell "70" [ref=e167]:
+              - generic [ref=e168]:
+                - img [ref=e169]
+                - generic [ref=e172]: "70"
+          - row "2020 Honda CR-V EX STK 4419 · 44,300 mi $23,400 $20,700 113% $3,000 $23,259 112% $418.10/mo 7/7 69" [ref=e173] [cursor=pointer]:
+            - cell [ref=e174]:
+              - img [ref=e176]
+            - cell "2020 Honda CR-V EX STK 4419 · 44,300 mi" [ref=e178]:
+              - generic [ref=e179]:
+                - text: 2020 Honda CR-V EX
+                - generic [ref=e180]: STK 4419 · 44,300 mi
+            - cell "$23,400" [ref=e181]
+            - cell "$20,700" [ref=e182]
+            - cell "113%" [ref=e183]
+            - cell "$3,000" [ref=e184]
+            - cell "$23,259" [ref=e185]
+            - cell "112%" [ref=e186]
+            - cell "$418.10/mo" [ref=e187]
+            - cell "7/7" [ref=e188]:
+              - generic [ref=e189]: 7/7
+            - cell "69" [ref=e190]:
+              - generic [ref=e191]:
+                - img [ref=e192]
+                - generic [ref=e195]: "69"
+          - row "2021 Hyundai Tucson SEL STK 4455 · 39,800 mi $20,400 $17,900 114% $2,800 $20,079 112% $360.94/mo 7/7 69" [ref=e196] [cursor=pointer]:
+            - cell [ref=e197]:
+              - img [ref=e199]
+            - cell "2021 Hyundai Tucson SEL STK 4455 · 39,800 mi" [ref=e201]:
+              - generic [ref=e202]:
+                - text: 2021 Hyundai Tucson SEL
+                - generic [ref=e203]: STK 4455 · 39,800 mi
+            - cell "$20,400" [ref=e204]
+            - cell "$17,900" [ref=e205]
+            - cell "114%" [ref=e206]
+            - cell "$2,800" [ref=e207]
+            - cell "$20,079" [ref=e208]
+            - cell "112%" [ref=e209]
+            - cell "$360.94/mo" [ref=e210]
+            - cell "7/7" [ref=e211]:
+              - generic [ref=e212]: 7/7
+            - cell "69" [ref=e213]:
+              - generic [ref=e214]:
+                - img [ref=e215]
+                - generic [ref=e218]: "69"
+          - row "2022 Nissan Altima SV STK 4488 · 33,200 mi $19,900 $17,050 117% $3,100 $19,549 115% $351.41/mo 7/7 68" [ref=e219] [cursor=pointer]:
+            - cell [ref=e220]:
+              - img [ref=e222]
+            - cell "2022 Nissan Altima SV STK 4488 · 33,200 mi" [ref=e224]:
+              - generic [ref=e225]:
+                - text: 2022 Nissan Altima SV
+                - generic [ref=e226]: STK 4488 · 33,200 mi
+            - cell "$19,900" [ref=e227]
+            - cell "$17,050" [ref=e228]
+            - cell "117%" [ref=e229]
+            - cell "$3,100" [ref=e230]
+            - cell "$19,549" [ref=e231]
+            - cell "115%" [ref=e232]
+            - cell "$351.41/mo" [ref=e233]
+            - cell "7/7" [ref=e234]:
+              - generic [ref=e235]: 7/7
+            - cell "68" [ref=e236]:
+              - generic [ref=e237]:
+                - img [ref=e238]
+                - generic [ref=e241]: "68"
+          - row "2021 Mazda CX-5 Touring STK 4460 · 41,050 mi $22,100 $19,050 116% $2,700 $21,881 115% $393.33/mo 7/7 67" [ref=e242] [cursor=pointer]:
+            - cell [ref=e243]:
+              - img [ref=e245]
+            - cell "2021 Mazda CX-5 Touring STK 4460 · 41,050 mi" [ref=e247]:
+              - generic [ref=e248]:
+                - text: 2021 Mazda CX-5 Touring
+                - generic [ref=e249]: STK 4460 · 41,050 mi
+            - cell "$22,100" [ref=e250]
+            - cell "$19,050" [ref=e251]
+            - cell "116%" [ref=e252]
+            - cell "$2,700" [ref=e253]
+            - cell "$21,881" [ref=e254]
+            - cell "115%" [ref=e255]
+            - cell "$393.33/mo" [ref=e256]
+            - cell "7/7" [ref=e257]:
+              - generic [ref=e258]: 7/7
+            - cell "67" [ref=e259]:
+              - generic [ref=e260]:
+                - img [ref=e261]
+                - generic [ref=e264]: "67"
+          - row "2020 Subaru Outback Prem STK 4433 · 52,600 mi $21,800 $18,350 119% $2,900 $21,563 118% $387.62/mo 7/7 66" [ref=e265] [cursor=pointer]:
+            - cell [ref=e266]:
+              - img [ref=e268]
+            - cell "2020 Subaru Outback Prem STK 4433 · 52,600 mi" [ref=e270]:
+              - generic [ref=e271]:
+                - text: 2020 Subaru Outback Prem
+                - generic [ref=e272]: STK 4433 · 52,600 mi
+            - cell "$21,800" [ref=e273]
+            - cell "$18,350" [ref=e274]
+            - cell "119%" [ref=e275]
+            - cell "$2,900" [ref=e276]
+            - cell "$21,563" [ref=e277]
+            - cell "118%" [ref=e278]
+            - cell "$387.62/mo" [ref=e279]
+            - cell "7/7" [ref=e280]:
+              - generic [ref=e281]: 7/7
+            - cell "66" [ref=e282]:
+              - generic [ref=e283]:
+                - img [ref=e284]
+                - generic [ref=e287]: "66"
+          - row "2021 Toyota RAV4 XLE STK 4471 · 38,140 mi $24,980 $21,100 118% $3,130 $24,934 118% $448.21/mo 7/7 65" [ref=e288] [cursor=pointer]:
+            - cell [ref=e289]:
+              - img [ref=e291]
+            - cell "2021 Toyota RAV4 XLE STK 4471 · 38,140 mi" [ref=e293]:
+              - generic [ref=e294]:
+                - text: 2021 Toyota RAV4 XLE
+                - generic [ref=e295]: STK 4471 · 38,140 mi
+            - cell "$24,980" [ref=e296]
+            - cell "$21,100" [ref=e297]
+            - cell "118%" [ref=e298]
+            - cell "$3,130" [ref=e299]
+            - cell "$24,934" [ref=e300]
+            - cell "118%" [ref=e301]
+            - cell "$448.21/mo" [ref=e302]
+            - cell "7/7" [ref=e303]:
+              - generic [ref=e304]: 7/7
+            - cell "65" [ref=e305]:
+              - generic [ref=e306]:
+                - img [ref=e307]
+                - generic [ref=e310]: "65"
+          - row "Deal breakdown Selling price 24980 $24,980 Sales tax (6.00%) $1,499 Doc + title/reg $455 Cash down −$2,000 Net trade −$0 Rebate 0 −$0 Amount financed $24,934 Front-end gross $3,130 Term scenarios Term Payment OTD LTV Appr 60 mo $516.38 118% 67 72 mo $448.21 118% 65 84 mo $399.90 118% 63 96 mo $363.99 118% 61 Highlighted row = current term. Tap a term chip above to change the deal globally. Lender fits · 7 of 7 FIT Lake Trust CU 145% · 84mo CHK Capital One 130% · 75mo CHK Ally Financial 125% · 75mo CHK Ford Credit 120% · 84mo CHK Chase Auto 122% · 72mo CHK Westlake 140% · 72mo CHK Crescent Bank 135% · 72mo Preliminary screen against dealer-entered programs — not a credit decision. Final rate & terms set by the lender. 2021 Toyota RAV4 XLE · STK 4471 Add to compare Customer quote (PDF) Save deal" [ref=e311]:
+            - cell "Deal breakdown Selling price 24980 $24,980 Sales tax (6.00%) $1,499 Doc + title/reg $455 Cash down −$2,000 Net trade −$0 Rebate 0 −$0 Amount financed $24,934 Front-end gross $3,130 Term scenarios Term Payment OTD LTV Appr 60 mo $516.38 118% 67 72 mo $448.21 118% 65 84 mo $399.90 118% 63 96 mo $363.99 118% 61 Highlighted row = current term. Tap a term chip above to change the deal globally. Lender fits · 7 of 7 FIT Lake Trust CU 145% · 84mo CHK Capital One 130% · 75mo CHK Ally Financial 125% · 75mo CHK Ford Credit 120% · 84mo CHK Chase Auto 122% · 72mo CHK Westlake 140% · 72mo CHK Crescent Bank 135% · 72mo Preliminary screen against dealer-entered programs — not a credit decision. Final rate & terms set by the lender. 2021 Toyota RAV4 XLE · STK 4471 Add to compare Customer quote (PDF) Save deal" [ref=e312]:
+              - generic [ref=e313]:
+                - generic [ref=e314]:
+                  - heading "Deal breakdown" [level=4] [ref=e315]:
+                    - img [ref=e316]
+                    - text: Deal breakdown
+                  - generic [ref=e319]:
+                    - generic [ref=e320]:
+                      - generic [ref=e321]:
+                        - text: Selling price
+                        - generic [ref=e322]:
+                          - img [ref=e323]
+                          - textbox [ref=e325]: "24980"
+                      - generic [ref=e326]: $24,980
+                    - generic [ref=e327]:
+                      - generic [ref=e328]: Sales tax (6.00%)
+                      - generic [ref=e329]: $1,499
+                    - generic [ref=e330]:
+                      - generic [ref=e331]: Doc + title/reg
+                      - generic [ref=e332]: $455
+                    - generic [ref=e333]:
+                      - generic [ref=e334]: Cash down
+                      - generic [ref=e335]: −$2,000
+                    - generic [ref=e336]:
+                      - generic [ref=e337]: Net trade
+                      - generic [ref=e338]: −$0
+                    - generic [ref=e339]:
+                      - generic [ref=e340]:
+                        - text: Rebate
+                        - generic [ref=e341]:
+                          - img [ref=e342]
+                          - textbox [ref=e344]: "0"
+                      - generic [ref=e345]: −$0
+                    - generic [ref=e346]:
+                      - generic [ref=e347]: Amount financed
+                      - generic [ref=e348]: $24,934
+                    - generic [ref=e349]:
+                      - generic [ref=e350]: Front-end gross
+                      - generic [ref=e351]: $3,130
+                - generic [ref=e352]:
+                  - heading "Term scenarios" [level=4] [ref=e353]:
+                    - img [ref=e354]
+                    - text: Term scenarios
+                  - table [ref=e358]:
+                    - rowgroup [ref=e359]:
+                      - row "Term Payment OTD LTV Appr" [ref=e360]:
+                        - columnheader "Term" [ref=e361] [cursor=pointer]
+                        - columnheader "Payment" [ref=e362] [cursor=pointer]
+                        - columnheader "OTD LTV" [ref=e363] [cursor=pointer]
+                        - columnheader "Appr" [ref=e364] [cursor=pointer]
+                    - rowgroup [ref=e365]:
+                      - row "60 mo $516.38 118% 67" [ref=e366]:
+                        - cell "60 mo" [ref=e367]
+                        - cell "$516.38" [ref=e368]
+                        - cell "118%" [ref=e369]
+                        - cell "67" [ref=e370]
+                      - row "72 mo $448.21 118% 65" [ref=e371]:
+                        - cell "72 mo" [ref=e372]
+                        - cell "$448.21" [ref=e373]
+                        - cell "118%" [ref=e374]
+                        - cell "65" [ref=e375]
+                      - row "84 mo $399.90 118% 63" [ref=e376]:
+                        - cell "84 mo" [ref=e377]
+                        - cell "$399.90" [ref=e378]
+                        - cell "118%" [ref=e379]
+                        - cell "63" [ref=e380]
+                      - row "96 mo $363.99 118% 61" [ref=e381]:
+                        - cell "96 mo" [ref=e382]
+                        - cell "$363.99" [ref=e383]
+                        - cell "118%" [ref=e384]
+                        - cell "61" [ref=e385]
+                  - paragraph [ref=e386]: Highlighted row = current term. Tap a term chip above to change the deal globally.
+                - generic [ref=e387]:
+                  - heading "Lender fits · 7 of 7" [level=4] [ref=e388]:
+                    - img [ref=e389]
+                    - text: Lender fits · 7 of 7
+                  - generic [ref=e391]:
+                    - generic [ref=e392]: FIT
+                    - generic [ref=e393]: Lake Trust CU
+                    - generic [ref=e394]: 145% · 84mo
+                  - generic [ref=e395]:
+                    - generic [ref=e396]: CHK
+                    - generic [ref=e397]: Capital One
+                    - generic [ref=e398]: 130% · 75mo
+                  - generic [ref=e399]:
+                    - generic [ref=e400]: CHK
+                    - generic [ref=e401]: Ally Financial
+                    - generic [ref=e402]: 125% · 75mo
+                  - generic [ref=e403]:
+                    - generic [ref=e404]: CHK
+                    - generic [ref=e405]: Ford Credit
+                    - generic [ref=e406]: 120% · 84mo
+                  - generic [ref=e407]:
+                    - generic [ref=e408]: CHK
+                    - generic [ref=e409]: Chase Auto
+                    - generic [ref=e410]: 122% · 72mo
+                  - generic [ref=e411]:
+                    - generic [ref=e412]: CHK
+                    - generic [ref=e413]: Westlake
+                    - generic [ref=e414]: 140% · 72mo
+                  - generic [ref=e415]:
+                    - generic [ref=e416]: CHK
+                    - generic [ref=e417]: Crescent Bank
+                    - generic [ref=e418]: 135% · 72mo
+                  - paragraph [ref=e419]: Preliminary screen against dealer-entered programs — not a credit decision. Final rate & terms set by the lender.
+                - generic [ref=e420]:
+                  - generic [ref=e421]: 2021 Toyota RAV4 XLE · STK 4471
+                  - button "Add to compare" [ref=e422] [cursor=pointer]:
+                    - img [ref=e423]
+                    - text: Add to compare
+                  - button "Customer quote (PDF)" [ref=e425] [cursor=pointer]:
+                    - img [ref=e426]
+                    - text: Customer quote (PDF)
+                  - button "Save deal" [ref=e428] [cursor=pointer]:
+                    - img [ref=e429]
+                    - text: Save deal
+          - row "2019 Chevrolet Equinox LT STK 4388 · 61,420 mi $16,900 $13,600 124% $2,600 $16,369 120% $294.25/mo 6/7 64" [ref=e431] [cursor=pointer]:
+            - cell [ref=e432]:
+              - img [ref=e434]
+            - cell "2019 Chevrolet Equinox LT STK 4388 · 61,420 mi" [ref=e436]:
+              - generic [ref=e437]:
+                - text: 2019 Chevrolet Equinox LT
+                - generic [ref=e438]: STK 4388 · 61,420 mi
+            - cell "$16,900" [ref=e439]
+            - cell "$13,600" [ref=e440]
+            - cell "124%" [ref=e441]
+            - cell "$2,600" [ref=e442]
+            - cell "$16,369" [ref=e443]
+            - cell "120%" [ref=e444]
+            - cell "$294.25/mo" [ref=e445]
+            - cell "6/7" [ref=e446]:
+              - generic [ref=e447]: 6/7
+            - cell "64" [ref=e448]:
+              - generic [ref=e449]:
+                - img [ref=e450]
+                - generic [ref=e453]: "64"
+          - row "2018 Jeep Grand Cherokee STK 4301 · 78,900 mi $18,500 $14,200 130% $2,800 $18,065 127% $324.74/mo 4/7 59" [ref=e454] [cursor=pointer]:
+            - cell [ref=e455]:
+              - img [ref=e457]
+            - cell "2018 Jeep Grand Cherokee STK 4301 · 78,900 mi" [ref=e459]:
+              - generic [ref=e460]:
+                - text: 2018 Jeep Grand Cherokee
+                - generic [ref=e461]: STK 4301 · 78,900 mi
+            - cell "$18,500" [ref=e462]
+            - cell "$14,200" [ref=e463]
+            - cell "130%" [ref=e464]
+            - cell "$2,800" [ref=e465]
+            - cell "$18,065" [ref=e466]
+            - cell "127%" [ref=e467]
+            - cell "$324.74/mo" [ref=e468]
+            - cell "4/7" [ref=e469]:
+              - generic [ref=e470]: 4/7
+            - cell "59" [ref=e471]:
+              - generic [ref=e472]:
+                - img [ref=e473]
+                - generic [ref=e476]: "59"
+    - complementary [ref=e477]:
+      - generic [ref=e478]:
+        - generic [ref=e479]:
+          - text: STK 4471 · 38,140 mi
+          - generic [ref=e480]: FOCUSED
+        - heading "2021 Toyota RAV4 XLE" [level=3] [ref=e481]
+        - generic [ref=e482]:
+          - img [ref=e483]
+          - generic [ref=e486]:
+            - generic [ref=e487]: 65/100
+            - generic [ref=e488]: approval odds
+          - generic [ref=e489]:
+            - text: 7/7
+            - generic [ref=e490]: LENDERS
+        - generic [ref=e491]: Estimated monthly payment
+        - generic [ref=e492]: $448.21
+        - generic [ref=e493]: 72 mo · 8.90% APR · estimate, not an offer of credit
+        - generic [ref=e494]:
+          - generic [ref=e495]:
+            - generic [ref=e496]: Selling price
+            - generic [ref=e497]: $24,980
+          - generic [ref=e498]:
+            - generic [ref=e499]: Tax + fees
+            - generic [ref=e500]: $1,954
+          - generic [ref=e501]:
+            - generic [ref=e502]: Down + trade + rebate
+            - generic [ref=e503]: −$2,000
+          - generic [ref=e504]:
+            - generic [ref=e505]: OTD LTV
+            - generic [ref=e506]: 118%
+          - generic [ref=e507]:
+            - generic [ref=e508]: Front-end gross
+            - generic [ref=e509]: $3,130
+          - generic [ref=e510]:
+            - generic [ref=e511]: Amount financed
+            - generic [ref=e512]: $24,934
+        - generic [ref=e513]:
+          - button "PDF" [ref=e514] [cursor=pointer]:
+            - img [ref=e515]
+            - text: PDF
+          - button "Save deal" [ref=e517] [cursor=pointer]:
+            - img [ref=e518]
+            - text: Save deal
+        - paragraph [ref=e520]: Estimate for desking only. APR and approval are illustrative until the lender returns a decision.
+  - generic [ref=e521]: Direction C · Hybrid — switch role (top-right) to watch gross hide · type any deal term to re-price all inventory · click a row to expand

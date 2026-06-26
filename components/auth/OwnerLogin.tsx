@@ -87,7 +87,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
               Owner <span className="text-[var(--color-primary)]">Console</span>
             </h1>
             <p className="mt-2 text-sm text-slate-400">
-              LTV Desking <span className="text-blue-400 font-semibold">PRO</span>
+              LTV Desking <span className="text-green-400 font-semibold">PRO</span>
               <span className="mx-2 text-slate-600">·</span>
               Authorized personnel only
             </p>
@@ -164,7 +164,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
 
           <p className="text-center text-xs text-slate-500">
             Need dealer access? Visit the main app at{" "}
-            <a href="/" className="font-mono text-slate-400 hover:text-blue-400 transition-colors">
+            <a href="/" className="font-mono text-slate-400 hover:text-green-400 transition-colors">
               /
             </a>
             .

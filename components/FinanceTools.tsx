@@ -84,21 +84,21 @@ const InputGroup: React.FC<{
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
+    className="w-full px-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition-all duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
   />
 );
 
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
     {...props}
-    className="w-full px-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
+    className="w-full px-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition-all duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
   />
 );
 
 const ResultDisplay = ({
   label,
   value,
-  valueColorClass = "text-blue-600 dark:text-blue-400",
+  valueColorClass = "text-green-600 dark:text-green-400",
   subLabel,
 }: {
   label: string;
@@ -334,7 +334,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               onClick={() => setActiveTab(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 activeTab === item.id
-                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
                   : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
@@ -642,7 +642,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   <ResultDisplay
                     label="Max Loan Amount"
                     value={formatCurrency(budgetResult.maxLoan)}
-                    valueColorClass="text-blue-600 dark:text-blue-400"
+                    valueColorClass="text-green-600 dark:text-green-400"
                   />
                   <ResultDisplay
                     label="Max OTD Price"
@@ -723,7 +723,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     />
                     <button
                       onClick={() => setIsScannerOpen(true)}
-                      className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                      className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
                       title="Scan Pay Stub"
                       aria-label="Scan pay stub"
                     >
@@ -891,7 +891,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     </div>
                     <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-blue-500 rounded-full"
+                        className="h-full bg-green-500 rounded-full"
                         style={{
                           width: `${Math.min(
                             100,
@@ -959,7 +959,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 <textarea
                   id="finance-tools-notes"
                   aria-label="Finance tools notes"
-                  className="flex-1 w-full p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none font-mono text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 min-h-[400px]"
+                  className="flex-1 w-full p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none font-mono text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 min-h-[400px]"
                   placeholder="Type your notes here..."
                   value={scratchPadNotes}
                   onChange={(e) => setScratchPadNotes(e.target.value)}

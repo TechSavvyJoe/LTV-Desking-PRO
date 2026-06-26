@@ -21,7 +21,7 @@ export const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Load
         width: 40px;
         height: 40px;
         border: 3px solid var(--border-color, #e0e0e0);
-        border-top-color: var(--primary-color, #3b82f6);
+        border-top-color: var(--primary-color, #43c05a);
         border-radius: 50%;
         animation: spin 1s linear infinite;
       }

@@ -30,6 +30,7 @@ import * as Icons from "./components/common/Icons";
 import Button from "./components/common/Button";
 import DealControls from "./components/DealControls";
 import InventoryTable from "./components/InventoryTable";
+import DealSummaryRail from "./components/desk/DealSummaryRail";
 import LenderProfiles from "./components/LenderProfiles";
 import SavedDeals from "./components/SavedDeals";
 import SettingsModal from "./components/SettingsModal";
@@ -666,11 +667,7 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div
-      className={`min-h-screen transition-colors duration-300 ${
-        theme === "dark" ? "bg-[#0f172a]" : "bg-[#f8fafc]"
-      } text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-500/30 selection:text-blue-600 dark:selection:text-blue-300`}
-    >
+    <div className="min-h-screen bg-[var(--color-bg-subtle)] text-[var(--color-text)] font-sans selection:bg-[var(--color-primary)]/25 selection:text-white">
       {/* Skip navigation for accessibility */}
       <SkipNavLink />
 
@@ -705,43 +702,33 @@ const MainLayout: React.FC = () => {
         tabIndex={-1}
         className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-6 focus:outline-none"
       >
-        {/* Deal Controls */}
-        <section>
-          <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm overflow-hidden transition-colors duration-[120ms] hover:border-[var(--color-border-strong)]">
-            <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
-                <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" /> Customer &amp;
-                deal
-              </h3>
-              {/* Action Buttons moved here */}
-              <ActionBar
-                activeTab={activeTab}
-                favoritesCount={favorites.length}
-                onDownloadFavorites={handleDownloadFavorites}
-                onSaveDeal={() => handleSaveDeal()}
-                canSave={
-                  !!activeVehicle && typeof activeVehicle.price === "number" && !!customerName
-                }
-              />
-            </div>
-            <div className="p-4">
-              <DealControls
-                dealData={dealData}
-                setDealData={setDealData}
-                filters={filters}
-                setFilters={setFilters}
-                errors={errors}
-                setErrors={setErrors}
-                customerName={customerName}
-                setCustomerName={setCustomerName}
-                salespersonName={salespersonName}
-                setSalespersonName={setSalespersonName}
-                onVinLookup={handleVinLookup}
-                vinLookupResult={vinLookupResult}
-                isVinLoading={isVinLoading}
-              />
-            </div>
+        {/* Deal terms + filters — DealControls renders its own paneled chrome,
+            so we only float the deal actions above it (no redundant wrapper card). */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-end">
+            <ActionBar
+              activeTab={activeTab}
+              favoritesCount={favorites.length}
+              onDownloadFavorites={handleDownloadFavorites}
+              onSaveDeal={() => handleSaveDeal()}
+              canSave={!!activeVehicle && typeof activeVehicle.price === "number" && !!customerName}
+            />
           </div>
+          <DealControls
+            dealData={dealData}
+            setDealData={setDealData}
+            filters={filters}
+            setFilters={setFilters}
+            errors={errors}
+            setErrors={setErrors}
+            customerName={customerName}
+            setCustomerName={setCustomerName}
+            salespersonName={salespersonName}
+            setSalespersonName={setSalespersonName}
+            onVinLookup={handleVinLookup}
+            vinLookupResult={vinLookupResult}
+            isVinLoading={isVinLoading}
+          />
         </section>
 
         {/* Main Content Area (Tables) */}
@@ -762,7 +749,7 @@ const MainLayout: React.FC = () => {
               <Button
                 onClick={() => fileInputRef.current?.click()}
                 variant="secondary"
-                className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700"
+                className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700"
               >
                 <div className="flex flex-col items-start leading-tight text-left">
                   <span className="flex items-center">
@@ -791,7 +778,7 @@ const MainLayout: React.FC = () => {
                 aria-label="Download Sample CSV"
                 variant="ghost"
                 size="icon"
-                className="text-slate-400 hover:text-blue-500"
+                className="text-slate-400 hover:text-green-500"
                 onClick={() => {
                   const headers = [
                     "Stock #",
@@ -845,7 +832,7 @@ const MainLayout: React.FC = () => {
               <div className="relative w-full max-w-xs">
                 <input
                   type="text"
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-green-500/50 focus:border-green-500 outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
                   placeholder="Enter VIN..."
                   aria-label="Enter VIN to decode"
                   maxLength={17}
@@ -873,17 +860,17 @@ const MainLayout: React.FC = () => {
                 Pending structure
               </span>
               <div className="flex items-center gap-3 ml-auto sm:ml-0">
-                <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
+                <span className="bg-white/80 dark:bg-green-950/50 px-3 py-1 rounded-lg border border-green-200/50 dark:border-green-500/20 font-mono font-medium">
                   Down: ${dealData.downPayment.toLocaleString()}
                 </span>
-                <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
+                <span className="bg-white/80 dark:bg-green-950/50 px-3 py-1 rounded-lg border border-green-200/50 dark:border-green-500/20 font-mono font-medium">
                   Trade: ${dealData.tradeInValue.toLocaleString()}
                 </span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="ml-auto text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                className="ml-auto text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30"
                 onClick={clearDealAndFilters}
               >
                 Clear
@@ -941,114 +928,119 @@ const MainLayout: React.FC = () => {
             ) : (
               <>
                 {activeTab === "inventory" && (
-                  <div className="space-y-8">
-                    {/* Favorites Section */}
-                    {safeFavorites.length > 0 && (
-                      <div className="bg-[var(--color-bg-subtle)] rounded-lg border border-[var(--color-border)] p-1">
-                        <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
-                          <h2 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
-                            <Icons.StarIcon className="w-4 h-4 text-[var(--color-warning)] fill-current" />
-                            Shortlist ({safeFavorites.length})
-                          </h2>
+                  <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+                    <div className="space-y-8 min-w-0">
+                      {/* Favorites Section */}
+                      {safeFavorites.length > 0 && (
+                        <div className="bg-[var(--color-bg-subtle)] rounded-lg border border-[var(--color-border)] p-1">
+                          <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
+                            <h2 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
+                              <Icons.StarIcon className="w-4 h-4 text-[var(--color-warning)] fill-current" />
+                              Shortlist ({safeFavorites.length})
+                            </h2>
+                          </div>
+                          <div className="p-2">
+                            <InventoryTable
+                              data={calculatedFavorites}
+                              sortConfig={favSort}
+                              onSort={(key) =>
+                                setFavSort((prev) => ({
+                                  key,
+                                  direction:
+                                    prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+                                }))
+                              }
+                              expandedRows={expandedFavoriteRows}
+                              onRowClick={(vin) =>
+                                handleFavoriteRowSelect(vin, calculatedFavorites)
+                              }
+                              onStructureDeal={handleSelectVehicle}
+                              favoriteVins={favoriteVins}
+                              toggleFavorite={toggleFavorite}
+                              pagination={{
+                                currentPage: 1,
+                                itemsPerPage: Infinity,
+                              }}
+                              setPagination={() => {}}
+                              totalRows={safeFavorites.length}
+                              isFavoritesView
+                              renderExpandedRow={(vehicle) => (
+                                <InventoryExpandedRow
+                                  item={vehicle}
+                                  lenderProfiles={safeLenderProfiles}
+                                  dealData={dealData}
+                                  setDealData={setDealData}
+                                  onInventoryUpdate={handleInventoryUpdate}
+                                  customerFilters={filters}
+                                  settings={settings}
+                                  onDownloadPdf={downloadPdf}
+                                  onSharePdf={(e) => sharePdf(e, vehicle)}
+                                  isShareSupported={isShareSupported}
+                                />
+                              )}
+                            />
+                          </div>
                         </div>
-                        <div className="p-2">
-                          <InventoryTable
-                            data={calculatedFavorites}
-                            sortConfig={favSort}
-                            onSort={(key) =>
-                              setFavSort((prev) => ({
-                                key,
-                                direction:
-                                  prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-                              }))
-                            }
-                            expandedRows={expandedFavoriteRows}
-                            onRowClick={(vin) => handleFavoriteRowSelect(vin, calculatedFavorites)}
-                            onStructureDeal={handleSelectVehicle}
-                            favoriteVins={favoriteVins}
-                            toggleFavorite={toggleFavorite}
-                            pagination={{
-                              currentPage: 1,
-                              itemsPerPage: Infinity,
-                            }}
-                            setPagination={() => {}}
-                            totalRows={safeFavorites.length}
-                            isFavoritesView
-                            renderExpandedRow={(vehicle) => (
-                              <InventoryExpandedRow
-                                item={vehicle}
-                                lenderProfiles={safeLenderProfiles}
-                                dealData={dealData}
-                                setDealData={setDealData}
-                                onInventoryUpdate={handleInventoryUpdate}
-                                customerFilters={filters}
-                                settings={settings}
-                                onDownloadPdf={downloadPdf}
-                                onSharePdf={(e) => sharePdf(e, vehicle)}
-                                isShareSupported={isShareSupported}
-                              />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Main Inventory */}
-                    <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm overflow-hidden">
-                      <InventoryTable
-                        data={paginatedInventory}
-                        sortConfig={inventorySort}
-                        onSort={(key) =>
-                          setInventorySort((prev) => ({
-                            key,
-                            direction:
-                              prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-                          }))
-                        }
-                        expandedRows={expandedInventoryRows}
-                        onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
-                        onStructureDeal={handleSelectVehicle}
-                        favoriteVins={favoriteVins}
-                        toggleFavorite={toggleFavorite}
-                        pagination={pagination}
-                        setPagination={setPagination}
-                        totalRows={sortedInventory.length}
-                        onLoadSampleData={loadSampleData}
-                        emptyMessage={
-                          safeInventory.length > 0 ? (
-                            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                              <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                              <p className="text-slate-500">No vehicles match your filters.</p>
-                              <Button onClick={clearDealAndFilters} variant="secondary" size="sm">
-                                Clear Filters
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                              <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                              <p className="text-slate-500">Inventory is empty.</p>
-                              <Button onClick={loadSampleData} variant="primary" size="sm">
-                                Load Sample Data
-                              </Button>
-                            </div>
-                          )
-                        }
-                        renderExpandedRow={(vehicle) => (
-                          <InventoryExpandedRow
-                            item={vehicle}
-                            lenderProfiles={safeLenderProfiles}
-                            dealData={dealData}
-                            setDealData={setDealData}
-                            onInventoryUpdate={handleInventoryUpdate}
-                            customerFilters={filters}
-                            settings={settings}
-                            onDownloadPdf={downloadPdf}
-                            onSharePdf={(e) => sharePdf(e, vehicle)}
-                            isShareSupported={isShareSupported}
-                          />
-                        )}
-                      />
+                      {/* Main Inventory */}
+                      <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm overflow-hidden">
+                        <InventoryTable
+                          data={paginatedInventory}
+                          sortConfig={inventorySort}
+                          onSort={(key) =>
+                            setInventorySort((prev) => ({
+                              key,
+                              direction:
+                                prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+                            }))
+                          }
+                          expandedRows={expandedInventoryRows}
+                          onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
+                          onStructureDeal={handleSelectVehicle}
+                          favoriteVins={favoriteVins}
+                          toggleFavorite={toggleFavorite}
+                          pagination={pagination}
+                          setPagination={setPagination}
+                          totalRows={sortedInventory.length}
+                          onLoadSampleData={loadSampleData}
+                          emptyMessage={
+                            safeInventory.length > 0 ? (
+                              <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                                <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                                <p className="text-slate-500">No vehicles match your filters.</p>
+                                <Button onClick={clearDealAndFilters} variant="secondary" size="sm">
+                                  Clear Filters
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                                <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                                <p className="text-slate-500">Inventory is empty.</p>
+                                <Button onClick={loadSampleData} variant="primary" size="sm">
+                                  Load Sample Data
+                                </Button>
+                              </div>
+                            )
+                          }
+                          renderExpandedRow={(vehicle) => (
+                            <InventoryExpandedRow
+                              item={vehicle}
+                              lenderProfiles={safeLenderProfiles}
+                              dealData={dealData}
+                              setDealData={setDealData}
+                              onInventoryUpdate={handleInventoryUpdate}
+                              customerFilters={filters}
+                              settings={settings}
+                              onDownloadPdf={downloadPdf}
+                              onSharePdf={(e) => sharePdf(e, vehicle)}
+                              isShareSupported={isShareSupported}
+                            />
+                          )}
+                        />
+                      </div>
                     </div>
+                    <DealSummaryRail />
                   </div>
                 )}
 
@@ -1374,7 +1366,7 @@ const App: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
-        <Icons.SpinnerIcon className="w-8 h-8 text-blue-600 animate-spin" />
+        <Icons.SpinnerIcon className="w-8 h-8 text-green-600 animate-spin" />
       </div>
     );
   }
@@ -1464,7 +1456,7 @@ const App: React.FC = () => {
                 setViewMode("auto");
               }
             }}
-            className="shadow-lg bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
+            className="shadow-lg bg-green-600 border-green-500 text-white hover:bg-green-700"
           >
             <Icons.Cog6ToothIcon className="w-4 h-4 mr-2" />
             Admin Console

@@ -96,7 +96,7 @@ const getStageIcon = (stage: ProcessingProgress["stage"]) => {
 const getStageColor = (stage: ProcessingProgress["stage"]) => {
   switch (stage) {
     case "uploading":
-      return "text-blue-400";
+      return "text-green-400";
     case "extracting":
       return "text-yellow-400";
     case "validating":
@@ -506,7 +506,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             {isLoading && onMinimize && (
               <button
                 onClick={onMinimize}
-                className="p-2 rounded-full text-x-text-secondary hover:bg-x-hover-light hover:text-blue-400 transition-colors"
+                className="p-2 rounded-full text-x-text-secondary hover:bg-x-hover-light hover:text-green-400 transition-colors"
                 title="Minimize - Processing will continue in background"
               >
                 <MinimizeIcon />
@@ -570,7 +570,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                   type="checkbox"
                   checked={enrichWithWebSearch}
                   onChange={(e) => setEnrichWithWebSearch(e.target.checked)}
-                  className="mt-1 w-4 h-4 accent-blue-500"
+                  className="mt-1 w-4 h-4 accent-green-500"
                 />
                 <label htmlFor="enrich-toggle" className="text-sm cursor-pointer">
                   <span className="font-medium text-x-text-primary">
@@ -627,7 +627,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                     type="checkbox"
                                     checked={isIncluded}
                                     onChange={() => toggleLenderIncluded(lenderKey)}
-                                    className="w-4 h-4 accent-blue-500"
+                                    className="w-4 h-4 accent-green-500"
                                     aria-label={`Include ${lender.name || "this lender"} in the update`}
                                   />
                                   <span className="font-semibold text-x-text-primary text-sm">
@@ -677,7 +677,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                         href={lender.website}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="text-blue-400 hover:underline"
+                                        className="text-green-400 hover:underline"
                                       >
                                         {lender.website}
                                       </a>
@@ -690,7 +690,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                         href={lender.portalUrl}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="text-blue-400 hover:underline"
+                                        className="text-green-400 hover:underline"
                                       >
                                         {lender.portalUrl}
                                       </a>

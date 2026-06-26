@@ -118,7 +118,7 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
         <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-xl border border-slate-200 dark:border-gray-800 text-center">
           <p className="mb-4 font-medium text-slate-700 dark:text-gray-200">
             Ready to desk the{" "}
-            <span className="text-blue-600 dark:text-blue-400">{activeVehicle.vehicle}</span>?
+            <span className="text-green-600 dark:text-green-400">{activeVehicle.vehicle}</span>?
           </p>
           <Button
             onClick={handleAnalyze}
@@ -181,7 +181,7 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
                     <div className="p-4 border-b border-slate-100 dark:border-gray-800 bg-slate-50 dark:bg-white/5 flex justify-between items-start">
                       <div>
                         <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full">
+                          <span className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs px-2 py-0.5 rounded-full">
                             Suggestion #{idx + 1}
                           </span>
                           {suggestion.title}
@@ -195,7 +195,7 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
                           size="sm"
                           variant="secondary"
                           onClick={() => applySuggestion(suggestion.proposedChanges)}
-                          className="bg-white dark:bg-black text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20 border-slate-300 dark:border-gray-700"
+                          className="bg-white dark:bg-black text-xs hover:bg-green-50 dark:hover:bg-green-900/20 border-slate-300 dark:border-gray-700"
                         >
                           <CheckIcon className="w-3 h-3 mr-1.5 text-green-500" />
                           Apply
@@ -204,10 +204,10 @@ const AiDealAssistant: React.FC<AiDealAssistantProps> = ({
                     </div>
 
                     {alternativeVehicle ? (
-                      <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 text-sm">
+                      <div className="p-4 bg-green-50/50 dark:bg-green-900/10 text-sm">
                         <div className="flex justify-between items-center mb-3">
                           <div>
-                            <p className="font-bold text-lg text-blue-700 dark:text-blue-300">
+                            <p className="font-bold text-lg text-green-700 dark:text-green-300">
                               {alternativeVehicle.vehicle}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-gray-400">

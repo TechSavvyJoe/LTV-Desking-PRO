@@ -61,7 +61,7 @@ const Pagination: React.FC<PaginationProps> = ({ totalItems, pagination, setPagi
               border border-slate-200 dark:border-slate-700
               rounded-lg
               text-slate-700 dark:text-slate-200
-              focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500
+              focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500
               transition-all duration-150
               cursor-pointer
             "

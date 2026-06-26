@@ -1,0 +1,219 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: LV
+      - generic [ref=e5]: LTV Desking PRO
+    - generic [ref=e6] [cursor=pointer]:
+      - img [ref=e7]
+      - generic [ref=e9]: Bob Maxey Ford
+      - img [ref=e10]
+    - button "Import inventory" [ref=e12] [cursor=pointer]:
+      - img [ref=e13]
+      - text: Import inventory
+    - button "AI Lender Import" [ref=e15] [cursor=pointer]:
+      - img [ref=e16]
+      - text: AI Lender Import
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - img [ref=e22]
+          - heading "Deal terms" [level=2] [ref=e25]
+          - generic [ref=e26]: "Customer: — add — · Salesperson: J. Smith"
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - generic [ref=e29]: Credit score
+            - generic [ref=e30]: "712"
+          - generic [ref=e31]:
+            - generic [ref=e32]: Down payment
+            - generic [ref=e33]: $2,000
+          - generic [ref=e34]:
+            - generic [ref=e35]: Trade equity
+            - generic [ref=e36]: $0
+          - generic [ref=e37]:
+            - generic [ref=e38]: Term
+            - generic [ref=e39]: 72 mo
+          - generic [ref=e40]:
+            - generic [ref=e41]: APR
+            - generic [ref=e42]: 8.9%
+          - generic [ref=e43]:
+            - generic [ref=e44]: Buyer state
+            - generic [ref=e45]: MI
+      - generic [ref=e46]:
+        - generic [ref=e47]:
+          - heading "Inventory" [level=2] [ref=e48]
+          - generic [ref=e49]: 14 units · sorted by approval odds
+          - generic [ref=e50]:
+            - generic [ref=e51] [cursor=pointer]: Approval
+            - generic [ref=e52] [cursor=pointer]: Payment
+            - generic [ref=e53] [cursor=pointer]: LTV
+        - table [ref=e54]:
+          - rowgroup [ref=e55]:
+            - row "Vehicle Price OTD LTV Est. payment Approval odds" [ref=e56]:
+              - columnheader "Vehicle" [ref=e57]
+              - columnheader "Price" [ref=e58]
+              - columnheader "OTD LTV" [ref=e59]
+              - columnheader "Est. payment" [ref=e60]
+              - columnheader "Approval odds" [ref=e61]
+          - rowgroup [ref=e62]:
+            - row "2021 Toyota RAV4 XLE STK 4471 · 38,140 mi $24,980 118% $486.20/mo 88 Strong" [ref=e63] [cursor=pointer]:
+              - cell "2021 Toyota RAV4 XLE STK 4471 · 38,140 mi" [ref=e64]:
+                - generic [ref=e65]:
+                  - text: 2021 Toyota RAV4 XLE
+                  - generic [ref=e66]: STK 4471 · 38,140 mi
+              - cell "$24,980" [ref=e67]
+              - cell "118%" [ref=e68]
+              - cell "$486.20/mo" [ref=e69]
+              - cell "88 Strong" [ref=e70]:
+                - generic [ref=e71]:
+                  - img [ref=e72]
+                  - generic [ref=e75]: "88"
+                  - generic [ref=e76]: Strong
+            - row "2020 Honda CR-V EX STK 4419 · 44,300 mi $23,400 113% $455.10/mo 91 Strong" [ref=e77] [cursor=pointer]:
+              - cell "2020 Honda CR-V EX STK 4419 · 44,300 mi" [ref=e78]:
+                - generic [ref=e79]:
+                  - text: 2020 Honda CR-V EX
+                  - generic [ref=e80]: STK 4419 · 44,300 mi
+              - cell "$23,400" [ref=e81]
+              - cell "113%" [ref=e82]
+              - cell "$455.10/mo" [ref=e83]
+              - cell "91 Strong" [ref=e84]:
+                - generic [ref=e85]:
+                  - img [ref=e86]
+                  - generic [ref=e89]: "91"
+                  - generic [ref=e90]: Strong
+            - row "2022 Ford F-150 XLT STK 4502 · 29,870 mi $41,200 109% $742.80/mo 86 Strong" [ref=e91] [cursor=pointer]:
+              - cell "2022 Ford F-150 XLT STK 4502 · 29,870 mi" [ref=e92]:
+                - generic [ref=e93]:
+                  - text: 2022 Ford F-150 XLT
+                  - generic [ref=e94]: STK 4502 · 29,870 mi
+              - cell "$41,200" [ref=e95]
+              - cell "109%" [ref=e96]
+              - cell "$742.80/mo" [ref=e97]
+              - cell "86 Strong" [ref=e98]:
+                - generic [ref=e99]:
+                  - img [ref=e100]
+                  - generic [ref=e103]: "86"
+                  - generic [ref=e104]: Strong
+            - row "2021 Mazda CX-5 Touring STK 4460 · 41,050 mi $22,100 116% $430.90/mo 80 Strong" [ref=e105] [cursor=pointer]:
+              - cell "2021 Mazda CX-5 Touring STK 4460 · 41,050 mi" [ref=e106]:
+                - generic [ref=e107]:
+                  - text: 2021 Mazda CX-5 Touring
+                  - generic [ref=e108]: STK 4460 · 41,050 mi
+              - cell "$22,100" [ref=e109]
+              - cell "116%" [ref=e110]
+              - cell "$430.90/mo" [ref=e111]
+              - cell "80 Strong" [ref=e112]:
+                - generic [ref=e113]:
+                  - img [ref=e114]
+                  - generic [ref=e117]: "80"
+                  - generic [ref=e118]: Strong
+            - row "2020 Subaru Outback STK 4433 · 52,600 mi $21,800 119% $428.70/mo 78 Fair" [ref=e119] [cursor=pointer]:
+              - cell "2020 Subaru Outback STK 4433 · 52,600 mi" [ref=e120]:
+                - generic [ref=e121]:
+                  - text: 2020 Subaru Outback
+                  - generic [ref=e122]: STK 4433 · 52,600 mi
+              - cell "$21,800" [ref=e123]
+              - cell "119%" [ref=e124]
+              - cell "$428.70/mo" [ref=e125]
+              - cell "78 Fair" [ref=e126]:
+                - generic [ref=e127]:
+                  - img [ref=e128]
+                  - generic [ref=e131]: "78"
+                  - generic [ref=e132]: Fair
+            - row "2019 Chevy Equinox LT STK 4388 · 61,420 mi $16,900 125% $352.40/mo 71 Fair" [ref=e133] [cursor=pointer]:
+              - cell "2019 Chevy Equinox LT STK 4388 · 61,420 mi" [ref=e134]:
+                - generic [ref=e135]:
+                  - text: 2019 Chevy Equinox LT
+                  - generic [ref=e136]: STK 4388 · 61,420 mi
+              - cell "$16,900" [ref=e137]
+              - cell "125%" [ref=e138]
+              - cell "$352.40/mo" [ref=e139]
+              - cell "71 Fair" [ref=e140]:
+                - generic [ref=e141]:
+                  - img [ref=e142]
+                  - generic [ref=e145]: "71"
+                  - generic [ref=e146]: Fair
+            - row "2018 Jeep Grand Cherokee STK 4301 · 78,900 mi $18,500 131% $401.10/mo 48 Tough" [ref=e147] [cursor=pointer]:
+              - cell "2018 Jeep Grand Cherokee STK 4301 · 78,900 mi" [ref=e148]:
+                - generic [ref=e149]:
+                  - text: 2018 Jeep Grand Cherokee
+                  - generic [ref=e150]: STK 4301 · 78,900 mi
+              - cell "$18,500" [ref=e151]
+              - cell "131%" [ref=e152]
+              - cell "$401.10/mo" [ref=e153]
+              - cell "48 Tough" [ref=e154]:
+                - generic [ref=e155]:
+                  - img [ref=e156]
+                  - generic [ref=e159]: "48"
+                  - generic [ref=e160]: Tough
+            - row "2013 Ford Focus SE STK 4112 · 140,000 mi $5,800 139% $168.40/mo 34 Tough" [ref=e161] [cursor=pointer]:
+              - cell "2013 Ford Focus SE STK 4112 · 140,000 mi" [ref=e162]:
+                - generic [ref=e163]:
+                  - text: 2013 Ford Focus SE
+                  - generic [ref=e164]: STK 4112 · 140,000 mi
+              - cell "$5,800" [ref=e165]
+              - cell "139%" [ref=e166]
+              - cell "$168.40/mo" [ref=e167]
+              - cell "34 Tough" [ref=e168]:
+                - generic [ref=e169]:
+                  - img [ref=e170]
+                  - generic [ref=e173]: "34"
+                  - generic [ref=e174]: Tough
+    - complementary [ref=e175]:
+      - generic [ref=e176]:
+        - generic [ref=e177]: STK 4471 · 38,140 mi
+        - heading "2021 Toyota RAV4 XLE" [level=3] [ref=e178]
+        - generic [ref=e179]: Estimated monthly payment
+        - generic [ref=e180]: $486.20
+        - generic [ref=e181]: 72 months · 8.9% APR · estimate only, not an offer of credit
+        - generic [ref=e182]:
+          - generic [ref=e183]:
+            - generic [ref=e184]: Selling price
+            - generic [ref=e185]: $24,980.00
+          - generic [ref=e186]:
+            - generic [ref=e187]: Tax + fees (MI)
+            - generic [ref=e188]: $1,793.80
+          - generic [ref=e189]:
+            - generic [ref=e190]: Cash down
+            - generic [ref=e191]: −$2,000.00
+          - generic [ref=e192]:
+            - generic [ref=e193]: Amount financed
+            - generic [ref=e194]: $24,773.80
+        - generic [ref=e195]:
+          - button "PDF" [ref=e196] [cursor=pointer]:
+            - img [ref=e197]
+            - text: PDF
+          - button "Save deal" [ref=e199] [cursor=pointer]:
+            - img [ref=e200]
+            - text: Save deal
+      - generic [ref=e202]:
+        - heading "Lender fits" [level=4] [ref=e203]
+        - generic [ref=e204]: 5 of 7 programs · preliminary screen
+        - generic [ref=e205]:
+          - generic [ref=e206]:
+            - generic [ref=e207]: Fit
+            - text: Lake Trust CU
+          - generic [ref=e208]: 145% · 84 mo
+        - generic [ref=e209]:
+          - generic [ref=e210]:
+            - generic [ref=e211]: Fit
+            - text: Capital One
+          - generic [ref=e212]: 130% · 75 mo
+        - generic [ref=e213]:
+          - generic [ref=e214]:
+            - generic [ref=e215]: Fit
+            - text: Ally
+          - generic [ref=e216]: 125% · 75 mo
+        - generic [ref=e217]:
+          - generic [ref=e218]:
+            - generic [ref=e219]: Check
+            - text: Ford Credit
+          - generic [ref=e220]: backend cap
+        - generic [ref=e221]:
+          - generic [ref=e222]:
+            - generic [ref=e223]: "No"
+            - text: Crescent Bank
+          - generic [ref=e224]: min amount
+        - paragraph [ref=e225]: Preliminary screen against dealer-entered programs — not a credit decision. Final rate & terms determined by the lender.
+  - generic [ref=e226]: Direction B · Refined — Linear/Ramp calm, inventory-first, Sora + Manrope, iris accent + approval rings

@@ -21,7 +21,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme, onToggle }) => {
         bg-slate-200 dark:bg-slate-700
         rounded-full
         transition-colors duration-300 ease-out
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2
       "
       role="switch"
       aria-checked={isDark}

@@ -97,7 +97,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
       <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-700">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Icons.DocumentTextIcon className="w-6 h-6 text-blue-500" />
+            <Icons.DocumentTextIcon className="w-6 h-6 text-green-500" />
             Scan Pay Stub
           </h3>
           <button
@@ -135,7 +135,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
               aria-label="Upload pay stub image"
             />
             {isScanning ? (
-              <Icons.SpinnerIcon className="w-12 h-12 text-blue-500 mx-auto mb-2 animate-spin" />
+              <Icons.SpinnerIcon className="w-12 h-12 text-green-500 mx-auto mb-2 animate-spin" />
             ) : (
               <Icons.CameraIcon className="w-12 h-12 text-slate-400 mx-auto mb-2" />
             )}
@@ -180,7 +180,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
             <div className="space-y-2">
               <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 transition-all duration-300"
+                  className="h-full bg-green-500 transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>

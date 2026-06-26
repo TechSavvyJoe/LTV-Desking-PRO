@@ -15,6 +15,50 @@ import {
 } from "./common/TableCell";
 import { EmptyState } from "./common/states";
 import Pagination from "./common/Pagination";
+import { computeApproval, type ApprovalResult } from "../services/approval";
+import { getCurrentUser } from "../lib/pocketbase";
+
+// Approval-odds ring — the signature desk visual. Color tracks the score band.
+const approvalColor = (s: number) =>
+  s >= 72 ? "var(--color-success)" : s >= 50 ? "var(--color-warning)" : "var(--color-danger)";
+
+const ApprovalRing: React.FC<{ score: number }> = ({ score }) => {
+  const r = 11;
+  const sw = 3;
+  const sz = r * 2 + sw + 3;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - score / 100);
+  const color = approvalColor(score);
+  return (
+    <span className="inline-flex items-center gap-2 justify-end">
+      <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} className="shrink-0" aria-hidden>
+        <circle
+          cx={sz / 2}
+          cy={sz / 2}
+          r={r}
+          fill="none"
+          stroke="rgba(255,255,255,0.09)"
+          strokeWidth={sw}
+        />
+        <circle
+          cx={sz / 2}
+          cy={sz / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={sw}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={off}
+          transform={`rotate(-90 ${sz / 2} ${sz / 2})`}
+        />
+      </svg>
+      <span className="font-mono font-bold tabular-nums text-[13px]" style={{ color }}>
+        {score}
+      </span>
+    </span>
+  );
+};
 
 interface InventoryTableProps {
   data: CalculatedVehicle[];
@@ -58,6 +102,20 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
 }) => {
   const safeVehicles = useSafeData(data);
 
+  // Live deal context drives the approval-odds + lender-fit columns.
+  const { lenderProfiles, dealData, filters, settings } = useDealContext();
+  const canSeeGross = getCurrentUser()?.role !== "sales";
+
+  const approvalMap = useMemo(() => {
+    const m = new Map<string, ApprovalResult>();
+    for (const item of safeVehicles) {
+      if (item?.vin) {
+        m.set(item.vin, computeApproval(item, { lenderProfiles, dealData, filters, settings }));
+      }
+    }
+    return m;
+  }, [safeVehicles, lenderProfiles, dealData, filters, settings]);
+
   // Check if any row is expanded in favorites view
   const hasExpandedRow = isFavoritesView && expandedRows && expandedRows.size > 0;
 
@@ -83,7 +141,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
           const isExpanded = expandedRows?.has(item.vin) || false;
           return (
             <button
-              className="flex justify-center items-center h-full w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-md"
+              className="flex justify-center items-center h-full w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500 rounded-md"
               onClick={(e) => {
                 e.stopPropagation();
                 onRowClick(item.vin);
@@ -141,49 +199,30 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         ),
       },
       {
-        header: "Year",
-        accessor: "modelYear" as const,
-        isNumeric: true,
-        width: "minmax(60px, 80px)",
-        render: (item: CalculatedVehicle) => (
-          <CopyToClipboard valueToCopy={item.modelYear}>
-            <span className="tabular-nums">{item.modelYear}</span>
-          </CopyToClipboard>
-        ),
-      },
-      {
-        header: "Make",
+        // Single Vehicle identity cell — bold name over a mono STK · mileage
+        // subline. Replaces the old Year / Make / Model / Stock # / Miles columns.
+        // accessor "make" keeps the header click-to-sort behavior intact.
+        header: "Vehicle",
         accessor: "make" as const,
-        className: "font-medium text-slate-900 dark:text-gray-100",
-        width: "minmax(80px, 1fr)",
-      },
-      {
-        header: "Model",
-        accessor: "model" as const,
-        className: "text-slate-500 dark:text-gray-400",
-        width: "minmax(120px, 2fr)",
-        render: (item: CalculatedVehicle) => (
-          <span>
-            {item.model} {item.trim}
-          </span>
-        ),
-      },
-      {
-        header: "Stock #",
-        accessor: "stock" as const,
-        className: "text-slate-500 dark:text-gray-400",
-        width: "minmax(70px, 100px)",
-      },
-      {
-        header: "Miles",
-        accessor: "mileage" as const,
-        isNumeric: true,
-        width: "minmax(70px, 100px)",
-        render: (item: CalculatedVehicle) => (
-          <CopyToClipboard valueToCopy={item.mileage}>
-            <span className="tabular-nums">{formatNumber(item.mileage)}</span>
-          </CopyToClipboard>
-        ),
+        className: "text-left",
+        width: "minmax(200px, 2.5fr)",
+        render: (item: CalculatedVehicle) => {
+          const name =
+            item.vehicle ||
+            `${item.modelYear ?? ""} ${item.make ?? ""} ${item.model ?? ""} ${
+              item.trim || ""
+            }`.trim();
+          return (
+            <div className="min-w-0 py-0.5">
+              <span className="block overflow-hidden text-ellipsis whitespace-nowrap font-semibold leading-snug text-[13.5px] tracking-[-0.1px] text-[var(--color-text)]">
+                {name}
+              </span>
+              <span className="block overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11px] tabular-nums text-[var(--color-text-subtle)] mt-0.5">
+                STK {item.stock || "—"} · {formatNumber(item.mileage)} mi
+              </span>
+            </div>
+          );
+        },
       },
       {
         header: "Price",
@@ -229,7 +268,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         header: "Amt to Fin",
         accessor: "amountToFinance" as const,
         isNumeric: true,
-        className: "text-right font-semibold text-blue-600 dark:text-blue-400",
+        className: "text-right font-semibold text-green-600 dark:text-green-400",
         width: "minmax(95px, 130px)",
         render: (item: CalculatedVehicle) => (
           <CopyToClipboard valueToCopy={item.amountToFinance}>
@@ -254,6 +293,38 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         render: (item: CalculatedVehicle) => <PaymentCell value={item.monthlyPayment} />,
       },
       {
+        header: "Lenders",
+        className: "text-right",
+        width: "minmax(70px, 90px)",
+        render: (item: CalculatedVehicle) => {
+          const ap = approvalMap.get(item.vin);
+          if (!ap) return null;
+          const color =
+            ap.fitCount >= 3
+              ? "var(--color-success)"
+              : ap.fitCount >= 1
+                ? "var(--color-warning)"
+                : "var(--color-danger)";
+          return (
+            <span className="font-mono tabular-nums" style={{ color }}>
+              {ap.fitCount}
+              <span className="text-[var(--color-text-subtle)] text-xs">/{ap.total}</span>
+            </span>
+          );
+        },
+      },
+      {
+        header: "Approval",
+        className: "text-right",
+        width: "minmax(95px, 130px)",
+        render: (item: CalculatedVehicle) => {
+          const ap = approvalMap.get(item.vin);
+          if (!ap || ap.score == null)
+            return <span className="text-[var(--color-text-subtle)]">—</span>;
+          return <ApprovalRing score={ap.score} />;
+        },
+      },
+      {
         header: "VIN",
         accessor: "vin" as const,
         className: "",
@@ -265,7 +336,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
         ),
       },
     ],
-    [expandedRows, favoriteVins, toggleFavorite, onStructureDeal]
+    [expandedRows, favoriteVins, toggleFavorite, onStructureDeal, approvalMap]
   );
 
   // iPad portrait used to scroll Payment (column 14) off-screen — the one
@@ -282,14 +353,17 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   }, []);
 
   const NARROW_HIDDEN = useMemo(
-    () => new Set(["Stock #", "Book (Trade)", "Front LTV", "Front Gross", "Amt to Fin", "VIN"]),
+    () => new Set(["Book (Trade)", "Front LTV", "Front Gross", "Amt to Fin", "VIN"]),
     []
   );
 
   const visibleColumns = useMemo(() => {
-    if (isWide) return columns;
-    return columns.filter((c) => !NARROW_HIDDEN.has(c.header));
-  }, [columns, isWide, NARROW_HIDDEN]);
+    let cols = isWide ? columns : columns.filter((c) => !NARROW_HIDDEN.has(c.header));
+    // Salespeople never see dealer margin — hide Front Gross entirely (the backend
+    // already strips unitCost; this removes the empty "N/A" column from their view).
+    if (!canSeeGross) cols = cols.filter((c) => c.header !== "Front Gross");
+    return cols;
+  }, [columns, isWide, NARROW_HIDDEN, canSeeGross]);
 
   return (
     <div className="h-full flex flex-col">

@@ -199,7 +199,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
               <Icons.BuildingLibraryIcon className="w-5 h-5" />
               Lender Settings
             </h4>
-            <p className="text-blue-100 text-xs mt-0.5">Required fields and global parameters</p>
+            <p className="text-green-100 text-xs mt-0.5">Required fields and global parameters</p>
           </div>
           <div className="p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -279,8 +279,8 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                 key={index}
                 className={`group relative bg-white dark:bg-slate-800 rounded-xl border-2 overflow-hidden transition-all duration-200 shadow-sm hover:shadow-lg ${
                   activeTierIndex === index
-                    ? "border-blue-500 ring-2 ring-blue-500/20"
-                    : "border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600"
+                    ? "border-green-500 ring-2 ring-green-500/20"
+                    : "border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-600"
                 }`}
               >
                 {/* Tier Header */}
@@ -336,7 +336,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         e.stopPropagation();
                         duplicateTier(index);
                       }}
-                      className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                       title="Duplicate Tier"
                     >
                       <Icons.DocumentDuplicateIcon className="w-4 h-4" />
@@ -477,7 +477,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                             name="vehicleType"
                             value={tier.vehicleType || ""}
                             onChange={(e) => handleTierChange(index, e)}
-                            className="w-full h-9 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full h-9 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                           >
                             <option value="">Any</option>
                             <option value="new">New</option>

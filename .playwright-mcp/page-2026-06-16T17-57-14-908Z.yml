@@ -1,0 +1,272 @@
+- generic [ref=e2]:
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - img [ref=e10]
+      - generic [ref=e13]:
+        - text: Viewing as
+        - strong [ref=e14]: Bob Maxey Ford
+        - text: (0001)
+    - button "Exit impersonation" [ref=e15]
+  - generic [ref=e16]:
+    - link "Skip to main content" [ref=e17] [cursor=pointer]:
+      - /url: "#main-content"
+    - banner [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - link "LTV Desking PRO — home" [ref=e21] [cursor=pointer]:
+            - /url: /
+            - img "LTV Desking PRO" [ref=e22]
+            - heading "LTV Desking PRO" [level=1] [ref=e26]
+          - generic [ref=e27]:
+            - generic [ref=e28]:
+              - img [ref=e29]
+              - generic [ref=e31]: Superadmin
+            - button "Bob Maxey Ford" [ref=e33]:
+              - img [ref=e34]
+              - generic [ref=e36]: Bob Maxey Ford
+              - img [ref=e37]
+        - generic [ref=e39]:
+          - button "Desk Mode" [ref=e40]:
+            - img [ref=e41]
+            - text: Desk Mode
+          - switch "Switch to dark mode" [ref=e44]:
+            - generic [ref=e45]:
+              - img [ref=e46]
+              - img [ref=e48]
+            - img [ref=e51]
+          - button "Settings" [ref=e53]:
+            - generic [ref=e54]:
+              - img [ref=e55]
+              - text: Settings
+          - button "AI Lender Upload" [ref=e58]:
+            - generic [ref=e59]:
+              - img [ref=e60]
+              - text: AI Lender Upload
+    - main [ref=e62]:
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - heading "Customer & deal" [level=3] [ref=e66]:
+            - img [ref=e67]
+            - text: Customer & deal
+          - generic [ref=e69]:
+            - button "Save Deal" [disabled] [ref=e70]:
+              - generic [ref=e71]:
+                - img [ref=e72]
+                - text: Save Deal
+            - button "PDF" [disabled] [ref=e74]:
+              - generic [ref=e75]:
+                - img [ref=e76]
+                - text: PDF
+            - generic [ref=e80]: v2.0
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - heading "1.Customer & Deal Info" [level=3] [ref=e84]
+            - generic [ref=e85]:
+              - generic [ref=e86]:
+                - generic [ref=e87]: Customer Name
+                - textbox "Customer Name" [ref=e89]:
+                  - /placeholder: e.g., John Doe
+              - generic [ref=e90]:
+                - generic [ref=e91]: Salesperson Name
+                - textbox "Salesperson Name" [ref=e93]:
+                  - /placeholder: e.g., Jane Smith
+              - generic [ref=e94]:
+                - generic [ref=e95]: Credit Score
+                - spinbutton "Credit Score" [ref=e97]
+              - generic [ref=e98]:
+                - generic [ref=e99]: Monthly Income ($)
+                - spinbutton "Monthly Income ($)" [ref=e101]
+              - generic [ref=e103]:
+                - generic [ref=e104]: VIN Lookup
+                - textbox "VIN Lookup" [ref=e107]:
+                  - /placeholder: Enter 17-digit VIN
+              - generic [ref=e108]:
+                - generic [ref=e109]: Filter Vehicle
+                - textbox "Filter Vehicle" [ref=e111]:
+                  - /placeholder: e.g., Ford Escape
+              - generic [ref=e112]:
+                - generic [ref=e113]: Max Price ($)
+                - spinbutton "Max Price ($)" [ref=e115]
+              - generic [ref=e116]:
+                - generic [ref=e117]: Max Payment ($)
+                - spinbutton "Max Payment ($)" [ref=e119]
+              - generic [ref=e120]:
+                - generic [ref=e121]: Max Miles
+                - spinbutton "Max Miles" [ref=e123]
+              - generic [ref=e124]:
+                - generic [ref=e125]: Max OTD LTV (%)
+                - spinbutton "Max OTD LTV (%)" [ref=e127]
+          - generic [ref=e128]:
+            - heading "2.Global Deal Structure" [level=3] [ref=e129]
+            - generic [ref=e130]:
+              - generic [ref=e131]:
+                - generic [ref=e132]: Down Pmt ($)
+                - spinbutton "Down Pmt ($)" [ref=e134]
+              - generic [ref=e135]:
+                - generic [ref=e136]: Trade Value ($)
+                - spinbutton "Trade Value ($)" [ref=e138]
+              - generic [ref=e139]:
+                - generic [ref=e140]: Trade Payoff ($)
+                - spinbutton "Trade Payoff ($)" [ref=e142]
+              - generic [ref=e143]:
+                - generic [ref=e144]: Backend ($)
+                - spinbutton "Backend ($)" [ref=e146]
+              - generic [ref=e147]:
+                - generic [ref=e148]: State Fees ($)
+                - spinbutton "State Fees ($)" [ref=e150]: "31"
+              - generic [ref=e151]:
+                - generic [ref=e152]: Term (Mo)
+                - generic [ref=e153]:
+                  - combobox "Term (Mo)" [ref=e154] [cursor=pointer]:
+                    - option "36"
+                    - option "48"
+                    - option "54"
+                    - option "60"
+                    - option "66"
+                    - option "72" [selected]
+                    - option "75"
+                    - option "84"
+                  - generic:
+                    - img
+              - generic [ref=e155]:
+                - generic [ref=e156]: APR (%)
+                - spinbutton "APR (%)" [ref=e158]: "8.9"
+              - generic [ref=e159]:
+                - generic [ref=e160]: Buyer State
+                - generic [ref=e161]:
+                  - combobox "Buyer State" [ref=e162] [cursor=pointer]:
+                    - option "MI (default)" [selected]
+                    - option "OH"
+                    - option "IN"
+                  - generic:
+                    - img
+      - generic [ref=e163]:
+        - generic [ref=e164]:
+          - generic [ref=e165]:
+            - button "Import CSV / Excel" [ref=e166]:
+              - generic [ref=e168]:
+                - generic [ref=e169]:
+                  - img [ref=e170]
+                  - text: Import
+                - generic [ref=e172]: CSV / Excel
+            - generic [ref=e174]:
+              - generic [ref=e175]: Sample Data Loaded
+              - generic [ref=e176]: 0 vehicles
+            - button "Download Sample CSV" [ref=e177]:
+              - img [ref=e179]
+          - generic [ref=e182]:
+            - generic [ref=e183]:
+              - textbox "Enter VIN to decode" [ref=e184]:
+                - /placeholder: Enter VIN...
+              - img [ref=e185]
+            - button "Decode" [disabled] [ref=e187]:
+              - generic [ref=e188]: Decode
+        - tablist "Dealer workspace sections" [ref=e190]:
+          - tab "Inventory" [selected] [ref=e191]:
+            - img [ref=e193]
+            - text: Inventory
+            - generic [ref=e195]: "0"
+          - tab "Lender Programs" [ref=e197]:
+            - img [ref=e199]
+            - text: Lender Programs
+            - generic [ref=e201]: "0"
+          - tab "Saved Deals" [ref=e202]:
+            - img [ref=e204]
+            - text: Saved Deals
+            - generic [ref=e206]: "0"
+          - tab "Finance Tools" [ref=e207]:
+            - img [ref=e209]
+            - text: Finance Tools
+        - generic [ref=e214]:
+          - generic [ref=e215]:
+            - generic [ref=e216]:
+              - generic [ref=e218]: Actions
+              - generic [ref=e219] [cursor=pointer]:
+                - text: Year
+                - img [ref=e220]
+              - generic [ref=e222] [cursor=pointer]:
+                - text: Make
+                - img [ref=e223]
+              - generic [ref=e225] [cursor=pointer]:
+                - text: Model
+                - img [ref=e226]
+              - generic [ref=e228] [cursor=pointer]:
+                - text: "Stock #"
+                - img [ref=e229]
+              - generic [ref=e231] [cursor=pointer]:
+                - text: Miles
+                - img [ref=e232]
+              - generic [ref=e234] [cursor=pointer]:
+                - text: Price
+                - img [ref=e235]
+              - generic [ref=e237] [cursor=pointer]:
+                - text: Book (Trade)
+                - img [ref=e238]
+              - generic [ref=e240] [cursor=pointer]:
+                - text: Front LTV
+                - img [ref=e241]
+              - generic [ref=e243] [cursor=pointer]:
+                - text: Front Gross
+                - img [ref=e244]
+              - generic [ref=e246] [cursor=pointer]:
+                - text: Amt to Fin
+                - img [ref=e247]
+              - generic [ref=e249] [cursor=pointer]:
+                - text: OTD LTV
+                - img [ref=e250]
+              - generic [ref=e252] [cursor=pointer]:
+                - text: Payment
+                - img [ref=e253]
+              - generic [ref=e255] [cursor=pointer]:
+                - text: VIN
+                - img [ref=e256]
+            - generic [ref=e259]:
+              - img [ref=e261]
+              - generic [ref=e264]:
+                - img [ref=e265]
+                - paragraph [ref=e267]: Inventory is empty.
+                - button "Load Sample Data" [ref=e268]:
+                  - generic [ref=e269]: Load Sample Data
+          - generic [ref=e270]:
+            - generic [ref=e271]:
+              - generic [ref=e272]: Showing
+              - generic [ref=e273]: 0–0
+              - generic [ref=e274]: of
+              - generic [ref=e275]: "0"
+              - generic [ref=e276]: results
+            - generic [ref=e277]:
+              - generic [ref=e278]:
+                - generic [ref=e279]: "Rows:"
+                - combobox "Rows:" [ref=e280] [cursor=pointer]:
+                  - option "15" [selected]
+                  - option "25"
+                  - option "50"
+                  - option "100"
+                  - option "All"
+              - generic [ref=e281]:
+                - button "Previous page" [disabled] [ref=e282]:
+                  - img [ref=e283]
+                  - generic [ref=e285]: Prev
+                - button "Go to page 1" [ref=e287]: "1"
+                - button "Next page" [disabled] [ref=e288]:
+                  - generic [ref=e289]: Next
+                  - img [ref=e290]
+    - contentinfo [ref=e292]:
+      - generic [ref=e293]: © 2026 LTV Desking PRO
+      - navigation "Legal" [ref=e294]:
+        - link "Privacy" [ref=e295] [cursor=pointer]:
+          - /url: /privacy
+        - link "Terms" [ref=e296] [cursor=pointer]:
+          - /url: /terms
+        - link "Support" [ref=e297] [cursor=pointer]:
+          - /url: mailto:joejgallant@gmail.com
+        - button "Report a problem" [ref=e298]
+  - generic [ref=e299]:
+    - button "Admin Console" [ref=e300]:
+      - generic [ref=e301]:
+        - img [ref=e302]
+        - text: Admin Console
+    - button "Logout" [ref=e305]:
+      - generic [ref=e306]:
+        - img [ref=e307]
+        - text: Logout

@@ -2,13 +2,13 @@ import React from "react";
 
 /**
  * The LTV Desking PRO logomark. Single source of truth for the brand
- * visual — same shape as the favicon, just scalable. Pass `size` for
- * raw pixels, or use `className` for tailwind sizing (e.g. w-10 h-10).
+ * visual. Pass `size` for raw pixels, or use `className` for tailwind
+ * sizing (e.g. w-10 h-10).
  *
- * Mark composition: two stylized letterforms — a tall "L" (front-end
- * gross) and a softer "V" (loan-to-value V-curve) — in primary-blue
- * on slate-950. Reads as "LV" at small sizes; the "v" tightens at
- * larger scales.
+ * Mark composition: a loan-to-value "gauge" — a sweeping arc with a
+ * needle pointing up-and-right (a strong deal) — echoing the approval
+ * rings used throughout the desk. On a green-gradient rounded tile for
+ * the "default" variant; inherits `currentColor` as a flat "glyph".
  */
 
 interface BrandMarkProps {
@@ -27,6 +27,7 @@ export const BrandMark: React.FC<BrandMarkProps> = ({
   "aria-label": ariaLabel = "LTV Desking PRO",
 }) => {
   const dims = size ? { width: size, height: size } : undefined;
+  const ink = variant === "default" ? "#06140a" : "currentColor";
   return (
     <svg
       role="img"
@@ -36,9 +37,33 @@ export const BrandMark: React.FC<BrandMarkProps> = ({
       className={className}
       style={dims}
     >
-      {variant === "default" && <rect width="32" height="32" rx="7" fill="#0F172A" />}
-      <path d="M9 8v16h6v-2.5h-3.5V8H9z" fill="#3B82F6" />
-      <path d="M16.5 8l3.25 11.5L23 8h2.5l-4.5 16h-2.5L14 8h2.5z" fill="#60A5FA" />
+      {variant === "default" && (
+        <>
+          <defs>
+            <linearGradient
+              id="lv-mark-grad"
+              x1="0"
+              y1="0"
+              x2="32"
+              y2="32"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stopColor="#6fd086" />
+              <stop offset="1" stopColor="#2ea043" />
+            </linearGradient>
+          </defs>
+          <rect width="32" height="32" rx="9" fill="url(#lv-mark-grad)" />
+        </>
+      )}
+      <path
+        d="M7 21.5 A 10 10 0 1 1 25 21.5"
+        fill="none"
+        stroke={ink}
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+      <path d="M16 16 L 21.5 10.5" stroke={ink} strokeWidth="2.6" strokeLinecap="round" />
+      <circle cx="16" cy="16" r="1.9" fill={ink} />
     </svg>
   );
 };
@@ -61,10 +86,10 @@ export const BrandWordmark: React.FC<{
       <BrandMark className={dims} variant="default" />
       <div className="leading-tight">
         <p
-          className={`${titleSize} font-bold tracking-tight text-white`}
+          className={`${titleSize} font-display font-bold tracking-tight text-white`}
           style={{ letterSpacing: "-0.02em" }}
         >
-          LTV Desking <span className="text-blue-400">PRO</span>
+          LTV Desking <span className="text-[var(--color-primary)]">PRO</span>
         </p>
         {tagline && <p className="text-xs text-slate-400 mt-0.5">{tagline}</p>}
       </div>

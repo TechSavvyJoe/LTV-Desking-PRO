@@ -75,18 +75,18 @@ const TabButton: React.FC<{
 }> = ({ active, onClick, icon, label, badge }) => (
   <button
     onClick={onClick}
-    className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+    className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-green-500/40 ${
       active
         ? "bg-slate-800 text-white shadow-sm ring-1 ring-slate-700"
         : "text-slate-300 hover:text-white hover:bg-slate-800/60"
     }`}
   >
-    <span className={active ? "text-blue-400" : "text-slate-400"}>{icon}</span>
+    <span className={active ? "text-green-400" : "text-slate-400"}>{icon}</span>
     <span>{label}</span>
     {typeof badge === "number" && (
       <span
         className={`px-1.5 py-0.5 text-[11px] font-semibold tabular-nums rounded-full ${
-          active ? "bg-blue-500/25 text-blue-200" : "bg-slate-700 text-slate-200"
+          active ? "bg-green-500/25 text-green-200" : "bg-slate-700 text-slate-200"
         }`}
       >
         {badge}
@@ -115,7 +115,7 @@ const SearchInput: React.FC<{
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       autoFocus={autoFocus}
-      className="pl-9 pr-3 py-2 w-full sm:w-64 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500"
+      className="pl-9 pr-3 py-2 w-full sm:w-64 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40 focus:border-green-500"
     />
     {value && (
       <button
@@ -149,7 +149,7 @@ const SortHeader: React.FC<{
         }`}
       >
         {label}
-        <span className={isActive ? "text-blue-300" : "text-slate-400"}>
+        <span className={isActive ? "text-green-300" : "text-slate-400"}>
           {isActive ? (current.dir === "asc" ? "▲" : "▼") : "↕"}
         </span>
       </button>
@@ -320,7 +320,7 @@ const CreateDealerWizard: React.FC<{
       <div
         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ring-1 transition-colors ${
           state === "current"
-            ? "bg-blue-500 ring-blue-400 text-white"
+            ? "bg-green-500 ring-green-400 text-white"
             : state === "done"
               ? "bg-emerald-500/20 ring-emerald-500/40 text-emerald-300"
               : "bg-slate-800 ring-slate-600 text-slate-300"
@@ -568,7 +568,7 @@ const CreateDealerWizard: React.FC<{
                     onClick={() => {
                       navigator.clipboard?.writeText(created.dealer.code).catch(() => {});
                     }}
-                    className="inline-flex items-center gap-2 font-mono text-blue-300 font-bold hover:text-blue-200"
+                    className="inline-flex items-center gap-2 font-mono text-green-300 font-bold hover:text-green-200"
                     title="Click to copy"
                   >
                     {created.dealer.code}
@@ -818,8 +818,8 @@ const DealerManagement: React.FC<{
       {editingId && (
         <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg overflow-hidden shadow-sm">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-[var(--color-bg-subtle)]">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/15 ring-1 ring-blue-500/30 flex items-center justify-center">
-              <Icons.PencilIcon className="w-4 h-4 text-blue-300" />
+            <div className="w-9 h-9 rounded-xl bg-green-500/15 ring-1 ring-green-500/30 flex items-center justify-center">
+              <Icons.PencilIcon className="w-4 h-4 text-green-300" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-white">Edit dealership</h3>
@@ -833,7 +833,7 @@ const DealerManagement: React.FC<{
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="Dealership Name"
               />
             </div>
@@ -848,7 +848,7 @@ const DealerManagement: React.FC<{
                     code: e.target.value.toUpperCase(),
                   })
                 }
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="DEALER01"
                 maxLength={10}
               />
@@ -859,7 +859,7 @@ const DealerManagement: React.FC<{
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="contact@dealer.com"
               />
             </div>
@@ -869,7 +869,7 @@ const DealerManagement: React.FC<{
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="(555) 123-4567"
               />
             </div>
@@ -879,7 +879,7 @@ const DealerManagement: React.FC<{
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="Detroit"
               />
             </div>
@@ -894,7 +894,7 @@ const DealerManagement: React.FC<{
                     state: e.target.value.toUpperCase(),
                   })
                 }
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="MI"
                 maxLength={2}
               />
@@ -905,7 +905,7 @@ const DealerManagement: React.FC<{
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="123 Auto Drive"
               />
             </div>
@@ -971,7 +971,7 @@ const DealerManagement: React.FC<{
                   <tr key={dealer.id} className="hover:bg-slate-800/40 transition-colors group">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-blue-300 text-xs font-bold flex-shrink-0">
+                        <div className="w-9 h-9 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-green-300 text-xs font-bold flex-shrink-0">
                           {dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -983,7 +983,7 @@ const DealerManagement: React.FC<{
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <code className="px-2 py-1 bg-slate-800 ring-1 ring-slate-700 rounded-md text-blue-300 text-xs font-mono">
+                      <code className="px-2 py-1 bg-slate-800 ring-1 ring-slate-700 rounded-md text-green-300 text-xs font-mono">
                         {dealer.code || "—"}
                       </code>
                     </td>
@@ -1034,7 +1034,7 @@ const DealerManagement: React.FC<{
                         </button>
                         <button
                           onClick={() => handleEdit(dealer)}
-                          className="p-1.5 text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-green-300 hover:bg-green-500/10 rounded-md transition-colors"
                           title="Edit"
                         >
                           <Icons.PencilIcon className="w-4 h-4" />
@@ -1269,7 +1269,7 @@ const UserManagement: React.FC<{
       case "superadmin":
         return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
       case "admin":
-        return "bg-blue-500/20 text-blue-400";
+        return "bg-green-500/20 text-green-400";
       case "manager":
         return "bg-amber-500/20 text-amber-400";
       default:
@@ -1297,7 +1297,7 @@ const UserManagement: React.FC<{
           <select
             value={filterDealer}
             onChange={(e) => setFilterDealer(e.target.value)}
-            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/40"
           >
             <option value="">All dealers</option>
             {dealers.map((d) => (
@@ -1309,7 +1309,7 @@ const UserManagement: React.FC<{
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/40"
           >
             <option value="">All roles</option>
             <option value="sales">Sales</option>
@@ -1358,7 +1358,7 @@ const UserManagement: React.FC<{
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="John"
               />
             </div>
@@ -1368,7 +1368,7 @@ const UserManagement: React.FC<{
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="Doe"
               />
             </div>
@@ -1378,7 +1378,7 @@ const UserManagement: React.FC<{
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="john@dealer.com"
               />
             </div>
@@ -1388,7 +1388,7 @@ const UserManagement: React.FC<{
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                 placeholder="(555) 123-4567"
               />
             </div>
@@ -1397,7 +1397,7 @@ const UserManagement: React.FC<{
               <select
                 value={formData.dealer}
                 onChange={(e) => setFormData({ ...formData, dealer: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
               >
                 <option value="">Select Dealer</option>
                 {dealers.map((d) => (
@@ -1412,7 +1412,7 @@ const UserManagement: React.FC<{
               <select
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as User["role"] })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
               >
                 <option value="sales">Sales</option>
                 <option value="manager">Manager</option>
@@ -1430,7 +1430,7 @@ const UserManagement: React.FC<{
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                     placeholder="Min 8 characters"
                   />
                 </div>
@@ -1442,7 +1442,7 @@ const UserManagement: React.FC<{
                     type="password"
                     value={formData.passwordConfirm}
                     onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                     placeholder="Re-enter password"
                   />
                 </div>
@@ -1549,7 +1549,7 @@ const UserManagement: React.FC<{
                           user.role === "superadmin"
                             ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] ring-[var(--color-border)]"
                             : user.role === "admin"
-                              ? "bg-blue-500/15 text-blue-200 ring-blue-500/30"
+                              ? "bg-green-500/15 text-green-200 ring-green-500/30"
                               : user.role === "manager"
                                 ? "bg-amber-500/15 text-amber-200 ring-amber-500/30"
                                 : "bg-slate-700/50 text-slate-200 ring-slate-600"
@@ -1568,7 +1568,7 @@ const UserManagement: React.FC<{
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleEdit(user)}
-                          className="p-1.5 text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-green-300 hover:bg-green-500/10 rounded-md transition-colors"
                           title="Edit"
                         >
                           <Icons.PencilIcon className="w-4 h-4" />
@@ -1737,7 +1737,7 @@ const AiProvidersCard: React.FC = () => {
   if (loading) {
     return (
       <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6">
-        <Icons.SpinnerIcon className="w-5 h-5 text-blue-400 animate-spin" />
+        <Icons.SpinnerIcon className="w-5 h-5 text-green-400 animate-spin" />
       </div>
     );
   }
@@ -1781,7 +1781,7 @@ const AiProvidersCard: React.FC = () => {
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     placeholder={p.placeholder}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/40"
                   />
                 ) : (
                   <span className="inline-block px-2 py-1 rounded bg-slate-950 ring-1 ring-slate-800 text-xs font-mono text-slate-300">
@@ -1815,7 +1815,7 @@ const AiProvidersCard: React.FC = () => {
                       type="button"
                       onClick={() => saveKey(p.id)}
                       disabled={saving}
-                      className="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-md bg-green-600 hover:bg-green-500 text-white text-xs font-medium disabled:opacity-50"
                     >
                       {saving ? "Saving…" : "Save"}
                     </button>
@@ -1958,7 +1958,7 @@ const AiDefaultsCard: React.FC = () => {
               setDealAnalysisModel(first("dealAnalysis"));
               setQuickModel(first("quick"));
             }}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500/40"
           >
             {AI_PROVIDER_ORDER.map((id) => (
               <option key={id} value={id}>
@@ -1980,7 +1980,7 @@ const AiDefaultsCard: React.FC = () => {
             <select
               value={value}
               onChange={(e) => setter(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-500/40"
             >
               {modelsFor(task).map((m) => (
                 <option key={m.id} value={m.id}>
@@ -2173,7 +2173,7 @@ const SystemSettingsPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Icons.SpinnerIcon className="w-6 h-6 text-blue-400 animate-spin" />
+        <Icons.SpinnerIcon className="w-6 h-6 text-green-400 animate-spin" />
       </div>
     );
   }
@@ -2206,7 +2206,7 @@ const SystemSettingsPanel: React.FC = () => {
             type="email"
             value={form.supportEmail || ""}
             onChange={(e) => setForm({ ...form, supportEmail: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/40"
             placeholder="support@ltvdesking.com"
           />
           <p className="text-xs text-slate-400 mt-1.5">
@@ -2221,7 +2221,7 @@ const SystemSettingsPanel: React.FC = () => {
           <textarea
             value={form.announcementBanner || ""}
             onChange={(e) => setForm({ ...form, announcementBanner: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-green-500/40"
             placeholder="Scheduled maintenance Friday 10pm ET…"
           />
           <p className="text-xs text-slate-400 mt-1.5">
@@ -2244,7 +2244,7 @@ const SystemSettingsPanel: React.FC = () => {
               checked={form.signupsEnabled !== false}
               onChange={(e) => setForm({ ...form, signupsEnabled: e.target.checked })}
             />
-            <div className="w-11 h-6 bg-slate-700 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            <div className="w-11 h-6 bg-slate-700 peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
           </label>
         </div>
 
@@ -2259,7 +2259,7 @@ const SystemSettingsPanel: React.FC = () => {
                 : JSON.stringify(form.defaultLtvThresholds ?? {}, null, 2)
             }
             onChange={(e) => setForm({ ...form, defaultLtvThresholds: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 font-mono text-xs min-h-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 font-mono text-xs min-h-[140px] focus:outline-none focus:ring-2 focus:ring-green-500/40"
             placeholder='{"700": 120, "650": 110}'
             spellCheck={false}
           />
@@ -2370,7 +2370,7 @@ const OverviewTab: React.FC<{
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => onJumpTab("dealers")}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500/15 text-blue-200 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/25 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/15 text-green-200 ring-1 ring-inset ring-green-500/30 hover:bg-green-500/25 transition-colors"
           >
             <Icons.PlusIcon className="w-4 h-4" /> Onboard new dealer
           </button>
@@ -2394,7 +2394,7 @@ const OverviewTab: React.FC<{
         <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Icons.BuildingLibraryIcon className="w-4 h-4 text-blue-400" />
+              <Icons.BuildingLibraryIcon className="w-4 h-4 text-green-400" />
               Recent dealers
             </h3>
             <button
@@ -2412,7 +2412,7 @@ const OverviewTab: React.FC<{
               action={
                 <button
                   onClick={() => onJumpTab("dealers")}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500/15 text-blue-200 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/25"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/15 text-green-200 ring-1 ring-inset ring-green-500/30 hover:bg-green-500/25"
                 >
                   <Icons.PlusIcon className="w-4 h-4" /> Onboard new dealer
                 </button>
@@ -2423,7 +2423,7 @@ const OverviewTab: React.FC<{
               {recentDealers.map((dealer) => (
                 <li key={dealer.id} className="flex items-center justify-between py-2.5 group">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-blue-300 text-xs font-bold">
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-green-300 text-xs font-bold">
                       {dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -2555,7 +2555,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-blue-400 animate-spin" />
+        <Icons.SpinnerIcon className="w-8 h-8 text-green-400 animate-spin" />
       </div>
     );
   }

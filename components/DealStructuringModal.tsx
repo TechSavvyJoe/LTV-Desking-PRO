@@ -54,7 +54,7 @@ const SummaryRow = ({
     {valueToCopy !== undefined && valueToCopy !== "N/A" && valueToCopy !== "Error" ? (
       <CopyToClipboard valueToCopy={valueToCopy}>
         <span
-          className={`font-medium cursor-pointer hover:text-blue-500 transition-colors ${
+          className={`font-medium cursor-pointer hover:text-green-500 transition-colors ${
             isBold || isTotal
               ? "text-slate-900 dark:text-white"
               : "text-slate-700 dark:text-slate-300"
@@ -297,7 +297,7 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
         <div className="lg:pl-8 lg:border-l border-slate-200 dark:border-slate-800">
           <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-lg border border-slate-200 dark:border-slate-700/50 sticky top-4">
             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
-              <Icons.CalculatorIcon className="w-5 h-5 text-blue-500" />
+              <Icons.CalculatorIcon className="w-5 h-5 text-green-500" />
               Deal Analysis
             </h3>
 
@@ -349,12 +349,12 @@ const DealStructuringModal: React.FC<DealStructuringModalProps> = ({
 
               <div className="my-6 space-y-3">
                 <div className="p-4 bg-[var(--color-primary)] rounded-md text-white">
-                  <div className="text-blue-100 text-sm font-medium mb-1">Monthly Payment</div>
+                  <div className="text-green-100 text-sm font-medium mb-1">Monthly Payment</div>
                   <div className="flex justify-between items-end">
                     <div className="text-3xl font-bold">
                       {formatCurrency(localCalculated.monthlyPayment)}
                     </div>
-                    <div className="text-blue-200 text-sm pb-1">
+                    <div className="text-green-200 text-sm pb-1">
                       {dealData.loanTerm} mo @ {dealData.interestRate}%
                     </div>
                   </div>

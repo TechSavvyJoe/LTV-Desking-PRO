@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Button from "./common/Button";
 import * as Icons from "./common/Icons";
-import ThemeToggle from "./common/ThemeToggle";
 import { BrandMark } from "./common/BrandMark";
 import { useDealContext } from "../context/DealContext";
 import {
@@ -173,8 +172,6 @@ const DealerSwitcher: React.FC<{ onDealerChange?: () => void }> = ({ onDealerCha
 const Header: React.FC<HeaderProps> = ({
   onOpenAiModal,
   onOpenSettingsModal,
-  theme,
-  toggleTheme,
   onDealerChange,
   isUploading,
   isUploadMinimized,
@@ -195,8 +192,8 @@ const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2.5 group"
             aria-label="LTV Desking PRO — home"
           >
-            <BrandMark className="w-7 h-7" variant="default" />
-            <h1 className="text-sm font-semibold tracking-tight">
+            <BrandMark className="w-8 h-8" variant="default" />
+            <h1 className="text-[15px] font-display font-semibold tracking-tight">
               LTV Desking <span className="text-[var(--color-primary)]">PRO</span>
             </h1>
           </a>
@@ -234,8 +231,7 @@ const Header: React.FC<HeaderProps> = ({
               </>
             )}
           </button>
-          <div className="h-6 w-px bg-slate-700 mx-1" />
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          <div className="h-6 w-px bg-[var(--color-border)] mx-1" />
           <Button variant="secondary" onClick={onOpenSettingsModal} size="sm" className="gap-2">
             <Icons.CogIcon className="w-4 h-4" /> Settings
           </Button>

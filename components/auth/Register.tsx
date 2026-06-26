@@ -21,7 +21,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
       </p>
       <button
         onClick={onLoginClick}
-        className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+        className="text-sm font-medium text-green-600 hover:text-green-500 dark:text-green-400"
       >
         Back to sign in
       </button>

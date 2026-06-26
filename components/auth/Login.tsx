@@ -83,7 +83,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-green-500 focus:border-green-500"
                 placeholder="you@example.com"
               />
               <Icons.EnvelopeIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
@@ -106,7 +106,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-green-500 focus:border-green-500"
                 placeholder="••••••••"
               />
               <Icons.LockClosedIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
@@ -118,7 +118,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
           <div className="text-sm">
             <button
               type="button"
-              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+              className="font-medium text-green-600 hover:text-green-500 dark:text-green-400"
               aria-expanded={showReset}
               aria-controls="password-reset-panel"
               onClick={() => {
@@ -162,14 +162,14 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
                       void handleResetSubmit();
                     }
                   }}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-green-500 focus:border-green-500"
                   placeholder="you@example.com"
                 />
                 <button
                   type="button"
                   disabled={resetLoading}
                   onClick={() => void handleResetSubmit()}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {resetLoading ? (
                     <Icons.SpinnerIcon className="animate-spin h-5 w-5" />
@@ -190,7 +190,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
         <Button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? <Icons.SpinnerIcon className="animate-spin h-5 w-5" /> : "Sign in"}
         </Button>
@@ -201,7 +201,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
           Don't have an account?{" "}
           <button
             onClick={onRegisterClick}
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            className="font-medium text-green-600 hover:text-green-500 dark:text-green-400"
           >
             Register dealer
           </button>

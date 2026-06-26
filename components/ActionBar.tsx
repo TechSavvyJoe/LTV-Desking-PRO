@@ -33,23 +33,18 @@ const ActionBar: React.FC<ActionBarProps> = ({
       <Button
         variant="secondary"
         size="sm"
-        className="h-9 px-3 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 transition-colors group"
+        className="h-9 px-3 border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700 transition-colors group"
         onClick={onDownloadFavorites}
         disabled={favoritesCount === 0}
       >
-        <Icons.DocumentDuplicateIcon className="w-4 h-4 mr-2 text-slate-400 group-hover:text-blue-500 transition-colors" />
+        <Icons.DocumentDuplicateIcon className="w-4 h-4 mr-2 text-slate-400 group-hover:text-green-500 transition-colors" />
         PDF
         {favoritesCount > 0 && (
-          <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded-full font-bold">
+          <span className="ml-2 text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-300 px-1.5 py-0.5 rounded-full font-bold">
             {favoritesCount}
           </span>
         )}
       </Button>
-
-      <div className="hidden sm:flex items-center gap-2 ml-2 text-xs text-slate-400 dark:text-slate-600">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span>v2.0</span>
-      </div>
     </div>
   );
 };

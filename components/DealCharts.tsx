@@ -26,7 +26,7 @@ interface LenderComparisonChartProps extends DealChartsProps {
   customerFilters?: FilterData;
 }
 
-const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
+const COLORS = ["#43c05a", "#f0656f", "#2dd4bf", "#e0ad3a"];
 
 export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({ dealData, activeVehicle }) => {
   const data = useMemo(() => {
@@ -201,7 +201,7 @@ export const LenderComparisonChart: React.FC<LenderComparisonChartProps> = ({
                   boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                 }}
               />
-              <Bar dataKey="payment" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Monthly Payment" />
+              <Bar dataKey="payment" fill="#43c05a" radius={[4, 4, 0, 0]} name="Monthly Payment" />
             </BarChart>
           </ResponsiveContainer>
         </div>

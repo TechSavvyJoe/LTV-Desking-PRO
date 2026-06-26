@@ -86,7 +86,7 @@ const DetailItem = ({
 const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
     {...props}
-    className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-slate-100"
+    className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-green-500 focus:border-green-500 bg-transparent text-slate-900 dark:text-slate-100"
   />
 );
 
@@ -128,7 +128,7 @@ const EditableField = ({
         onChange={(e) => setCurrentValue(e.target.value)}
         onBlur={handleBlur}
         onClick={(e) => e.stopPropagation()}
-        className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-transparent text-slate-900 dark:text-slate-100"
+        className="w-28 p-1 text-sm text-right border border-slate-300 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-green-500 focus:border-green-500 bg-transparent text-slate-900 dark:text-slate-100"
       />
     </div>
   );

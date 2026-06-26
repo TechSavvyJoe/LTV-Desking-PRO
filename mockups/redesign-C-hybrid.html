@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LTV Desking PRO — Direction C · Hybrid</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        /* palette — A's near-black, green = money/approval */
+        --bg: #090b0f;
+        --panel: #11141b;
+        --panel-2: #161a23;
+        --raise: #1d222e;
+        --line: rgba(255, 255, 255, 0.06);
+        --line-2: rgba(255, 255, 255, 0.12);
+        --txt: #eaeff7;
+        --txt-2: #9aa4b6;
+        --txt-3: #67718699;
+        --txt-3s: #6b7488;
+        --grn: #43c05a;
+        --grn-2: #2ea043;
+        --grn-soft: #6fd086;
+        --grn-dim: rgba(67, 192, 90, 0.13);
+        --amb: #e0ad3a;
+        --amb-dim: rgba(224, 173, 58, 0.13);
+        --red: #f0656f;
+        --red-dim: rgba(240, 101, 111, 0.13);
+        /* type */
+        --display: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+        --sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+        /* scale */
+        --gut: clamp(16px, 1.7vw, 30px);
+        --r-card: 16px;
+        --r-ctl: 10px;
+        --shadow: 0 10px 34px rgba(0, 0, 0, 0.38);
+        --shadow-sm: 0 3px 12px rgba(0, 0, 0, 0.3);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        background:
+          radial-gradient(1300px 560px at 86% -10%, rgba(67, 192, 90, 0.06), transparent 62%),
+          var(--bg);
+        color: var(--txt); font-family: var(--sans); font-size: 13px; line-height: 1.45;
+        font-weight: 500; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+        min-height: 100vh; overflow-x: hidden;
+      }
+      .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+      svg { display: block; }
+      button { font-family: inherit; cursor: pointer; color: inherit; }
+      button:focus-visible, .ipt:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+        outline: 2px solid var(--grn); outline-offset: 2px;
+      }
+      .u-label { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--txt-3s); }
+
+      /* ───── header ───── */
+      header {
+        display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+        padding: 12px var(--gut); border-bottom: 1px solid var(--line);
+        position: sticky; top: 0; z-index: 30; background: rgba(9, 11, 15, 0.78); backdrop-filter: blur(14px) saturate(1.2);
+      }
+      .brand { display: flex; align-items: center; gap: 11px; }
+      .mark {
+        width: 34px; height: 34px; border-radius: 10px;
+        background: linear-gradient(150deg, var(--grn-soft), var(--grn-2));
+        display: grid; place-items: center;
+        box-shadow: 0 0 0 1px rgba(67, 192, 90, 0.35), 0 5px 16px rgba(67, 192, 90, 0.28);
+      }
+      .wm { font-family: var(--display); font-weight: 700; font-size: 15.5px; letter-spacing: -0.4px; }
+      .wm span { color: var(--txt-3s); font-weight: 600; }
+      .store { margin-left: 4px; display: flex; align-items: center; gap: 8px; color: var(--txt-2); font-size: 12.5px; padding: 7px 12px; border-radius: var(--r-ctl); border: 1px solid var(--line); transition: background 0.12s, border-color 0.12s; }
+      .store:hover { background: var(--panel-2); border-color: var(--line-2); cursor: pointer; }
+      .store b { color: var(--txt); font-weight: 700; }
+      .sp { flex: 1; min-width: 8px; }
+      .icbtn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--r-ctl); border: 1px solid var(--line); background: transparent; color: var(--txt-2); transition: background 0.12s, color 0.12s; }
+      .icbtn:hover { background: var(--panel-2); color: var(--txt); }
+      .ghost { background: transparent; border: 1px solid var(--line-2); color: var(--txt); border-radius: var(--r-ctl); padding: 8px 13px; font-weight: 600; font-size: 12.5px; display: inline-flex; gap: 7px; align-items: center; transition: background 0.12s, border-color 0.12s; }
+      .ghost:hover { background: var(--panel-2); border-color: rgba(255,255,255,0.18); }
+      .cta { background: linear-gradient(150deg, var(--grn-soft), var(--grn-2)); border: 0; color: #052109; border-radius: var(--r-ctl); padding: 9px 15px; font-weight: 700; font-size: 12.5px; display: inline-flex; gap: 7px; align-items: center; box-shadow: var(--shadow-sm); transition: filter 0.12s, transform 0.06s; }
+      .cta:hover { filter: brightness(1.06); }
+      .cta:active { transform: translateY(1px); }
+      .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--raise); display: grid; place-items: center; font-weight: 700; font-size: 12px; color: var(--txt-2); border: 1px solid var(--line); }
+      .role { display: flex; align-items: center; gap: 9px; padding: 6px 8px 6px 12px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--panel-2); }
+      .role .lab { font-size: 11px; color: var(--txt-3s); font-weight: 700; }
+      .role select { background: transparent; border: 0; color: var(--txt); font-family: var(--sans); font-weight: 700; font-size: 12.5px; cursor: pointer; }
+      .role select:focus { outline: none; }
+
+      /* ───── deal-terms control panel ───── */
+      .pencil { margin: 16px var(--gut) 0; background: linear-gradient(180deg, var(--panel), #0f1219); border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; }
+      .pencil-top { display: flex; align-items: center; gap: 11px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+      .pencil-top h2 { font-family: var(--display); font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 9px; letter-spacing: -0.2px; }
+      .pencil-top .badge { font-family: var(--mono); font-size: 10.5px; color: var(--grn); background: var(--grn-dim); padding: 2px 8px; border-radius: 999px; font-weight: 600; letter-spacing: 0.3px; display: inline-flex; align-items: center; gap: 5px; }
+      .pencil-top .badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--grn); box-shadow: 0 0 0 3px var(--grn-dim); animation: pulse 2s infinite; }
+      @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+      .pencil-top .right { margin-left: auto; display: flex; align-items: center; gap: 12px; color: var(--txt-3s); font-size: 12px; }
+      .pencil-top .reset { color: var(--txt-2); border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 6px 11px; font-size: 12px; font-weight: 600; transition: background 0.12s, color 0.12s; }
+      .pencil-top .reset:hover { background: var(--panel-2); color: var(--txt); }
+
+      .groups { display: grid; grid-template-columns: repeat(4, 1fr); }
+      .grp { padding: 15px 18px; border-right: 1px solid var(--line); }
+      .grp:last-child { border-right: 0; }
+      .grp .gl { margin-bottom: 12px; display: flex; align-items: center; gap: 7px; color: var(--txt-3s); }
+      .grp .gl svg { color: var(--grn); opacity: 0.85; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .fld { display: flex; flex-direction: column; gap: 5px; }
+      .fld.full { grid-column: 1 / -1; }
+      .ipt { background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; color: var(--txt); font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; width: 100%; transition: border-color 0.12s, box-shadow 0.12s; }
+      .ipt::placeholder { color: var(--txt-3s); }
+      .ipt:focus { outline: none; border-color: var(--grn); box-shadow: 0 0 0 3px var(--grn-dim); }
+      select.ipt { font-family: var(--sans); font-weight: 600; cursor: pointer; }
+      .ipt.sans { font-family: var(--sans); font-weight: 600; }
+      .chips { display: flex; gap: 6px; }
+      .tchip { flex: 1; min-width: 0; text-align: center; padding: 8px 0; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--txt-2); font-family: var(--mono); font-weight: 600; font-size: 12.5px; transition: all 0.12s; }
+      .tchip.on { background: var(--grn-dim); border-color: rgba(67,192,90,0.4); color: var(--grn); }
+      .tchip:hover:not(.on) { color: var(--txt); border-color: var(--line-2); }
+
+      /* ───── body: table + right rail ───── */
+      .body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; padding: 18px var(--gut) 60px; align-items: start; }
+      .invwrap { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; min-width: 0; }
+      .invhead { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+      .invhead h2 { font-family: var(--display); font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+      .invhead .cnt { color: var(--txt-3s); font-size: 12px; }
+      .ihright { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .invhead .search { display: flex; align-items: center; gap: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 7px 11px; color: var(--txt-3s); width: clamp(160px, 20vw, 260px); min-width: 0; transition: border-color 0.12s; }
+      .showsel { display: flex; align-items: center; gap: 8px; padding: 6px 9px 6px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); }
+      .showsel .lab { font-size: 11px; color: var(--txt-3s); font-weight: 700; }
+      .showsel select { background: transparent; border: 0; color: var(--txt); font-family: var(--mono); font-weight: 600; font-size: 12.5px; cursor: pointer; }
+      .showsel select:focus { outline: none; }
+      .invhead .search:focus-within { border-color: var(--line-2); }
+      .invhead .search input { background: transparent; border: 0; color: var(--txt); font-family: var(--sans); font-weight: 500; font-size: 12.5px; width: 100%; }
+      .invhead .search input:focus { outline: none; }
+      .tscroll { width: 100%; }
+
+      /* fixed layout = columns scale fluidly with the window, never horizontal-scroll */
+      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      thead th {
+        text-align: right; padding: 12px 13px; border-bottom: 1px solid var(--line);
+        white-space: nowrap; cursor: pointer; user-select: none;
+        font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--txt-3s);
+        transition: color 0.12s;
+      }
+      thead th.l { text-align: left; }
+      thead th.nos { cursor: default; }
+      thead th .ar { color: var(--grn); margin-left: 4px; font-size: 8px; vertical-align: middle; }
+      thead th:hover:not(.nos) { color: var(--txt-2); }
+
+      tbody td { padding: 0 13px; border-bottom: 1px solid var(--line); text-align: right; height: 56px; vertical-align: middle; white-space: nowrap; overflow: hidden; }
+      tbody td.l { text-align: left; }
+      .veh b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      tbody tr.main { cursor: pointer; transition: background 0.12s; }
+      tbody tr.main:hover { background: var(--panel-2); }
+      tbody tr.main.focus { background: linear-gradient(90deg, var(--grn-dim), transparent 62%); }
+      tbody tr.main.focus td:first-child { box-shadow: inset 3px 0 0 var(--grn); }
+      tbody tr.main.open td { border-bottom-color: transparent; }
+      @keyframes rowIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+      .exp { width: 26px; padding-left: 14px !important; }
+      .chev { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; color: var(--txt-3s); transition: transform 0.2s cubic-bezier(.3,.7,.3,1), color 0.12s; }
+      tr.main:hover .chev { color: var(--txt); }
+      tr.main.open .chev { transform: rotate(90deg); color: var(--grn); }
+
+      .veh b { font-weight: 700; font-size: 13.5px; letter-spacing: -0.1px; }
+      .veh span { display: block; color: var(--txt-3s); font-size: 11px; margin-top: 2px; font-family: var(--mono); }
+      .n { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+      .nmut { color: var(--txt-2); }
+      .pos { color: var(--grn); }
+      .neg { color: var(--red); }
+      .pay { font-family: var(--mono); font-weight: 600; font-size: 13.5px; }
+      .ltvtag { font-family: var(--mono); font-weight: 600; padding: 3px 8px; border-radius: 7px; font-size: 12px; }
+
+      .score { display: inline-flex; align-items: center; gap: 9px; justify-content: flex-end; }
+      .ring { flex: none; }
+      .score .v { font-family: var(--mono); font-weight: 700; font-size: 13px; width: 21px; text-align: right; }
+      .stag { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; letter-spacing: 0.3px; }
+      .s-g { background: var(--grn-dim); color: var(--grn); }
+      .s-a { background: var(--amb-dim); color: var(--amb); }
+      .s-r { background: var(--red-dim); color: var(--red); }
+      .lcount { font-family: var(--mono); font-size: 12.5px; }
+
+      /* ───── expansion drawer ───── */
+      tr.detail > td { padding: 0; border-bottom: 1px solid var(--line); background: #0c0e14; }
+      .drawer { display: grid; grid-template-columns: 1.05fr 1fr 1.15fr; animation: drawerIn 0.22s ease both; }
+      @keyframes drawerIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+      .dcol { padding: 18px 20px; border-right: 1px solid var(--line); }
+      .dcol:last-child { border-right: 0; }
+      .dcol h4 { margin-bottom: 14px; display: flex; align-items: center; gap: 8px; color: var(--txt-3s); font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+      .dcol h4 svg { color: var(--grn); opacity: 0.8; }
+
+      .led .lr { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 12.5px; }
+      .led .lr .k { color: var(--txt-2); display: flex; align-items: center; gap: 7px; }
+      .led .lr .v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+      .led .lr.div { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 10px; }
+      .led .lr.fin .k { color: var(--txt); font-weight: 700; }
+      .led .lr.fin .v { color: var(--grn); font-weight: 700; font-size: 14.5px; font-family: var(--mono); }
+      .ovr { display: inline-flex; align-items: center; gap: 5px; }
+      .ovr input { width: 76px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 3px 8px; color: var(--txt); font-family: var(--mono); font-size: 12px; text-align: right; transition: border-color 0.12s; }
+      .ovr input:focus { outline: none; border-color: var(--grn); }
+      .ovr .pen { color: var(--txt-3s); }
+
+      .scn { width: 100%; border-collapse: collapse; }
+      .scn th { text-align: right; font-size: 9.5px; color: var(--txt-3s); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; padding: 0 7px 9px; }
+      .scn th.l { text-align: left; }
+      .scn td { padding: 8px 7px; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12.5px; text-align: right; border-top: 1px solid var(--line); }
+      .scn td.l { text-align: left; font-family: var(--sans); font-weight: 600; color: var(--txt-2); }
+      .scn tr.cur td { background: var(--grn-dim); }
+      .scn tr.cur td.l { color: var(--grn); border-radius: 7px 0 0 7px; }
+      .scn tr.cur td:last-child { border-radius: 0 7px 7px 0; }
+      .scn .mini { font-size: 10px; padding: 2px 6px; border-radius: 5px; font-weight: 700; }
+
+      .lf { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+      .lf:first-of-type { border-top: 0; }
+      .lf .pill { font-size: 9.5px; font-weight: 700; padding: 3px 0; border-radius: 6px; flex: none; width: 38px; text-align: center; letter-spacing: 0.4px; }
+      .lf .nm { font-weight: 600; font-size: 12.5px; flex: 1; }
+      .lf .mt { font-family: var(--mono); font-size: 11.5px; color: var(--txt-3s); }
+      .dactwrap { grid-column: 1 / -1; border-top: 1px solid var(--line); padding: 13px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .dactwrap .sp { flex: 1; }
+      .disc { color: var(--txt-3s); font-size: 11px; line-height: 1.5; margin-top: 12px; }
+
+      /* ───── right rail (B aesthetic) ───── */
+      .rail { position: sticky; top: 74px; display: flex; flex-direction: column; gap: 16px; }
+      .pcard { background: linear-gradient(165deg, #1a1f2b, var(--panel) 70%); border: 1px solid var(--line-2); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); }
+      .pcard .stk { font-family: var(--mono); font-size: 11.5px; color: var(--txt-3s); display: flex; align-items: center; gap: 8px; }
+      .pcard .stk .tag { color: var(--grn); background: var(--grn-dim); padding: 2px 8px; border-radius: 999px; font-family: var(--sans); font-weight: 700; font-size: 9.5px; letter-spacing: 0.5px; }
+      .pcard h3 { font-family: var(--display); font-size: 18px; font-weight: 600; margin: 5px 0 14px; letter-spacing: -0.4px; }
+      .approw { display: flex; align-items: center; gap: 11px; padding: 0 0 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+      .approw .av { font-family: var(--mono); font-weight: 700; font-size: 16px; line-height: 1; }
+      .approw .as { color: var(--txt-3s); font-size: 11px; margin-top: 3px; }
+      .approw .lender { margin-left: auto; text-align: right; }
+      .approw .lender b { font-family: var(--mono); font-size: 14px; }
+      .approw .lender small { display: block; color: var(--txt-3s); font-size: 9.5px; letter-spacing: 0.5px; font-weight: 700; margin-top: 2px; }
+      .paybig { font-family: var(--display); font-size: 40px; font-weight: 700; letter-spacing: -1.8px; margin-top: 3px; line-height: 1; }
+      .paybig small { font-size: 21px; color: var(--txt-2); letter-spacing: -0.5px; }
+      .payterms { color: var(--txt-2); font-size: 12px; margin-top: 6px; }
+      .rled { margin-top: 16px; }
+      .rled .r { display: flex; justify-content: space-between; padding: 7px 0; font-size: 12.5px; border-bottom: 1px solid var(--line); }
+      .rled .r:last-child { border: 0; }
+      .rled .r .k { color: var(--txt-2); }
+      .rled .r .v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+      .rled .r.tot { margin-top: 4px; padding-top: 11px; border-top: 1px solid var(--line-2); border-bottom: 0; }
+      .rled .r.tot .k { color: var(--txt); font-weight: 700; }
+      .rled .r.tot .v { color: var(--grn); font-weight: 700; font-size: 14.5px; }
+      .ract { display: flex; gap: 10px; margin-top: 18px; }
+      .ract .ghost, .ract .cta { flex: 1; justify-content: center; padding-top: 10px; padding-bottom: 10px; }
+      .rdisc { color: var(--txt-3s); font-size: 10.5px; line-height: 1.5; margin-top: 14px; }
+
+      .legend { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(22,26,35,0.92); backdrop-filter: blur(8px); border: 1px solid var(--line-2); border-radius: 999px; padding: 8px 17px; font-size: 11.5px; color: var(--txt-2); z-index: 40; box-shadow: var(--shadow-sm); }
+      .legend b { color: var(--grn); font-weight: 700; }
+
+      /* ───── responsive ───── */
+      @media (max-width: 1240px) {
+        .body { grid-template-columns: 1fr; }
+        .rail { position: static; }
+        .pcard { max-width: 520px; }
+      }
+      /* slightly tighter cell gutters on smaller screens (table still fluid, no scroll) */
+      @media (max-width: 1100px) {
+        thead th, tbody td { padding-left: 9px; padding-right: 9px; }
+      }
+      @media (max-width: 920px) {
+        .groups { grid-template-columns: repeat(2, 1fr); }
+        .grp:nth-child(2n) { border-right: 0; }
+        .grp:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+        .drawer { grid-template-columns: 1fr; }
+        .dcol { border-right: 0; border-bottom: 1px solid var(--line); }
+        .dcol:last-child { border-bottom: 0; }
+      }
+      @media (max-width: 560px) {
+        .groups { grid-template-columns: 1fr; }
+        .grp { border-right: 0; border-bottom: 1px solid var(--line); }
+        .grp:last-child { border-bottom: 0; }
+        .pcard { max-width: none; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; transition: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <div class="mark" title="LTV Desking PRO">
+          <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+            <path d="M7 21.5 A 10 10 0 1 1 25 21.5" stroke="#052109" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M16 16 L 21.5 10.5" stroke="#052109" stroke-width="2.6" stroke-linecap="round"/>
+            <circle cx="16" cy="16" r="1.9" fill="#052109"/>
+          </svg>
+        </div>
+        <div class="wm">LTV Desking <span>PRO</span></div>
+      </div>
+      <div class="store">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+        <b>Bob Maxey Ford</b>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <div class="sp"></div>
+      <div class="role">
+        <span class="lab">Viewing as</span>
+        <select id="i_role">
+          <option value="manager" selected>Sales Manager</option>
+          <option value="fi">F&amp;I Manager</option>
+          <option value="sales">Salesperson</option>
+        </select>
+      </div>
+      <button class="ghost"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Import</button>
+      <button class="cta"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#052109" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.9 5.8H20l-5 3.6 1.9 5.8L12 14.6 6.1 18.2 8 12.4l-5-3.6h6.1z"/></svg> AI Lender Import</button>
+      <button class="icbtn" title="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <div class="avatar">JS</div>
+    </header>
+
+    <!-- Deal-terms control panel -->
+    <section class="pencil">
+      <div class="pencil-top">
+        <h2><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--grn)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Deal terms <span class="badge"><span class="dot"></span>LIVE</span></h2>
+        <div class="right">
+          <span>Every change re-prices &amp; re-ranks all inventory instantly</span>
+          <button class="reset" id="reset">Reset</button>
+        </div>
+      </div>
+      <div class="groups">
+        <div class="grp">
+          <div class="gl u-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> Customer &amp; credit</div>
+          <div class="row">
+            <div class="fld full"><label class="u-label">Customer name</label><input class="ipt sans" id="i_name" value="—  add customer  —" /></div>
+            <div class="fld"><label class="u-label">Credit score</label><input class="ipt" id="i_credit" value="712" /></div>
+            <div class="fld"><label class="u-label">Buyer state</label>
+              <select class="ipt" id="i_state">
+                <option value="MI" selected>MI · 6.0%</option>
+                <option value="OH">OH · 5.75%</option>
+                <option value="IN">IN · 7.0%</option>
+                <option value="FL">FL · 6.0%</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="gl u-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg> Cash &amp; trade</div>
+          <div class="row">
+            <div class="fld"><label class="u-label">Cash down ($)</label><input class="ipt" id="i_down" value="2000" /></div>
+            <div class="fld"><label class="u-label">Trade value ($)</label><input class="ipt" id="i_trade" value="0" /></div>
+            <div class="fld full"><label class="u-label">Trade payoff ($)</label><input class="ipt" id="i_payoff" value="0" /></div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="gl u-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg> Incentives &amp; fees</div>
+          <div class="row">
+            <div class="fld"><label class="u-label">Rebate ($)</label><input class="ipt" id="i_rebate" value="0" /></div>
+            <div class="fld"><label class="u-label">Doc fee ($)</label><input class="ipt" id="i_doc" value="260" /></div>
+            <div class="fld full"><label class="u-label">Title / reg ($)</label><input class="ipt" id="i_title" value="195" /></div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="gl u-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg> Structure</div>
+          <div class="fld" style="margin-bottom:10px"><label class="u-label">Term (months)</label>
+            <div class="chips" id="terms">
+              <button class="tchip" data-t="60">60</button>
+              <button class="tchip on" data-t="72">72</button>
+              <button class="tchip" data-t="84">84</button>
+              <button class="tchip" data-t="96">96</button>
+            </div>
+          </div>
+          <div class="fld"><label class="u-label">APR (%)</label><input class="ipt" id="i_apr" value="8.9" /></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Body: inventory + right rail -->
+    <div class="body">
+      <section class="invwrap">
+        <div class="invhead">
+          <h2>Inventory</h2>
+          <span class="cnt" id="cnt">— units</span>
+          <div class="ihright">
+            <div class="search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input placeholder="Search make, model, stock #…" />
+            </div>
+            <div class="showsel">
+              <span class="lab">Show</span>
+              <select id="i_show">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="tscroll">
+          <table>
+            <thead><tr id="head"></tr></thead>
+            <tbody id="tb"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <aside class="rail" id="rail"></aside>
+    </div>
+
+    <div class="legend">Direction C · <b>Hybrid</b> — switch role (top-right) to watch gross hide · type any deal term to re-price all inventory · click a row to expand</div>
+
+    <script>
+      // ───── data ─────
+      const TAX = { MI: 0.06, OH: 0.0575, IN: 0.07, FL: 0.06 };
+      const inventory = [
+        { y: 2021, mk: "Toyota", md: "RAV4 XLE", stk: "4471", mi: 38140, price: 24980, book: 21100, cost: 21850 },
+        { y: 2020, mk: "Honda", md: "CR-V EX", stk: "4419", mi: 44300, price: 23400, book: 20700, cost: 20400 },
+        { y: 2022, mk: "Ford", md: "F-150 XLT", stk: "4502", mi: 29870, price: 41200, book: 37800, cost: 37100 },
+        { y: 2021, mk: "Mazda", md: "CX-5 Touring", stk: "4460", mi: 41050, price: 22100, book: 19050, cost: 19400 },
+        { y: 2020, mk: "Subaru", md: "Outback Prem", stk: "4433", mi: 52600, price: 21800, book: 18350, cost: 18900 },
+        { y: 2021, mk: "Hyundai", md: "Tucson SEL", stk: "4455", mi: 39800, price: 20400, book: 17900, cost: 17600 },
+        { y: 2019, mk: "Chevrolet", md: "Equinox LT", stk: "4388", mi: 61420, price: 16900, book: 13600, cost: 14300 },
+        { y: 2018, mk: "Jeep", md: "Grand Cherokee", stk: "4301", mi: 78900, price: 18500, book: 14200, cost: 15700 },
+        { y: 2022, mk: "Nissan", md: "Altima SV", stk: "4488", mi: 33200, price: 19900, book: 17050, cost: 16800 },
+        { y: 2013, mk: "Ford", md: "Focus SE", stk: "4112", mi: 140000, price: 5800, book: 4200, cost: 4600 },
+        { y: 2021, mk: "Toyota", md: "Camry LE", stk: "4477", mi: 36200, price: 23200, book: 20500, cost: 20100 },
+        { y: 2020, mk: "Honda", md: "Civic Sport", stk: "4421", mi: 42800, price: 20800, book: 18200, cost: 17900 },
+        { y: 2022, mk: "Kia", md: "Telluride SX", stk: "4510", mi: 27400, price: 38900, book: 35600, cost: 35000 },
+        { y: 2019, mk: "Toyota", md: "Tacoma SR5", stk: "4360", mi: 58900, price: 29900, book: 27800, cost: 26900 },
+        { y: 2021, mk: "Ford", md: "Escape SE", stk: "4468", mi: 40100, price: 19600, book: 16900, cost: 17200 },
+        { y: 2020, mk: "Chevrolet", md: "Silverado LT", stk: "4399", mi: 54300, price: 34800, book: 31200, cost: 31900 },
+        { y: 2018, mk: "BMW", md: "330i xDrive", stk: "4288", mi: 71200, price: 21900, book: 18100, cost: 18800 },
+        { y: 2021, mk: "Hyundai", md: "Elantra SEL", stk: "4459", mi: 35600, price: 17900, book: 15600, cost: 15300 },
+        { y: 2019, mk: "Volkswagen", md: "Tiguan SE", stk: "4344", mi: 62700, price: 17400, book: 14100, cost: 14700 },
+        { y: 2022, mk: "Subaru", md: "Forester Prem", stk: "4515", mi: 24800, price: 26400, book: 23900, cost: 23300 },
+        { y: 2020, mk: "GMC", md: "Acadia SLT", stk: "4402", mi: 49500, price: 27600, book: 24100, cost: 24600 },
+        { y: 2017, mk: "Chevrolet", md: "Cruze LT", stk: "4201", mi: 98400, price: 9900, book: 7300, cost: 7900 },
+        { y: 2021, mk: "Ram", md: "1500 Big Horn", stk: "4498", mi: 38600, price: 36900, book: 33800, cost: 33100 },
+        { y: 2019, mk: "Honda", md: "Accord Sport", stk: "4351", mi: 56800, price: 21200, book: 18400, cost: 18000 },
+        { y: 2018, mk: "Nissan", md: "Rogue SV", stk: "4290", mi: 74900, price: 15800, book: 12600, cost: 13200 },
+        { y: 2022, mk: "Mazda", md: "Mazda3 Select", stk: "4521", mi: 22100, price: 21400, book: 19200, cost: 18800 },
+        { y: 2016, mk: "Toyota", md: "Corolla LE", stk: "4150", mi: 112000, price: 11200, book: 8800, cost: 9300 },
+        { y: 2020, mk: "Jeep", md: "Wrangler Sport", stk: "4405", mi: 46200, price: 31200, book: 28600, cost: 27900 },
+        { y: 2021, mk: "Lexus", md: "RX 350", stk: "4533", mi: 31900, price: 42900, book: 39800, cost: 39000 },
+        { y: 2019, mk: "Dodge", md: "Charger SXT", stk: "4322", mi: 64800, price: 19800, book: 16400, cost: 17000 },
+      ];
+      const lenders = [
+        { nm: "Lake Trust CU", maxLtv: 145, maxTerm: 84, minCredit: 640, minAmt: 7500, maxAmt: 75000 },
+        { nm: "Capital One", maxLtv: 130, maxTerm: 75, minCredit: 600, minAmt: 7500, maxAmt: 65000 },
+        { nm: "Ally Financial", maxLtv: 125, maxTerm: 75, minCredit: 660, minAmt: 8000, maxAmt: 80000 },
+        { nm: "Ford Credit", maxLtv: 120, maxTerm: 84, minCredit: 680, minAmt: 10000, maxAmt: 90000 },
+        { nm: "Chase Auto", maxLtv: 122, maxTerm: 72, minCredit: 670, minAmt: 8000, maxAmt: 70000 },
+        { nm: "Westlake", maxLtv: 140, maxTerm: 72, minCredit: 540, minAmt: 5000, maxAmt: 45000 },
+        { nm: "Crescent Bank", maxLtv: 135, maxTerm: 72, minCredit: 560, minAmt: 9000, maxAmt: 40000 },
+      ];
+
+      // ───── state ─────
+      const st = { term: 72, sortKey: "appr", sortDir: -1, openStk: undefined, focusStk: undefined, role: "manager", pageSize: 10, override: {}, firstLoad: true };
+      const $ = (id) => document.getElementById(id);
+      const num = (id) => { const v = parseFloat(String($(id).value).replace(/[^0-9.\-]/g, "")); return isNaN(v) ? 0 : v; };
+      const fmt = (n) => Math.round(n).toLocaleString("en-US");
+      const fmt2 = (n) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const canSeeGross = () => st.role !== "sales";
+
+      function pmt(apr, n, p) { const r = apr / 100 / 12; if (p <= 0) return 0; if (r === 0) return p / n; return (p * r) / (1 - Math.pow(1 + r, -n)); }
+
+      function deal(v, term, ovr) {
+        ovr = ovr || {};
+        const sell = ovr.price ?? v.price;
+        const rebate = (ovr.rebate ?? num("i_rebate"));
+        const down = num("i_down"), trade = num("i_trade"), payoff = num("i_payoff");
+        const doc = num("i_doc"), title = num("i_title"), apr = num("i_apr"), credit = num("i_credit");
+        const rate = TAX[$("i_state").value] ?? 0.06;
+        const netTrade = trade - payoff;
+        const taxBase = Math.max(0, sell - Math.max(0, trade));
+        const tax = taxBase * rate;
+        const fin = Math.max(0, sell + tax + doc + title - down - netTrade - rebate);
+        const pay = pmt(apr, term, fin);
+        const otdLtv = v.book > 0 ? (fin / v.book) * 100 : 0;
+        const frontLtv = v.book > 0 ? (sell / v.book) * 100 : 0;
+        const gross = sell - v.cost;
+        const fits = lenders.filter((L) => otdLtv <= L.maxLtv && term <= L.maxTerm && credit >= L.minCredit && fin >= L.minAmt && fin <= L.maxAmt);
+        // approval blends borrower credit, LTV headroom, term, AND how many lender
+        // programs actually fit — so a cheap beater that fails lender minimums no
+        // longer outranks a mainstream unit just because its loan is tiny.
+        const cf = Math.max(0, Math.min(1, (credit - 520) / (790 - 520)));
+        const lf = Math.max(0, Math.min(1, (142 - otdLtv) / (142 - 100)));
+        const tf = Math.max(0, Math.min(1, (96 - term) / (96 - 48)));
+        const fr = fits.length / lenders.length;
+        const appr = Math.round((cf * 0.5 + lf * 0.2 + tf * 0.05 + fr * 0.25) * 100);
+        return { sell, rebate, down, trade, payoff, netTrade, tax, doc, title, rate, fin, pay, otdLtv, frontLtv, gross, appr, fits, apr, credit };
+      }
+
+      const col = (p) => (p >= 72 ? "var(--grn)" : p >= 50 ? "var(--amb)" : "var(--red)");
+      const ltvColor = (n) => (n <= 116 ? "var(--grn)" : n <= 128 ? "var(--amb)" : "var(--red)");
+      const ltvDim = (n) => (n <= 116 ? "var(--grn-dim)" : n <= 128 ? "var(--amb-dim)" : "var(--red-dim)");
+      const stoneClass = (p) => (p >= 72 ? "s-g" : p >= 50 ? "s-a" : "s-r");
+      const stoneLabel = (p) => (p >= 72 ? "Strong" : p >= 50 ? "Fair" : "Tough");
+      function ring(p, r) {
+        r = r || 11.5; const sw = 3.2; const sz = r * 2 + sw + 3;
+        const c = 2 * Math.PI * r, off = c * (1 - p / 100);
+        return `<svg class="ring" width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}"><circle cx="${sz/2}" cy="${sz/2}" r="${r}" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="${sw}"/><circle cx="${sz/2}" cy="${sz/2}" r="${r}" fill="none" stroke="${col(p)}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 ${sz/2} ${sz/2})"/></svg>`;
+      }
+      const lpill = (ok, warn) => warn ? `<span class="pill s-a">CHK</span>` : ok ? `<span class="pill s-g">FIT</span>` : `<span class="pill s-r">NO</span>`;
+
+      function drawer(v) {
+        const ovr = st.override[v.stk] || {};
+        const d = deal(v, st.term, ovr);
+        const grossLine = canSeeGross() ? `<div class="lr"><span class="k">Front-end gross</span><span class="v ${d.gross>=0?'pos':'neg'}">$${fmt(d.gross)}</span></div>` : "";
+        const led = `
+          <div class="dcol">
+            <h4><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 10h18M7 15h4"/></svg> Deal breakdown</h4>
+            <div class="led">
+              <div class="lr"><span class="k">Selling price <span class="ovr"><svg class="pen" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><input data-ov="price" data-stk="${v.stk}" value="${ovr.price ?? v.price}" /></span></span><span class="v">$${fmt(d.sell)}</span></div>
+              <div class="lr"><span class="k">Sales tax (${(d.rate*100).toFixed(2)}%)</span><span class="v">$${fmt(d.tax)}</span></div>
+              <div class="lr"><span class="k">Doc + title/reg</span><span class="v">$${fmt(d.doc + d.title)}</span></div>
+              <div class="lr"><span class="k">Cash down</span><span class="v neg">−$${fmt(d.down)}</span></div>
+              <div class="lr"><span class="k">Net trade ${d.netTrade < 0 ? "(neg equity)" : ""}</span><span class="v ${d.netTrade<0?'neg':''}">${d.netTrade<0?'+$'+fmt(-d.netTrade):'−$'+fmt(d.netTrade)}</span></div>
+              <div class="lr"><span class="k">Rebate <span class="ovr"><svg class="pen" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><input data-ov="rebate" data-stk="${v.stk}" value="${ovr.rebate ?? num('i_rebate')}" /></span></span><span class="v neg">−$${fmt(d.rebate)}</span></div>
+              <div class="lr div fin"><span class="k">Amount financed</span><span class="v">$${fmt(d.fin)}</span></div>
+              ${grossLine}
+            </div>
+          </div>`;
+
+        const terms = [60, 72, 84, 96];
+        const rows = terms.map((t) => {
+          const dt = deal(v, t, ovr);
+          return `<tr class="${t === st.term ? "cur" : ""}"><td class="l">${t} mo</td><td>$${fmt2(dt.pay)}</td><td style="color:${ltvColor(dt.otdLtv)}">${dt.otdLtv.toFixed(0)}%</td><td><span class="mini ${stoneClass(dt.appr)}">${dt.appr}</span></td></tr>`;
+        }).join("");
+        const scn = `
+          <div class="dcol">
+            <h4><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="13" y="6" width="3" height="11"/></svg> Term scenarios</h4>
+            <table class="scn"><thead><tr><th class="l">Term</th><th>Payment</th><th>OTD LTV</th><th>Appr</th></tr></thead><tbody>${rows}</tbody></table>
+            <p class="disc">Highlighted row = current term. Tap a term chip above to change the deal globally.</p>
+          </div>`;
+
+        const lf = lenders.map((L) => {
+          const ok = d.otdLtv <= L.maxLtv && st.term <= L.maxTerm && d.credit >= L.minCredit && d.fin >= L.minAmt && d.fin <= L.maxAmt;
+          const warn = ok && (d.otdLtv > L.maxLtv - 4 || st.term > L.maxTerm - 6);
+          let why = "";
+          if (!ok) { if (d.credit < L.minCredit) why = `${L.minCredit}+ credit`; else if (d.otdLtv > L.maxLtv) why = `LTV cap ${L.maxLtv}%`; else if (st.term > L.maxTerm) why = `term cap ${L.maxTerm}`; else if (d.fin < L.minAmt) why = `min $${fmt(L.minAmt)}`; else why = `max $${fmt(L.maxAmt)}`; }
+          else why = `${L.maxLtv}% · ${L.maxTerm}mo`;
+          return `<div class="lf">${lpill(ok, warn)}<span class="nm">${L.nm}</span><span class="mt">${why}</span></div>`;
+        }).join("");
+        const lcol = `
+          <div class="dcol">
+            <h4><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg> Lender fits · ${d.fits.length} of ${lenders.length}</h4>
+            ${lf}
+            <p class="disc">Preliminary screen against dealer-entered programs — not a credit decision. Final rate &amp; terms set by the lender.</p>
+          </div>`;
+
+        const actions = `
+          <div class="dactwrap">
+            <span class="mono" style="color:var(--txt-2)">${v.y} ${v.mk} ${v.md} · STK ${v.stk}</span>
+            <span class="sp"></span>
+            <button class="ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3H5a2 2 0 0 0-2 2v14l4-3h9a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg> Add to compare</button>
+            <button class="ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5h20v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> Customer quote (PDF)</button>
+            <button class="cta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#052109" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg> Save deal</button>
+          </div>`;
+        return `<div class="drawer">${led}${scn}${lcol}${actions}</div>`;
+      }
+
+      function renderRail() {
+        const v = inventory.find((x) => x.stk === st.focusStk) || inventory[0];
+        const d = deal(v, st.term, st.override[v.stk] || {});
+        const dollars = Math.floor(d.pay), cents = Math.round((d.pay - dollars) * 100).toString().padStart(2, "0");
+        const grossRow = canSeeGross() ? `<div class="r"><span class="k">Front-end gross</span><span class="v ${d.gross>=0?'pos':'neg'}">$${fmt(d.gross)}</span></div>` : "";
+        $("rail").innerHTML = `
+          <div class="pcard">
+            <div class="stk">STK ${v.stk} · ${fmt(v.mi)} mi <span class="tag">FOCUSED</span></div>
+            <h3>${v.y} ${v.mk} ${v.md}</h3>
+            <div class="approw">
+              ${ring(d.appr, 17)}
+              <div><div class="av" style="color:${col(d.appr)}">${d.appr}<span style="color:var(--txt-3s);font-size:11px;font-weight:600">/100</span></div><div class="as">approval odds</div></div>
+              <div class="lender"><b style="color:${d.fits.length>=3?'var(--grn)':d.fits.length>=1?'var(--amb)':'var(--red)'}">${d.fits.length}/${lenders.length}</b><small>LENDERS</small></div>
+            </div>
+            <div class="u-label">Estimated monthly payment</div>
+            <div class="paybig">$${fmt(dollars)}<small>.${cents}</small></div>
+            <div class="payterms">${st.term} mo · ${num("i_apr").toFixed(2)}% APR · estimate, not an offer of credit</div>
+            <div class="rled">
+              <div class="r"><span class="k">Selling price</span><span class="v">$${fmt(d.sell)}</span></div>
+              <div class="r"><span class="k">Tax + fees</span><span class="v">$${fmt(d.tax + d.doc + d.title)}</span></div>
+              <div class="r"><span class="k">Down + trade + rebate</span><span class="v neg">−$${fmt(d.down + d.netTrade + d.rebate)}</span></div>
+              <div class="r"><span class="k">OTD LTV</span><span class="v" style="color:${ltvColor(d.otdLtv)}">${d.otdLtv.toFixed(0)}%</span></div>
+              ${grossRow}
+              <div class="r tot"><span class="k">Amount financed</span><span class="v">$${fmt(d.fin)}</span></div>
+            </div>
+            <div class="ract">
+              <button class="ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5h20v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg> PDF</button>
+              <button class="cta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#052109" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg> Save deal</button>
+            </div>
+            <p class="rdisc">Estimate for desking only. APR and approval are illustrative until the lender returns a decision.</p>
+          </div>`;
+      }
+
+      function renderHead() {
+        const cols = [
+          { k: "", l: "", cls: "exp nos", w: "34px" },
+          { k: "name", l: "Vehicle", cls: "l", w: "18%" },
+          { k: "price", l: "Price", w: "8%" },
+          { k: "book", l: "Book / Trade", w: "9%" },
+          { k: "frontltv", l: "Front LTV", w: "7.5%" },
+          { k: "gross", l: "Front Gross", gated: true, w: "8.5%" },
+          { k: "fin", l: "Amt Fin'd", w: "9%" },
+          { k: "otdltv", l: "OTD LTV", w: "7.5%" },
+          { k: "pay", l: "Payment", w: "10%" },
+          { k: "lenders", l: "Lenders", w: "7%" },
+          { k: "appr", l: "Approval", w: "12%" },
+        ].filter((c) => !c.gated || canSeeGross());
+        $("head").innerHTML = cols.map((c) =>
+          `<th class="${c.cls || ""}" style="width:${c.w}" ${c.k ? `data-k="${c.k}"` : ""}>${c.l}${st.sortKey === c.k && c.k ? `<span class="ar">${st.sortDir < 0 ? "▼" : "▲"}</span>` : ""}</th>`
+        ).join("");
+        return cols.length;
+      }
+
+      function render() {
+        const ncol = renderHead();
+        const rows = inventory.map((v) => ({ v, d: deal(v, st.term, st.override[v.stk] || {}) }));
+        const k = st.sortKey, dir = st.sortDir;
+        const keyVal = (r) => ({
+          name: r.v.mk + r.v.md, price: r.d.sell, book: r.v.book, frontltv: r.d.frontLtv,
+          gross: r.d.gross, fin: r.d.fin, otdltv: r.d.otdLtv, pay: r.d.pay, lenders: r.d.fits.length, appr: r.d.appr,
+        }[k]);
+        rows.sort((a, b) => { const av = keyVal(a), bv = keyVal(b); if (typeof av === "string") return dir * av.localeCompare(bv); return dir * (av - bv); });
+        // default to the top-ranked unit so the open drawer + rail align with row 1 on load
+        if (st.openStk === undefined) st.openStk = rows[0]?.v.stk;
+        if (st.focusStk === undefined) st.focusStk = rows[0]?.v.stk;
+        if (!rows.some((r) => r.v.stk === st.focusStk)) st.focusStk = rows[0]?.v.stk;
+
+        const names = { name: "vehicle", price: "price", book: "book", frontltv: "front LTV", gross: "gross", fin: "amount financed", otdltv: "OTD LTV", pay: "payment", lenders: "lender fits", appr: "approval odds" };
+        const total = rows.length;
+        const shown = st.pageSize === "all" ? rows : rows.slice(0, st.pageSize);
+        $("cnt").textContent = `Showing ${shown.length} of ${total} units · sorted by ${names[k]}`;
+
+        const stagger = st.firstLoad;
+        $("tb").innerHTML = shown.map(({ v, d }, i) => {
+          const open = st.openStk === v.stk, focus = st.focusStk === v.stk;
+          const grossCell = canSeeGross() ? `<td><span class="n ${d.gross >= 0 ? "pos" : "neg"}">$${fmt(d.gross)}</span></td>` : "";
+          const anim = stagger ? `style="animation:rowIn .42s ease both;animation-delay:${(i * 0.035).toFixed(3)}s"` : "";
+          const main = `
+            <tr class="main ${open ? "open" : ""} ${focus ? "focus" : ""}" data-stk="${v.stk}" ${anim}>
+              <td class="exp"><div class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></div></td>
+              <td class="l"><div class="veh"><b>${v.y} ${v.mk} ${v.md}</b><span>STK ${v.stk} · ${fmt(v.mi)} mi</span></div></td>
+              <td><span class="n">$${fmt(d.sell)}</span></td>
+              <td><span class="n nmut">$${fmt(v.book)}</span></td>
+              <td><span class="n nmut">${d.frontLtv.toFixed(0)}%</span></td>
+              ${grossCell}
+              <td><span class="n">$${fmt(d.fin)}</span></td>
+              <td><span class="ltvtag" style="color:${ltvColor(d.otdLtv)};background:${ltvDim(d.otdLtv)}">${d.otdLtv.toFixed(0)}%</span></td>
+              <td><span class="pay">$${fmt2(d.pay)}</span><span class="nmut" style="font-size:10px">/mo</span></td>
+              <td><span class="lcount" style="color:${d.fits.length>=3?'var(--grn)':d.fits.length>=1?'var(--amb)':'var(--red)'}">${d.fits.length}<span class="nmut" style="font-size:10px">/${lenders.length}</span></span></td>
+              <td><span class="score">${ring(d.appr)}<span class="v" style="color:${col(d.appr)}">${d.appr}</span></span></td>
+            </tr>`;
+          const det = open ? `<tr class="detail"><td colspan="${ncol}">${drawer(v)}</td></tr>` : "";
+          return main + det;
+        }).join("");
+        st.firstLoad = false;
+
+        renderRail();
+        bindRows();
+      }
+
+      function bindRows() {
+        document.querySelectorAll("tr.main").forEach((tr) => {
+          tr.onclick = () => { const s = tr.dataset.stk; st.focusStk = s; st.openStk = st.openStk === s ? null : s; render(); };
+        });
+        document.querySelectorAll("input[data-ov]").forEach((inp) => {
+          inp.onclick = (e) => e.stopPropagation();
+          inp.onchange = () => {
+            const stk = inp.dataset.stk, key = inp.dataset.ov;
+            st.override[stk] = st.override[stk] || {};
+            const val = parseFloat(String(inp.value).replace(/[^0-9.\-]/g, ""));
+            st.override[stk][key] = isNaN(val) ? undefined : val;
+            render();
+          };
+        });
+        document.querySelectorAll("#head th[data-k]").forEach((th) => {
+          th.onclick = () => { const k = th.dataset.k; if (st.sortKey === k) st.sortDir *= -1; else { st.sortKey = k; st.sortDir = k === "name" ? 1 : -1; } render(); };
+        });
+      }
+
+      // ───── wiring ─────
+      ["i_credit", "i_down", "i_trade", "i_payoff", "i_rebate", "i_doc", "i_title", "i_apr"].forEach((id) => { $(id).oninput = render; });
+      $("i_state").onchange = render;
+      $("i_role").onchange = (e) => { st.role = e.target.value; render(); };
+      $("i_show").onchange = (e) => { st.pageSize = e.target.value === "all" ? "all" : parseInt(e.target.value); render(); };
+      $("terms").querySelectorAll(".tchip").forEach((c) => {
+        c.onclick = () => { st.term = parseInt(c.dataset.t); $("terms").querySelectorAll(".tchip").forEach((x) => x.classList.toggle("on", x === c)); render(); };
+      });
+      $("reset").onclick = () => {
+        const def = { i_name: "—  add customer  —", i_credit: "712", i_down: "2000", i_trade: "0", i_payoff: "0", i_rebate: "0", i_doc: "260", i_title: "195", i_apr: "8.9" };
+        Object.entries(def).forEach(([id, v]) => ($(id).value = v));
+        $("i_state").value = "MI"; st.term = 72; st.override = {};
+        $("terms").querySelectorAll(".tchip").forEach((x) => x.classList.toggle("on", x.dataset.t === "72"));
+        render();
+      };
+      render();
+    </script>
+  </body>
+</html>

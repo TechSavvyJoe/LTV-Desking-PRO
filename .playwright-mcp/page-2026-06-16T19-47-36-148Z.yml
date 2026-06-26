@@ -1,0 +1,37 @@
+- generic [ref=e3]:
+  - generic [ref=e7]:
+    - img "LTV Desking PRO" [ref=e9]
+    - heading "LTV Desking PRO" [level=1] [ref=e14]
+    - paragraph [ref=e15]: Precision deal structuring, lender intelligence, and F&I tooling for US automotive dealerships.
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - heading "Welcome Back" [level=2] [ref=e19]
+      - paragraph [ref=e20]: Sign in to access your deals
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Email address
+          - generic [ref=e25]:
+            - textbox "Email address" [ref=e26]:
+              - /placeholder: you@example.com
+            - img [ref=e27]
+        - generic [ref=e29]:
+          - generic [ref=e30]: Password
+          - generic [ref=e31]:
+            - textbox "Password" [ref=e32]:
+              - /placeholder: ••••••••
+            - img [ref=e33]
+      - button "Forgot your password?" [ref=e37]
+      - button "Sign in" [ref=e38]:
+        - generic [ref=e39]: Sign in
+    - paragraph [ref=e41]:
+      - text: Don't have an account?
+      - button "Register dealer" [ref=e42]
+  - generic [ref=e43]:
+    - generic [ref=e44]: Built for US dealerships
+    - generic [ref=e45]: ·
+    - link "Privacy" [ref=e46] [cursor=pointer]:
+      - /url: /privacy
+    - generic [ref=e47]: ·
+    - link "Terms" [ref=e48] [cursor=pointer]:
+      - /url: /terms

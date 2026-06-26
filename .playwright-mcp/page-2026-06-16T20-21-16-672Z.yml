@@ -1,0 +1,220 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e6]
+      - generic [ref=e9]:
+        - text: Viewing as
+        - strong [ref=e10]: …
+    - button "Exit impersonation" [ref=e11]
+  - generic [ref=e12]:
+    - link "Skip to main content" [ref=e13] [cursor=pointer]:
+      - /url: "#main-content"
+    - banner [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - link "LTV Desking PRO — home" [ref=e17] [cursor=pointer]:
+            - /url: /
+            - img "LTV Desking PRO" [ref=e18]
+            - heading "LTV Desking PRO" [level=1] [ref=e23]
+          - generic [ref=e24]:
+            - generic [ref=e25]:
+              - img [ref=e26]
+              - generic [ref=e28]: Superadmin
+            - generic [ref=e29]:
+              - img [ref=e30]
+              - text: Loading dealers...
+        - generic [ref=e33]:
+          - button "Desk Mode" [ref=e34]:
+            - img [ref=e35]
+            - text: Desk Mode
+          - button "Settings" [ref=e38]:
+            - generic [ref=e39]:
+              - img [ref=e40]
+              - text: Settings
+          - button "AI Lender Upload" [ref=e43]:
+            - generic [ref=e44]:
+              - img [ref=e45]
+              - text: AI Lender Upload
+    - main [ref=e47]:
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - heading "Customer & deal" [level=3] [ref=e51]:
+            - img [ref=e52]
+            - text: Customer & deal
+          - generic [ref=e54]:
+            - button "Save Deal" [disabled] [ref=e55]:
+              - generic [ref=e56]:
+                - img [ref=e57]
+                - text: Save Deal
+            - button "PDF" [disabled] [ref=e59]:
+              - generic [ref=e60]:
+                - img [ref=e61]
+                - text: PDF
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - generic [ref=e66]:
+              - img [ref=e68]
+              - heading "Deal terms" [level=3] [ref=e70]
+              - generic [ref=e71]: LIVE
+              - generic [ref=e73]: Every change re-prices & re-ranks all inventory instantly
+            - generic [ref=e75]:
+              - generic [ref=e76]:
+                - generic [ref=e77]:
+                  - img [ref=e79]
+                  - generic [ref=e81]: Customer & credit
+                - generic [ref=e82]:
+                  - generic [ref=e83]:
+                    - generic [ref=e84]: Customer Name
+                    - textbox "Customer Name" [ref=e86]:
+                      - /placeholder: e.g., John Doe
+                  - generic [ref=e87]:
+                    - generic [ref=e88]: Salesperson Name
+                    - textbox "Salesperson Name" [ref=e90]:
+                      - /placeholder: e.g., Jane Smith
+                  - generic [ref=e91]:
+                    - generic [ref=e92]:
+                      - generic [ref=e93]: Credit Score
+                      - spinbutton "Credit Score" [ref=e95]
+                    - generic [ref=e96]:
+                      - generic [ref=e97]: Buyer State
+                      - generic [ref=e98]:
+                        - combobox "Buyer State" [ref=e99] [cursor=pointer]:
+                          - option "MI (default)" [selected]
+                          - option "OH"
+                          - option "IN"
+                        - generic:
+                          - img
+                  - generic [ref=e100]:
+                    - generic [ref=e101]: Monthly Income ($)
+                    - spinbutton "Monthly Income ($)" [ref=e103]
+              - generic [ref=e104]:
+                - generic [ref=e105]:
+                  - img [ref=e107]
+                  - generic [ref=e109]: Cash & trade
+                - generic [ref=e110]:
+                  - generic [ref=e111]:
+                    - generic [ref=e112]: Down Pmt ($)
+                    - spinbutton "Down Pmt ($)" [ref=e114]
+                  - generic [ref=e115]:
+                    - generic [ref=e116]: Trade Value ($)
+                    - spinbutton "Trade Value ($)" [ref=e118]
+                  - generic [ref=e119]:
+                    - generic [ref=e120]: Trade Payoff ($)
+                    - spinbutton "Trade Payoff ($)" [ref=e122]
+              - generic [ref=e123]:
+                - generic [ref=e124]:
+                  - img [ref=e126]
+                  - generic [ref=e128]: Incentives & fees
+                - generic [ref=e129]:
+                  - generic [ref=e130]:
+                    - generic [ref=e131]: Backend ($)
+                    - spinbutton "Backend ($)" [ref=e133]
+                  - generic [ref=e134]:
+                    - generic [ref=e135]: State Fees ($)
+                    - spinbutton "State Fees ($)" [ref=e137]: "31"
+              - generic [ref=e138]:
+                - generic [ref=e139]:
+                  - img [ref=e141]
+                  - generic [ref=e143]: Structure
+                - generic [ref=e144]:
+                  - generic [ref=e145]:
+                    - generic [ref=e146]: Term (Months)
+                    - generic [ref=e147]:
+                      - combobox "Term (Months)" [ref=e148] [cursor=pointer]:
+                        - option "36"
+                        - option "48"
+                        - option "54"
+                        - option "60"
+                        - option "66"
+                        - option "72" [selected]
+                        - option "75"
+                        - option "84"
+                      - generic:
+                        - img
+                  - generic [ref=e149]:
+                    - generic [ref=e150]: APR (%)
+                    - spinbutton "APR (%)" [ref=e152]: "8.9"
+          - generic [ref=e153]:
+            - generic [ref=e154]:
+              - img [ref=e156]
+              - heading "Find a vehicle" [level=3] [ref=e158]
+            - generic [ref=e160]:
+              - generic [ref=e161]:
+                - generic [ref=e162]: VIN Lookup
+                - textbox "VIN Lookup" [ref=e165]:
+                  - /placeholder: 17-digit VIN
+              - generic [ref=e166]:
+                - generic [ref=e167]: Filter Vehicle
+                - textbox "Filter Vehicle" [ref=e169]:
+                  - /placeholder: e.g., Ford Escape
+              - generic [ref=e170]:
+                - generic [ref=e171]: Max Price ($)
+                - spinbutton "Max Price ($)" [ref=e173]
+              - generic [ref=e174]:
+                - generic [ref=e175]: Max Payment ($)
+                - spinbutton "Max Payment ($)" [ref=e177]
+              - generic [ref=e178]:
+                - generic [ref=e179]: Max Miles
+                - spinbutton "Max Miles" [ref=e181]
+              - generic [ref=e182]:
+                - generic [ref=e183]: Max OTD LTV (%)
+                - spinbutton "Max OTD LTV (%)" [ref=e185]
+      - generic [ref=e186]:
+        - generic [ref=e187]:
+          - generic [ref=e188]:
+            - button "Import CSV / Excel" [ref=e189]:
+              - generic [ref=e191]:
+                - generic [ref=e192]:
+                  - img [ref=e193]
+                  - text: Import
+                - generic [ref=e195]: CSV / Excel
+            - generic [ref=e197]:
+              - generic [ref=e198]: Sample Data Loaded
+              - generic [ref=e199]: 0 vehicles
+            - button "Download Sample CSV" [ref=e200]:
+              - img [ref=e202]
+          - generic [ref=e205]:
+            - generic [ref=e206]:
+              - textbox "Enter VIN to decode" [ref=e207]:
+                - /placeholder: Enter VIN...
+              - img [ref=e208]
+            - button "Decode" [disabled] [ref=e210]:
+              - generic [ref=e211]: Decode
+        - tablist "Dealer workspace sections" [ref=e213]:
+          - tab "Inventory" [selected] [ref=e214]:
+            - img [ref=e216]
+            - text: Inventory
+            - generic [ref=e218]: "0"
+          - tab "Lender Programs" [ref=e220]:
+            - img [ref=e222]
+            - text: Lender Programs
+            - generic [ref=e224]: "0"
+          - tab "Saved Deals" [ref=e225]:
+            - img [ref=e227]
+            - text: Saved Deals
+            - generic [ref=e229]: "0"
+          - tab "Finance Tools" [ref=e230]:
+            - img [ref=e232]
+            - text: Finance Tools
+        - status [ref=e235]:
+          - img [ref=e236]
+          - paragraph [ref=e239]: Loading your dealership data…
+    - contentinfo [ref=e240]:
+      - generic [ref=e241]: © 2026 LTV Desking PRO
+      - navigation "Legal" [ref=e242]:
+        - link "Privacy" [ref=e243] [cursor=pointer]:
+          - /url: /privacy
+        - link "Terms" [ref=e244] [cursor=pointer]:
+          - /url: /terms
+        - link "Support" [ref=e245] [cursor=pointer]:
+          - /url: mailto:joejgallant@gmail.com
+        - button "Report a problem" [ref=e246]
+  - generic [ref=e247]:
+    - button "Admin Console" [ref=e248]:
+      - generic [ref=e249]:
+        - img [ref=e250]
+        - text: Admin Console
+    - button "Logout" [ref=e253]:
+      - generic [ref=e254]:
+        - img [ref=e255]
+        - text: Logout
