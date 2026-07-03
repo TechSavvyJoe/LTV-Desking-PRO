@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import type { Settings, AppState } from "../types";
-import Button from "./common/Button";
 import {
   AI_MODEL_DOCS_VERIFIED_DATE,
   AI_PROVIDER_ORDER,
@@ -14,7 +13,9 @@ import {
 } from "../lib/aiModelRegistry";
 import { toast } from "../lib/toast";
 import { confirmAction } from "../lib/confirm";
-import { MI_DOC_FEE_WARN_THRESHOLD, INITIAL_SETTINGS } from "../constants";
+import { MI_DOC_FEE_WARN_THRESHOLD, INITIAL_SETTINGS, STORAGE_KEYS } from "../constants";
+import { updateDealerSettings } from "../lib/api";
+import { getCurrentUser } from "../lib/pocketbase";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,38 +24,65 @@ interface SettingsModalProps {
   onSave: (newSettings: Settings) => void;
 }
 
-const InputGroup: React.FC<{
-  label: string;
-  children: React.ReactNode;
-  htmlFor?: string;
-  description?: string;
-}> = ({ label, children, htmlFor, description }) => (
-  <div className="flex flex-col">
-    <label htmlFor={htmlFor} className="mb-1.5 text-sm font-medium text-[var(--color-text)]">
-      {label}
-    </label>
-    {children}
-    {description && <p className="mt-1 text-xs text-[var(--color-text-subtle)]">{description}</p>}
-  </div>
-);
+const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 
-const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-  <input
-    {...props}
-    className="w-full px-3 py-2 text-sm bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded text-[var(--color-text)] placeholder-[var(--color-text-subtle)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
-  />
-);
+const sectionH: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.1em",
+  ...mono,
+  color: "var(--color-text-subtle)",
+  margin: "0 0 13px",
+};
 
-const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select
-    {...props}
-    className="w-full px-3 py-2 text-sm bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded text-[var(--color-text)] placeholder-[var(--color-text-subtle)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
-  />
-);
+const fieldLabel: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 500,
+  color: "var(--color-text-muted)",
+  display: "block",
+  marginBottom: 5,
+};
 
+const inputBase: React.CSSProperties = {
+  width: "100%",
+  background: "var(--color-bg-subtle)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 8,
+  padding: "8px 10px",
+  fontSize: 14,
+  color: "var(--color-text)",
+  outline: "none",
+};
+
+const numInput: React.CSSProperties = { ...inputBase, ...mono };
+const selectInput: React.CSSProperties = { ...inputBase, padding: 8, fontFamily: "inherit" };
+
+const hr = <hr style={{ border: "none", borderTop: "1px solid var(--color-border)", margin: "22px 0" }} />;
+
+const TERM_OPTIONS = [48, 54, 60, 66, 72, 78, 84, 90, 96];
+
+const STATE_OPTIONS: { value: AppState; label: string }[] = [
+  { value: "MI", label: "Michigan" },
+  { value: "OH", label: "Ohio" },
+  { value: "IN", label: "Indiana" },
+  { value: "IL", label: "Illinois" },
+  { value: "FL", label: "Florida" },
+];
+
+/**
+ * System settings modal — 580px card per the SETTINGS MODAL block of
+ * LTV Desking PRO.dc.html (lines 862-908): DEAL DEFAULTS / FEES / LTV
+ * THRESHOLDS + the retained AI section, all on tokens. Save writes through
+ * the context (local persistence) AND to PB dealer_settings using the REAL
+ * column names (defaultTerm/defaultApr + the 1747810002 desk fields).
+ * Sales/manager get a read-only view (server enforces via PB rules). [P7]
+ */
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
   const [localSettings, setLocalSettings] = useState<Settings>(settings);
   const [modelRegistry, setModelRegistry] = useState<AiModelRegistryResponse | null>(null);
+
+  const role = getCurrentUser()?.role;
+  const canEdit = role === "admin" || role === "superadmin";
 
   useEffect(() => {
     setLocalSettings({
@@ -65,7 +93,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
   useEffect(() => {
     if (!isOpen) return;
-
     let active = true;
     fetch("/api/ai/models")
       .then((response) => response.json() as Promise<AiModelRegistryResponse>)
@@ -75,31 +102,61 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
       .catch(() => {
         if (active) setModelRegistry(null);
       });
-
     return () => {
       active = false;
     };
   }, [isOpen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    // Keep numeric fields non-negative and avoid NaN when clearing inputs.
-    setLocalSettings((prev) => {
-      const current = prev[name as keyof Settings];
-      if (type === "number") {
-        if (value === "") return prev; // ignore empty to keep last valid value
-        const numeric = Number(value);
-        if (Number.isNaN(numeric)) return prev;
-        return { ...prev, [name]: Math.max(0, numeric) } as Settings;
-      }
-      return { ...prev, [name]: value } as Settings;
-    });
+  // Close on Escape while open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
+  const setNum = (name: keyof Settings) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === "") return; // keep last valid value while clearing
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return;
+    setLocalSettings((prev) => ({ ...prev, [name]: Math.max(0, numeric) }) as Settings);
+  };
+
+  const setThreshold = (key: "warn" | "danger" | "critical") => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numeric = Number(e.target.value);
+    if (Number.isNaN(numeric)) return;
+    setLocalSettings((prev) => ({
+      ...prev,
+      ltvThresholds: { ...prev.ltvThresholds, [key]: numeric },
+    }));
   };
 
   const handleSave = () => {
-    onSave({
-      ...localSettings,
-      ai: normalizeAiSettings(localSettings.ai),
+    if (!canEdit) return;
+    const next: Settings = { ...localSettings, ai: normalizeAiSettings(localSettings.ai) };
+    // Context write: persists the full Settings blob locally + legacy PB sync.
+    onSave(next);
+    // Authoritative PB write with the REAL dealer_settings column names —
+    // defaultTerm/defaultApr (the context's legacy path sends phantom
+    // defaultLoanTerm/defaultInterestRate keys PB ignores) plus the new desk
+    // fields from migration 1747810002. [P7 settings binding]
+    updateDealerSettings({
+      defaultTerm: next.defaultTerm,
+      defaultApr: next.defaultApr,
+      defaultState: next.defaultState,
+      docFee: next.docFee,
+      cvrFee: next.cvrFee,
+      defaultStateFees: next.defaultStateFees,
+      outOfStateTransitFee: next.outOfStateTransitFee,
+      customTaxRate: next.customTaxRate ?? undefined,
+      vscPrice: next.vscPrice,
+      gapPrice: next.gapPrice,
+      miTradeInCreditCap: next.miTradeInCreditCap,
+    }).then((res) => {
+      if (!res) toast.error("Couldn't sync settings to the server — local defaults still apply.");
     });
     onClose();
   };
@@ -131,31 +188,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     });
   };
 
-  const handleResetAllData = async () => {
+  /**
+   * Clears ONLY this browser's UI preferences — desk focus/sort blob, filters
+   * and theme. Never touches PocketBase data (deals, inventory, lenders,
+   * dealer settings). [reconciliation 14]
+   */
+  const handleResetLocalPrefs = async () => {
     const confirmed = await confirmAction({
-      title: "Reset all local data?",
+      title: "Reset local preferences?",
       message:
-        "This will clear saved inventory, favorites, deals, filters, and settings. Continue?",
-      confirmLabel: "Reset",
+        "Clears this browser's desk preferences — focused row & sort, saved filters, and theme. Deals, inventory, lender programs and dealership settings stored on the server are untouched.",
+      confirmLabel: "Reset preferences",
       tone: "danger",
     });
     if (!confirmed) return;
-    const keys = [
-      "ltvInventory_v2",
-      "ltvDealData_v2",
-      "ltvFilters_v2",
-      "ltvFavorites_v2",
-      "ltvBankProfiles_v2",
-      "ltvSavedDeals_v2",
-      "ltvScratchPad_v2",
-      "ltvSettings_v2",
-    ];
     try {
-      keys.forEach((k) => window.localStorage.removeItem(k));
+      [STORAGE_KEYS.DESK_UI, STORAGE_KEYS.FILTERS, STORAGE_KEYS.THEME].forEach((k) =>
+        window.localStorage.removeItem(k)
+      );
       window.location.reload();
     } catch (err) {
-      console.error("Failed to reset data", err);
-      toast.error("Could not reset data. Please clear site data manually in your browser.");
+      console.error("Failed to reset local preferences", err);
+      toast.error("Could not reset preferences. Please clear site data manually in your browser.");
     }
   };
 
@@ -167,181 +221,360 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
   );
   const selectedProviderConfigured = selectedProvider?.configured ?? false;
 
+  const termValue = localSettings.defaultTerm;
+  const termOptions = TERM_OPTIONS.includes(termValue)
+    ? TERM_OPTIONS
+    : [...TERM_OPTIONS, termValue].sort((a, b) => a - b);
+
   return (
     <div
-      className="fixed inset-0 bg-black/70 flex justify-center items-center z-50 p-4"
+      className="modal-backdrop"
       onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(4,7,10,.6)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        padding: 16,
+      }}
     >
       <div
-        className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-md w-full max-w-2xl max-h-[90vh] flex flex-col text-[var(--color-text)]"
+        role="dialog"
+        aria-modal="true"
+        aria-label="System settings"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--color-bg)",
+          border: "1px solid var(--color-border)",
+          borderRadius: 16,
+          boxShadow: "var(--shadow-md)",
+          width: "100%",
+          maxWidth: 580,
+          maxHeight: "88vh",
+          display: "flex",
+          flexDirection: "column",
+          color: "var(--color-text)",
+        }}
       >
-        <div className="px-6 py-4 border-b border-[var(--color-border)]">
-          <h2 className="text-base font-semibold text-[var(--color-text)]">Application settings</h2>
-        </div>
-        <div className="px-6 py-5 overflow-y-auto space-y-6">
-          <section className="border-t border-[var(--color-border)] pt-6 first:border-t-0 first:pt-0">
-            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Deal defaults</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputGroup label="Default Loan Term (Months)" htmlFor="defaultTerm">
-                <StyledInput
-                  type="number"
-                  name="defaultTerm"
-                  id="defaultTerm"
-                  value={localSettings.defaultTerm}
-                  onChange={handleChange}
-                />
-              </InputGroup>
-              <InputGroup label="Default Interest Rate (APR %)" htmlFor="defaultApr">
-                <StyledInput
-                  type="number"
-                  name="defaultApr"
-                  id="defaultApr"
-                  value={localSettings.defaultApr}
-                  onChange={handleChange}
-                  step="0.1"
-                />
-              </InputGroup>
-            </div>
-          </section>
-
-          <section className="border-t border-[var(--color-border)] pt-6 first:border-t-0 first:pt-0">
-            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">
-              Fees & state tax
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputGroup
-                label="Dealership State"
-                htmlFor="defaultState"
-                description="This app currently models Michigan dealerships. Set per-deal buyer state on the deal screen for out-of-state buyers."
-              >
-                <StyledSelect
-                  name="defaultState"
-                  id="defaultState"
-                  value={localSettings.defaultState}
-                  onChange={handleChange}
+        {/* Header */}
+        <div
+          style={{
+            padding: "17px 22px",
+            borderBottom: "1px solid var(--color-border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              <span style={{ fontSize: 11, ...mono, color: "var(--color-text-subtle)" }} aria-hidden>
+                ⚙
+              </span>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>System settings</div>
+              {!canEdit && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    ...mono,
+                    letterSpacing: "0.06em",
+                    background: "var(--color-bg-muted)",
+                    color: "var(--color-text-muted)",
+                    padding: "2px 7px",
+                    borderRadius: 5,
+                  }}
                 >
-                  <option value="MI">MI — Michigan</option>
-                  <option value="OH">OH — buyer from Ohio (MI dealer)</option>
-                  <option value="IN">IN — buyer from Indiana (MI dealer)</option>
-                </StyledSelect>
-              </InputGroup>
-              <InputGroup label="Doc Fee ($)" htmlFor="docFee">
-                <StyledInput
-                  type="number"
-                  name="docFee"
-                  id="docFee"
-                  value={localSettings.docFee}
-                  onChange={handleChange}
-                />
-                {localSettings.docFee > MI_DOC_FEE_WARN_THRESHOLD && (
-                  <p className="mt-1 text-xs text-amber-500">
-                    Above Michigan&apos;s typical doc-fee cap — verify the current statutory cap.
-                  </p>
-                )}
-              </InputGroup>
-              <InputGroup label="CVR Fee ($)" htmlFor="cvrFee">
-                <StyledInput
-                  type="number"
-                  name="cvrFee"
-                  id="cvrFee"
-                  value={localSettings.cvrFee}
-                  onChange={handleChange}
-                />
-              </InputGroup>
-              <InputGroup
-                label="MI trade-in tax credit cap ($)"
-                htmlFor="miTradeInCreditCap"
-                description="Verify the current statutory cap"
-              >
-                <StyledInput
-                  type="number"
-                  name="miTradeInCreditCap"
-                  id="miTradeInCreditCap"
-                  value={localSettings.miTradeInCreditCap ?? INITIAL_SETTINGS.miTradeInCreditCap}
-                  onChange={handleChange}
-                />
-              </InputGroup>
-              <InputGroup label="Default State/Title Fees ($)" htmlFor="defaultStateFees">
-                <StyledInput
-                  type="number"
-                  name="defaultStateFees"
-                  id="defaultStateFees"
-                  value={localSettings.defaultStateFees}
-                  onChange={handleChange}
-                />
-              </InputGroup>
-              <div className="sm:col-span-2">
-                <InputGroup
-                  label="Out-of-State Transit Fee ($)"
-                  htmlFor="outOfStateTransitFee"
-                  description="Applied to out-of-state deals per reciprocal tax agreements."
-                >
-                  <StyledInput
-                    type="number"
-                    name="outOfStateTransitFee"
-                    id="outOfStateTransitFee"
-                    value={localSettings.outOfStateTransitFee}
-                    onChange={handleChange}
-                  />
-                </InputGroup>
-              </div>
-              <div className="sm:col-span-2">
-                <InputGroup
-                  label="Custom Tax Rate (%)"
-                  htmlFor="customTaxRate"
-                  description="Overrides state defaults. Leave empty to use state logic."
-                >
-                  <StyledInput
-                    type="number"
-                    name="customTaxRate"
-                    id="customTaxRate"
-                    value={localSettings.customTaxRate ?? ""}
-                    onChange={handleChange}
-                    step="0.01"
-                    placeholder="e.g. 6.0"
-                  />
-                </InputGroup>
-              </div>
-            </div>
-          </section>
-
-          <section className="border-t border-[var(--color-border)] pt-6 first:border-t-0 first:pt-0">
-            <div className="flex flex-col gap-1 mb-4">
-              <h3 className="text-sm font-semibold text-[var(--color-text)]">
-                AI provider &amp; models
-              </h3>
-              <p className="text-xs text-slate-400">
-                Model catalog verified from official docs on{" "}
-                {modelRegistry?.verifiedDate ?? AI_MODEL_DOCS_VERIFIED_DATE}.
-              </p>
-              {modelRegistry?.warnings.map((warning) => (
-                <p key={warning} className="text-xs text-amber-300">
-                  {warning}
-                </p>
-              ))}
-              {modelRegistry && !selectedProviderConfigured && (
-                <p className="text-xs text-amber-300">
-                  {getAiProviderLabel(aiSettings.provider)} is selected but its server key is not
-                  configured. Requests will use the first configured provider.
-                </p>
+                  READ-ONLY
+                </span>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputGroup
-                label="Provider"
-                htmlFor="aiProvider"
-                description="Controls lender extraction, deal analysis, and fast validation defaults."
-              >
-                <StyledSelect
+            <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 2 }}>
+              Defaults applied to new deals across this dealership.
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="lift-btn"
+            aria-label="Close"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--color-text-muted)",
+              cursor: "pointer",
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 22, overflowY: "auto" }}>
+          {/* DEAL DEFAULTS */}
+          <section>
+            <h3 style={sectionH}>DEAL DEFAULTS</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-default-term">
+                  Default term
+                </label>
+                <select
+                  id="settings-default-term"
+                  className="dc-input"
+                  disabled={!canEdit}
+                  value={termValue}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({ ...prev, defaultTerm: Number(e.target.value) }))
+                  }
+                  style={selectInput}
+                >
+                  {termOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t} months
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-default-apr">
+                  Default APR (%)
+                </label>
+                <input
+                  id="settings-default-apr"
+                  className="dc-input"
+                  type="number"
+                  step="0.1"
+                  disabled={!canEdit}
+                  value={localSettings.defaultApr}
+                  onChange={setNum("defaultApr")}
+                  style={numInput}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-default-state">
+                  Default state
+                </label>
+                <select
+                  id="settings-default-state"
+                  className="dc-input"
+                  disabled={!canEdit}
+                  value={localSettings.defaultState}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({ ...prev, defaultState: e.target.value as AppState }))
+                  }
+                  style={selectInput}
+                >
+                  {STATE_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {hr}
+
+          {/* FEES */}
+          <section>
+            <h3 style={sectionH}>FEES</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-doc-fee">
+                  Doc fee ($)
+                </label>
+                <input
+                  id="settings-doc-fee"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.docFee}
+                  onChange={setNum("docFee")}
+                  style={numInput}
+                />
+                {localSettings.docFee > MI_DOC_FEE_WARN_THRESHOLD && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--color-warning)" }}>
+                    Above Michigan&apos;s typical doc-fee cap — verify the statutory cap.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-cvr-fee">
+                  CVR fee ($)
+                </label>
+                <input
+                  id="settings-cvr-fee"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.cvrFee}
+                  onChange={setNum("cvrFee")}
+                  style={numInput}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-title-reg">
+                  Title / reg ($)
+                </label>
+                <input
+                  id="settings-title-reg"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.defaultStateFees}
+                  onChange={setNum("defaultStateFees")}
+                  style={numInput}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-vsc-price">
+                  VSC price ($)
+                </label>
+                <input
+                  id="settings-vsc-price"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.vscPrice}
+                  onChange={setNum("vscPrice")}
+                  style={numInput}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-gap-price">
+                  GAP price ($)
+                </label>
+                <input
+                  id="settings-gap-price"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.gapPrice}
+                  onChange={setNum("gapPrice")}
+                  style={numInput}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-mi-cap">
+                  MI trade-in credit cap ($)
+                </label>
+                <input
+                  id="settings-mi-cap"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.miTradeInCreditCap ?? INITIAL_SETTINGS.miTradeInCreditCap}
+                  onChange={setNum("miTradeInCreditCap")}
+                  style={numInput}
+                />
+                <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--color-text-subtle)" }}>
+                  Michigan sales-tax trade-in credit cap — verify the current statutory figure.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {hr}
+
+          {/* LTV THRESHOLDS */}
+          <section>
+            <h3 style={{ ...sectionH, margin: "0 0 5px" }}>LTV THRESHOLDS</h3>
+            <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "0 0 13px" }}>
+              Color bands applied to the OTD LTV column.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ ...fieldLabel, fontWeight: 600, color: "var(--color-warning)" }} htmlFor="settings-ltv-warn">
+                  Warn (%)
+                </label>
+                <input
+                  id="settings-ltv-warn"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.ltvThresholds?.warn ?? 115}
+                  onChange={setThreshold("warn")}
+                  style={numInput}
+                />
+              </div>
+              <div>
+                <label style={{ ...fieldLabel, fontWeight: 600, color: "var(--color-danger)" }} htmlFor="settings-ltv-danger">
+                  Danger (%)
+                </label>
+                <input
+                  id="settings-ltv-danger"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.ltvThresholds?.danger ?? 125}
+                  onChange={setThreshold("danger")}
+                  style={numInput}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="settings-ltv-critical">
+                  Critical (%)
+                </label>
+                <input
+                  id="settings-ltv-critical"
+                  className="dc-input"
+                  type="number"
+                  disabled={!canEdit}
+                  value={localSettings.ltvThresholds?.critical ?? 135}
+                  onChange={setThreshold("critical")}
+                  style={numInput}
+                />
+              </div>
+            </div>
+          </section>
+
+          {hr}
+
+          {/* AI PROVIDER & MODELS (retained section, tokens) */}
+          <section>
+            <h3 style={{ ...sectionH, margin: "0 0 5px" }}>AI PROVIDER &amp; MODELS</h3>
+            <p style={{ fontSize: 12, color: "var(--color-text-subtle)", margin: "0 0 6px" }}>
+              Model catalog verified from official docs on{" "}
+              {modelRegistry?.verifiedDate ?? AI_MODEL_DOCS_VERIFIED_DATE}.
+            </p>
+            {modelRegistry?.warnings.map((warning) => (
+              <p key={warning} style={{ fontSize: 12, color: "var(--color-warning)", margin: "0 0 6px" }}>
+                {warning}
+              </p>
+            ))}
+            {modelRegistry && !selectedProviderConfigured && (
+              <p style={{ fontSize: 12, color: "var(--color-warning)", margin: "0 0 6px" }}>
+                {getAiProviderLabel(aiSettings.provider)} is selected but its server key is not
+                configured. Requests will use the first configured provider.
+              </p>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
+              <div>
+                <label style={fieldLabel} htmlFor="aiProvider">
+                  Provider
+                </label>
+                <select
                   id="aiProvider"
+                  className="dc-input"
+                  disabled={!canEdit}
                   value={aiSettings.provider}
                   onChange={(event) => handleProviderChange(event.target.value as AiProvider)}
+                  style={selectInput}
                 >
                   {AI_PROVIDER_ORDER.map((provider) => {
-                    const providerState = modelRegistry?.providers.find(
-                      (item) => item.id === provider
-                    );
+                    const providerState = modelRegistry?.providers.find((item) => item.id === provider);
                     return (
                       <option key={provider} value={provider}>
                         {getAiProviderLabel(provider)}
@@ -349,18 +582,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                       </option>
                     );
                   })}
-                </StyledSelect>
-              </InputGroup>
-
-              <InputGroup
-                label="Lender PDF Extraction"
-                htmlFor="lenderExtractModel"
-                description="Uses the top PDF-capable model for rate sheets."
-              >
-                <StyledSelect
+                </select>
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="lenderExtractModel">
+                  Lender PDF extraction
+                </label>
+                <select
                   id="lenderExtractModel"
+                  className="dc-input"
+                  disabled={!canEdit}
                   value={aiSettings.lenderExtractModel}
                   onChange={(event) => handleAiModelChange("lenderExtract", event.target.value)}
+                  style={selectInput}
                 >
                   {getModelsForTask(aiSettings.provider, "lenderExtract").map((model) => (
                     <option key={model.id} value={model.id}>
@@ -368,18 +602,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                       {model.isPreview ? " (preview)" : ""}
                     </option>
                   ))}
-                </StyledSelect>
-              </InputGroup>
-
-              <InputGroup
-                label="Deal Assistant"
-                htmlFor="dealAnalysisModel"
-                description="Balanced by default for desk manager suggestions."
-              >
-                <StyledSelect
+                </select>
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="dealAnalysisModel">
+                  Deal assistant
+                </label>
+                <select
                   id="dealAnalysisModel"
+                  className="dc-input"
+                  disabled={!canEdit}
                   value={aiSettings.dealAnalysisModel}
                   onChange={(event) => handleAiModelChange("dealAnalysis", event.target.value)}
+                  style={selectInput}
                 >
                   {getModelsForTask(aiSettings.provider, "dealAnalysis").map((model) => (
                     <option key={model.id} value={model.id}>
@@ -388,18 +623,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                       {model.isPreview ? " (preview)" : ""}
                     </option>
                   ))}
-                </StyledSelect>
-              </InputGroup>
-
-              <InputGroup
-                label="Fast Workflows"
-                htmlFor="quickModel"
-                description="Used for quick validation, summaries, and routing."
-              >
-                <StyledSelect
+                </select>
+              </div>
+              <div>
+                <label style={fieldLabel} htmlFor="quickModel">
+                  Fast workflows
+                </label>
+                <select
                   id="quickModel"
+                  className="dc-input"
+                  disabled={!canEdit}
                   value={aiSettings.quickModel}
                   onChange={(event) => handleAiModelChange("quick", event.target.value)}
+                  style={selectInput}
                 >
                   {getModelsForTask(aiSettings.provider, "quick").map((model) => (
                     <option key={model.id} value={model.id}>
@@ -408,128 +644,116 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                       {model.isPreview ? " (preview)" : ""}
                     </option>
                   ))}
-                </StyledSelect>
-              </InputGroup>
-            </div>
-          </section>
-
-          <section className="border-t border-[var(--color-border)] pt-6 first:border-t-0 first:pt-0">
-            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">
-              LTV color thresholds (%)
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <InputGroup
-                label="Warning (Yellow)"
-                htmlFor="ltvWarn"
-                description="LTV above this turns yellow."
-              >
-                <StyledInput
-                  type="number"
-                  name="ltvThresholds.warn"
-                  id="ltvWarn"
-                  value={localSettings.ltvThresholds?.warn ?? 115}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setLocalSettings((prev) => ({
-                      ...prev,
-                      ltvThresholds: {
-                        ...prev.ltvThresholds,
-                        warn: val,
-                      },
-                    }));
-                  }}
-                />
-              </InputGroup>
-              <InputGroup
-                label="Danger (Orange)"
-                htmlFor="ltvDanger"
-                description="LTV above this turns orange."
-              >
-                <StyledInput
-                  type="number"
-                  name="ltvThresholds.danger"
-                  id="ltvDanger"
-                  value={localSettings.ltvThresholds?.danger ?? 125}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setLocalSettings((prev) => ({
-                      ...prev,
-                      ltvThresholds: {
-                        ...prev.ltvThresholds,
-                        danger: val,
-                      },
-                    }));
-                  }}
-                />
-              </InputGroup>
-              <InputGroup
-                label="Critical (Red)"
-                htmlFor="ltvCritical"
-                description="LTV above this turns red."
-              >
-                <StyledInput
-                  type="number"
-                  name="ltvThresholds.critical"
-                  id="ltvCritical"
-                  value={localSettings.ltvThresholds?.critical ?? 135}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setLocalSettings((prev) => ({
-                      ...prev,
-                      ltvThresholds: {
-                        ...prev.ltvThresholds,
-                        critical: val,
-                      },
-                    }));
-                  }}
-                />
-              </InputGroup>
+                </select>
+              </div>
             </div>
           </section>
         </div>
-        <div className="px-6 py-3 border-t border-[var(--color-border)] flex justify-between items-center gap-3 bg-[var(--color-bg-subtle)] sticky bottom-0 flex-wrap">
-          <div className="flex gap-2">
-            <Button type="button" variant="danger" size="sm" onClick={handleResetAllData}>
-              Reset All Data
-            </Button>
-            {/* Dev-only seed button — seeding is gated to development builds [C12] */}
-            {import.meta.env.DEV && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={async () => {
-                  if (
-                    await confirmAction({
-                      title: "Seed database?",
-                      message: "Seed database with default inventory and lenders?",
-                      confirmLabel: "Seed",
-                    })
-                  ) {
-                    try {
-                      const { seedDatabase } = await import("../lib/seeder");
-                      await seedDatabase();
-                      toast.success("Database seeded! Reloading application...");
-                      setTimeout(() => window.location.reload(), 1500);
-                    } catch (e) {
-                      console.error(e);
-                      toast.error(e instanceof Error ? e.message : "Failed to seed database.");
-                    }
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "13px 22px",
+            borderTop: "1px solid var(--color-border)",
+            background: "var(--color-bg-subtle)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 9,
+            borderRadius: "0 0 16px 16px",
+          }}
+        >
+          <button
+            onClick={handleResetLocalPrefs}
+            className="lift-btn settings-reset-link"
+            title="Clears this browser's desk focus/sort, filters and theme — never server data"
+            style={{
+              marginRight: "auto",
+              background: "transparent",
+              border: "none",
+              color: "var(--color-text-subtle)",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              padding: 0,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-danger)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-subtle)")}
+          >
+            Reset local preferences
+          </button>
+          {import.meta.env.DEV && (
+            <button
+              onClick={async () => {
+                if (
+                  await confirmAction({
+                    title: "Seed database?",
+                    message: "Seed database with default inventory and lenders?",
+                    confirmLabel: "Seed",
+                  })
+                ) {
+                  try {
+                    const { seedDatabase } = await import("../lib/seeder");
+                    await seedDatabase();
+                    toast.success("Database seeded! Reloading application...");
+                    setTimeout(() => window.location.reload(), 1500);
+                  } catch (e) {
+                    console.error(e);
+                    toast.error(e instanceof Error ? e.message : "Failed to seed database.");
                   }
-                }}
-              >
-                Seed DB
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleSave}>
-              Save Settings
-            </Button>
-          </div>
+                }
+              }}
+              className="lift-btn"
+              style={{
+                background: "transparent",
+                border: "1px solid var(--color-border-strong)",
+                color: "var(--color-text-muted)",
+                borderRadius: 8,
+                padding: "8px 12px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Seed DB (dev)
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="lift-btn"
+            style={{
+              background: "transparent",
+              border: "1px solid var(--color-border-strong)",
+              color: "var(--color-text)",
+              borderRadius: 8,
+              padding: "8px 15px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Cancel
+          </button>
+          {canEdit && (
+            <button
+              onClick={handleSave}
+              className="lift-btn btn-primary"
+              style={{
+                border: "1px solid transparent",
+                borderRadius: 8,
+                padding: "8px 15px",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Save changes
+            </button>
+          )}
         </div>
       </div>
     </div>

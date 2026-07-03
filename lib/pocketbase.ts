@@ -243,9 +243,10 @@ export interface DealerSettings {
   defaultState: string;
   outOfStateTransitFee: number;
   customTaxRate?: number;
-  defaultDownPayment?: number;
-  defaultLoanTerm?: number;
-  defaultInterestRate?: number;
+  /** REAL PB column (1746999005 baseline): default loan term in months. */
+  defaultTerm?: number;
+  /** REAL PB column (1746999005 baseline): default APR %. */
+  defaultApr?: number;
   /** Default VSC price for the desk add-on toggle (1747810002). */
   vscPrice?: number;
   /** Default GAP price for the desk add-on toggle (1747810002). */

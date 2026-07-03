@@ -153,6 +153,10 @@ export interface LenderProfile {
   portalUrl?: string;
   generalNotes?: string;
   enrichmentSources?: { url: string; title?: string; fieldsCited?: string[] }[];
+  /** Dealer reserve/participation %, display metadata only (never consumed by the rules engine). */
+  reservePct?: number;
+  /** Typical funding speed, e.g. "same day", "1–2 days" — display metadata only. */
+  fundingDays?: string;
   tiers: LenderTier[];
 }
 

@@ -368,14 +368,17 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (dealerSettings) {
         setSettings((prev) => ({
           ...prev,
-          defaultTerm: dealerSettings.defaultLoanTerm || prev.defaultTerm,
-          defaultApr: dealerSettings.defaultInterestRate || prev.defaultApr,
+          defaultTerm: dealerSettings.defaultTerm || prev.defaultTerm,
+          defaultApr: dealerSettings.defaultApr || prev.defaultApr,
           defaultStateFees: dealerSettings.defaultStateFees || prev.defaultStateFees,
           docFee: dealerSettings.docFee,
           cvrFee: dealerSettings.cvrFee,
           defaultState: toAppState(dealerSettings.defaultState, prev.defaultState),
           outOfStateTransitFee: dealerSettings.outOfStateTransitFee,
           customTaxRate: dealerSettings.customTaxRate ?? null,
+          miTradeInCreditCap: dealerSettings.miTradeInCreditCap ?? prev.miTradeInCreditCap,
+          vscPrice: dealerSettings.vscPrice ?? prev.vscPrice,
+          gapPrice: dealerSettings.gapPrice ?? prev.gapPrice,
           ai: normalizeAiSettings(prev.ai),
         }));
       }
@@ -449,14 +452,17 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       updateDealerSettings({
-        defaultLoanTerm: newSettings.defaultTerm,
-        defaultInterestRate: newSettings.defaultApr,
+        defaultTerm: newSettings.defaultTerm,
+        defaultApr: newSettings.defaultApr,
         defaultStateFees: newSettings.defaultStateFees,
         docFee: newSettings.docFee,
         cvrFee: newSettings.cvrFee,
         defaultState: newSettings.defaultState,
         outOfStateTransitFee: newSettings.outOfStateTransitFee,
         customTaxRate: newSettings.customTaxRate ?? undefined,
+        miTradeInCreditCap: newSettings.miTradeInCreditCap,
+        vscPrice: newSettings.vscPrice,
+        gapPrice: newSettings.gapPrice,
       }).catch((err) => console.error("Failed to persist settings", err));
 
       return newSettings;

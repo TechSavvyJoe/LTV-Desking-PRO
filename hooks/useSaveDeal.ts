@@ -88,7 +88,11 @@ export function useSaveDeal() {
           monthlyIncome: filters.monthlyIncome,
         },
         notes: scratchPadNotes,
-        status: "draft" as const,
+        // Desk saves land as "pending" (mockup's save-to-pipeline semantics) —
+        // "draft" is reserved for deals persisted before they're worked.
+        status: "pending" as const,
+        // First fitting lender at save time — the Pipeline LENDER column.
+        lenderName: eligibilitySnapshot.find((entry) => entry.eligible)?.name,
         calculatedData: {
           lenderEligibility: eligibilitySnapshot,
           settings: { ...settings, ai: undefined },

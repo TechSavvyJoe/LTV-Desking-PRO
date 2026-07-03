@@ -5,7 +5,6 @@ import {
   Routes,
   useLocation,
   useNavigate,
-  useOutletContext,
   useSearchParams,
 } from "react-router-dom";
 import {
@@ -26,7 +25,7 @@ import { Toast } from "./components/common/Toast";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { DataLoading } from "./components/common/states";
 import { toast } from "./lib/toast";
-import AppShell, { type ShellOutletContext } from "./components/shell/AppShell";
+import AppShell from "./components/shell/AppShell";
 import DeskScreen from "./components/desk/DeskScreen";
 import InventoryScreen from "./components/screens/InventoryScreen";
 import PipelineScreen from "./components/screens/PipelineScreen";
@@ -53,11 +52,8 @@ const PageFallback = (
   </div>
 );
 
-/** Desk route — wires the shell-owned AI upload modal into DeskScreen. */
-const DeskRoute: React.FC = () => {
-  const { openAiUpload } = useOutletContext<ShellOutletContext>();
-  return <DeskScreen onOpenAiUpload={openAiUpload} />;
-};
+/** Desk route — the shell owns the AI-upload modal; DeskScreen needs no props. */
+const DeskRoute: React.FC = () => <DeskScreen />;
 
 /** Finance tools drawer route — the old "scratchpad" tab, now at /tools. */
 const ToolsRoute: React.FC = () => {

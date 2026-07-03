@@ -13,6 +13,7 @@ import Button from "../common/Button";
 import * as Icons from "../common/Icons";
 import { confirmAction } from "../../lib/confirm";
 import { toast } from "../../lib/toast";
+import { ConsoleHeader, ConsoleTab } from "./panels/OwnerPanels";
 
 interface DealerAdminDashboardProps {
   onSwitchToDealer: () => void;
@@ -201,8 +202,8 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-blue-600 animate-spin" />
+      <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
+        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
       </div>
     );
   }
@@ -214,82 +215,65 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
       case "superadmin":
         return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
       case "admin":
-        return "bg-blue-500/20 text-blue-700 dark:text-blue-400";
+        return "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]";
       case "manager":
-        return "bg-amber-500/20 text-amber-700 dark:text-amber-400";
+        return "bg-[var(--color-warning-subtle)] text-[var(--color-warning)]";
       default:
-        return "bg-slate-500/20 text-slate-700 dark:text-slate-400";
+        return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300">
-      {/* Header */}
-      <header className="bg-[var(--color-bg)] border-b border-[var(--color-border)] sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-[var(--color-primary)] rounded-md flex items-center justify-center">
-                <Icons.BuildingOfficeIcon className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-                  Dealer Admin Console
-                </h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {dealer?.name} ({dealer?.code})
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-slate-900 dark:text-white">
-                  {currentUser?.firstName} {currentUser?.lastName}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">
-                  {currentUser?.role}
-                </p>
-              </div>
-              <Button onClick={onSwitchToDealer} variant="primary" className="gap-2">
-                <Icons.ChevronLeftIcon className="w-4 h-4" />
-                Back to Dashboard
-              </Button>
-            </div>
-          </div>
+    <div
+      className="min-h-screen bg-[var(--color-bg-subtle)] text-[var(--color-text)]"
+      style={{ fontFamily: "var(--font-sans)" }}
+    >
+      {/* 58px console header — owner-console idiom scoped to one dealership */}
+      <ConsoleHeader
+        label="ADMIN CONSOLE"
+        title={dealer ? `${dealer.name} (${dealer.code})` : "—"}
+        sub={
+          `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim() ||
+          currentUser?.email
+        }
+        right={
+          <Button onClick={onSwitchToDealer} variant="primary" className="gap-2">
+            <Icons.ChevronLeftIcon className="w-4 h-4" />
+            Back to Dashboard
+          </Button>
+        }
+      />
 
-          <div className="flex items-center gap-4 mt-6">
-            <button
-              onClick={() => setActiveTab("users")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium transition-colors ${
-                activeTab === "users"
-                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                  : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-              }`}
-            >
-              <Icons.UserIcon className="w-5 h-5" />
-              Users
-            </button>
-            <button
-              onClick={() => setActiveTab("dealership")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium transition-colors ${
-                activeTab === "dealership"
-                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                  : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-              }`}
-            >
-              <Icons.BuildingOfficeIcon className="w-5 h-5" />
-              Dealership Details
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* Sub-tab bar — .tab-btn idiom */}
+      <div
+        style={{
+          padding: "0 24px",
+          background: "var(--color-bg)",
+          borderBottom: "1px solid var(--color-border)",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        <ConsoleTab
+          active={activeTab === "users"}
+          onClick={() => setActiveTab("users")}
+          label="Users"
+          badge={users.length}
+        />
+        <ConsoleTab
+          active={activeTab === "dealership"}
+          onClick={() => setActiveTab("dealership")}
+          label="Dealership Details"
+        />
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === "users" && (
           <div className="space-y-6 animate-fadeIn">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Team Members</h2>
+              <h2 className="text-lg font-bold text-[var(--color-text)]">Team Members</h2>
               <Button onClick={() => setIsCreatingUser(true)} className="gap-2">
                 <Icons.PlusIcon className="w-4 h-4" />
                 Add User
@@ -297,19 +281,19 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
             </div>
 
             {userError && (
-              <div className="bg-red-50 dark:bg-red-500/20 border border-red-200 dark:border-red-500/50 rounded-lg p-4 text-red-600 dark:text-red-300">
+              <div className="bg-[var(--color-danger-subtle)] border border-[var(--color-danger)] rounded-lg p-4 text-[var(--color-danger)]">
                 {userError}
               </div>
             )}
 
             {(isCreatingUser || editingUserId) && (
-              <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+              <div className="bg-[var(--color-bg)] rounded-xl p-6 border border-[var(--color-border)] shadow-sm">
+                <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
                   {editingUserId ? "Edit Team Member" : "Add New Team Member"}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                       First Name *
                     </label>
                     <input
@@ -318,12 +302,12 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setUserFormData({ ...userFormData, firstName: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                       placeholder="Jane"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                       Last Name *
                     </label>
                     <input
@@ -332,36 +316,36 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setUserFormData({ ...userFormData, lastName: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                       placeholder="Smith"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                       Email *
                     </label>
                     <input
                       type="email"
                       value={userFormData.email}
                       onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                       placeholder="jane@dealership.com"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                       Phone
                     </label>
                     <input
                       type="tel"
                       value={userFormData.phone}
                       onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                       placeholder="(555) 123-4567"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                       Role *
                     </label>
                     <select
@@ -369,7 +353,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setUserFormData({ ...userFormData, role: e.target.value as User["role"] })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     >
                       <option value="sales">Sales</option>
                       <option value="manager">Manager</option>
@@ -379,7 +363,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   {!editingUserId && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                           Password *
                         </label>
                         <input
@@ -388,12 +372,12 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                           onChange={(e) =>
                             setUserFormData({ ...userFormData, password: e.target.value })
                           }
-                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                          className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                           placeholder="Min 8 characters"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                           Confirm Password *
                         </label>
                         <input
@@ -402,7 +386,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                           onChange={(e) =>
                             setUserFormData({ ...userFormData, passwordConfirm: e.target.value })
                           }
-                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                          className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                           placeholder="Re-enter password"
                         />
                       </div>
@@ -428,35 +412,35 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               </div>
             )}
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+            <div className="bg-[var(--color-bg)] rounded-xl border border-[var(--color-border)] overflow-hidden shadow-sm">
               <table className="w-full text-left">
-                <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                <thead className="bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
                   <tr>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">
                       User
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">
                       Email
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">
+                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center">
                       Role
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">
+                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center">
                       Joined
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">
+                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-[var(--color-border)]">
                   {users.map((u) => {
                     const isSelf = u.id === currentUser?.id;
                     const isActive = (u as User & { active?: boolean }).active ?? true;
                     return (
                       <tr
                         key={u.id}
-                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${
+                        className={`hover:bg-[var(--color-bg-muted)] transition-colors ${
                           isActive ? "" : "opacity-60"
                         }`}
                       >
@@ -467,19 +451,19 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                               {u.lastName?.[0]}
                             </div>
                             <div>
-                              <p className="font-medium text-slate-900 dark:text-white">
+                              <p className="font-medium text-[var(--color-text)]">
                                 {u.firstName} {u.lastName}
                                 {!isActive && (
-                                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 align-middle">
+                                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] align-middle">
                                     Inactive
                                   </span>
                                 )}
                               </p>
-                              <p className="text-xs text-slate-500">{u.phone}</p>
+                              <p className="text-xs text-[var(--color-text-subtle)]">{u.phone}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
+                        <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
                           {u.email}
                         </td>
                         <td className="px-4 py-4 text-center">
@@ -496,14 +480,14 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                             <option value="admin">Admin</option>
                           </select>
                         </td>
-                        <td className="px-4 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                        <td className="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
                           {new Date(u.created).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleEditUser(u)}
-                              className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                              className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg-muted)] rounded-lg transition-colors"
                               title="Edit"
                             >
                               <Icons.PencilIcon className="w-4 h-4" />
@@ -513,8 +497,8 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                               disabled={isSelf}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                                 isActive
-                                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/30 hover:bg-amber-500/20"
-                                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/20"
+                                  ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)] hover:bg-[var(--color-warning-subtle)]"
+                                  : "bg-[var(--color-success-subtle)] text-[var(--color-success)] ring-[var(--color-success)] hover:bg-[var(--color-success-subtle)]"
                               }`}
                               title={
                                 isSelf
@@ -529,7 +513,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                             {!isSelf && (
                               <button
                                 onClick={() => handleDeleteUser(u.id)}
-                                className="p-2 text-slate-300 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                className="p-2 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors"
                                 title="Delete permanently"
                               >
                                 <Icons.TrashIcon className="w-4 h-4" />
@@ -542,7 +526,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   })}
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
+                      <td colSpan={5} className="px-4 py-12 text-center text-[var(--color-text-subtle)]">
                         No team members found.
                       </td>
                     </tr>
@@ -556,7 +540,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         {activeTab === "dealership" && dealer && (
           <div className="space-y-6 animate-fadeIn max-w-3xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h2 className="text-lg font-bold text-[var(--color-text)]">
                 Dealership Information
               </h2>
               {!isEditingDealer && (
@@ -571,10 +555,10 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               )}
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="bg-[var(--color-bg)] rounded-xl p-6 border border-[var(--color-border)] shadow-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                     Dealership Name
                   </label>
                   {isEditingDealer ? (
@@ -584,23 +568,23 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, name: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-slate-900 dark:text-white font-medium">{dealer.name}</p>
+                    <p className="text-[var(--color-text)] font-medium">{dealer.name}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                     Dealer Code
                   </label>
-                  <p className="text-slate-500 dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 inline-block">
+                  <p className="text-[var(--color-text-muted)] font-mono bg-[var(--color-bg-subtle)] px-3 py-2 rounded-lg border border-[var(--color-border)] inline-block">
                     {dealer.code}
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">Code cannot be changed.</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Code cannot be changed.</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                     Email Contact
                   </label>
                   {isEditingDealer ? (
@@ -610,16 +594,16 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, email: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-slate-900 dark:text-white">
+                    <p className="text-[var(--color-text)]">
                       {dealer.email || "Not provided"}
                     </p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                     Phone Contact
                   </label>
                   {isEditingDealer ? (
@@ -629,16 +613,16 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, phone: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-slate-900 dark:text-white">
+                    <p className="text-[var(--color-text)]">
                       {dealer.phone || "Not provided"}
                     </p>
                   )}
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                     Address
                   </label>
                   {isEditingDealer ? (
@@ -648,16 +632,16 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, address: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-slate-900 dark:text-white">
+                    <p className="text-[var(--color-text)]">
                       {dealer.address || "Not provided"}
                     </p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                     City
                   </label>
                   {isEditingDealer ? (
@@ -667,16 +651,16 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, city: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-slate-900 dark:text-white">
+                    <p className="text-[var(--color-text)]">
                       {dealer.city || "Not provided"}
                     </p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                     State
                   </label>
                   {isEditingDealer ? (
@@ -690,10 +674,10 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                         })
                       }
                       maxLength={2}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white uppercase"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] uppercase"
                     />
                   ) : (
-                    <p className="text-slate-900 dark:text-white uppercase">
+                    <p className="text-[var(--color-text)] uppercase">
                       {dealer.state || "--"}
                     </p>
                   )}
@@ -701,7 +685,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               </div>
 
               {isEditingDealer && (
-                <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-[var(--color-border)]">
                   <Button
                     variant="secondary"
                     onClick={() => {
