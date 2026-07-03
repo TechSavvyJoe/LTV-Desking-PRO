@@ -16,6 +16,13 @@ export interface Vehicle {
   // Calculated properties will be added to a different type
 }
 
+/**
+ * Approval-odds band. The numeric score is shown on the gauge, but the band is
+ * cross-checked against real lender eligibility — a deal that fits no active
+ * lender can never read better than "none". [dc-redesign / WS-C]
+ */
+export type ApprovalBand = "very-strong" | "strong" | "fair" | "weak" | "none";
+
 export interface CalculatedVehicle extends Vehicle {
   salesTax: number | "Error" | "N/A";
   frontEndLtv: number | "Error" | "N/A";
@@ -23,6 +30,12 @@ export interface CalculatedVehicle extends Vehicle {
   amountToFinance: number | "Error" | "N/A";
   otdLtv: number | "Error" | "N/A";
   monthlyPayment: number | "Error" | "N/A";
+  // Redesign-derived metrics, populated by the processedInventory selector via
+  // approvalScorer + lenderFit. Optional so existing call sites stay valid.
+  approvalScore?: number; // 0-100 internal odds index (hardened, eligibility-capped)
+  approvalBand?: ApprovalBand;
+  ptiRatio?: number; // payment-to-income %, or undefined when income is unknown
+  fitCount?: number; // # of active lenders the current deal fits
 }
 
 export interface DealData {
@@ -40,6 +53,7 @@ export interface DealData {
    * settings-level behavior. [G18]
    */
   buyerState?: "MI" | "OH" | "IN";
+  rebate?: number; // Manufacturer/dealer rebate applied to the amount financed [WS-C]
 }
 
 export interface FilterData {

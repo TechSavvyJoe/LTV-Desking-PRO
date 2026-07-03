@@ -48,6 +48,8 @@ import AiLenderManagerModal from "./components/AiLenderManagerModal";
 import BackgroundUploadIndicator from "./components/BackgroundUploadIndicator";
 import Header from "./components/Header";
 import SkipNavLink from "./components/common/SkipNavLink";
+import CommandRail, { type DeskScreenId } from "./components/shell/CommandRail";
+import DeskScreen from "./components/desk/DeskScreen";
 // Code-split the heavy, conditionally-rendered surfaces so a salesperson on the
 // default route never downloads the admin dashboards (~3,200 lines), the legal
 // pages, or recharts (via FinanceTools) on first paint. [perf]
@@ -176,6 +178,7 @@ const MainLayout: React.FC = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const [screen, setScreen] = useState<DeskScreenId>("desk");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -667,9 +670,8 @@ const MainLayout: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen transition-colors duration-300 ${
-        theme === "dark" ? "bg-[#0f172a]" : "bg-[#f8fafc]"
-      } text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-500/30 selection:text-blue-600 dark:selection:text-blue-300`}
+      className="min-h-screen text-[var(--color-text)]"
+      style={{ fontFamily: "var(--font-sans)" }}
     >
       {/* Skip navigation for accessibility */}
       <SkipNavLink />
@@ -684,27 +686,43 @@ const MainLayout: React.FC = () => {
         </div>
       )}
 
-      <Header
-        onOpenAiModal={() => setIsAiModalOpen(true)}
-        onOpenSettingsModal={() => setIsSettingsOpen(true)}
-        theme={theme}
-        toggleTheme={toggleTheme}
-        onDealerChange={() => {
-          // Reload the page to refresh all data for the new dealer
-          window.location.reload();
-        }}
-        isUploading={isAiModalOpen}
-        isUploadMinimized={isAiMinimized}
-        uploadProgress={aiUploadProgress.progress}
-        uploadStage={aiUploadProgress.stage}
-        onRestoreUpload={() => setIsAiMinimized(false)}
-      />
+      <div style={{ display: "flex", minHeight: "100vh" }}>
+        <CommandRail
+          screen={screen}
+          onSelect={setScreen}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          showOwner={false}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {screen === "desk" ? (
+            <DeskScreen onOpenAiUpload={() => setIsAiModalOpen(true)} />
+          ) : (
+            <>
+              {/* Legacy layout — fallback for screens not yet rebuilt to the
+                  dark/green design (Inventory/Lenders/Pipeline/Reports). */}
+              <Header
+                onOpenAiModal={() => setIsAiModalOpen(true)}
+                onOpenSettingsModal={() => setIsSettingsOpen(true)}
+                theme={theme}
+                toggleTheme={toggleTheme}
+                onDealerChange={() => {
+                  // Reload the page to refresh all data for the new dealer
+                  window.location.reload();
+                }}
+                isUploading={isAiModalOpen}
+                isUploadMinimized={isAiMinimized}
+                uploadProgress={aiUploadProgress.progress}
+                uploadStage={aiUploadProgress.stage}
+                onRestoreUpload={() => setIsAiMinimized(false)}
+              />
 
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-6 focus:outline-none"
-      >
+              <main
+                id="main-content"
+                tabIndex={-1}
+                className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-6 focus:outline-none"
+              >
         {/* Deal Controls */}
         <section>
           <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm overflow-hidden transition-colors duration-[120ms] hover:border-[var(--color-border-strong)]">
@@ -1179,6 +1197,10 @@ const MainLayout: React.FC = () => {
           </button>
         </nav>
       </footer>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Modals */}
       <SettingsModal

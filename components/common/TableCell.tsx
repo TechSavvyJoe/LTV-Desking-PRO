@@ -84,51 +84,88 @@ export const formatDateTime = (dateString: string | undefined): string => {
 
 import { useSettings } from "../../hooks/useSettings";
 
+// Status colors come from semantic CSS-variable tokens (theme-aware, contrast-
+// checked) — never hardcoded Tailwind colors. Every status cell also carries a
+// non-color glyph so meaning survives for colorblind users (WCAG 1.4.1).
+type StatusTier = { color: string; bg: string; glyph: string; label: string };
+
+const DEFAULT_LTV_THRESHOLDS = { warn: 115, danger: 125, critical: 135 };
+
+const ltvTier = (
+  value: number,
+  thresholds: { warn: number; danger: number; critical: number }
+): StatusTier => {
+  const { warn, danger, critical } = thresholds;
+  if (value >= critical)
+    return {
+      color: "var(--color-danger)",
+      bg: "var(--color-danger-subtle)",
+      glyph: "▲",
+      label: "critical LTV",
+    };
+  if (value >= danger)
+    return {
+      color: "var(--color-danger)",
+      bg: "var(--color-danger-subtle)",
+      glyph: "▲",
+      label: "high LTV",
+    };
+  if (value >= warn)
+    return {
+      color: "var(--color-warning)",
+      bg: "var(--color-warning-subtle)",
+      glyph: "●",
+      label: "elevated LTV",
+    };
+  return {
+    color: "var(--color-success)",
+    bg: "var(--color-success-subtle)",
+    glyph: "✓",
+    label: "healthy LTV",
+  };
+};
+
+const NaCell = () => (
+  <span className="financial-cell font-medium text-sm" style={{ color: "var(--color-text-subtle)" }}>
+    --
+  </span>
+);
+
 interface LtvCellProps {
   value: number | "Error" | "N/A";
 }
 export const LtvCell: React.FC<LtvCellProps> = ({ value }) => {
   const [settings] = useSettings();
-  const { warn, danger, critical } = settings.ltvThresholds || {
-    warn: 115,
-    danger: 125,
-    critical: 135,
-  };
-
-  if (typeof value !== "number") {
-    return <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">--</span>;
-  }
-  let colorClass = "text-green-400";
-  if (value >= critical) colorClass = "text-red-500";
-  else if (value >= danger) colorClass = "text-orange-400";
-  else if (value >= warn) colorClass = "text-yellow-400";
-
+  const thresholds = settings.ltvThresholds || DEFAULT_LTV_THRESHOLDS;
+  if (typeof value !== "number") return <NaCell />;
+  const t = ltvTier(value, thresholds);
   return (
     <CopyToClipboard valueToCopy={value}>
-      <span className={`font-bold ${colorClass}`}>{formatPercentage(value, 0)}</span>
+      <span className="financial-cell font-bold" style={{ color: t.color }} title={t.label}>
+        <span aria-hidden="true" style={{ marginRight: 4, fontSize: "0.85em" }}>
+          {t.glyph}
+        </span>
+        {formatPercentage(value, 0)}
+      </span>
     </CopyToClipboard>
   );
 };
 
 export const OtdLtvCell: React.FC<LtvCellProps> = ({ value }) => {
   const [settings] = useSettings();
-  const { warn, danger, critical } = settings.ltvThresholds || {
-    warn: 115,
-    danger: 125,
-    critical: 135,
-  };
-
-  if (typeof value !== "number") {
-    return <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">--</span>;
-  }
-  let colorClass = "text-green-500";
-  if (value >= critical) colorClass = "text-red-500";
-  else if (value >= danger) colorClass = "text-orange-500";
-  else if (value >= warn) colorClass = "text-yellow-500";
-
+  const thresholds = settings.ltvThresholds || DEFAULT_LTV_THRESHOLDS;
+  if (typeof value !== "number") return <NaCell />;
+  const t = ltvTier(value, thresholds);
   return (
     <CopyToClipboard valueToCopy={value}>
-      <span className={`font-bold ${colorClass}`}>{formatPercentage(value, 0)}</span>
+      <span
+        className="financial-cell font-bold inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs"
+        style={{ color: t.color, background: t.bg }}
+        title={t.label}
+      >
+        <span aria-hidden="true">{t.glyph}</span>
+        {formatPercentage(value, 0)}
+      </span>
     </CopyToClipboard>
   );
 };
@@ -137,16 +174,18 @@ interface GrossCellProps {
   value: number | "Error" | "N/A";
 }
 export const GrossCell: React.FC<GrossCellProps> = ({ value }) => {
-  if (typeof value !== "number") {
-    return <span className="text-slate-400 dark:text-slate-500 font-medium text-sm">--</span>;
-  }
-
+  if (typeof value !== "number") return <NaCell />;
   const isNegative = value < 0;
-  const colorClass = isNegative ? "text-red-400 bg-red-900/30" : "text-green-400 bg-green-900/30";
-
+  const color = isNegative ? "var(--color-danger)" : "var(--color-success)";
+  const bg = isNegative ? "var(--color-danger-subtle)" : "var(--color-success-subtle)";
   return (
     <CopyToClipboard valueToCopy={value}>
-      <span className={`inline-block px-2 py-0.5 rounded-md font-bold text-xs ${colorClass}`}>
+      <span
+        className="financial-cell inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-xs"
+        style={{ color, background: bg }}
+        title={isNegative ? "negative gross" : "positive gross"}
+      >
+        <span aria-hidden="true">{isNegative ? "▼" : "▲"}</span>
         {formatCurrency(value)}
       </span>
     </CopyToClipboard>
@@ -158,6 +197,8 @@ interface PaymentCellProps {
 }
 export const PaymentCell: React.FC<PaymentCellProps> = ({ value }) => (
   <CopyToClipboard valueToCopy={value}>
-    <span className="font-bold text-green-400">{formatCurrency(value)}</span>
+    <span className="financial-cell font-bold" style={{ color: "var(--color-text)" }}>
+      {formatCurrency(value)}
+    </span>
   </CopyToClipboard>
 );

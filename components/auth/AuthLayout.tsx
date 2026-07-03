@@ -1,63 +1,114 @@
 import React from "react";
 import { AnnouncementBanner } from "../common/AnnouncementBanner";
-import { BrandMark } from "../common/BrandMark";
+import { GaugeMark } from "../common/GaugeMark";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
 }
 
+const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
+
+/**
+ * Auth shell for the dark/green redesign — a faint grid + radial glow
+ * background (.auth-bg), a centered column (.auth-col, staggered entrance), the
+ * gauge logomark + "Precision desking, repriced live" lockup, the card, and a
+ * mono footer. Mirrors the LOGIN block of LTV Desking PRO.dc.html. [dc-redesign]
+ */
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8 overflow-hidden">
-      {/* Branded background: deep slate base + restrained navy radial glow + a
-          subtle grid texture. One brand color only (navy) — no violet. No
-          external image dependency (stays inside the strict CSP). */}
-      <div className="absolute inset-0 bg-slate-950" />
-      <div
-        className="absolute inset-0 opacity-60"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(30, 64, 175, 0.20) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(30, 58, 138, 0.14) 0%, transparent 50%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(148, 163, 184, 0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.45) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
-
+    <div
+      className="auth-bg"
+      style={{
+        position: "relative",
+        zIndex: 1,
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
       <div className="absolute top-0 inset-x-0 z-20">
         <AnnouncementBanner />
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="flex justify-center mb-8">
-          <BrandMark className="w-16 h-16" />
+      <div
+        className="auth-col"
+        style={{ width: "100%", maxWidth: 404, position: "relative", zIndex: 1 }}
+      >
+        {/* Brand lockup */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            marginBottom: 28,
+          }}
+        >
+          <GaugeMark size={48} radius={14} />
+          <div
+            style={{
+              fontSize: 13,
+              ...mono,
+              letterSpacing: "0.34em",
+              color: "var(--color-text-subtle)",
+              marginTop: 18,
+              textTransform: "uppercase",
+            }}
+          >
+            LTV Desking
+          </div>
+          <div
+            style={{
+              fontSize: 30,
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              marginTop: 4,
+              textAlign: "center",
+              color: "var(--color-text)",
+            }}
+          >
+            Precision desking, <span style={{ color: "var(--color-primary)" }}>repriced live</span>
+          </div>
+          <div
+            style={{
+              fontSize: 13.5,
+              color: "var(--color-text-muted)",
+              marginTop: 10,
+              textAlign: "center",
+              maxWidth: 320,
+              lineHeight: 1.5,
+            }}
+          >
+            Structure every deal against real lender rules and see approval odds the instant a number
+            changes.
+          </div>
         </div>
-        <h1 className="text-center text-3xl font-semibold tracking-tight text-white">
-          LTV Desking <span className="text-blue-400">PRO</span>
-        </h1>
-        <p className="text-center text-slate-400 text-sm mt-3 max-w-sm mx-auto">
-          Precision deal structuring, lender intelligence, and F&amp;I tooling for US automotive
-          dealerships.
-        </p>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">{children}</div>
+        {children}
 
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md relative z-10 flex items-center justify-center gap-3 text-xs text-slate-500">
-        <span>Built for US dealerships</span>
-        <span aria-hidden>·</span>
-        <a href="/privacy" className="hover:text-slate-300 transition-colors">
-          Privacy
-        </a>
-        <span aria-hidden>·</span>
-        <a href="/terms" className="hover:text-slate-300 transition-colors">
-          Terms
-        </a>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 14,
+            marginTop: 22,
+            fontSize: 11,
+            ...mono,
+            color: "var(--color-text-subtle)",
+          }}
+        >
+          <span>US DEALERSHIPS</span>
+          <span style={{ opacity: 0.4 }}>/</span>
+          <a href="/privacy" style={{ color: "inherit", textDecoration: "none" }}>
+            PRIVACY
+          </a>
+          <span style={{ opacity: 0.4 }}>/</span>
+          <a href="/terms" style={{ color: "inherit", textDecoration: "none" }}>
+            TERMS
+          </a>
+        </div>
       </div>
     </div>
   );
