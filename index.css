@@ -41,7 +41,7 @@
   /* Text */
   --color-text: #15140f;
   --color-text-muted: #5c5a53;
-  --color-text-subtle: #9b988f;
+  --color-text-subtle: #8a877d;
 
   /* Brand — mint green */
   --color-primary: #0c8f5d;
@@ -64,14 +64,14 @@
 
   /* Design effects (grain / glow / gauge) */
   --glow: rgba(12, 143, 93, 0.06);
-  --grain-op: 0.4;
+  --grain-op: 0.3;
   --grain-blend: multiply;
   --card-grad: none;
   --pay-glow: radial-gradient(130% 150% at 0% 0%, rgba(12, 143, 93, 0.07), transparent 60%);
 
   /* Typography */
-  --font-sans: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  --font-sans: "Geist Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
 
   /* Legacy primary scale — retained so older references still resolve. */
   --color-primary-50: #ecfdf5;
@@ -147,15 +147,15 @@
   --color-border-strong: rgba(255, 255, 255, 0.15);
 
   --color-text: #f1f0e9; /* warm off-white */
-  --color-text-muted: #969ca4;
-  --color-text-subtle: #5f656d;
+  --color-text-muted: #a7afbc;
+  --color-text-subtle: #7b8390;
 
   --color-primary: #2fdd96; /* mint green */
   --color-primary-hover: #54e7ac;
   --color-primary-subtle: rgba(47, 221, 150, 0.13);
   --on-primary: #04130c; /* near-black text on a green fill */
 
-  --color-accent: #969ca4;
+  --color-accent: #a7afbc;
   --color-accent-hover: #f1f0e9;
   --color-accent-subtle: #1c2027;
 
@@ -168,7 +168,7 @@
 
   /* Design effects */
   --glow: rgba(47, 221, 150, 0.08);
-  --grain-op: 0.55;
+  --grain-op: 0.4;
   --grain-blend: overlay;
   --card-grad: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0));
   --pay-glow: radial-gradient(130% 150% at 0% 0%, rgba(47, 221, 150, 0.16), transparent 60%);
@@ -1683,6 +1683,14 @@ select.dc-input:focus {
   color: var(--color-text) !important;
 }
 
+/* Top-nav tab button */
+.tab-btn {
+  transition: color 0.14s ease;
+}
+.tab-btn:hover {
+  color: var(--color-text) !important;
+}
+
 /* Payment hero glow */
 .pay-glow {
   background-image: var(--pay-glow);
@@ -1692,8 +1700,7 @@ select.dc-input:focus {
 .ring-anim {
   transition:
     stroke-dashoffset 0.75s cubic-bezier(0.34, 0.1, 0.2, 1),
-    stroke 0.4s ease,
-    width 0.4s ease;
+    stroke 0.4s ease;
 }
 
 /* Modal backdrop blur */
@@ -1739,11 +1746,25 @@ select.dc-input:focus {
   100% {
     opacity: 1;
     transform: scale(1);
+    box-shadow: 0 0 0 0 var(--color-primary-subtle);
   }
   50% {
     opacity: 0.4;
     transform: scale(0.6);
   }
+}
+
+/* Toast — bottom-center entrance pop (pairs with translateX(-50%) on the pill) */
+@keyframes toastUp {
+  from {
+    transform: translate(-50%, 16px);
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+.toast-pop {
+  animation: toastUp 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 /* Staggered entrance for desk / auth columns */
@@ -1785,4 +1806,20 @@ select.dc-input:focus {
   .live-dot {
     animation: none;
   }
+}
+
+/* Webkit scrollbars — token-driven, matches the pre-paint rules in index.html
+   (mockup scopes these to .app-root; here the whole page is the app root). */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }

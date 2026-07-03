@@ -42,6 +42,8 @@ import {
   INITIAL_SETTINGS,
 } from "../constants";
 import { calculateFinancials } from "../services/calculator";
+import { lenderFitForVehicle, unitsForEachLender } from "../services/lenderFit";
+import { scoreApprovalOdds } from "../services/approvalScorer";
 import { normalizeAiSettings } from "../lib/aiModelRegistry";
 import { mapPocketBaseSavedDeal, toAppState } from "../lib/dealMappers";
 
@@ -79,6 +81,12 @@ interface DealContextType {
   // UI State
   inventorySort: SortConfig;
   setInventorySort: React.Dispatch<React.SetStateAction<SortConfig>>;
+  /** VIN of the desk's focused row. Persisted (with sort) in STORAGE_KEYS.DESK_UI. */
+  focusVin: string | null;
+  setFocusVin: React.Dispatch<React.SetStateAction<string | null>>;
+  /** Free-text search over vehicle + stock + vin. Session-only (not persisted). */
+  searchQuery: string;
+  setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   favSort: SortConfig;
   setFavSort: React.Dispatch<React.SetStateAction<SortConfig>>;
   pagination: { currentPage: number; itemsPerPage: number };
@@ -101,6 +109,8 @@ interface DealContextType {
   filteredInventory: CalculatedVehicle[];
   sortedInventory: CalculatedVehicle[];
   paginatedInventory: CalculatedVehicle[];
+  /** Units each active lender currently fits, keyed by lender id. [rec 2] */
+  unitsPerLender: Record<string, number>;
 
   // Actions
   toggleFavorite: (vin: string) => void;
@@ -119,6 +129,47 @@ interface DealContextType {
 }
 
 const DealContext = createContext<DealContextType | undefined>(undefined);
+
+/**
+ * Redesign desk UI state, persisted as ONE small versioned JSON blob under
+ * STORAGE_KEYS.DESK_UI (focusVin + sort; search is deliberately session-only).
+ * [reconciliation 15]
+ */
+interface DeskUiState {
+  v: 1;
+  focusVin: string | null;
+  sort: SortConfig;
+}
+
+const DESK_UI_FALLBACK: DeskUiState = {
+  v: 1,
+  focusVin: null,
+  sort: { key: null, direction: "asc" },
+};
+
+const loadDeskUi = (): DeskUiState => {
+  if (typeof window === "undefined") return DESK_UI_FALLBACK;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.DESK_UI);
+    if (!raw) return DESK_UI_FALLBACK;
+    const parsed = JSON.parse(raw) as Partial<DeskUiState> | null;
+    if (!parsed || parsed.v !== 1) return DESK_UI_FALLBACK;
+    return {
+      v: 1,
+      focusVin: typeof parsed.focusVin === "string" ? parsed.focusVin : null,
+      sort:
+        parsed.sort && typeof parsed.sort === "object"
+          ? {
+              key: typeof parsed.sort.key === "string" ? parsed.sort.key : null,
+              direction: parsed.sort.direction === "desc" ? "desc" : "asc",
+            }
+          : DESK_UI_FALLBACK.sort,
+    };
+  } catch (error) {
+    console.warn("Failed to load desk UI state", error);
+    return DESK_UI_FALLBACK;
+  }
+};
 
 const loadInitialSettings = (): Settings => {
   if (typeof window === "undefined") return INITIAL_SETTINGS;
@@ -174,14 +225,25 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ""
   );
 
-  const [inventorySort, setInventorySort] = useState<SortConfig>({
-    key: null,
-    direction: "asc",
-  });
+  const [inventorySort, setInventorySort] = useState<SortConfig>(() => loadDeskUi().sort);
   const [favSort, setFavSort] = useState<SortConfig>({
     key: null,
     direction: "asc",
   });
+  // Desk focus + search. focusVin persists in the DESK_UI blob; search is
+  // deliberately session-only. [reconciliation 15]
+  const [focusVin, setFocusVin] = useState<string | null>(() => loadDeskUi().focusVin);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Persist the desk UI blob whenever its parts change (single versioned key).
+  useEffect(() => {
+    try {
+      const blob: DeskUiState = { v: 1, focusVin, sort: inventorySort };
+      window.localStorage.setItem(STORAGE_KEYS.DESK_UI, JSON.stringify(blob));
+    } catch (error) {
+      console.warn("Failed to persist desk UI state", error);
+    }
+  }, [focusVin, inventorySort]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     itemsPerPage: 15,
@@ -411,16 +473,62 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const debouncedDealData = useDebouncedValue(dealData, 300);
   const debouncedFilters = useDebouncedValue(filters, 300);
 
-  // Computed
+  // Merged deal + customer view the rules engine consumes (debounced, like the
+  // financial inputs, so slider moves don't thrash the per-lender pass).
+  const mergedDeal = useMemo(
+    () =>
+      ({ ...debouncedDealData, ...(debouncedFilters || INITIAL_FILTER_DATA) }) as DealData &
+        FilterData,
+    [debouncedDealData, debouncedFilters]
+  );
+
+  // Computed — THE single scoring pass. Every vehicle gets its financials, its
+  // per-lender fit (rules engine), and its hardened approval score in one place,
+  // so the desk, inventory, lenders, and reports screens all read the same
+  // numbers instead of recomputing locally. [Phase 2]
   const processedInventory = useMemo(() => {
-    // effectiveDealData uses debounced values to prevent rapid re-calculations during slider moves
-    // but force update if activeVehicle changes (to keep immediate responsiveness there)
-    return safeInventory.map((item) => calculateFinancials(item, debouncedDealData, settings));
-  }, [safeInventory, debouncedDealData, settings]);
+    const credit = {
+      creditScore: debouncedFilters?.creditScore ?? null,
+      monthlyIncome: debouncedFilters?.monthlyIncome ?? null,
+    };
+    return safeInventory.map((item): CalculatedVehicle => {
+      const calc = calculateFinancials(item, debouncedDealData, settings);
+      const fit = lenderFitForVehicle(calc, mergedDeal, safeLenderProfiles);
+      const appr = scoreApprovalOdds(calc, credit, fit.fitCount);
+      return {
+        ...calc,
+        approvalScore: appr.internalScore,
+        approvalBand: appr.band,
+        ptiRatio: appr.ptiRatio,
+        fitCount: fit.fitCount,
+        fitNames: fit.fitNames,
+      };
+    });
+  }, [safeInventory, debouncedDealData, settings, debouncedFilters, mergedDeal, safeLenderProfiles]);
+
+  // Units each active lender fits across the current (scored) inventory — feeds
+  // the Lenders matrix "units fitting" bars. [reconciliation 2]
+  const unitsPerLender = useMemo(
+    () => unitsForEachLender(processedInventory, mergedDeal, safeLenderProfiles),
+    [processedInventory, mergedDeal, safeLenderProfiles]
+  );
 
   const filteredInventory = useMemo(() => {
     const safeFilters = debouncedFilters || INITIAL_FILTER_DATA;
+    const query = searchQuery.trim().toLowerCase();
     const result = processedInventory.filter((item) => {
+      // Free-text search across vehicle + stock + vin. [reconciliation 12]
+      const searchMatch =
+        !query ||
+        [item.vehicle, item.stock, item.vin].some((s) =>
+          (s || "").toLowerCase().includes(query)
+        );
+
+      // Min approval odds, applied post-scoring. [reconciliation 12]
+      const minScoreMatch =
+        safeFilters.minScore == null ||
+        (typeof item.approvalScore === "number" && item.approvalScore >= safeFilters.minScore);
+
       const vehicleMatch =
         !safeFilters.vehicle ||
         (item.vehicle || "").toLowerCase().includes(safeFilters.vehicle.toLowerCase());
@@ -444,6 +552,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (typeof item.otdLtv === "number" && item.otdLtv <= safeFilters.maxOtdLtv);
 
       return (
+        searchMatch &&
+        minScoreMatch &&
         vehicleMatch &&
         maxPriceMatch &&
         maxPaymentMatch &&
@@ -453,7 +563,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
     });
     return result;
-  }, [processedInventory, debouncedFilters]);
+  }, [processedInventory, debouncedFilters, searchQuery]);
 
   const sortedInventory = useMemo(() => {
     if (!inventorySort.key) return filteredInventory;
@@ -719,6 +829,10 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setScratchPadNotes,
       inventorySort,
       setInventorySort,
+      focusVin,
+      setFocusVin,
+      searchQuery,
+      setSearchQuery,
       favSort,
       setFavSort,
       pagination,
@@ -737,6 +851,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       filteredInventory,
       sortedInventory,
       paginatedInventory,
+      unitsPerLender,
       toggleFavorite,
       toggleInventoryRowExpansion,
       toggleFavoriteRowExpansion,
@@ -773,6 +888,8 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       scratchPadNotes,
       setScratchPadNotes,
       inventorySort,
+      focusVin,
+      searchQuery,
       favSort,
       pagination,
       fileName,
@@ -786,6 +903,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       filteredInventory,
       sortedInventory,
       paginatedInventory,
+      unitsPerLender,
       toggleFavorite,
       toggleInventoryRowExpansion,
       toggleFavoriteRowExpansion,

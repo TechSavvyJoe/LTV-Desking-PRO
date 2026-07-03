@@ -536,33 +536,52 @@ export type DealEventAction =
   | "pdf_shared"
   | "deal_saved"
   | "deal_updated"
-  | "deal_deleted";
+  | "deal_deleted"
+  | "deal_sheet_generated"
+  | "deal_status_changed"
+  | "buy_rate_applied";
 
-/**
- * Record a customer-facing event (PDF handed across the desk, deal saved or
- * deleted) into the append-only `deal_events` collection, with a snapshot of
- * exactly what was shown. This is the dealer's answer to "what payment did we
- * quote this customer, when, and who showed it." Fire-and-forget: evidence
- * logging must never break the user's action.
- */
-export const logDealEvent = async (input: {
-  action: DealEventAction;
+interface DealEventInput {
+  action: string;
   customerName?: string;
   vin?: string;
   snapshot?: unknown;
-}): Promise<void> => {
+}
+
+/**
+ * Record a customer-facing event (PDF handed across the desk, deal saved,
+ * status changed, buy rate applied) into the append-only `deal_events`
+ * collection, with a snapshot of exactly what was shown. This is the dealer's
+ * answer to "what payment did we quote this customer, when, and who showed
+ * it." Fire-and-forget: it never throws and never blocks — evidence logging
+ * must never break the user's action.
+ *
+ * Preferred call form is `logDealEvent("deal_saved", { vin, snapshot })`; the
+ * legacy single-object form is still accepted for older call sites.
+ */
+export const logDealEvent = (
+  action: string | DealEventInput,
+  payload: { customerName?: string; vin?: string; snapshot?: Record<string, unknown> } = {}
+): void => {
   try {
+    const input: DealEventInput = typeof action === "string" ? { action, ...payload } : action;
     const dealerId = getCurrentDealerId();
     const userId = pb.authStore.model?.id;
     if (!dealerId || !userId) return;
-    await pb.collection("deal_events").create({
-      dealer: dealerId,
-      user: userId,
-      action: input.action,
-      customerName: input.customerName ?? "",
-      vin: input.vin ?? "",
-      snapshot: input.snapshot ?? {},
-    });
+    pb.collection("deal_events")
+      .create({
+        // dealer_guard force-stamps `dealer` server-side for non-superadmins;
+        // sending it keeps superadmin (guard-exempt) writes working too.
+        dealer: dealerId,
+        user: userId,
+        action: input.action,
+        customerName: input.customerName ?? "",
+        vin: input.vin ?? "",
+        snapshot: input.snapshot ?? {},
+      })
+      .catch((error) =>
+        console.warn("deal_events write failed (action still completed):", error)
+      );
   } catch (error) {
     console.warn("deal_events write failed (action still completed):", error);
   }
@@ -998,19 +1017,23 @@ export const getSystemStats = async (): Promise<SystemStats> => {
   }
 
   try {
-    const [dealers, users, deals, inventory] = await Promise.all([
-      collections.dealers.getFullList(),
-      pb.collection("users").getFullList(),
-      collections.savedDeals.getFullList(),
-      collections.inventory.getFullList(),
+    // Counts only: getList(1, 1) returns totalItems without pulling every
+    // record over the wire (the old getFullList scans downloaded the entire
+    // users/deals/inventory tables just to call .length).
+    const [dealers, activeDealers, users, deals, inventory] = await Promise.all([
+      collections.dealers.getList(1, 1),
+      collections.dealers.getList(1, 1, { filter: "active = true" }),
+      pb.collection("users").getList(1, 1),
+      collections.savedDeals.getList(1, 1),
+      collections.inventory.getList(1, 1),
     ]);
 
     return {
-      totalDealers: dealers.length,
-      activeDealers: dealers.filter((d) => (d as unknown as Dealer).active).length,
-      totalUsers: users.length,
-      totalDeals: deals.length,
-      totalInventory: inventory.length,
+      totalDealers: dealers.totalItems,
+      activeDealers: activeDealers.totalItems,
+      totalUsers: users.totalItems,
+      totalDeals: deals.totalItems,
+      totalInventory: inventory.totalItems,
     };
   } catch (error) {
     console.error("Failed to fetch system stats:", error);

@@ -27,6 +27,8 @@ export const STORAGE_KEYS = {
   SCRATCH_PAD: "ltvScratchPad_v2",
   SETTINGS: "ltvSettings_v2",
   THEME: "ltvTheme_v1",
+  // Single versioned blob for redesign desk UI state (focusVin, sort). [reconciliation 15]
+  DESK_UI: "ltvDeskUi_v1",
 } as const;
 
 // Initial State
@@ -43,6 +45,9 @@ export const INITIAL_SETTINGS: Settings = {
   // The 2026 figure is on the order of ~$12,000–13,000; 12000 is a conservative
   // placeholder, adjustable in Settings. [G17]
   miTradeInCreditCap: 12000,
+  // Seed prices for the desk's VSC/GAP add-on toggles. [reconciliation 6]
+  vscPrice: 2495,
+  gapPrice: 895,
   ltvThresholds: {
     warn: 115,
     danger: 125,
@@ -71,6 +76,7 @@ export const INITIAL_FILTER_DATA: FilterData = {
   maxMiles: null,
   maxOtdLtv: null,
   vin: "",
+  minScore: null,
 };
 
 // Default Lender Profiles

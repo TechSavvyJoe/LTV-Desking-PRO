@@ -60,9 +60,9 @@ export const calculateLoanAmount = (
 /**
  * SCOPE OF THE TAX ENGINE [G16]
  *
- * This engine models a Michigan DEALER selling to MI/OH/IN BUYERS. For an
- * out-of-state (OH/IN) buyer, Michigan reciprocity applies: the dealer collects
- * the buyer's home-state rate capped at the MI statutory rate. OH/IN
+ * This engine models a Michigan DEALER selling to MI/OH/IN/IL/FL BUYERS. For an
+ * out-of-state buyer, Michigan reciprocity applies: the dealer collects
+ * the buyer's home-state rate capped at the MI statutory rate. Out-of-state
  * DEALERSHIPS are NOT modeled — the state here is the BUYER's state for a
  * Michigan dealership, not the dealership's own state.
  */
@@ -78,6 +78,8 @@ const calculateSalesTax = (
     MI: 0.06,
     OH: 0.0575,
     IN: 0.07,
+    IL: 0.0625,
+    FL: 0.06,
   };
   const michiganTaxRate = TAX_RATES.MI;
   if (michiganTaxRate === undefined) {
@@ -89,7 +91,7 @@ const calculateSalesTax = (
   const taxState = buyerState ?? defaultState;
 
   // Fail loudly instead of silently taxing an unknown state at 6%. AppState is
-  // limited to MI/OH/IN so this should be unreachable — if it fires, data
+  // limited to MI/OH/IN/IL/FL so this should be unreachable — if it fires, data
   // outside the modeled domain reached the tax engine. [G16]
   const stateRate = TAX_RATES[taxState];
   if (stateRate === undefined) {
@@ -153,6 +155,7 @@ export const calculateFinancials = (
   const tradeInValue = toNumber(dealData.tradeInValue);
   const tradeInPayoff = toNumber(dealData.tradeInPayoff);
   const stateFees = toNumber(dealData.stateFees);
+  const rebate = toNumber(dealData.rebate);
 
   // APR is special: a cleared field arrives as "" at runtime (see DealControls
   // handleDealChange). Treat blank/NaN as "unset" (no payment quoted) so we never
@@ -201,7 +204,11 @@ export const calculateFinancials = (
       frontEndGross = roundCents(price - unitCost);
     }
 
-    amountToFinance = roundCents(baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn);
+    // Rebate reduces the financed amount like cash down (it is NOT tax-exempt in
+    // this engine — the taxable base above is unchanged). [reconciliation 4/WS-C]
+    amountToFinance = roundCents(
+      baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn - rebate
+    );
 
     // An unset APR yields no payment rather than a spurious interest-free figure. [B6]
     monthlyPayment =
@@ -213,11 +220,11 @@ export const calculateFinancials = (
     const bookValue = jdPower > 0 ? jdPower : jdPowerRetail > 0 ? jdPowerRetail : 0;
 
     if (bookValue > 0) {
-      // NOTE (flagged for F&I review): "front-end" LTV here is OTD-minus-backend
-      // products (it includes taxes/fees), not selling-price-only. Renaming/redefining
-      // is a product decision; behavior is unchanged from the prior version.
-      const frontEndAmountToFinance = baseOutTheDoorPrice - downPayment - netTradeIn;
-      frontEndLtv = frontEndAmountToFinance >= 0 ? (frontEndAmountToFinance / bookValue) * 100 : 0;
+      // Front-end LTV = selling price / book — the deal-independent unit advance
+      // metric per the dc design contract (resolves flagged F&I decision #2).
+      // Cash down / trade / taxes / fees do not move it; otdLtv carries the
+      // deal-structure view. [reconciliation 5]
+      frontEndLtv = (price / bookValue) * 100;
       otdLtv = amountToFinance >= 0 ? (amountToFinance / bookValue) * 100 : 0;
     } else {
       frontEndLtv = "Error";

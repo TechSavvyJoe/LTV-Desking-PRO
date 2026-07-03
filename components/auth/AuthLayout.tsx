@@ -48,7 +48,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
           <GaugeMark size={48} radius={14} />
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               ...mono,
               letterSpacing: "0.34em",
               color: "var(--color-text-subtle)",
@@ -64,7 +64,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
               fontWeight: 700,
               letterSpacing: "-0.03em",
               marginTop: 4,
-              textAlign: "center",
+              whiteSpace: "nowrap",
               color: "var(--color-text)",
             }}
           >
@@ -72,7 +72,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
           </div>
           <div
             style={{
-              fontSize: 13.5,
+              fontSize: 14.5,
               color: "var(--color-text-muted)",
               marginTop: 10,
               textAlign: "center",
@@ -94,7 +94,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
             justifyContent: "center",
             gap: 14,
             marginTop: 22,
-            fontSize: 11,
+            fontSize: 12,
             ...mono,
             color: "var(--color-text-subtle)",
           }}

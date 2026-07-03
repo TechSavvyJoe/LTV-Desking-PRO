@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { useDealContext } from "../../context/DealContext";
 import { calculateMonthlyPayment } from "../../services/calculator";
-import { lenderFitForVehicle, activeLenderCount } from "../../services/lenderFit";
-import { scoreApprovalOdds, BAND_META, type ApprovalResult } from "../../services/approvalScorer";
+import { activeLenderCount } from "../../services/lenderFit";
+import { BAND_META } from "../../services/approvalScorer";
 import { ApprovalGauge } from "../common/ApprovalGauge";
-import type { CalculatedVehicle, DealData, FilterData } from "../../types";
+import type { ApprovalBand, CalculatedVehicle, DealData, FilterData } from "../../types";
 
 const mono = "var(--mono)";
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
@@ -68,7 +68,9 @@ interface Scored {
   v: CalculatedVehicle;
   fitCount: number;
   fitNames: string[];
-  appr: ApprovalResult;
+  score: number;
+  band: ApprovalBand;
+  ptiRatio?: number;
 }
 
 /**
@@ -94,23 +96,24 @@ export const DeskScreen: React.FC<{ onOpenAiUpload?: () => void }> = ({ onOpenAi
     processedInventory,
   } = useDealContext();
 
-  const merged = useMemo(
-    () => ({ ...dealData, ...filters }) as DealData & FilterData,
-    [dealData, filters]
-  );
-
   const totalLenders = activeLenderCount(safeLenderProfiles);
 
-  // Score + rank inventory by approval odds (eligibility-capped).
+  // Rank inventory by approval odds. Scoring lives in DealContext's single
+  // processedInventory pass — this only projects + sorts. [Phase 2]
   const scored = useMemo<Scored[]>(() => {
-    const rows = processedInventory.map((v) => {
-      const fit = lenderFitForVehicle(v, merged, safeLenderProfiles);
-      const appr = scoreApprovalOdds(v, filters, fit.fitCount);
-      return { v, fitCount: fit.fitCount, fitNames: fit.fitNames, appr };
-    });
-    rows.sort((a, b) => b.appr.internalScore - a.appr.internalScore);
+    const rows = processedInventory.map(
+      (v): Scored => ({
+        v,
+        fitCount: v.fitCount ?? 0,
+        fitNames: v.fitNames ?? [],
+        score: v.approvalScore ?? 0,
+        band: v.approvalBand ?? "none",
+        ptiRatio: v.ptiRatio,
+      })
+    );
+    rows.sort((a, b) => b.score - a.score);
     return rows;
-  }, [processedInventory, merged, safeLenderProfiles, filters]);
+  }, [processedInventory]);
 
   const focused: Scored | undefined = useMemo(() => {
     if (activeVehicle) {
@@ -164,7 +167,9 @@ export const DeskScreen: React.FC<{ onOpenAiUpload?: () => void }> = ({ onOpenAi
           >
             <option value="MI">MI · 6%</option>
             <option value="OH">OH · 5.75%</option>
-            <option value="IN">IN · 7%</option>
+            <option value="IN">IN · 6% recip.</option>
+            <option value="IL">IL · 6% recip.</option>
+            <option value="FL">FL · 6%</option>
           </select>
         </div>
         <button
@@ -445,9 +450,9 @@ export const DeskScreen: React.FC<{ onOpenAiUpload?: () => void }> = ({ onOpenAi
                   No inventory loaded yet — import a CSV/Excel file or load sample data.
                 </div>
               )}
-              {scored.map(({ v, appr }) => {
+              {scored.map(({ v, score, band }) => {
                 const isF = focused && v.vin === focused.v.vin;
-                const ring = BAND_META[appr.band].colorVar;
+                const ring = BAND_META[band].colorVar;
                 return (
                   <div
                     key={v.vin}
@@ -492,7 +497,7 @@ export const DeskScreen: React.FC<{ onOpenAiUpload?: () => void }> = ({ onOpenAi
                     </span>
                     <span style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 7 }}>
                       <span style={{ fontSize: 13, fontWeight: 700, fontFamily: mono, color: ring, minWidth: 18, textAlign: "right" }}>
-                        {appr.internalScore}
+                        {score}
                       </span>
                       <svg width="20" height="20" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="9" fill="none" stroke="var(--color-border-strong)" strokeWidth="2.5" />
@@ -506,7 +511,7 @@ export const DeskScreen: React.FC<{ onOpenAiUpload?: () => void }> = ({ onOpenAi
                           strokeLinecap="round"
                           strokeDasharray="56.55"
                           transform="rotate(-90 12 12)"
-                          style={{ stroke: ring, strokeDashoffset: (56.55 * (1 - appr.internalScore / 100)).toFixed(2) }}
+                          style={{ stroke: ring, strokeDashoffset: (56.55 * (1 - score / 100)).toFixed(2) }}
                         />
                       </svg>
                     </span>
@@ -541,8 +546,8 @@ const FocusedPanel: React.FC<{
   pinned: boolean;
   onPin: () => void;
 }> = ({ row, totalLenders, apr, term, pinned, onPin }) => {
-  const { v, appr, fitCount } = row;
-  const band = BAND_META[appr.band];
+  const { v, score, ptiRatio, fitCount } = row;
+  const band = BAND_META[row.band];
   const amt = numVal(v.amountToFinance);
   const pay = numVal(v.monthlyPayment);
   const payWhole = pay === null ? "—" : "$" + Math.floor(pay).toLocaleString("en-US");
@@ -593,7 +598,7 @@ const FocusedPanel: React.FC<{
 
       {/* Gauge */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "18px 19px 16px", borderBottom: "1px solid var(--color-border)", position: "relative" }}>
-        <ApprovalGauge score={appr.internalScore} colorVar={band.colorVar} label={band.label} />
+        <ApprovalGauge score={score} colorVar={band.colorVar} label={band.label} />
         <div style={{ fontSize: 10, fontFamily: mono, letterSpacing: "0.16em", color: "var(--color-text-muted)", marginTop: -2 }}>
           APPROVAL ODDS / 100
         </div>
@@ -630,8 +635,8 @@ const FocusedPanel: React.FC<{
         <Line label="Selling price" value={numVal(v.price) === null ? "—" : fmt(v.price as number)} />
         <Line label="Tax + fees" value={numVal(v.salesTax) === null ? "—" : fmt(v.salesTax as number)} />
         <Line label="OTD LTV" value={pct(v.otdLtv)} color={otdColor(v.otdLtv)} bold />
-        {appr.ptiRatio !== undefined && (
-          <Line label="Payment-to-income" value={`${appr.ptiRatio.toFixed(1)}%`} color={appr.ptiRatio > 18 ? "var(--color-warning)" : "var(--color-text)"} bold />
+        {ptiRatio !== undefined && (
+          <Line label="Payment-to-income" value={`${ptiRatio.toFixed(1)}%`} color={ptiRatio > 18 ? "var(--color-warning)" : "var(--color-text)"} bold />
         )}
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, paddingTop: 9, borderTop: "1px solid var(--color-border)" }}>
           <span style={{ fontWeight: 600 }}>Amount financed</span>

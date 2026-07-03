@@ -4,6 +4,14 @@ import type { CalculatedVehicle, FilterData, ApprovalBand } from "../types";
  * Centralized, tunable config for the approval-odds model. Everything that moves
  * the score lives here so it can be calibrated without touching logic.
  *
+ * The weights and component curves deliberately adopt the dc mockup's formula
+ * (LTV-led 0.36/0.50/0.14, ltvComp `115 − (otd − 100) · 2.2` clamped 0-105,
+ * ptiComp `100 − max(0, pti − 12) · 5` with unknown income reading 100, final
+ * clamp 8-98) so the shipped gauge matches the approved design contract.
+ * The production hardening is RETAINED on top: PTI soft/hard affordability
+ * caps, the no-fit cap + reasons, and neutral-50 for missing fico/ltv.
+ * [reconciliation 1]
+ *
  * IMPORTANT: the score is an internal staff aid — NOT a calibrated probability
  * and NOT a credit decision. Components are normalized to 0-100 BEFORE weighting
  * (so the labeled weights are the real weights), and the displayed band is
@@ -11,17 +19,21 @@ import type { CalculatedVehicle, FilterData, ApprovalBand } from "../types";
  * contradict the rules engine. [WS-C]
  */
 export const APPROVAL_CONFIG = {
-  // FICO-led weighting (matches how lenders actually tier).
-  weights: { credit: 0.45, ltv: 0.3, pti: 0.25 },
+  // Mockup weighting (LTV-led — the desk's core structuring lever).
+  weights: { credit: 0.36, ltv: 0.5, pti: 0.14 },
   fico: { floor: 450, ceil: 850 },
-  ltv: { ideal: 100, zeroAt: 150 }, // ≤ideal → 100 ; ≥zeroAt → 0
-  pti: { freeUpTo: 10, zeroAt: 30, unknown: 70 },
+  // ltvComp = clamp(base − (otdLtv − pivot) · slope, 0, max)
+  ltv: { base: 115, pivot: 100, slope: 2.2, max: 105 },
+  // ptiComp = clamp(100 − max(0, pti − freeUpTo) · slope, 0, 100); unknown
+  // income reads 100 (no affordability signal is not a bad signal).
+  pti: { freeUpTo: 12, slope: 5, unknown: 100 },
   // Affordability veto — a deal the customer plainly can't carry can't read high.
   ptiSoftCap: { threshold: 20, cap: 55 },
   ptiHardCap: { threshold: 25, cap: 35 },
   // Eligibility cap — fits no active lender → the number can't read above this.
   noFitCap: 45,
-  bands: { veryStrong: 85, strong: 72, fair: 50 }, // weak is below `fair`
+  bands: { strong: 72, moderate: 50 }, // weak below `moderate`; fitCount 0 → none
+  clamp: { floor: 8, ceil: 98 },
 } as const;
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -64,18 +76,14 @@ export const scoreApprovalOdds = (
   const ltvComp =
     otdLtv === null
       ? 50
-      : clamp(100 - Math.max(0, otdLtv - C.ltv.ideal) * (100 / (C.ltv.zeroAt - C.ltv.ideal)), 0, 100);
+      : clamp(C.ltv.base - (otdLtv - C.ltv.pivot) * C.ltv.slope, 0, C.ltv.max);
   if (otdLtv !== null && otdLtv > 125) reasons.push(`OTD LTV high (${Math.round(otdLtv)}%)`);
 
   let ptiRatio: number | undefined;
   let ptiComp: number = C.pti.unknown;
   if (income !== null && payment !== null) {
     ptiRatio = (payment / income) * 100;
-    ptiComp = clamp(
-      100 - Math.max(0, ptiRatio - C.pti.freeUpTo) * (100 / (C.pti.zeroAt - C.pti.freeUpTo)),
-      0,
-      100
-    );
+    ptiComp = clamp(100 - Math.max(0, ptiRatio - C.pti.freeUpTo) * C.pti.slope, 0, 100);
     if (ptiRatio > 18) reasons.push(`Payment-to-income high (${ptiRatio.toFixed(1)}%)`);
   }
 
@@ -94,13 +102,12 @@ export const scoreApprovalOdds = (
     reasons.unshift("No active lender fits this structure");
   }
 
-  const internalScore = Math.round(clamp(score, 2, 99));
+  const internalScore = Math.round(clamp(score, C.clamp.floor, C.clamp.ceil));
 
   let band: ApprovalBand;
   if (fitCount <= 0) band = "none";
-  else if (internalScore >= C.bands.veryStrong) band = "very-strong";
   else if (internalScore >= C.bands.strong) band = "strong";
-  else if (internalScore >= C.bands.fair) band = "fair";
+  else if (internalScore >= C.bands.moderate) band = "moderate";
   else band = "weak";
 
   return { internalScore, band, ptiRatio, reasons };
@@ -112,9 +119,8 @@ export interface BandMeta {
 }
 
 export const BAND_META: Record<ApprovalBand, BandMeta> = {
-  "very-strong": { label: "Very strong", colorVar: "var(--color-success)" },
-  strong: { label: "Strong", colorVar: "var(--color-success)" },
-  fair: { label: "Fair", colorVar: "var(--color-warning)" },
-  weak: { label: "Weak", colorVar: "var(--color-danger)" },
+  strong: { label: "Strong approval", colorVar: "var(--color-success)" },
+  moderate: { label: "Moderate odds", colorVar: "var(--color-warning)" },
+  weak: { label: "Weak — restructure", colorVar: "var(--color-danger)" },
   none: { label: "No lender fit", colorVar: "var(--color-danger)" },
 };

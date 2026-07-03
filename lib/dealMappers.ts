@@ -4,7 +4,7 @@ import type { SavedDeal as PocketBaseSavedDeal } from "./pocketbase";
 
 type UnknownRecord = Record<string, unknown>;
 
-const APP_STATES: readonly AppState[] = ["MI", "OH", "IN"];
+const APP_STATES: readonly AppState[] = ["MI", "OH", "IN", "IL", "FL"];
 
 const isRecord = (value: unknown): value is UnknownRecord =>
   typeof value === "object" && value !== null && !Array.isArray(value);

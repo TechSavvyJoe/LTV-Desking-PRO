@@ -199,6 +199,10 @@ export interface LenderProfile {
   portalUrl?: string;
   generalNotes?: string;
   enrichmentSources?: { url: string; title?: string; fieldsCited?: string[] }[];
+  /** Dealer reserve percentage shown on the Lenders matrix (1747810001). */
+  reservePct?: number;
+  /** Funding turnaround, free text e.g. "1-2" (1747810001). */
+  fundingDays?: string;
   created: string;
   updated: string;
 }
@@ -218,7 +222,9 @@ export interface SavedDeal {
     monthlyIncome: number | null;
   };
   calculatedData?: Record<string, unknown>;
-  status: "draft" | "pending" | "submitted" | "approved" | "funded" | "cancelled";
+  status: "draft" | "pending" | "submitted" | "approved" | "funded" | "cancelled" | "declined";
+  /** Lender the deal was submitted to / approved with (1747810000). */
+  lenderName?: string;
   notes?: string;
   created: string;
   updated: string;
@@ -240,6 +246,12 @@ export interface DealerSettings {
   defaultDownPayment?: number;
   defaultLoanTerm?: number;
   defaultInterestRate?: number;
+  /** Default VSC price for the desk add-on toggle (1747810002). */
+  vscPrice?: number;
+  /** Default GAP price for the desk add-on toggle (1747810002). */
+  gapPrice?: number;
+  /** Michigan trade-in sales-tax-credit cap (1747810002). */
+  miTradeInCreditCap?: number;
   created: string;
   updated: string;
 }

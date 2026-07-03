@@ -1,55 +1,37 @@
-import React, { useState, useRef, useMemo, useEffect, lazy, Suspense } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import React, { useState, useEffect, lazy, Suspense } from "react";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useOutletContext,
+  useSearchParams,
+} from "react-router-dom";
 import {
   isAuthenticated,
   onAuthStateChange,
-  logout,
   getCurrentUser,
   refreshSession,
 } from "./lib/auth";
-import {
-  pb,
-  setSuperadminDealerOverride,
-  getSuperadminDealerOverride,
-  clearSuperadminDealerOverride,
-  collections,
-} from "./lib/pocketbase";
-import type { Dealer } from "./lib/pocketbase";
+import { setSuperadminDealerOverride, getSuperadminDealerOverride } from "./lib/pocketbase";
+import { identify } from "./lib/analytics";
 import { OwnerLogin } from "./components/auth/OwnerLogin";
-import { AnnouncementBanner } from "./components/common/AnnouncementBanner";
-import { saveDeal, deleteDeal, updateInventoryItem, syncInventory, logDealEvent } from "./lib/api";
-import { capture, identify } from "./lib/analytics";
 import { Login } from "./components/auth/Login";
 import { Register } from "./components/auth/Register";
 import { AuthLayout } from "./components/auth/AuthLayout";
-import { useTheme } from "./hooks/useTheme";
-import { parseFile } from "./services/fileParser";
-import { decodeVin } from "./services/vinDecoder";
 import { DealProvider, useDealContext } from "./context/DealContext";
 import * as Icons from "./components/common/Icons";
-import Button from "./components/common/Button";
-import DealControls from "./components/DealControls";
-import InventoryTable from "./components/InventoryTable";
-import LenderProfiles from "./components/LenderProfiles";
-import SavedDeals from "./components/SavedDeals";
-import SettingsModal from "./components/SettingsModal";
-import ActionBar from "./components/ActionBar";
 import { Toast } from "./components/common/Toast";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
-import { DataLoading, DataError } from "./components/common/states";
-import { TabButton } from "./components/common/TabButton";
-import { calculateFinancials } from "./services/calculator";
-import { generateFavoritesPdf } from "./services/pdfGenerator";
-import { checkBankEligibility } from "./services/lenderMatcher";
-import { CalculatedVehicle, SavedDeal } from "./types";
-import DealStructuringModal from "./components/DealStructuringModal";
-import { InventoryExpandedRow } from "./components/InventoryExpandedRow";
-import AiLenderManagerModal from "./components/AiLenderManagerModal";
-import BackgroundUploadIndicator from "./components/BackgroundUploadIndicator";
-import Header from "./components/Header";
-import SkipNavLink from "./components/common/SkipNavLink";
-import CommandRail, { type DeskScreenId } from "./components/shell/CommandRail";
+import { DataLoading } from "./components/common/states";
+import { toast } from "./lib/toast";
+import AppShell, { type ShellOutletContext } from "./components/shell/AppShell";
 import DeskScreen from "./components/desk/DeskScreen";
+import InventoryScreen from "./components/screens/InventoryScreen";
+import PipelineScreen from "./components/screens/PipelineScreen";
+import LendersScreen from "./components/screens/LendersScreen";
+import ReportsScreen from "./components/screens/ReportsScreen";
 // Code-split the heavy, conditionally-rendered surfaces so a salesperson on the
 // default route never downloads the admin dashboards (~3,200 lines), the legal
 // pages, or recharts (via FinanceTools) on first paint. [perf]
@@ -70,1226 +52,44 @@ const PageFallback = (
     <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
   </div>
 );
-import { toast } from "./lib/toast";
-import { SUPPORT_EMAIL } from "./constants";
-import { confirmAction } from "./lib/confirm";
-import { mapPocketBaseSavedDeal } from "./lib/dealMappers";
-import type { SavedDeal as PocketBaseSavedDeal } from "./lib/pocketbase";
 
-type NewSavedDealPayload = Omit<
-  PocketBaseSavedDeal,
-  "id" | "dealer" | "user" | "created" | "updated"
->;
+/** Desk route — wires the shell-owned AI upload modal into DeskScreen. */
+const DeskRoute: React.FC = () => {
+  const { openAiUpload } = useOutletContext<ShellOutletContext>();
+  return <DeskScreen onOpenAiUpload={openAiUpload} />;
+};
 
-const MainLayout: React.FC = () => {
-  const {
-    settings,
-    setSettings,
-    inventory,
-    setInventory,
-    dealData,
-    setDealData,
-    filters,
-    setFilters,
-    message,
-    setMessage,
-    errors,
-    setErrors,
-    customerName,
-    setCustomerName,
-    salespersonName,
-    setSalespersonName,
-    activeVehicle,
-    setActiveVehicle,
-    favorites,
-    setFavorites,
-    lenderProfiles,
-    setLenderProfiles,
-    savedDeals,
-    setSavedDeals,
-    scratchPadNotes,
-    setScratchPadNotes,
-    inventorySort,
-    setInventorySort,
-    favSort,
-    setFavSort,
-    pagination,
-    setPagination,
-    fileName,
-    setFileName,
-    expandedInventoryRows,
-    setExpandedInventoryRows,
-    expandedFavoriteRows,
-    setExpandedFavoriteRows,
-    safeInventory,
-    safeFavorites,
-    safeLenderProfiles,
-    safeSavedDeals,
-    processedInventory,
-    filteredInventory,
-    sortedInventory,
-    paginatedInventory,
-    toggleFavorite,
-    toggleInventoryRowExpansion,
-    toggleFavoriteRowExpansion,
-    handleInventoryUpdate,
-    clearDealAndFilters,
-    loadSampleData,
-    dataLoading,
-    dataError,
-    refetchData,
-  } = useDealContext();
-
-  const { theme, toggleTheme } = useTheme();
-
-  // Bridge the message state to the global toast system
-  useEffect(() => {
-    if (message) {
-      // Map all four message types so warnings/info aren't downgraded to errors.
-      toast[message.type](message.text);
-      // Clear after dispatching so the same message can be set again
-      setMessage(null);
-    }
-  }, [message, setMessage]);
-
-  // Active tab is synced with the `?tab=` URL search param so it survives
-  // page refreshes and is shareable as a link. Defaults to "inventory" when
-  // the param is missing or unrecognized.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const activeTab: "inventory" | "lenders" | "saved" | "scratchpad" =
-    tabParam === "lenders" || tabParam === "saved" || tabParam === "scratchpad"
-      ? tabParam
-      : "inventory";
-
-  const handleTabChange = (tab: "inventory" | "lenders" | "saved" | "scratchpad") => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (tab === "inventory") {
-          next.delete("tab");
-        } else {
-          next.set("tab", tab);
-        }
-        return next;
-      },
-      { replace: true }
-    );
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const [screen, setScreen] = useState<DeskScreenId>("desk");
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isDealModalOpen, setIsDealModalOpen] = useState(false);
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-  const [isAiMinimized, setIsAiMinimized] = useState(false);
-  const [aiUploadProgress, setAiUploadProgress] = useState({
-    progress: 0,
-    stage: "",
-  });
-  const [isSavedDealModalOpen, setIsSavedDealModalOpen] = useState(false);
-  const [vinLookup, setVinLookup] = useState("");
-  const [vinLookupResult, setVinLookupResult] = useState<string | null>(null);
-  const [isVinLoading, setIsVinLoading] = useState(false);
-  const [isUploadingInventory, setIsUploadingInventory] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Create a Set of favorite VINs for efficient lookups in InventoryTable
-  const favoriteVins = useMemo(() => {
-    return new Set(safeFavorites.map((v) => v.vin));
-  }, [safeFavorites]);
-
-  // Compute favorites' financials once per render instead of inline (twice) in
-  // JSX, which re-ran the full calc on every MainLayout render. [perf]
-  // Then APPLY favSort — the Shortlist's sort arrows toggled state that nothing
-  // consumed, so clicking a column header never reordered anything. Reuses the
-  // same sentinel-aware comparator semantics as the main inventory sort. [C17]
-  const calculatedFavorites = useMemo(() => {
-    const rows = safeFavorites.map((item) => calculateFinancials(item, dealData, settings));
-    if (!favSort.key) return rows;
-    const sortKey = favSort.key as keyof CalculatedVehicle;
-    return [...rows].sort((a, b) => {
-      const valA = a[sortKey];
-      const valB = b[sortKey];
-      const isAInvalid = valA === null || valA === "Error" || valA === "N/A" || valA === undefined;
-      const isBInvalid = valB === null || valB === "Error" || valB === "N/A" || valB === undefined;
-      if (isAInvalid && isBInvalid) return 0;
-      if (isAInvalid) return 1;
-      if (isBInvalid) return -1;
-      if (typeof valA === "number" && typeof valB === "number") {
-        return favSort.direction === "asc" ? valA - valB : valB - valA;
-      }
-      if (typeof valA === "string" && typeof valB === "string") {
-        return favSort.direction === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      }
-      return 0;
-    });
-  }, [safeFavorites, dealData, settings, favSort]);
-
-  // Offline awareness: a dealership Wi-Fi blip used to be indistinguishable
-  // from a broken app — saves just failed with generic errors. [G68]
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator === "undefined" ? true : navigator.onLine
-  );
-  useEffect(() => {
-    const goOnline = () => setIsOnline(true);
-    const goOffline = () => setIsOnline(false);
-    window.addEventListener("online", goOnline);
-    window.addEventListener("offline", goOffline);
-    return () => {
-      window.removeEventListener("online", goOnline);
-      window.removeEventListener("offline", goOffline);
-    };
-  }, []);
-
-  // PDF and share handlers for expanded rows
-  const isShareSupported = typeof navigator !== "undefined" && "share" in navigator;
-
-  const downloadPdf = (e: React.MouseEvent, _vehicle: CalculatedVehicle) => {
-    e.stopPropagation();
-  };
-
-  const sharePdf = (e: React.MouseEvent, _vehicle: CalculatedVehicle) => {
-    e.stopPropagation();
-  };
-
-  // File Upload Handler
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file size (10MB max)
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-    if (file.size > MAX_FILE_SIZE) {
-      setMessage({
-        type: "error",
-        text: "File size exceeds 10MB limit. Please upload a smaller file.",
-      });
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      return;
-    }
-
-    // Validate file type (CSV and modern Excel only)
-    const allowedTypes = [
-      "text/csv",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ];
-    const allowedExtensions = [".csv", ".xlsx"];
-    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-
-    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
-      setMessage({
-        type: "error",
-        text: "Invalid file type. Please upload a CSV or Excel workbook (.csv, .xlsx).",
-      });
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      return;
-    }
-
-    setFileName(file.name);
-    setIsUploadingInventory(true);
-
-    try {
-      // Parse the file first
-      const { vehicles: data, skipped, reasons } = await parseFile(file);
-      if (data.length === 0) {
-        setMessage({
-          type: "error",
-          text: "No valid vehicle data found in file.",
-        });
-        return;
-      }
-
-      // Validate row count (10,000 rows max)
-      const MAX_ROWS = 10000;
-      if (data.length > MAX_ROWS) {
-        setMessage({
-          type: "error",
-          text: `File contains ${data.length} vehicles. Maximum allowed is ${MAX_ROWS} rows. Please split into smaller files.`,
-        });
-        return;
-      }
-
-      // Show syncing message — surface skipped rows so import loss is never silent. [B1]
-      const skippedNote = skipped > 0 ? ` Skipped ${skipped} (${reasons.join("; ")}).` : "";
-      setMessage({
-        type: skipped > 0 ? "warning" : "success",
-        text: `Parsed ${data.length} vehicles.${skippedNote} Syncing to database...`,
-      });
-
-      // Prepare items for sync
-      const itemsToSync = data.map((v) => ({
-        vin: v.vin,
-        stockNumber: v.stock !== "N/A" ? v.stock : undefined,
-        year: typeof v.modelYear === "number" ? v.modelYear : new Date().getFullYear(),
-        make: v.make || "",
-        model: v.model || "",
-        trim: v.trim,
-        mileage: typeof v.mileage === "number" ? v.mileage : undefined,
-        price: typeof v.price === "number" ? v.price : 0,
-        unitCost: typeof v.unitCost === "number" ? v.unitCost : undefined,
-        jdPower: typeof v.jdPower === "number" ? v.jdPower : undefined,
-        jdPowerRetail: typeof v.jdPowerRetail === "number" ? v.jdPowerRetail : undefined,
-      }));
-
-      // Wait for sync to complete before updating UI
-      const syncResult = await syncInventory(itemsToSync);
-
-      // Only update local state after successful sync
-      setInventory(data);
-      setPagination((prev) => ({ ...prev, currentPage: 1 }));
-
-      const failedNote =
-        syncResult.failed > 0
-          ? ` ${syncResult.failed} operation(s) failed and were not saved.`
-          : "";
-      setMessage({
-        type: syncResult.failed > 0 ? "warning" : "success",
-        text: `Synced: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.${failedNote}`,
-      });
-      capture("import_completed", {
-        vehicles: data.length,
-        skipped,
-        failed: syncResult.failed,
-      });
-    } catch (err) {
-      console.error(err);
-      // The parser writes user-safe, actionable messages (missing columns,
-      // skipped-row reasons) — show them instead of a generic toast. [C-regression]
-      setMessage({
-        type: "error",
-        text:
-          err instanceof Error && err.message
-            ? err.message
-            : "Error syncing inventory. Please try again.",
-      });
-    } finally {
-      setIsUploadingInventory(false);
-      // Always reset the input so re-selecting the SAME file re-fires onChange
-      // (after a failure or even a success, re-upload used to be a silent no-op).
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  // VIN Lookup Handler
-  const handleVinLookup = async () => {
-    // NHTSA decode needs the full 17-character VIN (the old 11-char gate let
-    // short VINs through to fail server-side with a generic error).
-    if (!vinLookup || vinLookup.length !== 17) {
-      setVinLookupResult("Error: VIN must be 17 characters");
-      return;
-    }
-    setIsVinLoading(true);
-    setVinLookupResult(null);
-    try {
-      const decoded = await decodeVin(vinLookup);
-      if (decoded) {
-        const newVehicle = {
-          vehicle: `${decoded.year} ${decoded.make} ${decoded.model}`,
-          stock: `VIN-${Date.now()}`,
-          vin: vinLookup,
-          make: decoded.make,
-          model: decoded.model,
-          trim: decoded.trim,
-          modelYear: decoded.year,
-          mileage: 0,
-          price: 0,
-          jdPower: "N/A" as const,
-          jdPowerRetail: "N/A" as const,
-          unitCost: "N/A" as const,
-          baseOutTheDoorPrice: "N/A" as const,
-        };
-        setInventory((prev) => [newVehicle, ...(prev || [])]);
-        setActiveVehicle(calculateFinancials(newVehicle, dealData, settings));
-        setVinLookupResult("Success: Vehicle added to inventory");
-        setVinLookup("");
-
-        // Also sync to PocketBase
-        syncInventory([
-          {
-            vin: newVehicle.vin,
-            year: newVehicle.modelYear,
-            make: newVehicle.make || "",
-            model: newVehicle.model || "",
-            trim: newVehicle.trim,
-            mileage: typeof newVehicle.mileage === "number" ? newVehicle.mileage : undefined,
-            price: typeof newVehicle.price === "number" ? newVehicle.price : 0,
-          },
-        ])
-          .then(() => {
-            if (import.meta.env.DEV) {
-              console.log("VIN lookup vehicle synced to PocketBase");
-            }
-          })
-          .catch((err: unknown) => {
-            console.error("Failed to sync VIN lookup to PocketBase:", err);
-            // Surface the silent persistence failure (e.g. no dealership selected)
-            // instead of leaving the user believing the vehicle was saved.
-            setMessage({
-              type: "warning",
-              text: "Vehicle is shown locally but couldn't be saved to the server.",
-            });
-          });
-
-        setMessage({
-          type: "success",
-          text: "Vehicle decoded and saved. Please enter price/mileage before structuring.",
-        });
-      } else {
-        setVinLookupResult("Error: Could not decode VIN");
-      }
-    } catch (err) {
-      // vinDecoder crafts specific user-facing errors (timeout, not found,
-      // invalid VIN) — surface them instead of a blanket "Service unavailable".
-      setVinLookupResult(
-        `Error: ${err instanceof Error && err.message ? err.message : "Service unavailable"}`
-      );
-    } finally {
-      setIsVinLoading(false);
-    }
-  };
-
-  const handleSelectVehicle = (vehicle: CalculatedVehicle) => {
-    const isValid =
-      typeof vehicle.price === "number" &&
-      vehicle.price > 0 &&
-      typeof vehicle.mileage === "number" &&
-      vehicle.mileage >= 0 &&
-      vehicle.vin &&
-      vehicle.vin !== "N/A" &&
-      vehicle.vin.length >= 11;
-
-    if (!isValid) {
-      setMessage({
-        type: "error",
-        text: "Please enter a numeric price, mileage, and valid VIN before structuring.",
-      });
-      return;
-    }
-    setActiveVehicle(vehicle);
-    setIsDealModalOpen(true);
-    setMessage({ type: "success", text: "Vehicle staged for structuring." });
-    // Pilot metric: a real deal was desked. Deal SHAPE only — never customer PII.
-    capture("deal_desked", {
-      term: dealData.loanTerm,
-      hasTrade: dealData.tradeInValue > 0,
-      ltv: typeof vehicle.otdLtv === "number" ? Math.round(vehicle.otdLtv) : null,
-    });
-  };
-
-  // Save Deal Handler
-  const handleSaveDeal = (vehicleOverride?: CalculatedVehicle) => {
-    const vehicleToSave = vehicleOverride || activeVehicle;
-    if (!vehicleToSave) {
-      setMessage({ type: "error", text: "No vehicle selected to save." });
-      return;
-    }
-    if (
-      typeof vehicleToSave.price !== "number" ||
-      vehicleToSave.price <= 0 ||
-      typeof vehicleToSave.mileage !== "number" ||
-      vehicleToSave.mileage < 0 ||
-      !vehicleToSave.vin ||
-      vehicleToSave.vin.length < 11
-    ) {
-      setMessage({
-        type: "error",
-        text: "Complete vehicle details (price, mileage, VIN) before saving.",
-      });
-      return;
-    }
-    if (!customerName) {
-      setErrors((prev) => ({
-        ...prev,
-        customerName: "Customer Name is required",
-      }));
-      setMessage({ type: "error", text: "Please enter a Customer Name." });
-      return;
-    }
-
-    const now = new Date().toISOString();
-    // Lender grid + settings snapshot make the saved deal self-contained
-    // evidence of what was on screen at save time. [G48]
-    const eligibilitySnapshot = safeLenderProfiles.map((profile) => {
-      const result = checkBankEligibility(vehicleToSave, { ...dealData, ...filters }, profile);
-      return {
-        name: profile.name,
-        eligible: result.eligible,
-        matchedTier: result.matchedTier?.name ?? null,
-        uncheckedConstraints: result.uncheckedConstraints,
-      };
-    });
-
-    const newDealData: NewSavedDealPayload = {
-      name: `${now.split("T")[0]} - ${customerName}`, // Or ask for name
-      customerName,
-      salespersonName,
-      vehicle: vehicleToSave.id, // Assuming calculated vehicle has ID matching inventory
-      vehicleData: vehicleToSave as unknown as Record<string, unknown>, // Serialized to JSON in PocketBase
-      dealData: { ...dealData } as unknown as Record<string, unknown>,
-      customerFilters: {
-        creditScore: filters.creditScore,
-        monthlyIncome: filters.monthlyIncome,
-      },
-      notes: scratchPadNotes,
-      status: "draft" as const,
-      calculatedData: {
-        lenderEligibility: eligibilitySnapshot,
-        settings: { ...settings, ai: undefined },
-        savedAt: now,
-      } as unknown as Record<string, unknown>,
-    };
-
-    // Optimistic Update or Wait?
-    // Let's call API and update state with result
-    saveDeal(newDealData).then((saved) => {
-      if (saved) {
-        const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
-        setSavedDeals((prev) => [mappedSaved, ...prev]);
-        setMessage({ type: "success", text: "Deal saved successfully." });
-        setIsDealModalOpen(false);
-        void logDealEvent({
-          action: "deal_saved",
-          customerName,
-          vin: vehicleToSave.vin,
-          snapshot: { dealData, monthlyPayment: vehicleToSave.monthlyPayment },
-        });
-        capture("deal_saved", { term: dealData.loanTerm });
-      } else {
-        setMessage({ type: "error", text: "Failed to save deal to backend." });
-      }
-    });
-  };
-
-  const handleRowSelect = (vin: string, fallbackVehicles: CalculatedVehicle[]) => {
-    const candidate =
-      processedInventory.find(
-        (v) =>
-          v.vin === vin ||
-          (!v.vin && vin.startsWith("VIN-")) ||
-          (v.vin === "N/A" && vin.startsWith("VIN-"))
-      ) ||
-      fallbackVehicles.find(
-        (v) =>
-          v.vin === vin ||
-          (!v.vin && vin.startsWith("VIN-")) ||
-          (v.vin === "N/A" && vin.startsWith("VIN-"))
-      );
-    if (candidate) {
-      setActiveVehicle(candidate);
-    }
-    toggleInventoryRowExpansion(vin);
-  };
-
-  const handleFavoriteRowSelect = (vin: string, fallbackVehicles: CalculatedVehicle[]) => {
-    const candidate = fallbackVehicles.find(
-      (v) =>
-        v.vin === vin ||
-        (!v.vin && vin.startsWith("VIN-")) ||
-        (v.vin === "N/A" && vin.startsWith("VIN-"))
-    );
-    if (candidate) {
-      setActiveVehicle(candidate);
-    }
-    toggleFavoriteRowExpansion(vin);
-  };
-
-  // PDF Download Handlers
-  const handleDownloadFavorites = async () => {
-    if (safeFavorites.length === 0) {
-      setMessage({
-        type: "error",
-        text: "No favorites to generate a PDF for.",
-      });
-      return;
-    }
-    try {
-      const pdfData = safeFavorites
-        .map((vehicle) => {
-          const calculatedVehicle = calculateFinancials(vehicle, dealData, settings);
-
-          const lenderEligibility = safeLenderProfiles.map((bank) => ({
-            name: bank.name,
-            ...checkBankEligibility(calculatedVehicle, { ...dealData, ...filters }, bank),
-          }));
-
-          return {
-            vehicle: calculatedVehicle,
-            dealData,
-            customerFilters: filters,
-            customerName,
-            salespersonName,
-            lenderEligibility,
-          };
-        })
-        .sort((a, b) => {
-          const aOk = a.lenderEligibility.filter((l) => l.eligible).length;
-          const bOk = b.lenderEligibility.filter((l) => l.eligible).length;
-          return bOk - aOk;
-        });
-
-      const blob = await generateFavoritesPdf(pdfData, settings);
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      setMessage({ type: "success", text: "Favorites PDF generated." });
-      // Evidence trail: record exactly what was handed across the desk —
-      // the PDF itself is ephemeral client-side output. [G44]
-      void logDealEvent({
-        action: "pdf_generated",
-        customerName,
-        vin: pdfData.map((d) => d.vehicle.vin).join(","),
-        snapshot: {
-          type: "favorites",
-          dealData,
-          settings: { ...settings, ai: undefined },
-          vehicles: pdfData.map((d) => ({
-            vin: d.vehicle.vin,
-            price: d.vehicle.price,
-            monthlyPayment: d.vehicle.monthlyPayment,
-            otdLtv: d.vehicle.otdLtv,
-            fits: d.lenderEligibility.filter((l) => l.eligible).map((l) => l.name),
-          })),
-        },
-      });
-      capture("pdf_generated", { type: "favorites", vehicles: pdfData.length });
-    } catch (err) {
-      console.error("PDF generation failed", err);
-      setMessage({
-        type: "error",
-        text: "Unable to generate PDF. Please check your data.",
-      });
-    }
-  };
-
+/** Finance tools drawer route — the old "scratchpad" tab, now at /tools. */
+const ToolsRoute: React.FC = () => {
+  const { scratchPadNotes, setScratchPadNotes, dealData, activeVehicle } = useDealContext();
   return (
-    <div
-      className="min-h-screen text-[var(--color-text)]"
-      style={{ fontFamily: "var(--font-sans)" }}
-    >
-      {/* Skip navigation for accessibility */}
-      <SkipNavLink />
-
-      {!isOnline && (
-        <div
-          role="status"
-          className="sticky top-0 z-[70] bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border-b border-[var(--color-warning)]/30 px-4 py-2 text-sm font-medium text-center"
-        >
-          Working offline — your edits stay on this device and saves will fail until the connection
-          returns.
-        </div>
-      )}
-
-      <div style={{ display: "flex", minHeight: "100vh" }}>
-        <CommandRail
-          screen={screen}
-          onSelect={setScreen}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          showOwner={false}
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {screen === "desk" ? (
-            <DeskScreen onOpenAiUpload={() => setIsAiModalOpen(true)} />
-          ) : (
-            <>
-              {/* Legacy layout — fallback for screens not yet rebuilt to the
-                  dark/green design (Inventory/Lenders/Pipeline/Reports). */}
-              <Header
-                onOpenAiModal={() => setIsAiModalOpen(true)}
-                onOpenSettingsModal={() => setIsSettingsOpen(true)}
-                theme={theme}
-                toggleTheme={toggleTheme}
-                onDealerChange={() => {
-                  // Reload the page to refresh all data for the new dealer
-                  window.location.reload();
-                }}
-                isUploading={isAiModalOpen}
-                isUploadMinimized={isAiMinimized}
-                uploadProgress={aiUploadProgress.progress}
-                uploadStage={aiUploadProgress.stage}
-                onRestoreUpload={() => setIsAiMinimized(false)}
-              />
-
-              <main
-                id="main-content"
-                tabIndex={-1}
-                className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 space-y-6 focus:outline-none"
-              >
-        {/* Deal Controls */}
-        <section>
-          <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm overflow-hidden transition-colors duration-[120ms] hover:border-[var(--color-border-strong)]">
-            <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
-                <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" /> Customer &amp;
-                deal
-              </h3>
-              {/* Action Buttons moved here */}
-              <ActionBar
-                activeTab={activeTab}
-                favoritesCount={favorites.length}
-                onDownloadFavorites={handleDownloadFavorites}
-                onSaveDeal={() => handleSaveDeal()}
-                canSave={
-                  !!activeVehicle && typeof activeVehicle.price === "number" && !!customerName
-                }
-              />
-            </div>
-            <div className="p-4">
-              <DealControls
-                dealData={dealData}
-                setDealData={setDealData}
-                filters={filters}
-                setFilters={setFilters}
-                errors={errors}
-                setErrors={setErrors}
-                customerName={customerName}
-                setCustomerName={setCustomerName}
-                salespersonName={salespersonName}
-                setSalespersonName={setSalespersonName}
-                onVinLookup={handleVinLookup}
-                vinLookupResult={vinLookupResult}
-                isVinLoading={isVinLoading}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Main Content Area (Tables) */}
-        <section className="space-y-6 min-w-0">
-          {/* Top Toolbar: File Upload & VIN (Refined) */}
-          <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between">
-            {/* File Import Section */}
-            <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-              <input
-                type="file"
-                accept=".csv,.xlsx"
-                onChange={handleFileUpload}
-                className="hidden"
-                ref={fileInputRef}
-                title="Upload inventory file"
-                aria-label="Upload inventory CSV or Excel file"
-              />
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                variant="secondary"
-                className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700"
-              >
-                <div className="flex flex-col items-start leading-tight text-left">
-                  <span className="flex items-center">
-                    <Icons.CloudArrowDownIcon className="w-4 h-4 mr-2" />
-                    Import
-                  </span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">
-                    CSV / Excel
-                  </span>
-                </div>
-              </Button>
-
-              <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
-
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                  {fileName}
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {safeInventory.length} vehicles
-                </div>
-              </div>
-
-              <Button
-                title="Download Sample CSV"
-                aria-label="Download Sample CSV"
-                variant="ghost"
-                size="icon"
-                className="text-slate-400 hover:text-blue-500"
-                onClick={() => {
-                  const headers = [
-                    "Stock #",
-                    "Year",
-                    "Make",
-                    "Model",
-                    "Trim",
-                    "VIN",
-                    "Mileage",
-                    "Price",
-                    "Cost",
-                    "J.D. Power Trade In",
-                    "J.D. Power Retail",
-                    "Unit Cost",
-                  ];
-                  const sampleData = [
-                    [
-                      "STK1001",
-                      "2023",
-                      "Toyota",
-                      "Camry",
-                      "SE",
-                      "1G1...SAMPLE1",
-                      "15000",
-                      "28500",
-                      "25000",
-                      "24000",
-                      "29000",
-                      "25000",
-                    ],
-                  ];
-                  const csvContent = [
-                    headers.join(","),
-                    ...sampleData.map((r) => r.join(",")),
-                  ].join("\n");
-                  const blob = new Blob([csvContent], {
-                    type: "text/csv;charset=utf-8;",
-                  });
-                  const link = document.createElement("a");
-                  link.href = URL.createObjectURL(blob);
-                  link.download = "inventory_sample.csv";
-                  link.click();
-                }}
-              >
-                <Icons.DocumentArrowDownIcon className="w-5 h-5" />
-              </Button>
-            </div>
-
-            {/* Quick VIN Decoder */}
-            <div className="flex items-center gap-2 flex-1 min-w-[280px] justify-end">
-              <div className="relative w-full max-w-xs">
-                <input
-                  type="text"
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all text-sm font-mono uppercase placeholder-slate-400"
-                  placeholder="Enter VIN..."
-                  aria-label="Enter VIN to decode"
-                  maxLength={17}
-                  value={vinLookup}
-                  onChange={(e) => setVinLookup(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && handleVinLookup()}
-                />
-                <Icons.SearchIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-              </div>
-              <Button
-                onClick={handleVinLookup}
-                disabled={isVinLoading || vinLookup.length !== 17}
-                className="shrink-0"
-              >
-                {isVinLoading ? <Icons.SpinnerIcon className="w-4 h-4 animate-spin" /> : "Decode"}
-              </Button>
-            </div>
-          </div>
-
-          {/* Contextual Status Bar */}
-          {(dealData.tradeInValue > 0 || dealData.downPayment > 0) && (
-            <div className="flex flex-wrap items-center gap-4 bg-[var(--color-primary-subtle)] border border-[var(--color-border)] px-5 py-3 rounded-md text-sm text-[var(--color-text)] animate-fadeIn">
-              <span className="font-semibold flex items-center gap-2 text-xs">
-                <Icons.InformationCircleIcon className="w-5 h-5 text-[var(--color-primary)]" />
-                Pending structure
-              </span>
-              <div className="flex items-center gap-3 ml-auto sm:ml-0">
-                <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
-                  Down: ${dealData.downPayment.toLocaleString()}
-                </span>
-                <span className="bg-white/80 dark:bg-blue-950/50 px-3 py-1 rounded-lg border border-blue-200/50 dark:border-blue-500/20 font-mono font-medium">
-                  Trade: ${dealData.tradeInValue.toLocaleString()}
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
-                onClick={clearDealAndFilters}
-              >
-                Clear
-              </Button>
-            </div>
-          )}
-
-          {/* Navigation Tabs */}
-          <div className="sticky top-[88px] z-20 xl:static bg-transparent">
-            <nav
-              role="tablist"
-              aria-label="Dealer workspace sections"
-              className="flex items-center gap-2 p-1.5 bg-[var(--color-bg-subtle)] rounded-lg overflow-x-auto border border-[var(--color-border)] shadow-sm"
-            >
-              <TabButton
-                active={activeTab === "inventory"}
-                onClick={() => handleTabChange("inventory")}
-                icon={<Icons.TruckIcon className="w-5 h-5" />}
-                label="Inventory"
-                count={inventory.length}
-              />
-              <TabButton
-                active={activeTab === "lenders"}
-                onClick={() => handleTabChange("lenders")}
-                icon={<Icons.BanknotesIcon className="w-5 h-5" />}
-                label="Lender Programs"
-                count={lenderProfiles.length}
-              />
-              <TabButton
-                active={activeTab === "saved"}
-                onClick={() => handleTabChange("saved")}
-                icon={<Icons.FolderIcon className="w-5 h-5" />}
-                label="Saved Deals"
-                count={savedDeals.length}
-              />
-              <TabButton
-                active={activeTab === "scratchpad"}
-                onClick={() => handleTabChange("scratchpad")}
-                icon={<Icons.CalculatorIcon className="w-5 h-5" />}
-                label="Finance Tools"
-              />
-            </nav>
-          </div>
-
-          {/* TAB CONTENT */}
-          <div className="min-h-[500px] animate-fadeIn">
-            {dataError ? (
-              <DataError
-                title="Couldn't load your data"
-                description={dataError}
-                onRetry={refetchData}
-              />
-            ) : dataLoading ? (
-              <DataLoading label="Loading your dealership data…" />
-            ) : (
-              <>
-                {activeTab === "inventory" && (
-                  <div className="space-y-8">
-                    {/* Favorites Section */}
-                    {safeFavorites.length > 0 && (
-                      <div className="bg-[var(--color-bg-subtle)] rounded-lg border border-[var(--color-border)] p-1">
-                        <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
-                          <h2 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
-                            <Icons.StarIcon className="w-4 h-4 text-[var(--color-warning)] fill-current" />
-                            Shortlist ({safeFavorites.length})
-                          </h2>
-                        </div>
-                        <div className="p-2">
-                          <InventoryTable
-                            data={calculatedFavorites}
-                            sortConfig={favSort}
-                            onSort={(key) =>
-                              setFavSort((prev) => ({
-                                key,
-                                direction:
-                                  prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-                              }))
-                            }
-                            expandedRows={expandedFavoriteRows}
-                            onRowClick={(vin) => handleFavoriteRowSelect(vin, calculatedFavorites)}
-                            onStructureDeal={handleSelectVehicle}
-                            favoriteVins={favoriteVins}
-                            toggleFavorite={toggleFavorite}
-                            pagination={{
-                              currentPage: 1,
-                              itemsPerPage: Infinity,
-                            }}
-                            setPagination={() => {}}
-                            totalRows={safeFavorites.length}
-                            isFavoritesView
-                            renderExpandedRow={(vehicle) => (
-                              <InventoryExpandedRow
-                                item={vehicle}
-                                lenderProfiles={safeLenderProfiles}
-                                dealData={dealData}
-                                setDealData={setDealData}
-                                onInventoryUpdate={handleInventoryUpdate}
-                                customerFilters={filters}
-                                settings={settings}
-                                onDownloadPdf={downloadPdf}
-                                onSharePdf={(e) => sharePdf(e, vehicle)}
-                                isShareSupported={isShareSupported}
-                              />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Main Inventory */}
-                    <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] shadow-sm overflow-hidden">
-                      <InventoryTable
-                        data={paginatedInventory}
-                        sortConfig={inventorySort}
-                        onSort={(key) =>
-                          setInventorySort((prev) => ({
-                            key,
-                            direction:
-                              prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-                          }))
-                        }
-                        expandedRows={expandedInventoryRows}
-                        onRowClick={(vin) => handleRowSelect(vin, paginatedInventory)}
-                        onStructureDeal={handleSelectVehicle}
-                        favoriteVins={favoriteVins}
-                        toggleFavorite={toggleFavorite}
-                        pagination={pagination}
-                        setPagination={setPagination}
-                        totalRows={sortedInventory.length}
-                        onLoadSampleData={loadSampleData}
-                        emptyMessage={
-                          safeInventory.length > 0 ? (
-                            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                              <Icons.FunnelIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                              <p className="text-slate-500">No vehicles match your filters.</p>
-                              <Button onClick={clearDealAndFilters} variant="secondary" size="sm">
-                                Clear Filters
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                              <Icons.TruckIcon className="w-12 h-12 text-slate-200 dark:text-slate-800" />
-                              <p className="text-slate-500">Inventory is empty.</p>
-                              <Button onClick={loadSampleData} variant="primary" size="sm">
-                                Load Sample Data
-                              </Button>
-                            </div>
-                          )
-                        }
-                        renderExpandedRow={(vehicle) => (
-                          <InventoryExpandedRow
-                            item={vehicle}
-                            lenderProfiles={safeLenderProfiles}
-                            dealData={dealData}
-                            setDealData={setDealData}
-                            onInventoryUpdate={handleInventoryUpdate}
-                            customerFilters={filters}
-                            settings={settings}
-                            onDownloadPdf={downloadPdf}
-                            onSharePdf={(e) => sharePdf(e, vehicle)}
-                            isShareSupported={isShareSupported}
-                          />
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "lenders" && (
-                  <LenderProfiles
-                    profiles={safeLenderProfiles}
-                    onUpdate={setLenderProfiles}
-                    settings={settings}
-                  />
-                )}
-
-                {activeTab === "saved" && (
-                  <SavedDeals
-                    deals={safeSavedDeals}
-                    onLoad={(deal) => {
-                      setCustomerName(deal.customerName);
-                      setSalespersonName(deal.salespersonName || "");
-                      setDealData(deal.dealData);
-                      setFilters((prev) => ({
-                        ...prev,
-                        creditScore: deal.customerFilters?.creditScore ?? null,
-                        monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
-                      }));
-                      setScratchPadNotes(deal.notes || "");
-                      if (deal.vehicle) {
-                        setActiveVehicle(deal.vehicle);
-                      }
-                      setMessage({
-                        type: "success",
-                        text: "Deal loaded successfully.",
-                      });
-                    }}
-                    onDelete={(id) => {
-                      confirmAction({
-                        title: "Delete deal?",
-                        message: "Are you sure you want to delete this deal?",
-                        confirmLabel: "Delete",
-                        tone: "danger",
-                      }).then((confirmed) => {
-                        if (!confirmed) return;
-                        const target = safeSavedDeals.find((d) => d.id === id);
-                        deleteDeal(id)
-                          .then((success) => {
-                            if (success) {
-                              // Functional updater — the realtime subscription and
-                              // saveDeal also mutate savedDeals, so a captured
-                              // render-time array would clobber concurrent changes.
-                              setSavedDeals((prev) => prev.filter((d) => d.id !== id));
-                              setMessage({
-                                type: "success",
-                                text: "Deal deleted.",
-                              });
-                              void logDealEvent({
-                                action: "deal_deleted",
-                                customerName: target?.customerName,
-                                vin: target?.vehicle?.vin,
-                                snapshot: { deletedDealId: id },
-                              });
-                            } else {
-                              setMessage({
-                                type: "error",
-                                text: "Failed to delete deal.",
-                              });
-                            }
-                          })
-                          .catch(() => {
-                            setMessage({ type: "error", text: "Failed to delete deal." });
-                          });
-                      });
-                    }}
-                  />
-                )}
-
-                {activeTab === "scratchpad" && (
-                  <Suspense fallback={<DataLoading label="Loading tools…" />}>
-                    <FinanceTools
-                      scratchPadNotes={scratchPadNotes}
-                      setScratchPadNotes={setScratchPadNotes}
-                      dealData={dealData}
-                      activeVehicle={activeVehicle}
-                    />
-                  </Suspense>
-                )}
-              </>
-            )}
-          </div>
-        </section>
-      </main>
-
-      <footer className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 mt-8">
-        <span>© {new Date().getFullYear()} LTV Desking PRO</span>
-        <nav aria-label="Legal" className="flex items-center gap-4">
-          <a
-            href="/privacy"
-            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-          >
-            Privacy
-          </a>
-          <a
-            href="/terms"
-            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-          >
-            Terms
-          </a>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-          >
-            Support
-          </a>
-          <button
-            type="button"
-            onClick={() => {
-              // Pre-filled problem report: page, user, version, timestamp —
-              // the pilot's lightweight feedback channel. [G74]
-              const user = getCurrentUser();
-              const subject = encodeURIComponent("LTV Desking PRO — problem report");
-              const body = encodeURIComponent(
-                `What happened:\n\n\n---\nPage: ${window.location.pathname}${window.location.search}\n` +
-                  `User: ${user?.email ?? "unknown"}\nTime: ${new Date().toISOString()}\n` +
-                  `Browser: ${navigator.userAgent}`
-              );
-              window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-            }}
-            className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors underline-offset-2 hover:underline"
-          >
-            Report a problem
-          </button>
-        </nav>
-      </footer>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Modals */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSave={setSettings}
+    <Suspense fallback={<DataLoading label="Loading tools…" />}>
+      <FinanceTools
+        scratchPadNotes={scratchPadNotes}
+        setScratchPadNotes={setScratchPadNotes}
+        dealData={dealData}
+        activeVehicle={activeVehicle}
       />
-
-      {isDealModalOpen && activeVehicle && (
-        <DealStructuringModal
-          vehicle={activeVehicle}
-          dealData={dealData}
-          setDealData={setDealData}
-          onClose={() => setIsDealModalOpen(false)}
-          errors={errors}
-          setErrors={setErrors}
-          onSave={() => handleSaveDeal(activeVehicle)}
-          onSaveAndClear={() => {
-            handleSaveDeal(activeVehicle);
-            clearDealAndFilters();
-            setActiveVehicle(null);
-          }}
-          settings={settings}
-        />
-      )}
-
-      <AiLenderManagerModal
-        isOpen={isAiModalOpen && !isAiMinimized}
-        onClose={() => setIsAiModalOpen(false)}
-        currentProfiles={lenderProfiles}
-        onUpdateProfiles={setLenderProfiles}
-        onMinimize={() => setIsAiMinimized(true)}
-        isMinimized={isAiMinimized}
-        settings={settings}
-      />
-
-      {/* Background Upload Indicator - now integrated into Header button */}
-
-      {/* Global Toast */}
-      <Toast />
-      <ConfirmDialog />
-    </div>
+    </Suspense>
   );
 };
 
-const ImpersonationBanner: React.FC<{ onExit: () => void }> = ({ onExit }) => {
-  const [dealer, setDealer] = useState<Dealer | null>(null);
-  const overrideId = getSuperadminDealerOverride();
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!overrideId) {
-      setDealer(null);
-      return;
-    }
-    collections.dealers
-      .getOne(overrideId)
-      .then((record) => {
-        if (!cancelled) setDealer(record as unknown as Dealer);
-      })
-      .catch(() => {
-        if (!cancelled) setDealer(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [overrideId]);
-
-  if (!overrideId) return null;
-
-  return (
-    <div className="sticky top-0 z-[60] bg-[var(--color-bg)] border-b-2 border-[var(--color-warning)] text-[var(--color-text)] px-4 py-2 flex items-center justify-between text-sm">
-      <div className="flex items-center gap-2">
-        <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-warning)]" aria-hidden />
-        <Icons.EyeIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
-        <span>
-          Viewing as <strong>{dealer?.name || "…"}</strong>
-          {dealer?.code ? ` (${dealer.code})` : ""}
-        </span>
-      </div>
-      <button
-        onClick={onExit}
-        className="px-3 py-1 bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] rounded font-medium transition-colors"
-      >
-        Exit impersonation
-      </button>
-    </div>
-  );
+/**
+ * Bridges pre-redesign bookmarks (`/?tab=…`) to the new routes so saved links
+ * and muscle memory keep working. `?tab=inventory` (or none) lands on the desk.
+ */
+const LegacyTabRedirect: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get("tab");
+  const to =
+    tab === "lenders"
+      ? "/lenders"
+      : tab === "saved"
+        ? "/pipeline"
+        : tab === "scratchpad"
+          ? "/tools"
+          : "/desk";
+  return <Navigate to={to} replace />;
 };
 
 const App: React.FC = () => {
@@ -1315,10 +115,8 @@ const App: React.FC = () => {
   const currentUser = getCurrentUser();
   const isSuperAdmin = currentUser?.role === "superadmin";
   const isDealerAdmin = currentUser?.role === "admin";
-  const hasAdminAccess = isSuperAdmin || isDealerAdmin;
-  const isAdminRoute = location.pathname === "/admin";
-  const isPrivacyRoute = location.pathname === "/privacy";
-  const isTermsRoute = location.pathname === "/terms";
+  const isAdminRoute = location.pathname === "/admin" || location.pathname === "/owner";
+  const isPublicRoute = location.pathname === "/privacy" || location.pathname === "/terms";
 
   useEffect(() => {
     setIsAuth(isAuthenticated());
@@ -1354,7 +152,15 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const handler = () => setImpersonationTick((n) => n + 1);
+    const handler = (e: Event) => {
+      setImpersonationTick((n) => n + 1);
+      // Exit-impersonation now lives in the AppShell pill; when the override is
+      // cleared, fall back to console-first mode (the old handleExitImpersonation
+      // reset viewMode the same way before navigating to /admin).
+      if (!(e as CustomEvent<string | null>).detail) {
+        setViewMode("auto");
+      }
+    };
     window.addEventListener("dealerOverrideChanged", handler);
     return () => window.removeEventListener("dealerOverrideChanged", handler);
   }, []);
@@ -1365,144 +171,127 @@ const App: React.FC = () => {
   // return a neutral spinner (PageFallback) while these redirects settle.
   useEffect(() => {
     if (isLoading) return;
-    if (isAdminRoute && isAuth && !isSuperAdmin) {
-      // A non-superadmin hit /admin — just send them to the dealer app. The old
+    if (isAdminRoute && isAuth && !isSuperAdmin && !isDealerAdmin) {
+      // A sales/manager hit /admin — just send them to the dealer app. The old
       // logout() here ended their whole session and reloaded, destroying an
       // in-progress deal because of a mistyped URL. [C-auth]
-      navigate("/", { replace: true });
+      navigate("/desk", { replace: true });
     } else if (
-      !isPrivacyRoute &&
-      !isTermsRoute &&
+      !isPublicRoute &&
       !isAdminRoute &&
       isAuth &&
       isSuperAdmin &&
       viewMode === "auto" &&
       !getSuperadminDealerOverride()
     ) {
-      // Superadmin on / without an active impersonation defaults to /admin.
+      // Superadmin on a dealer route without an active impersonation defaults
+      // to the Owner Console.
       navigate("/admin", { replace: true });
     }
   }, [
     isLoading,
     isAdminRoute,
-    isPrivacyRoute,
-    isTermsRoute,
+    isPublicRoute,
     isAuth,
     isSuperAdmin,
+    isDealerAdmin,
     viewMode,
     navigate,
   ]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
-        <Icons.SpinnerIcon className="w-8 h-8 text-blue-600 animate-spin" />
-      </div>
-    );
-  }
-
-  // === LEGAL ROUTES (public, no auth required) ===
-  if (isPrivacyRoute) {
-    return <Suspense fallback={PageFallback}>{<PrivacyPolicy />}</Suspense>;
-  }
-  if (isTermsRoute) {
-    return <Suspense fallback={PageFallback}>{<TermsOfService />}</Suspense>;
-  }
-
-  // === OWNER (/admin) ROUTE ===
-  if (isAdminRoute) {
-    if (!isAuth) {
-      return <OwnerLogin onSuccess={() => setIsAuth(true)} />;
-    }
-    if (!isSuperAdmin) {
-      // Redirect handled by the effect above; render a neutral spinner meanwhile.
-      return PageFallback;
-    }
-    return (
-      <Suspense fallback={PageFallback}>
-        <SuperAdminDashboard
-          onSwitchToDealer={() => {
-            setViewMode("dealer");
-            navigate("/");
-          }}
-          onImpersonate={(dealerId) => {
-            setSuperadminDealerOverride(dealerId);
-            setViewMode("dealer");
-            navigate("/");
-          }}
-        />
-      </Suspense>
-    );
-  }
-
-  // === DEFAULT (/) ROUTE ===
-  if (!isAuth) {
-    return (
-      <AuthLayout>
-        {view === "login" ? (
-          <Login onSuccess={() => setIsAuth(true)} onRegisterClick={() => setView("register")} />
-        ) : (
-          <Register onSuccess={() => setView("login")} onLoginClick={() => setView("login")} />
-        )}
-      </AuthLayout>
-    );
-  }
-
-  // Superadmin on / without an active impersonation defaults to /admin
-  // (navigation performed by the redirect effect above).
-  if (isSuperAdmin && viewMode === "auto" && !getSuperadminDealerOverride()) {
     return PageFallback;
   }
 
-  if (isDealerAdmin && viewMode === "auto") {
-    return (
-      <Suspense fallback={PageFallback}>
-        <DealerAdminDashboard onSwitchToDealer={() => setViewMode("dealer")} />
-      </Suspense>
-    );
-  }
+  // === OWNER (/admin) ELEMENT ===
+  // OwnerLogin gate → SuperAdminDashboard (superadmin) / DealerAdminDashboard
+  // (admin — the shell's "Admin" tab lands here). Sales/manager are redirected
+  // by the effect above. DealProvider deliberately does NOT wrap this route.
+  const adminElement = !isAuth ? (
+    <OwnerLogin onSuccess={() => setIsAuth(true)} />
+  ) : isSuperAdmin ? (
+    <Suspense fallback={PageFallback}>
+      <SuperAdminDashboard
+        onSwitchToDealer={() => {
+          setViewMode("dealer");
+          navigate("/desk");
+        }}
+        onImpersonate={(dealerId) => {
+          setSuperadminDealerOverride(dealerId);
+          setViewMode("dealer");
+          navigate("/desk");
+        }}
+      />
+    </Suspense>
+  ) : isDealerAdmin ? (
+    <Suspense fallback={PageFallback}>
+      <DealerAdminDashboard
+        onSwitchToDealer={() => {
+          setViewMode("dealer");
+          navigate("/desk");
+        }}
+      />
+    </Suspense>
+  ) : (
+    // Redirect handled by the effect above; render a neutral spinner meanwhile.
+    PageFallback
+  );
 
-  const handleExitImpersonation = () => {
-    clearSuperadminDealerOverride();
-    setViewMode("auto");
-    navigate("/admin");
-  };
+  // === DEALER SHELL (layout for all private dealer routes) ===
+  // Unauthed users see the login/register card in place — the deep link is
+  // preserved, so signing in lands them on the route they asked for.
+  const dealerShellElement = !isAuth ? (
+    <AuthLayout>
+      {view === "login" ? (
+        <Login onSuccess={() => setIsAuth(true)} onRegisterClick={() => setView("register")} />
+      ) : (
+        <Register onSuccess={() => setView("login")} onLoginClick={() => setView("login")} />
+      )}
+    </AuthLayout>
+  ) : isSuperAdmin && viewMode === "auto" && !getSuperadminDealerOverride() ? (
+    // Superadmin without an active impersonation defaults to /admin
+    // (navigation performed by the redirect effect above).
+    PageFallback
+  ) : (
+    <DealProvider>
+      <AppShell />
+    </DealProvider>
+  );
 
   return (
-    <DealProvider>
-      <AnnouncementBanner />
-      <ImpersonationBanner onExit={handleExitImpersonation} />
-      <MainLayout />
-      {/* Admin/Logout Controls */}
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
-        {hasAdminAccess && viewMode === "dealer" && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              if (isSuperAdmin) {
-                navigate("/admin");
-              } else {
-                setViewMode("auto");
-              }
-            }}
-            className="shadow-lg bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
-          >
-            <Icons.Cog6ToothIcon className="w-4 h-4 mr-2" />
-            Admin Console
-          </Button>
-        )}
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={logout}
-          className="shadow-lg border-red-200 text-red-600 hover:bg-red-50 dark:bg-slate-800 dark:border-red-900 dark:text-red-400"
-        >
-          <Icons.ArrowRightStartOnRectangleIcon className="w-4 h-4 mr-2" />
-          Logout
-        </Button>
-      </div>
-    </DealProvider>
+    <>
+      <Routes>
+        {/* Public legal pages */}
+        <Route
+          path="/privacy"
+          element={<Suspense fallback={PageFallback}>{<PrivacyPolicy />}</Suspense>}
+        />
+        <Route
+          path="/terms"
+          element={<Suspense fallback={PageFallback}>{<TermsOfService />}</Suspense>}
+        />
+
+        {/* Owner console */}
+        <Route path="/admin" element={adminElement} />
+        <Route path="/owner" element={<Navigate to="/admin" replace />} />
+
+        {/* Authed dealer app — AppShell hosts the routed screens */}
+        <Route element={dealerShellElement}>
+          <Route path="/desk" element={<DeskRoute />} />
+          <Route path="/pipeline" element={<PipelineScreen />} />
+          <Route path="/inventory" element={<InventoryScreen />} />
+          <Route path="/lenders" element={<LendersScreen />} />
+          <Route path="/reports" element={<ReportsScreen />} />
+          <Route path="/tools" element={<ToolsRoute />} />
+          <Route path="/" element={<LegacyTabRedirect />} />
+          <Route path="*" element={<Navigate to="/desk" replace />} />
+        </Route>
+      </Routes>
+
+      {/* Global toast + confirm mounts (shared by dealer and admin surfaces) */}
+      <Toast />
+      <ConfirmDialog />
+    </>
   );
 };
 

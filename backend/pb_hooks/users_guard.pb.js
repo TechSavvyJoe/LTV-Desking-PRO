@@ -18,11 +18,13 @@
  * forces a safe default `role` on any non-admin create (e.g. public
  * self-registration), so a registrant can never request an elevated role.
  *
- * NOTE (flagged): public self-registration (lib/auth.ts register()) sets the
- * new user's `dealer` from a looked-up dealer code while unauthenticated. The
- * dealer value on the *create* path is not validated against that code here, so
- * a crafted signup could still attach to an arbitrary dealer at the lowest
- * (sales) role. Validating the dealer code server-side is a follow-up.
+ * Public self-registration (lib/auth.ts register()) sets the new user's
+ * `dealer` from a looked-up dealer code while unauthenticated. The create hook
+ * below validates that flow server-side: the request body must carry a
+ * `dealerCode` that resolves to a dealers record whose id matches the record's
+ * `dealer` relation, and system_settings.signupsEnabled must not be switched
+ * off — otherwise the create is rejected. (This closes the previously-flagged
+ * gap where a crafted signup could attach to an arbitrary dealer.)
  *
  * IMPORTANT — PocketBase JSVM scoping: handler callbacks run in pooled runtimes
  * that DO NOT capture this file's module scope. Anything a handler references
@@ -103,6 +105,58 @@ onRecordCreateRequest((e) => {
     const actorDealer = auth.get("dealer");
     if (actorDealer) e.record.set("dealer", actorDealer);
     return e.next();
+  }
+
+  // Public self-registration (no authenticated actor). PB API rules cannot
+  // validate one collection's field against another collection's data, so the
+  // dealer-code check lives here. Everything is declared inside the handler
+  // ($app / ForbiddenError are runtime globals, not module scope). [JSVM]
+  if (!auth) {
+    // Owner kill-switch: system_settings.signupsEnabled. Missing collection /
+    // record is treated as enabled (matches the frontend default in
+    // getSystemSettings); an explicit false rejects.
+    let signupsEnabled = true;
+    try {
+      const rows = $app.findRecordsByFilter("system_settings", "", "", 1, 0);
+      if (rows && rows.length > 0 && rows[0].getBool("signupsEnabled") === false) {
+        signupsEnabled = false;
+      }
+    } catch (err) {
+      // fresh DB without system_settings — leave enabled
+    }
+    if (!signupsEnabled) {
+      throw new ForbiddenError("New account registration is currently disabled.");
+    }
+
+    // The signup payload must name the dealership by its code, and that code
+    // must resolve to the exact dealer the record is attaching to. The
+    // dealerCode key is not a users field — PB ignores it on the record, so it
+    // is read from the raw request body.
+    let dealerCode = "";
+    try {
+      const body = e.requestInfo().body || {};
+      dealerCode = String(body.dealerCode || "").trim();
+    } catch (err) {
+      dealerCode = "";
+    }
+    if (!dealerCode) {
+      throw new ForbiddenError("A dealer code is required to register.");
+    }
+
+    let dealerRecord = null;
+    try {
+      dealerRecord = $app.findFirstRecordByFilter("dealers", "code = {:code}", {
+        code: dealerCode,
+      });
+    } catch (err) {
+      dealerRecord = null; // no match
+    }
+    if (!dealerRecord) {
+      throw new ForbiddenError("Invalid dealer code.");
+    }
+    if (String(e.record.get("dealer") || "") !== dealerRecord.id) {
+      throw new ForbiddenError("Dealer code does not match the requested dealership.");
+    }
   }
 
   // Any other create (notably public self-registration) gets the lowest-
