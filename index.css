@@ -1803,7 +1803,8 @@ select.dc-input:focus {
   .ring-anim {
     transition: none;
   }
-  .live-dot {
+  .live-dot,
+  .toast-pop {
     animation: none;
   }
 }

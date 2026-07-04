@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDealContext } from "../../context/DealContext";
 import { calculateFinancials } from "../../services/calculator";
@@ -26,6 +26,12 @@ import type {
 } from "../../types";
 
 const mono = "var(--mono)";
+
+// Lazy so the OCR path (and tesseract.js behind it) stays out of the main
+// bundle — DocumentScanner itself dynamic-imports tesseract on first scan.
+const DocumentScanner = lazy(() =>
+  import("../DocumentScanner").then((m) => ({ default: m.DocumentScanner }))
+);
 
 /** Terms shipped by the dc design contract (chips + desking-grid rows). */
 const DESK_TERMS = [60, 72, 84, 96];
@@ -199,6 +205,7 @@ export const DeskScreen: React.FC = () => {
   const thresholds = settings.ltvThresholds;
 
   const [dealSheetOpen, setDealSheetOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   /* ---------- sorting (context inventorySort → persisted in the DESK_UI blob) ---------- */
 
@@ -567,14 +574,52 @@ export const DeskScreen: React.FC = () => {
                 </div>
                 <div>
                   <label style={labelStyle}>Monthly income ($)</label>
-                  <input
-                    className="dc-input"
-                    inputMode="numeric"
-                    value={filters.monthlyIncome ?? ""}
-                    onChange={numOnChange((n) => setFilter({ monthlyIncome: n || null }))}
-                    placeholder="Gross / mo"
-                    style={monoInput}
-                  />
+                  <div style={{ position: "relative" }}>
+                    <input
+                      className="dc-input"
+                      inputMode="numeric"
+                      value={filters.monthlyIncome ?? ""}
+                      onChange={numOnChange((n) => setFilter({ monthlyIncome: n || null }))}
+                      placeholder="Gross / mo"
+                      style={{ ...monoInput, paddingRight: 34 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setScannerOpen(true)}
+                      aria-label="Scan pay stub"
+                      title="Scan pay stub"
+                      style={{
+                        position: "absolute",
+                        right: 6,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--color-text-subtle)",
+                        cursor: "pointer",
+                        width: 24,
+                        height: 24,
+                        borderRadius: 6,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
+                        <path d="M3 12h18" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -824,7 +869,7 @@ export const DeskScreen: React.FC = () => {
                         e.stopPropagation();
                         toggleFavorite(v.vin);
                       }}
-                      aria-label="Remove"
+                      aria-label={`Remove ${nameShort(v)} from compare`}
                       style={{
                         position: "absolute",
                         top: 7,
@@ -997,8 +1042,20 @@ export const DeskScreen: React.FC = () => {
                 <span
                   key={col.key}
                   onClick={() => handleSort(col.key)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSort(col.key);
+                    }
+                  }}
                   title={col.title}
                   role="button"
+                  tabIndex={0}
+                  aria-label={
+                    col.key === sortKey
+                      ? `${col.title}, sorted ${sortDir === "asc" ? "ascending" : "descending"}`
+                      : col.title
+                  }
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
@@ -1250,6 +1307,18 @@ export const DeskScreen: React.FC = () => {
           onClose={() => setDealSheetOpen(false)}
           onSaveToPipeline={saveFromDealSheet}
         />
+      )}
+
+      {scannerOpen && (
+        <Suspense fallback={null}>
+          <DocumentScanner
+            onIncomeExtracted={(income) => {
+              setFilters({ ...filters, monthlyIncome: income });
+              toast.success(`Monthly income set to ${fmt(income)} from pay stub`);
+            }}
+            onClose={() => setScannerOpen(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

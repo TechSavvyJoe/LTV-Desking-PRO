@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { Settings, AppState } from "../types";
 import {
   AI_MODEL_DOCS_VERIFIED_DATE,
@@ -116,6 +116,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
+
+  // Initial focus: move the keyboard user into the dialog on open. [a11y]
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (isOpen) dialogRef.current?.focus();
+  }, [isOpen]);
 
   const setNum = (name: keyof Settings) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -245,6 +251,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         role="dialog"
         aria-modal="true"
         aria-label="System settings"
+        ref={dialogRef}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "var(--color-bg)",

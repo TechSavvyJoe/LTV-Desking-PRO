@@ -108,7 +108,7 @@ const getStageColor = (stage: ProcessingProgress["stage"]) => {
     case "error":
       return "text-red-400";
     default:
-      return "text-x-text-secondary";
+      return "text-[var(--color-text-muted)]";
   }
 };
 
@@ -131,10 +131,10 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
     {/* Overall progress bar */}
     <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <span className="text-sm font-medium text-x-text-primary">Overall Progress</span>
-        <span className="text-sm font-bold text-x-blue">{overallProgress}%</span>
+        <span className="text-sm font-medium text-[var(--color-text)]">Overall Progress</span>
+        <span className="text-sm font-bold text-[var(--color-primary)]">{overallProgress}%</span>
       </div>
-      <div className="w-full bg-x-hover-dark rounded-full h-3 overflow-hidden">
+      <div className="w-full bg-[var(--color-bg-muted)] rounded-full h-3 overflow-hidden">
         <div
           className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-300 ease-out"
           style={{ width: `${overallProgress}%` }}
@@ -145,7 +145,7 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
     {/* Current stage message */}
     {currentStage && (
       <div className="text-center py-2">
-        <p className="text-sm text-x-text-secondary animate-pulse">{currentStage}</p>
+        <p className="text-sm text-[var(--color-text-muted)] animate-pulse">{currentStage}</p>
       </div>
     )}
 
@@ -157,11 +157,11 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
         const stageProgress = progress?.progress || 0;
 
         return (
-          <div key={index} className="bg-x-hover-dark rounded-lg p-3">
+          <div key={index} className="bg-[var(--color-bg-muted)] rounded-lg p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-lg">{getStageIcon(stage)}</span>
-                <span className="text-sm font-medium text-x-text-primary truncate max-w-[200px]">
+                <span className="text-sm font-medium text-[var(--color-text)] truncate max-w-[200px]">
                   {file.name}
                 </span>
               </div>
@@ -169,7 +169,7 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
                 {stage.charAt(0).toUpperCase() + stage.slice(1)}
               </span>
             </div>
-            <div className="w-full bg-x-black rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-[var(--color-bg-subtle)] rounded-full h-2 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
                   stage === "error"
@@ -182,7 +182,7 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
               />
             </div>
             {progress?.message && (
-              <p className="text-xs text-x-text-secondary mt-1 truncate">{progress.message}</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1 truncate">{progress.message}</p>
             )}
           </div>
         );
@@ -190,20 +190,20 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
     </div>
 
     {/* Processing stages legend */}
-    <div className="flex flex-wrap justify-center gap-3 mt-4 pt-4 border-t border-x-border">
-      <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+    <div className="flex flex-wrap justify-center gap-3 mt-4 pt-4 border-t border-[var(--color-border)]">
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
         <span>📤</span> Upload
       </div>
-      <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
         <span>🔍</span> Extract
       </div>
-      <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
         <span>✅</span> Validate
       </div>
-      <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
         <span>🧠</span> Enhance
       </div>
-      <div className="flex items-center gap-1 text-xs text-x-text-secondary">
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
         <span>🎉</span> Complete
       </div>
     </div>
@@ -497,25 +497,30 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
       onClick={isLoading ? undefined : handleClose}
     >
       <div
-        className="bg-x-black border border-x-border rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+        className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl shadow-[var(--shadow-md)] w-full max-w-3xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI Lender Upload"
       >
-        <div className="p-4 flex justify-between items-center border-b border-x-border">
-          <h2 className="text-xl font-bold text-x-text-primary">AI Lender Upload</h2>
+        <div className="p-4 flex justify-between items-center border-b border-[var(--color-border)]">
+          <h2 className="text-xl font-bold text-[var(--color-text)]">AI Lender Upload</h2>
           <div className="flex items-center gap-2">
             {isLoading && onMinimize && (
               <button
                 onClick={onMinimize}
-                className="p-2 rounded-full text-x-text-secondary hover:bg-x-hover-light hover:text-blue-400 transition-colors"
+                className="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-blue-400 transition-colors"
                 title="Minimize - Processing will continue in background"
+                aria-label="Minimize"
               >
                 <MinimizeIcon />
               </button>
             )}
             <button
               onClick={isLoading && onMinimize ? onMinimize : handleClose}
-              className="p-2 rounded-full text-x-text-secondary hover:bg-x-hover-light"
+              className="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)]"
               title={isLoading ? "Minimize to background" : "Close"}
+              aria-label={isLoading ? "Minimize to background" : "Close"}
             >
               {isLoading ? <MinimizeIcon /> : <CloseIcon />}
             </button>
@@ -534,7 +539,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           ) : results.length === 0 ? (
             <>
               <div
-                className="border-2 border-dashed border-x-border rounded-lg p-8 text-center cursor-pointer hover:border-x-blue bg-x-hover-dark transition-colors"
+                className="border-2 border-dashed border-[var(--color-border)] rounded-lg p-8 text-center cursor-pointer hover:border-[var(--color-primary)] bg-[var(--color-bg-muted)] transition-colors"
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
@@ -548,15 +553,15 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                   multiple
                 />
                 <UploadIcon />
-                <p className="mt-2 text-sm text-x-text-secondary">
-                  <span className="font-semibold text-x-blue">Click to upload</span> or drag and
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+                  <span className="font-semibold text-[var(--color-primary)]">Click to upload</span> or drag and
                   drop PDF rate sheets.
                 </p>
               </div>
               {files.length > 0 && (
                 <div className="mt-4">
-                  <h4 className="font-semibold text-x-text-primary mb-2">Selected Files:</h4>
-                  <ul className="space-y-1 text-sm list-disc list-inside text-x-text-secondary">
+                  <h4 className="font-semibold text-[var(--color-text)] mb-2">Selected Files:</h4>
+                  <ul className="space-y-1 text-sm list-disc list-inside text-[var(--color-text-muted)]">
                     {files.map((file, i) => (
                       <li key={i}>{file.name}</li>
                     ))}
@@ -564,7 +569,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                 </div>
               )}
 
-              <div className="mt-4 flex items-start gap-3 p-3 rounded-lg bg-x-hover-dark border border-x-border">
+              <div className="mt-4 flex items-start gap-3 p-3 rounded-lg bg-[var(--color-bg-muted)] border border-[var(--color-border)]">
                 <input
                   id="enrich-toggle"
                   type="checkbox"
@@ -573,10 +578,10 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                   className="mt-1 w-4 h-4 accent-blue-500"
                 />
                 <label htmlFor="enrich-toggle" className="text-sm cursor-pointer">
-                  <span className="font-medium text-x-text-primary">
+                  <span className="font-medium text-[var(--color-text)]">
                     Enrich missing bank data via web search
                   </span>
-                  <span className="block text-xs text-x-text-secondary mt-1">
+                  <span className="block text-xs text-[var(--color-text-muted)] mt-1">
                     After extracting the rate sheet, search the web (Gemini grounding) to fill in
                     any missing contact info, website, portal URL, or general bank notes. Sources
                     are cited. Adds ~10–20s per file.
@@ -586,7 +591,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             </>
           ) : (
             <div>
-              <h3 className="text-lg font-semibold text-x-text-primary mb-3">Analysis Results</h3>
+              <h3 className="text-lg font-semibold text-[var(--color-text)] mb-3">Analysis Results</h3>
               <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {results.map((res, i) => (
                   <div
@@ -597,7 +602,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                         : "bg-red-900/20 border-red-500/30"
                     }`}
                   >
-                    <p className="font-semibold text-sm text-x-text-primary mb-2">
+                    <p className="font-semibold text-sm text-[var(--color-text)] mb-2">
                       📄 {res.fileName}
                     </p>
                     {res.status === "success" && res.lenders ? (
@@ -617,7 +622,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                           return (
                             <div
                               key={j}
-                              className={`bg-x-black/40 rounded-md p-3 border border-x-border/50 ${
+                              className={`bg-[var(--color-bg-subtle)] rounded-md p-3 border border-[var(--color-border)] ${
                                 isIncluded ? "" : "opacity-60"
                               }`}
                             >
@@ -630,7 +635,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                     className="w-4 h-4 accent-blue-500"
                                     aria-label={`Include ${lender.name || "this lender"} in the update`}
                                   />
-                                  <span className="font-semibold text-x-text-primary text-sm">
+                                  <span className="font-semibold text-[var(--color-text)] text-sm">
                                     🏦 {lender.name}
                                   </span>
                                 </label>
@@ -641,11 +646,11 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                 )}
                               </div>
                               {lender.effectiveDate ? (
-                                <p className="text-xs text-x-text-secondary mb-2">
+                                <p className="text-xs text-[var(--color-text-muted)] mb-2">
                                   <strong>Effective:</strong> {lender.effectiveDate}
                                 </p>
                               ) : (
-                                <p className="text-xs text-x-text-secondary/60 italic mb-2">
+                                <p className="text-xs text-[var(--color-text-subtle)] italic mb-2">
                                   No effective date on sheet
                                 </p>
                               )}
@@ -654,7 +659,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                 lender.website ||
                                 lender.portalUrl ||
                                 lender.generalNotes) && (
-                                <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-x-text-secondary border-l-2 border-[var(--color-primary)]/40 pl-3">
+                                <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)] border-l-2 border-[var(--color-primary)]/40 pl-3">
                                   {lender.contactName && (
                                     <span>
                                       <strong>Contact:</strong> {lender.contactName}
@@ -697,7 +702,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                     </span>
                                   )}
                                   {lender.generalNotes && (
-                                    <span className="sm:col-span-2 italic text-x-text-secondary/80">
+                                    <span className="sm:col-span-2 italic text-[var(--color-text-subtle)]">
                                       {lender.generalNotes}
                                     </span>
                                   )}
@@ -705,7 +710,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                               )}
                               {lender.enrichmentSources && lender.enrichmentSources.length > 0 && (
                                 <div className="mb-3 flex flex-wrap gap-1.5 items-center text-[10px]">
-                                  <span className="text-x-text-secondary">🔎 Sources:</span>
+                                  <span className="text-[var(--color-text-muted)]">🔎 Sources:</span>
                                   {lender.enrichmentSources.slice(0, 5).map((src, idx) => (
                                     <a
                                       key={idx}
@@ -725,7 +730,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                     </a>
                                   ))}
                                   {lender.enrichmentSources.length > 5 && (
-                                    <span className="text-x-text-secondary">
+                                    <span className="text-[var(--color-text-muted)]">
                                       +{lender.enrichmentSources.length - 5} more
                                     </span>
                                   )}
@@ -733,7 +738,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                               )}
                               {lender.tiers && lender.tiers.length > 0 ? (
                                 <div className="space-y-2">
-                                  <p className="text-xs text-x-text-secondary">
+                                  <p className="text-xs text-[var(--color-text-muted)]">
                                     {lender.tiers.length} credit tier(s) extracted:
                                   </p>
                                   <div className="grid gap-2 max-h-64 overflow-y-auto pr-1">
@@ -760,10 +765,10 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                       return (
                                         <div
                                           key={k}
-                                          className="bg-x-hover-dark rounded p-2 text-xs"
+                                          className="bg-[var(--color-bg-muted)] rounded p-2 text-xs"
                                         >
                                           <div className="flex justify-between items-center mb-1">
-                                            <span className="font-medium text-x-blue">
+                                            <span className="font-medium text-[var(--color-primary)]">
                                               {/* Extraction populates `name`, not
                                                 `tierName` — show it so review
                                                 isn't all "Tier 1/2/3". */}
@@ -781,7 +786,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                               {completeness}% complete
                                             </span>
                                           </div>
-                                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-x-text-secondary">
+                                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[var(--color-text-muted)]">
                                             {tier.minFico !== undefined &&
                                               tier.maxFico !== undefined && (
                                                 <span>
@@ -833,8 +838,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           )}
         </div>
 
-        <div className="p-4 border-t border-x-border flex justify-between items-center">
-          <p className="text-sm text-x-text-secondary">
+        <div className="p-4 border-t border-[var(--color-border)] flex justify-between items-center">
+          <p className="text-sm text-[var(--color-text-muted)]">
             {isLoading
               ? "AI is analyzing documents... please wait."
               : results.length > 0
@@ -843,7 +848,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           </p>
           <div className="flex gap-3 items-center">
             {!isLoading && results.length > 0 && (
-              <span className="text-xs text-x-text-secondary whitespace-nowrap">
+              <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
                 {selectedLenderCount} of {totalExtractedLenders} selected
               </span>
             )}

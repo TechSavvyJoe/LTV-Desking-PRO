@@ -976,6 +976,7 @@ const DealerManagement: React.FC<{
                           title={
                             dealer.active ? "View as this dealership" : "Activate dealer first"
                           }
+                          aria-label={`View as ${dealer.name}`}
                           disabled={!dealer.active}
                         >
                           <Icons.EyeIcon className="w-4 h-4" />
@@ -984,6 +985,7 @@ const DealerManagement: React.FC<{
                           onClick={() => handleEdit(dealer)}
                           className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] rounded-md transition-colors"
                           title="Edit"
+                          aria-label={`Edit ${dealer.name}`}
                         >
                           <Icons.PencilIcon className="w-4 h-4" />
                         </button>
@@ -991,6 +993,7 @@ const DealerManagement: React.FC<{
                           onClick={() => handleDelete(dealer.id)}
                           className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-md transition-colors"
                           title="Delete"
+                          aria-label={`Delete ${dealer.name}`}
                         >
                           <Icons.TrashIcon className="w-4 h-4" />
                         </button>
@@ -1518,6 +1521,7 @@ const UserManagement: React.FC<{
                           onClick={() => handleEdit(user)}
                           className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] rounded-md transition-colors"
                           title="Edit"
+                          aria-label={`Edit ${user.email}`}
                         >
                           <Icons.PencilIcon className="w-4 h-4" />
                         </button>
@@ -1546,6 +1550,7 @@ const UserManagement: React.FC<{
                           title={
                             isSelf ? "You can't delete your own account" : "Delete permanently"
                           }
+                          aria-label={`Delete ${user.email} permanently`}
                         >
                           <Icons.TrashIcon className="w-4 h-4" />
                         </button>

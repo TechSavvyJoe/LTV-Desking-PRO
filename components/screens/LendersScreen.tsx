@@ -99,8 +99,21 @@ interface LenderAggregates {
   buyRate: number | null;
 }
 
-const numOf = (v: unknown): number | null =>
-  typeof v === "number" && Number.isFinite(v) ? v : null;
+/**
+ * Numeric coercion for tier fields. PB stores `tiers` as freeform JSON, and
+ * AI-extracted sheets have shipped rates as strings ("6.99", "6.99%") — the
+ * old strict typeof check silently rendered those as "—" in the BUY RATE
+ * column even though the tier carried a value. Tiers genuinely lacking a
+ * rate still aggregate to null → "—". [Phase 8, buy-rate fix]
+ */
+const numOf = (v: unknown): number | null => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = parseFloat(v.replace(/%$/, ""));
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+};
 
 const aggregatesFor = (lender: LenderRow): LenderAggregates => {
   const tiers = Array.isArray(lender.tiers) ? lender.tiers : [];
@@ -379,6 +392,8 @@ export const LendersScreen: React.FC = () => {
                   className="inv-row"
                   role="button"
                   tabIndex={0}
+                  aria-expanded={expanded}
+                  aria-label={`${l.name} program details`}
                   onClick={() => {
                     setExpandedId(expanded ? null : l.id);
                     setExpandedTier(null);
@@ -677,6 +692,8 @@ export const LendersScreen: React.FC = () => {
                               className="inv-row"
                               role="button"
                               tabIndex={0}
+                              aria-expanded={tOpen}
+                              aria-label={`${t.tierName || t.name || `Tier ${idx + 1}`} tier details`}
                               onClick={() => setExpandedTier(tOpen ? null : idx)}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {

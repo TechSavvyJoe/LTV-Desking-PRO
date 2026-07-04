@@ -453,7 +453,11 @@ export const InventoryScreen: React.FC = () => {
                 title={col.title}
                 role="button"
                 tabIndex={0}
-                aria-label={`Sort by ${col.label}`}
+                aria-label={
+                  inventorySort.key === col.key
+                    ? `Sort by ${col.label}, sorted ${inventorySort.direction === "asc" ? "ascending" : "descending"}`
+                    : `Sort by ${col.label}`
+                }
                 style={{
                   fontSize: 11,
                   fontWeight: 600,

@@ -489,6 +489,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                               onClick={() => handleEditUser(u)}
                               className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg-muted)] rounded-lg transition-colors"
                               title="Edit"
+                              aria-label={`Edit ${u.email}`}
                             >
                               <Icons.PencilIcon className="w-4 h-4" />
                             </button>
@@ -515,6 +516,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                                 onClick={() => handleDeleteUser(u.id)}
                                 className="p-2 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors"
                                 title="Delete permanently"
+                                aria-label={`Delete ${u.email} permanently`}
                               >
                                 <Icons.TrashIcon className="w-4 h-4" />
                               </button>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDealContext } from "../../context/DealContext";
 import { fmt, splitPay } from "../../utils/format";
 import { generateDealPdf } from "../../services/pdfGenerator";
@@ -79,6 +79,12 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Initial focus: move the keyboard user into the dialog on mount. [a11y]
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   const dateLabel = new Date()
     .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -173,6 +179,8 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label="Deal sheet"
+        ref={dialogRef}
+        tabIndex={-1}
         style={{
           background: "var(--color-bg)",
           border: "1px solid var(--color-border)",
