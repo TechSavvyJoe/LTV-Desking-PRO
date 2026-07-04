@@ -31,6 +31,7 @@ export function useSaveDeal() {
     setSavedDeals,
     setMessage,
     setErrors,
+    setIsDealDirty,
   } = useDealContext();
 
   const handleSaveDeal = useCallback(
@@ -105,6 +106,9 @@ export function useSaveDeal() {
           const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
           setSavedDeals((prev) => [mappedSaved, ...prev]);
           setMessage({ type: "success", text: "Deal saved successfully." });
+          // The structure is persisted — stop the beforeunload "unsaved deal"
+          // warning from firing on the very next navigation. [dc-redesign]
+          setIsDealDirty(false);
           void logDealEvent({
             action: "deal_saved",
             customerName,
@@ -129,6 +133,7 @@ export function useSaveDeal() {
       setSavedDeals,
       setMessage,
       setErrors,
+      setIsDealDirty,
     ]
   );
 
