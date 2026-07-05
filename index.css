@@ -27,47 +27,63 @@
      No gradients on functional elements, no colored glows, no glassmorphism.
      "What Tekion would build if they hired a Stripe designer." */
 
+  /* === LTV DESKING PRO — dark/green design language (LIGHT variant) ===
+     Warm cream surfaces, mint-green primary, status-only color. The dark
+     variant (the design default) lives in `.dark`; useTheme boots dark. */
+
   /* Surfaces */
-  --color-bg: #ffffff;
-  --color-bg-subtle: #f8fafc; /* slate-50  — cards, panels */
-  --color-bg-muted: #f1f5f9; /* slate-100 — hover / nested */
-  --color-border: #e2e8f0; /* slate-200 */
-  --color-border-strong: #cbd5e1; /* slate-300 */
+  --color-bg: #ffffff; /* cards / elevated surfaces */
+  --color-bg-subtle: #f6f5f1; /* warm cream — page background */
+  --color-bg-muted: #edece6; /* hover / nested */
+  --color-border: rgba(20, 22, 28, 0.1);
+  --color-border-strong: rgba(20, 22, 28, 0.18);
 
   /* Text */
-  --color-text: #0f172a; /* slate-900 */
-  --color-text-muted: #475569; /* slate-600 */
-  --color-text-subtle: #94a3b8; /* slate-400 */
+  --color-text: #15140f;
+  --color-text-muted: #5c5a53;
+  --color-text-subtle: #8a877d;
 
-  /* Brand — ONE navy, no purples/violets/indigos */
-  --color-primary: #1e40af; /* blue-800 — actions, links, focus */
-  --color-primary-hover: #1e3a8a; /* blue-900 */
-  --color-primary-subtle: #dbeafe; /* blue-100 — selected row / focus tint */
+  /* Brand — mint green */
+  --color-primary: #0c8f5d;
+  --color-primary-hover: #0a7d51;
+  --color-primary-subtle: #dcf3e9; /* selected row / focus tint */
+  --on-primary: #ffffff; /* text/icon on a primary fill */
 
-  /* Accent — one muted steel-blue for secondary actions */
-  --color-accent: #475569; /* slate-600 */
-  --color-accent-hover: #334155; /* slate-700 */
-  --color-accent-subtle: #e2e8f0; /* slate-200 */
+  /* Accent — neutral, maps onto the green family */
+  --color-accent: #5c5a53;
+  --color-accent-hover: #15140f;
+  --color-accent-subtle: #edece6;
 
-  /* Status — used SPARINGLY, only where state must be communicated */
-  --color-success: #15803d; /* green-700 */
-  --color-success-subtle: #dcfce7; /* green-100 */
-  --color-warning: #b45309; /* amber-700 */
-  --color-warning-subtle: #fef3c7; /* amber-100 */
-  --color-danger: #b91c1c; /* red-700 */
-  --color-danger-subtle: #fee2e2; /* red-100 */
+  /* Status — success doubles as the brand green */
+  --color-success: #0c8f5d;
+  --color-success-subtle: #dcf3e9;
+  --color-warning: #b06d12;
+  --color-warning-subtle: #f8ebd4;
+  --color-danger: #d4452f;
+  --color-danger-subtle: #fbe3df;
+
+  /* Design effects (grain / glow / gauge) */
+  --glow: rgba(12, 143, 93, 0.06);
+  --grain-op: 0.3;
+  --grain-blend: multiply;
+  --card-grad: none;
+  --pay-glow: radial-gradient(130% 150% at 0% 0%, rgba(12, 143, 93, 0.07), transparent 60%);
+
+  /* Typography */
+  --font-sans: "Geist Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
 
   /* Legacy primary scale — retained so older references still resolve. */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+  --color-primary-50: #ecfdf5;
+  --color-primary-100: #d1fae5;
+  --color-primary-200: #a7f3d0;
+  --color-primary-300: #6ee7b7;
+  --color-primary-400: #34d399;
+  --color-primary-500: #10b981;
+  --color-primary-600: #0c8f5d;
+  --color-primary-700: #0a7d51;
+  --color-primary-800: #096b46;
+  --color-primary-900: #064e3a;
 
   /* Legacy "gradient" tokens neutralized to SOLID navy/status colors.
      Rule: if a token resolves to a linear-gradient, it's the wrong token. */
@@ -86,9 +102,10 @@
   --glass-blur: 0px;
 
   /* Shadows — neutral slate alpha only, no colored glows. */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08);
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow: 0 2px 6px -1px rgba(16, 24, 40, 0.08), 0 1px 2px -1px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 22px 48px -16px rgba(16, 24, 40, 0.2), 0 6px 14px -6px rgba(16, 24, 40, 0.1);
   --shadow-lg: 0 8px 16px -4px rgba(15, 23, 42, 0.1);
   --shadow-xl: 0 16px 28px -8px rgba(15, 23, 42, 0.12);
   --shadow-2xl: 0 24px 48px -12px rgba(15, 23, 42, 0.16);
@@ -122,44 +139,55 @@
 
 /* Dark Mode Tokens — same restraint, darker surfaces. */
 .dark {
-  --color-bg: #0f172a; /* slate-900 */
-  --color-bg-subtle: #1e293b; /* slate-800 */
-  --color-bg-muted: #334155; /* slate-700 */
-  --color-border: #334155; /* slate-700 */
-  --color-border-strong: #475569; /* slate-600 */
+  /* === LTV DESKING PRO — dark/green design language (DARK = default) === */
+  --color-bg: #14171c; /* cards / elevated surfaces */
+  --color-bg-subtle: #0a0c0f; /* near-black — page background */
+  --color-bg-muted: #1c2027; /* hover / nested */
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
 
-  --color-text: #f1f5f9; /* slate-100 */
-  --color-text-muted: #94a3b8; /* slate-400 */
-  --color-text-subtle: #64748b; /* slate-500 */
+  --color-text: #f1f0e9; /* warm off-white */
+  --color-text-muted: #a7afbc;
+  --color-text-subtle: #7b8390;
 
-  --color-primary: #3b82f6; /* blue-500 — lighter for dark bg */
-  --color-primary-hover: #60a5fa; /* blue-400 */
-  --color-primary-subtle: #1e3a8a; /* blue-900 */
+  --color-primary: #2fdd96; /* mint green */
+  --color-primary-hover: #54e7ac;
+  --color-primary-subtle: rgba(47, 221, 150, 0.13);
+  --on-primary: #04130c; /* near-black text on a green fill */
 
-  --color-accent: #94a3b8; /* slate-400 */
-  --color-accent-hover: #cbd5e1; /* slate-300 */
-  --color-accent-subtle: #334155; /* slate-700 */
+  --color-accent: #a7afbc;
+  --color-accent-hover: #f1f0e9;
+  --color-accent-subtle: #1c2027;
 
-  --color-success: #4ade80; /* green-400 */
-  --color-success-subtle: #14532d; /* green-900 */
-  --color-warning: #fbbf24; /* amber-400 */
-  --color-warning-subtle: #78350f; /* amber-900 */
-  --color-danger: #f87171; /* red-400 */
-  --color-danger-subtle: #7f1d1d; /* red-900 */
+  --color-success: #2fdd96;
+  --color-success-subtle: rgba(47, 221, 150, 0.13);
+  --color-warning: #f5b13d;
+  --color-warning-subtle: rgba(245, 177, 61, 0.15);
+  --color-danger: #ff6b5c;
+  --color-danger-subtle: rgba(255, 107, 92, 0.15);
+
+  /* Design effects */
+  --glow: rgba(47, 221, 150, 0.08);
+  --grain-op: 0.4;
+  --grain-blend: overlay;
+  --card-grad: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0));
+  --pay-glow: radial-gradient(130% 150% at 0% 0%, rgba(47, 221, 150, 0.16), transparent 60%);
 
   --gradient-surface: var(--color-bg-subtle);
-  --glass-bg: #1e293b;
-  --glass-bg-elevated: #1e293b;
-  --glass-border: #334155;
-  --glass-border-subtle: #334155;
+  --glass-bg: #14171c;
+  --glass-bg-elevated: #14171c;
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-border-subtle: rgba(255, 255, 255, 0.07);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 16px -4px rgba(0, 0, 0, 0.45);
-  --shadow-xl: 0 16px 28px -8px rgba(0, 0, 0, 0.5);
-  --shadow-2xl: 0 24px 48px -12px rgba(0, 0, 0, 0.55);
-  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-md: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 30px 60px -18px rgba(0, 0, 0, 0.78),
+    0 10px 22px -10px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 16px -4px rgba(0, 0, 0, 0.55);
+  --shadow-xl: 0 16px 28px -8px rgba(0, 0, 0, 0.6);
+  --shadow-2xl: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
+  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-glow-primary: var(--shadow-md);
 }
 
@@ -181,14 +209,28 @@ body {
 }
 
 body {
-  background: var(--color-bg-subtle);
+  font-family: var(--font-sans);
+  background: radial-gradient(125% 75% at 50% -12%, var(--glow), transparent 55%),
+    var(--color-bg-subtle);
   min-height: 100vh;
-  font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   overflow-y: auto;
   overflow-x: hidden;
   position: relative; /* Establish positioning context */
+}
+
+/* Film-grain overlay — fixed, non-interactive, blended over the whole page. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--grain-op);
+  mix-blend-mode: var(--grain-blend);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 #root {
@@ -203,16 +245,17 @@ main {
 }
 
 .dark body {
-  background: var(--color-bg);
+  background: radial-gradient(125% 75% at 50% -12%, var(--glow), transparent 55%),
+    var(--color-bg-subtle);
 }
 
-/* Selection Color */
+/* Selection Color — primary-tinted, both themes. [review/P2] */
 ::selection {
-  background: rgba(59, 130, 246, 0.25);
+  background: rgba(12, 143, 93, 0.22);
 }
 
 .dark ::selection {
-  background: rgba(99, 102, 241, 0.35);
+  background: rgba(47, 221, 150, 0.3);
 }
 
 /* ============================================================================
@@ -1291,9 +1334,9 @@ html {
   }
 }
 
-/* Focus Visible Enhancement */
+/* Focus Visible Enhancement — brand green, both themes. [review/P2] */
 *:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -1541,4 +1584,243 @@ html {
 :root:not(.dark) [class*="stat"] span,
 :root:not(.dark) [class*="metric"] span {
   color: inherit;
+}
+
+/* ============================================================================
+   DC REDESIGN — interaction utilities, gauge & motion
+   (dark/green "LTV Desking PRO.dc.html" design language)
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
+/* Inputs / selects — green focus ring */
+.dark input::placeholder {
+  color: var(--color-text-subtle);
+}
+input.dc-input,
+select.dc-input {
+  transition:
+    border-color 140ms,
+    box-shadow 140ms,
+    background 140ms;
+}
+input.dc-input:focus,
+select.dc-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+  outline: none;
+}
+
+/* Primary button — subtle top-gloss + green halo (design parity) */
+.btn-primary {
+  background-color: var(--color-primary);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
+  color: var(--on-primary);
+  box-shadow:
+    0 2px 10px -2px var(--color-primary-subtle),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow:
+    0 6px 18px -4px var(--color-primary-subtle),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Cards — subtle interior gradient (no-op in light). Apply with .dc-card. */
+.dc-card {
+  background-image: var(--card-grad);
+}
+
+/* Inventory / data rows — hover tint + sliding left accent bar */
+.inv-row {
+  position: relative;
+  transition: background 120ms;
+}
+.inv-row:hover {
+  background: var(--color-bg-muted) !important;
+}
+.inv-row::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: var(--color-primary);
+  transition: width 0.16s ease;
+}
+.inv-row:hover::after {
+  width: 2px;
+}
+
+/* Lift button — press feedback */
+.lift-btn {
+  transition:
+    border-color 140ms,
+    color 140ms,
+    box-shadow 140ms,
+    transform 140ms,
+    background 140ms;
+}
+.lift-btn:active {
+  transform: scale(0.972);
+}
+
+/* Command-rail button */
+.rail-btn {
+  transition:
+    background 140ms,
+    color 140ms;
+}
+.rail-btn:hover {
+  background: var(--color-bg-muted) !important;
+  color: var(--color-text) !important;
+}
+
+/* Top-nav tab button */
+.tab-btn {
+  transition: color 0.14s ease;
+}
+.tab-btn:hover {
+  color: var(--color-text) !important;
+}
+
+/* Payment hero glow */
+.pay-glow {
+  background-image: var(--pay-glow);
+}
+
+/* Gauge / progress ring stroke transition */
+.ring-anim {
+  transition:
+    stroke-dashoffset 0.75s cubic-bezier(0.34, 0.1, 0.2, 1),
+    stroke 0.4s ease;
+}
+
+/* Modal backdrop blur */
+.modal-backdrop {
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+}
+
+/* Auth background — faint grid + radial glow */
+.auth-bg {
+  position: relative;
+  overflow: hidden;
+}
+.auth-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(closest-side at 50% 36%, #000, transparent 76%);
+  mask-image: radial-gradient(closest-side at 50% 36%, #000, transparent 76%);
+  pointer-events: none;
+}
+.auth-bg::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -180px;
+  width: 640px;
+  height: 420px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--glow), transparent);
+  pointer-events: none;
+}
+
+/* Live "LIVE" pulse dot */
+.live-dot {
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--color-primary-subtle);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.6);
+  }
+}
+
+/* Toast — bottom-center entrance pop (pairs with translateX(-50%) on the pill) */
+@keyframes toastUp {
+  from {
+    transform: translate(-50%, 16px);
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+.toast-pop {
+  animation: toastUp 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+/* Staggered entrance for desk / auth columns */
+@keyframes enterUp {
+  from {
+    transform: translateY(16px);
+  }
+  to {
+    transform: none;
+  }
+}
+.desk-body > * {
+  animation: enterUp 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.desk-body > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.auth-col > * {
+  animation: enterUp 0.64s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.auth-col > *:nth-child(1) {
+  animation-delay: 0.04s;
+}
+.auth-col > *:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.auth-col > *:nth-child(3) {
+  animation-delay: 0.27s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-body > *,
+  .auth-col > * {
+    animation: none;
+  }
+  .ring-anim {
+    transition: none;
+  }
+  .live-dot,
+  .toast-pop {
+    animation: none;
+  }
+}
+
+/* Webkit scrollbars — token-driven, matches the pre-paint rules in index.html
+   (mockup scopes these to .app-root; here the whole page is the app root). */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }

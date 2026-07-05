@@ -63,7 +63,10 @@ export const register = async (
       return { success: false, error: "Dealer not found" };
     }
 
-    // Create the user
+    // Create the user. `dealerCode` is not a users field — PocketBase ignores
+    // it on the record — but the users_guard hook reads it from the request
+    // body and rejects the signup unless it resolves to the same dealer as the
+    // `dealer` relation below.
     const userData = {
       email,
       password,
@@ -71,6 +74,7 @@ export const register = async (
       firstName,
       lastName,
       dealer: dealer.id,
+      dealerCode,
       role: "sales", // Default role for new users
     };
 

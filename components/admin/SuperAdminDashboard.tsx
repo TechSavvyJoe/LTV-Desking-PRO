@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { getCurrentUser, User, Dealer } from "../../lib/pocketbase";
+import { getCurrentUser, User, Dealer, collections, pb } from "../../lib/pocketbase";
+import {
+  KpiTile,
+  StatTile,
+  ListCard,
+  PersonRow,
+  ActivePill,
+  RoleChip,
+  ConsoleHeader,
+  ConsoleTab,
+  initialsOf,
+  panelCard,
+  mono as adminMono,
+} from "./panels/OwnerPanels";
 import {
   getSystemStats,
   getAllDealers,
@@ -30,76 +43,10 @@ import Button from "../common/Button";
 import * as Icons from "../common/Icons";
 import { confirmAction } from "../../lib/confirm";
 import { toast } from "../../lib/toast";
-import { useForceDarkMode } from "../../hooks/useForceDarkMode";
 
 // ============================================
 // Helper Components
 // ============================================
-
-type StatAccent = "blue" | "emerald" | "violet" | "amber";
-
-// Dealer Trust: KPI cards are visually identical. The `accent` prop is retained
-// for call-site compatibility but no longer drives color — rhythm comes from the
-// value and typography, not a rainbow of per-card hues.
-const StatCard: React.FC<{
-  label: string;
-  value: number;
-  hint?: string;
-  icon: React.ReactNode;
-  accent: StatAccent;
-}> = ({ label, value, hint, icon }) => {
-  return (
-    <div className="relative bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md p-5 shadow-sm hover:border-[var(--color-border-strong)] transition-colors duration-[120ms]">
-      <span className="absolute top-5 right-5 text-[var(--color-text-subtle)]" aria-hidden>
-        {icon}
-      </span>
-      <p className="text-xs font-medium text-[var(--color-text-muted)]">{label}</p>
-      <p className="text-3xl font-semibold mt-1 tabular-nums tracking-tight text-[var(--color-text)]">
-        {value.toLocaleString()}
-      </p>
-      <p
-        className={`text-xs mt-1 ${hint ? "text-[var(--color-text-subtle)]" : "invisible select-none"}`}
-      >
-        {hint || "·"}
-      </p>
-    </div>
-  );
-};
-
-const TabButton: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  badge?: number;
-}> = ({ active, onClick, icon, label, badge }) => (
-  <button
-    onClick={onClick}
-    className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-      active
-        ? "bg-slate-800 text-white shadow-sm ring-1 ring-slate-700"
-        : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-    }`}
-  >
-    <span className={active ? "text-blue-400" : "text-slate-400"}>{icon}</span>
-    <span>{label}</span>
-    {typeof badge === "number" && (
-      <span
-        className={`px-1.5 py-0.5 text-[11px] font-semibold tabular-nums rounded-full ${
-          active ? "bg-blue-500/25 text-blue-200" : "bg-slate-700 text-slate-200"
-        }`}
-      >
-        {badge}
-      </span>
-    )}
-    {active && (
-      <span
-        className="absolute -bottom-px left-3 right-3 h-0.5 bg-[var(--color-primary)]"
-        aria-hidden
-      />
-    )}
-  </button>
-);
 
 const SearchInput: React.FC<{
   value: string;
@@ -108,19 +55,19 @@ const SearchInput: React.FC<{
   autoFocus?: boolean;
 }> = ({ value, onChange, placeholder = "Search…", autoFocus }) => (
   <div className="relative">
-    <Icons.MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    <Icons.MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
     <input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       autoFocus={autoFocus}
-      className="pl-9 pr-3 py-2 w-full sm:w-64 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500"
+      className="pl-9 pr-3 py-2 w-full sm:w-64 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
     />
     {value && (
       <button
         onClick={() => onChange("")}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-200"
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
         aria-label="Clear"
         type="button"
       >
@@ -140,16 +87,16 @@ const SortHeader: React.FC<{
 }> = ({ label, field, current, onSort, align = "left", className = "" }) => {
   const isActive = current.field === field;
   return (
-    <th className={`px-4 py-3 text-${align} text-xs font-semibold text-slate-200 ${className}`}>
+    <th className={`px-4 py-3 text-${align} text-xs font-semibold text-[var(--color-text)] ${className}`}>
       <button
         type="button"
         onClick={() => onSort(field)}
-        className={`inline-flex items-center gap-1 hover:text-white focus:outline-none ${
-          isActive ? "text-white" : ""
+        className={`inline-flex items-center gap-1 hover:text-[var(--color-text)] focus:outline-none ${
+          isActive ? "text-[var(--color-text)]" : ""
         }`}
       >
         {label}
-        <span className={isActive ? "text-blue-300" : "text-slate-400"}>
+        <span className={isActive ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"}>
           {isActive ? (current.dir === "asc" ? "▲" : "▼") : "↕"}
         </span>
       </button>
@@ -175,7 +122,7 @@ const RefreshBar: React.FC<{
       type="button"
       onClick={onRefresh}
       disabled={loading}
-      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 bg-slate-800/60 border border-slate-700 hover:bg-slate-800 hover:text-white transition-colors disabled:opacity-50"
+      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] border border-[var(--color-border)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
       title="Refresh data"
     >
       <Icons.ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -191,11 +138,11 @@ const EmptyState: React.FC<{
   action?: React.ReactNode;
 }> = ({ icon, title, description, action }) => (
   <div className="flex flex-col items-center justify-center text-center py-14 px-4">
-    <div className="w-12 h-12 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-slate-400 mb-3">
+    <div className="w-12 h-12 rounded-lg bg-[var(--color-bg-muted)] ring-1 ring-[var(--color-border)] flex items-center justify-center text-[var(--color-text-muted)] mb-3">
       {icon}
     </div>
-    <p className="text-sm font-semibold text-slate-100">{title}</p>
-    {description && <p className="text-xs text-slate-400 mt-1 max-w-sm">{description}</p>}
+    <p className="text-sm font-semibold text-[var(--color-text)]">{title}</p>
+    {description && <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-sm">{description}</p>}
     {action && <div className="mt-4">{action}</div>}
   </div>
 );
@@ -206,8 +153,8 @@ const StatusPill: React.FC<{ active: boolean; onClick?: () => void; title?: stri
   title,
 }) => {
   const cls = active
-    ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/25"
-    : "bg-rose-500/15 text-rose-300 ring-1 ring-inset ring-rose-500/30 hover:bg-rose-500/25";
+    ? "bg-[var(--color-success-subtle)] text-[var(--color-success)] ring-1 ring-inset ring-[var(--color-success)] hover:bg-[var(--color-success-subtle)]"
+    : "bg-[var(--color-danger-subtle)] text-[var(--color-danger)] ring-1 ring-inset ring-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)]";
   return (
     <button
       type="button"
@@ -215,7 +162,7 @@ const StatusPill: React.FC<{ active: boolean; onClick?: () => void; title?: stri
       title={title}
       className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${cls}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-emerald-400" : "bg-rose-400"}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-[var(--color-success)]" : "bg-[var(--color-danger)]"}`} />
       {active ? "Active" : "Inactive"}
     </button>
   );
@@ -320,10 +267,10 @@ const CreateDealerWizard: React.FC<{
       <div
         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ring-1 transition-colors ${
           state === "current"
-            ? "bg-blue-500 ring-blue-400 text-white"
+            ? "bg-[var(--color-primary)] ring-[var(--color-primary)] text-[var(--on-primary)]"
             : state === "done"
-              ? "bg-emerald-500/20 ring-emerald-500/40 text-emerald-300"
-              : "bg-slate-800 ring-slate-600 text-slate-300"
+              ? "bg-[var(--color-success-subtle)] ring-[var(--color-success)] text-[var(--color-success)]"
+              : "bg-[var(--color-bg-muted)] ring-[var(--color-border-strong)] text-[var(--color-text-muted)]"
         }`}
       >
         {state === "done" ? <Icons.CheckCircleIcon className="w-4 h-4" /> : n}
@@ -331,10 +278,10 @@ const CreateDealerWizard: React.FC<{
       <span
         className={`text-xs font-medium ${
           state === "current"
-            ? "text-white"
+            ? "text-[var(--color-text)]"
             : state === "done"
-              ? "text-emerald-300"
-              : "text-slate-300"
+              ? "text-[var(--color-success)]"
+              : "text-[var(--color-text-muted)]"
         }`}
       >
         {label}
@@ -343,18 +290,18 @@ const CreateDealerWizard: React.FC<{
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 animate-fadeIn">
-      <div className="w-full max-w-2xl bg-slate-900 ring-1 ring-slate-800 rounded-lg shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-[var(--color-bg-subtle)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fadeIn">
+      <div className="w-full max-w-2xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4 bg-[var(--color-bg-subtle)]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[var(--color-primary)] flex items-center justify-center ring-1 ring-white/10">
-              <Icons.BuildingLibraryIcon className="w-4 h-4 text-white" />
+              <Icons.BuildingLibraryIcon className="w-4 h-4 text-[var(--on-primary)]" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white">
+              <h3 className="text-base font-semibold text-[var(--color-text)]">
                 {step === "done" ? "Dealership ready" : "Add new dealership"}
               </h3>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-[var(--color-text-muted)]">
                 {step === "done"
                   ? "Share the credentials below with the new admin."
                   : "We'll create the dealer record and its first admin user."}
@@ -364,7 +311,7 @@ const CreateDealerWizard: React.FC<{
           {step !== "done" && (
             <button
               onClick={onClose}
-              className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-muted)] transition-colors"
               aria-label="Close"
             >
               <Icons.XMarkIcon className="w-4 h-4" />
@@ -373,16 +320,16 @@ const CreateDealerWizard: React.FC<{
         </div>
 
         {step !== "done" && (
-          <div className="px-6 pt-5 pb-4 flex items-center gap-3 border-b border-slate-800/60">
+          <div className="px-6 pt-5 pb-4 flex items-center gap-3 border-b border-[var(--color-border)]">
             <Step n={1} label="Dealership" state={step === 1 ? "current" : "done"} />
-            <div className="flex-1 h-px bg-slate-800" />
+            <div className="flex-1 h-px bg-[var(--color-bg-muted)]" />
             <Step n={2} label="First admin user" state={step === 2 ? "current" : "pending"} />
           </div>
         )}
 
         <div className="p-6 space-y-4">
           {error && (
-            <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-4 py-3 text-sm text-rose-200 flex items-start gap-2">
+            <div className="rounded-lg bg-[var(--color-danger-subtle)] border border-[var(--color-danger)] px-4 py-3 text-sm text-[var(--color-danger)] flex items-start gap-2">
               <Icons.ExclamationTriangleIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -391,17 +338,17 @@ const CreateDealerWizard: React.FC<{
           {step === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Name *</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Name *</label>
                 <input
                   type="text"
                   value={dealerForm.name}
                   onChange={(e) => setDealerForm({ ...dealerForm, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="Acme Motors"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Code *</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Code *</label>
                 <input
                   type="text"
                   value={dealerForm.code}
@@ -409,52 +356,52 @@ const CreateDealerWizard: React.FC<{
                     setDealerForm({ ...dealerForm, code: e.target.value.toUpperCase() })
                   }
                   maxLength={10}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white uppercase font-mono"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] uppercase font-mono"
                   placeholder="ACME01"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Email</label>
                 <input
                   type="email"
                   value={dealerForm.email}
                   onChange={(e) => setDealerForm({ ...dealerForm, email: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="contact@dealer.com"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Phone</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Phone</label>
                 <input
                   type="tel"
                   value={dealerForm.phone}
                   onChange={(e) => setDealerForm({ ...dealerForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="(555) 123-4567"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Address</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Address</label>
                 <input
                   type="text"
                   value={dealerForm.address}
                   onChange={(e) => setDealerForm({ ...dealerForm, address: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="123 Auto Drive"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">City</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">City</label>
                 <input
                   type="text"
                   value={dealerForm.city}
                   onChange={(e) => setDealerForm({ ...dealerForm, city: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="Detroit"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">State</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">State</label>
                 <input
                   type="text"
                   value={dealerForm.state}
@@ -462,7 +409,7 @@ const CreateDealerWizard: React.FC<{
                     setDealerForm({ ...dealerForm, state: e.target.value.toUpperCase() })
                   }
                   maxLength={2}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white uppercase"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] uppercase"
                   placeholder="MI"
                 />
               </div>
@@ -472,70 +419,70 @@ const CreateDealerWizard: React.FC<{
           {step === 2 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                   First name *
                 </label>
                 <input
                   type="text"
                   value={adminForm.firstName}
                   onChange={(e) => setAdminForm({ ...adminForm, firstName: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="Jane"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                   Last name *
                 </label>
                 <input
                   type="text"
                   value={adminForm.lastName}
                   onChange={(e) => setAdminForm({ ...adminForm, lastName: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="Smith"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Email *</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Email *</label>
                 <input
                   type="email"
                   value={adminForm.email}
                   onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="jane@dealer.com"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Phone</label>
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Phone</label>
                 <input
                   type="tel"
                   value={adminForm.phone}
                   onChange={(e) => setAdminForm({ ...adminForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="(555) 123-4567"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                   Password *
                 </label>
                 <input
                   type="password"
                   value={adminForm.password}
                   onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="Min 8 characters"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                   Confirm password *
                 </label>
                 <input
                   type="password"
                   value={adminForm.passwordConfirm}
                   onChange={(e) => setAdminForm({ ...adminForm, passwordConfirm: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                   placeholder="Re-enter password"
                 />
               </div>
@@ -545,30 +492,30 @@ const CreateDealerWizard: React.FC<{
           {step === "done" && created && (
             <div className="text-center py-4 space-y-5">
               <div className="relative mx-auto w-16 h-16">
-                <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
-                <div className="relative w-16 h-16 bg-emerald-500/20 ring-2 ring-emerald-500/40 rounded-full flex items-center justify-center">
-                  <Icons.CheckCircleIcon className="w-8 h-8 text-emerald-400" />
+                <div className="absolute inset-0 bg-[var(--color-success-subtle)] rounded-full animate-ping" />
+                <div className="relative w-16 h-16 bg-[var(--color-success-subtle)] ring-2 ring-[var(--color-success)] rounded-full flex items-center justify-center">
+                  <Icons.CheckCircleIcon className="w-8 h-8 text-[var(--color-success)]" />
                 </div>
               </div>
               <div>
-                <h4 className="text-xl font-semibold text-white">{created.dealer.name} is ready</h4>
-                <p className="text-slate-400 text-sm mt-1">
+                <h4 className="text-xl font-semibold text-[var(--color-text)]">{created.dealer.name} is ready</h4>
+                <p className="text-[var(--color-text-muted)] text-sm mt-1">
                   Share these credentials with the new admin so they can sign in at{" "}
-                  <code className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono">
+                  <code className="px-1.5 py-0.5 rounded bg-[var(--color-bg-muted)] text-[var(--color-text)] font-mono">
                     /
                   </code>
                   .
                 </p>
               </div>
-              <div className="bg-slate-950 ring-1 ring-slate-800 rounded-xl divide-y divide-slate-800 max-w-md mx-auto text-left">
+              <div className="bg-[var(--color-bg-subtle)] ring-1 ring-[var(--color-border)] rounded-xl divide-y divide-[var(--color-border)] max-w-md mx-auto text-left">
                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                  <span className="text-slate-400 text-xs font-medium">Dealer code</span>
+                  <span className="text-[var(--color-text-muted)] text-xs font-medium">Dealer code</span>
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard?.writeText(created.dealer.code).catch(() => {});
                     }}
-                    className="inline-flex items-center gap-2 font-mono text-blue-300 font-bold hover:text-blue-200"
+                    className="inline-flex items-center gap-2 font-mono text-[var(--color-primary)] font-bold hover:text-[var(--color-primary)]"
                     title="Click to copy"
                   >
                     {created.dealer.code}
@@ -576,12 +523,12 @@ const CreateDealerWizard: React.FC<{
                   </button>
                 </div>
                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                  <span className="text-slate-400 text-xs font-medium">Admin email</span>
-                  <span className="text-slate-100">{created.admin.email}</span>
+                  <span className="text-[var(--color-text-muted)] text-xs font-medium">Admin email</span>
+                  <span className="text-[var(--color-text)]">{created.admin.email}</span>
                 </div>
                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                  <span className="text-slate-400 text-xs font-medium">Admin name</span>
-                  <span className="text-slate-100">
+                  <span className="text-[var(--color-text-muted)] text-xs font-medium">Admin name</span>
+                  <span className="text-[var(--color-text)]">
                     {created.admin.firstName} {created.admin.lastName}
                   </span>
                 </div>
@@ -590,7 +537,7 @@ const CreateDealerWizard: React.FC<{
           )}
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
           {step === 1 && (
             <>
               <Button variant="secondary" onClick={onClose}>
@@ -786,8 +733,8 @@ const DealerManagement: React.FC<{
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-white tracking-tight">Dealerships</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h2 className="text-lg font-semibold text-[var(--color-text)] tracking-tight">Dealerships</h2>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             {filteredDealers.length} of {dealers.length} dealers
           </p>
         </div>
@@ -816,29 +763,29 @@ const DealerManagement: React.FC<{
 
       {/* Edit Form */}
       {editingId && (
-        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg overflow-hidden shadow-sm">
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-[var(--color-bg-subtle)]">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/15 ring-1 ring-blue-500/30 flex items-center justify-center">
-              <Icons.PencilIcon className="w-4 h-4 text-blue-300" />
+        <div className="bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg overflow-hidden shadow-sm">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
+            <div className="w-9 h-9 rounded-xl bg-[var(--color-primary-subtle)] ring-1 ring-[var(--color-border)] flex items-center justify-center">
+              <Icons.PencilIcon className="w-4 h-4 text-[var(--color-primary)]" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white">Edit dealership</h3>
-              <p className="text-xs text-slate-300">Code cannot be changed after creation.</p>
+              <h3 className="text-base font-semibold text-[var(--color-text)]">Edit dealership</h3>
+              <p className="text-xs text-[var(--color-text-muted)]">Code cannot be changed after creation.</p>
             </div>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Name *</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Name *</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="Dealership Name"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Code *</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Code *</label>
               <input
                 type="text"
                 value={formData.code}
@@ -848,43 +795,43 @@ const DealerManagement: React.FC<{
                     code: e.target.value.toUpperCase(),
                   })
                 }
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] uppercase focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="DEALER01"
                 maxLength={10}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Email</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="contact@dealer.com"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Phone</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="(555) 123-4567"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">City</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">City</label>
               <input
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="Detroit"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">State</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">State</label>
               <input
                 type="text"
                 value={formData.state}
@@ -894,18 +841,18 @@ const DealerManagement: React.FC<{
                     state: e.target.value.toUpperCase(),
                   })
                 }
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] uppercase focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="MI"
                 maxLength={2}
               />
             </div>
             <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Address</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Address</label>
               <input
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="123 Auto Drive"
               />
             </div>
@@ -915,14 +862,14 @@ const DealerManagement: React.FC<{
                 id="active"
                 checked={formData.active}
                 onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                className="w-4 h-4 rounded accent-emerald-500"
+                className="w-4 h-4 rounded accent-[var(--color-primary)]"
               />
-              <label htmlFor="active" className="text-sm text-slate-200">
+              <label htmlFor="active" className="text-sm text-[var(--color-text)]">
                 Active
               </label>
             </div>
           </div>
-          <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
             <Button variant="secondary" onClick={resetForm}>
               Cancel
             </Button>
@@ -934,15 +881,15 @@ const DealerManagement: React.FC<{
       )}
 
       {/* Dealers Table */}
-      <div className="bg-slate-900/60 rounded-lg ring-1 ring-slate-800 overflow-hidden shadow-sm">
+      <div className="bg-[var(--color-bg)] rounded-lg ring-1 ring-[var(--color-border)] overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-900">
-              <tr className="border-b border-slate-800">
+            <thead className="bg-[var(--color-bg)]">
+              <tr className="border-b border-[var(--color-border)]">
                 <SortHeader label="Dealer" field="name" current={sort} onSort={toggleSort} />
                 <SortHeader label="Code" field="code" current={sort} onSort={toggleSort} />
                 <SortHeader label="Location" field="location" current={sort} onSort={toggleSort} />
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-200">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-text)]">
                   Contact
                 </th>
                 <SortHeader
@@ -959,54 +906,54 @@ const DealerManagement: React.FC<{
                   onSort={toggleSort}
                   align="center"
                 />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-200">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--color-text)]">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-[var(--color-border)]">
               {filteredDealers.map((dealer) => {
                 const userCount = usersByDealer[dealer.id] ?? 0;
                 return (
-                  <tr key={dealer.id} className="hover:bg-slate-800/40 transition-colors group">
+                  <tr key={dealer.id} className="hover:bg-[var(--color-bg-muted)] transition-colors group">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-blue-300 text-xs font-bold flex-shrink-0">
+                        <div className="w-9 h-9 rounded-lg bg-[var(--color-bg-muted)] ring-1 ring-[var(--color-border)] flex items-center justify-center text-[var(--color-primary)] text-xs font-bold flex-shrink-0">
                           {dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{dealer.name}</p>
+                          <p className="text-sm font-medium text-[var(--color-text)] truncate">{dealer.name}</p>
                           {dealer.address && (
-                            <p className="text-xs text-slate-400 truncate">{dealer.address}</p>
+                            <p className="text-xs text-[var(--color-text-muted)] truncate">{dealer.address}</p>
                           )}
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <code className="px-2 py-1 bg-slate-800 ring-1 ring-slate-700 rounded-md text-blue-300 text-xs font-mono">
+                      <code className="px-2 py-1 bg-[var(--color-bg-muted)] ring-1 ring-[var(--color-border)] rounded-md text-[var(--color-primary)] text-xs font-mono">
                         {dealer.code || "—"}
                       </code>
                     </td>
-                    <td className="px-4 py-3 text-slate-200 text-sm">
+                    <td className="px-4 py-3 text-[var(--color-text)] text-sm">
                       {dealer.city && dealer.state
                         ? `${dealer.city}, ${dealer.state}`
-                        : dealer.state || dealer.city || <span className="text-slate-400">—</span>}
+                        : dealer.state || dealer.city || <span className="text-[var(--color-text-muted)]">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-slate-200 text-sm">
+                    <td className="px-4 py-3 text-[var(--color-text)] text-sm">
                       {dealer.email ? (
                         <span className="truncate block max-w-[200px]">{dealer.email}</span>
                       ) : dealer.phone ? (
                         dealer.phone
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-[var(--color-text-muted)]">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium tabular-nums ${
                           userCount > 0
-                            ? "bg-slate-800 text-slate-100 ring-1 ring-inset ring-slate-700"
-                            : "text-slate-400"
+                            ? "bg-[var(--color-bg-muted)] text-[var(--color-text)] ring-1 ring-inset ring-[var(--color-border)]"
+                            : "text-[var(--color-text-muted)]"
                         }`}
                       >
                         <Icons.UserIcon className="w-3 h-3 opacity-60" />
@@ -1024,25 +971,28 @@ const DealerManagement: React.FC<{
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => handleImpersonate(dealer)}
-                          className="p-1.5 text-slate-400 hover:text-[var(--color-text)] hover:bg-[var(--color-bg-muted)] rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-muted)] rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           title={
                             dealer.active ? "View as this dealership" : "Activate dealer first"
                           }
+                          aria-label={`View as ${dealer.name}`}
                           disabled={!dealer.active}
                         >
                           <Icons.EyeIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleEdit(dealer)}
-                          className="p-1.5 text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors"
+                          className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] rounded-md transition-colors"
                           title="Edit"
+                          aria-label={`Edit ${dealer.name}`}
                         >
                           <Icons.PencilIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(dealer.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-md transition-colors"
+                          className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-md transition-colors"
                           title="Delete"
+                          aria-label={`Delete ${dealer.name}`}
                         >
                           <Icons.TrashIcon className="w-4 h-4" />
                         </button>
@@ -1269,11 +1219,11 @@ const UserManagement: React.FC<{
       case "superadmin":
         return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
       case "admin":
-        return "bg-blue-500/20 text-blue-400";
+        return "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]";
       case "manager":
-        return "bg-amber-500/20 text-amber-400";
+        return "bg-[var(--color-warning-subtle)] text-[var(--color-warning)]";
       default:
-        return "bg-slate-500/20 text-slate-400";
+        return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
     }
   };
 
@@ -1287,8 +1237,8 @@ const UserManagement: React.FC<{
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-white tracking-tight">Users</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h2 className="text-lg font-semibold text-[var(--color-text)] tracking-tight">Users</h2>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             {filteredUsers.length} of {users.length} users
           </p>
         </div>
@@ -1297,7 +1247,7 @@ const UserManagement: React.FC<{
           <select
             value={filterDealer}
             onChange={(e) => setFilterDealer(e.target.value)}
-            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="px-3 py-2 bg-[var(--color-bg-muted)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
           >
             <option value="">All dealers</option>
             {dealers.map((d) => (
@@ -1309,7 +1259,7 @@ const UserManagement: React.FC<{
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="px-3 py-2 bg-[var(--color-bg-muted)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
           >
             <option value="">All roles</option>
             <option value="sales">Sales</option>
@@ -1326,23 +1276,23 @@ const UserManagement: React.FC<{
 
       {/* Error Message */}
       {error && (
-        <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 text-sm text-rose-200">
+        <div className="bg-[var(--color-danger-subtle)] border border-[var(--color-danger)] rounded-lg p-3 text-sm text-[var(--color-danger)]">
           {error}
         </div>
       )}
 
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
-        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg overflow-hidden shadow-sm">
-          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-800 bg-[var(--color-bg-subtle)]">
+        <div className="bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg overflow-hidden shadow-sm">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
             <div className="w-9 h-9 rounded-xl bg-[var(--color-bg-muted)] ring-1 ring-[var(--color-border)] flex items-center justify-center">
               <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white">
+              <h3 className="text-base font-semibold text-[var(--color-text)]">
                 {editingId ? "Edit user" : "Add new user"}
               </h3>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-[var(--color-text-muted)]">
                 {editingId
                   ? "Email changes will require the user to sign in again."
                   : "Assign the user to a dealership and set their role."}
@@ -1351,53 +1301,53 @@ const UserManagement: React.FC<{
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                 First Name *
               </label>
               <input
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="John"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Last Name *</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Last Name *</label>
               <input
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="Doe"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email *</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Email *</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="john@dealer.com"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Phone</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                 placeholder="(555) 123-4567"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Dealer *</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Dealer *</label>
               <select
                 value={formData.dealer}
                 onChange={(e) => setFormData({ ...formData, dealer: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
               >
                 <option value="">Select Dealer</option>
                 {dealers.map((d) => (
@@ -1408,11 +1358,11 @@ const UserManagement: React.FC<{
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Role *</label>
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">Role *</label>
               <select
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as User["role"] })}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
               >
                 <option value="sales">Sales</option>
                 <option value="manager">Manager</option>
@@ -1423,33 +1373,33 @@ const UserManagement: React.FC<{
             {!editingId && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                     Password *
                   </label>
                   <input
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                     placeholder="Min 8 characters"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
                     Confirm Password *
                   </label>
                   <input
                     type="password"
                     value={formData.passwordConfirm}
                     onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                     placeholder="Re-enter password"
                   />
                 </div>
               </>
             )}
           </div>
-          <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
             <Button variant="secondary" onClick={resetForm}>
               Cancel
             </Button>
@@ -1470,11 +1420,11 @@ const UserManagement: React.FC<{
       )}
 
       {/* Users Table */}
-      <div className="bg-slate-900/60 rounded-lg ring-1 ring-slate-800 overflow-hidden shadow-sm">
+      <div className="bg-[var(--color-bg)] rounded-lg ring-1 ring-[var(--color-border)] overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-900">
-              <tr className="border-b border-slate-800">
+            <thead className="bg-[var(--color-bg)]">
+              <tr className="border-b border-[var(--color-border)]">
                 <SortHeader label="User" field="name" current={sort} onSort={toggleSort} />
                 <SortHeader label="Email" field="email" current={sort} onSort={toggleSort} />
                 <SortHeader label="Dealer" field="dealer" current={sort} onSort={toggleSort} />
@@ -1492,51 +1442,51 @@ const UserManagement: React.FC<{
                   onSort={toggleSort}
                   align="center"
                 />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-200">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--color-text)]">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-[var(--color-border)]">
               {filteredUsers.map((user) => {
                 const isSelf = user.id === currentUser?.id;
                 const isActive = (user as User & { active?: boolean }).active ?? true;
                 return (
                   <tr
                     key={user.id}
-                    className={`hover:bg-slate-800/40 transition-colors group ${
+                    className={`hover:bg-[var(--color-bg-muted)] transition-colors group ${
                       isActive ? "" : "opacity-60"
                     }`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white text-xs font-semibold ring-2 ring-slate-900 flex-shrink-0">
+                        <div className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-[var(--on-primary)] text-xs font-semibold ring-2 ring-[var(--color-bg)] flex-shrink-0">
                           {user.firstName?.[0]}
                           {user.lastName?.[0]}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-white truncate">
+                          <p className="text-sm font-medium text-[var(--color-text)] truncate">
                             {user.firstName} {user.lastName}
                             {!isActive && (
-                              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/60 text-slate-300 ring-1 ring-inset ring-slate-600 align-middle">
+                              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] ring-1 ring-inset ring-[var(--color-border-strong)] align-middle">
                                 Inactive
                               </span>
                             )}
                           </p>
                           {user.phone && (
-                            <p className="text-xs text-slate-400 truncate">{user.phone}</p>
+                            <p className="text-xs text-[var(--color-text-muted)] truncate">{user.phone}</p>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-200 text-sm truncate max-w-[220px]">
+                    <td className="px-4 py-3 text-[var(--color-text)] text-sm truncate max-w-[220px]">
                       {user.email}
                     </td>
-                    <td className="px-4 py-3 text-slate-200 text-sm">
+                    <td className="px-4 py-3 text-[var(--color-text)] text-sm">
                       {user.dealer ? (
                         getDealerName(user.dealer)
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-[var(--color-text-muted)]">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -1549,10 +1499,10 @@ const UserManagement: React.FC<{
                           user.role === "superadmin"
                             ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] ring-[var(--color-border)]"
                             : user.role === "admin"
-                              ? "bg-blue-500/15 text-blue-200 ring-blue-500/30"
+                              ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] ring-[var(--color-border)]"
                               : user.role === "manager"
-                                ? "bg-amber-500/15 text-amber-200 ring-amber-500/30"
-                                : "bg-slate-700/50 text-slate-200 ring-slate-600"
+                                ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)]"
+                                : "bg-[var(--color-bg-muted)] text-[var(--color-text)] ring-[var(--color-border-strong)]"
                         }`}
                       >
                         <option value="sales">Sales</option>
@@ -1561,15 +1511,16 @@ const UserManagement: React.FC<{
                         <option value="superadmin">SuperAdmin</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-400 text-xs tabular-nums">
+                    <td className="px-4 py-3 text-center text-[var(--color-text-muted)] text-xs tabular-nums">
                       {new Date(user.created).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleEdit(user)}
-                          className="p-1.5 text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-md transition-colors"
+                          className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] rounded-md transition-colors"
                           title="Edit"
+                          aria-label={`Edit ${user.email}`}
                         >
                           <Icons.PencilIcon className="w-4 h-4" />
                         </button>
@@ -1578,8 +1529,8 @@ const UserManagement: React.FC<{
                           disabled={isSelf}
                           className={`px-2.5 py-1 rounded-md text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                             isActive
-                              ? "bg-amber-500/10 text-amber-200 ring-amber-500/30 hover:bg-amber-500/20"
-                              : "bg-emerald-500/10 text-emerald-200 ring-emerald-500/30 hover:bg-emerald-500/20"
+                              ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)] hover:bg-[var(--color-warning-subtle)]"
+                              : "bg-[var(--color-success-subtle)] text-[var(--color-success)] ring-[var(--color-success)] hover:bg-[var(--color-success-subtle)]"
                           }`}
                           title={
                             isSelf
@@ -1594,10 +1545,11 @@ const UserManagement: React.FC<{
                         <button
                           onClick={() => handleDeleteUser(user.id)}
                           disabled={isSelf}
-                          className="p-1.5 text-slate-500 hover:text-rose-300 hover:bg-rose-500/10 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1.5 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           title={
                             isSelf ? "You can't delete your own account" : "Delete permanently"
                           }
+                          aria-label={`Delete ${user.email} permanently`}
                         >
                           <Icons.TrashIcon className="w-4 h-4" />
                         </button>
@@ -1736,29 +1688,29 @@ const AiProvidersCard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6">
-        <Icons.SpinnerIcon className="w-5 h-5 text-blue-400 animate-spin" />
+      <div className="max-w-3xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg p-6">
+        <Icons.SpinnerIcon className="w-5 h-5 text-[var(--color-primary)] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6 space-y-5">
+    <div className="max-w-3xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg p-6 space-y-5">
       <div>
-        <h3 className="text-base font-semibold text-white tracking-tight">AI Providers</h3>
-        <p className="text-xs text-slate-400 mt-0.5">
+        <h3 className="text-base font-semibold text-[var(--color-text)] tracking-tight">AI Providers</h3>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
           Keys are stored in your PocketBase backend and read by the AI proxy at request time. The
           frontend never sees full keys.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-3 py-2 text-xs text-rose-200">
+        <div className="rounded-lg bg-[var(--color-danger-subtle)] border border-[var(--color-danger)] px-3 py-2 text-xs text-[var(--color-danger)]">
           {error}
         </div>
       )}
 
-      <div className="divide-y divide-slate-800/80 -mx-2">
+      <div className="divide-y divide-[var(--color-border)] -mx-2">
         {PROVIDER_META.map((p) => {
           const configured = data?.configured[p.id] ?? false;
           const masked = (data?.[`${p.id}ApiKey` as const] as string | undefined) ?? "";
@@ -1767,8 +1719,8 @@ const AiProvidersCard: React.FC = () => {
           return (
             <div key={p.id} className="px-2 py-3 flex flex-wrap items-center gap-3">
               <div className="min-w-[120px]">
-                <p className="text-sm font-medium text-slate-100">{p.label}</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
+                <p className="text-sm font-medium text-[var(--color-text)]">{p.label}</p>
+                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
                   {configured ? "Configured" : "Not configured"}
                 </p>
               </div>
@@ -1781,15 +1733,15 @@ const AiProvidersCard: React.FC = () => {
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     placeholder={p.placeholder}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
                   />
                 ) : (
-                  <span className="inline-block px-2 py-1 rounded bg-slate-950 ring-1 ring-slate-800 text-xs font-mono text-slate-300">
+                  <span className="inline-block px-2 py-1 rounded bg-[var(--color-bg-subtle)] ring-1 ring-[var(--color-border)] text-xs font-mono text-[var(--color-text-muted)]">
                     {configured ? masked || "••••" : "—"}
                   </span>
                 )}
                 {p.id === "gemini" && (
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
                     Use a paid-tier (billed project) Gemini key — free-tier keys allow Google to
                     train on submitted data.
                   </p>
@@ -1797,13 +1749,13 @@ const AiProvidersCard: React.FC = () => {
                 {lastTest && !isEditing && (
                   <p
                     className={`text-[11px] mt-1 ${
-                      lastTest.ok ? "text-emerald-300" : "text-rose-300"
+                      lastTest.ok ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
                     }`}
                   >
                     {lastTest.ok ? "Live ✓" : "Failed ✗"} {" · "}
                     {new Date(lastTest.at).toLocaleString()}
                     {lastTest.error && !lastTest.ok && (
-                      <span className="text-rose-300/80"> — {lastTest.error}</span>
+                      <span className="text-[var(--color-danger)]"> — {lastTest.error}</span>
                     )}
                   </p>
                 )}
@@ -1815,7 +1767,7 @@ const AiProvidersCard: React.FC = () => {
                       type="button"
                       onClick={() => saveKey(p.id)}
                       disabled={saving}
-                      className="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-md bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--on-primary)] text-xs font-medium disabled:opacity-50"
                     >
                       {saving ? "Saving…" : "Save"}
                     </button>
@@ -1823,7 +1775,7 @@ const AiProvidersCard: React.FC = () => {
                       type="button"
                       onClick={cancelEdit}
                       disabled={saving}
-                      className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium"
+                      className="px-3 py-1.5 rounded-md bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] text-xs font-medium"
                     >
                       Cancel
                     </button>
@@ -1833,7 +1785,7 @@ const AiProvidersCard: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => startEdit(p.id)}
-                      className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium"
+                      className="px-3 py-1.5 rounded-md bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] text-xs font-medium"
                     >
                       {configured ? "Replace" : "Add key"}
                     </button>
@@ -1843,7 +1795,7 @@ const AiProvidersCard: React.FC = () => {
                           type="button"
                           onClick={() => testKey(p.id)}
                           disabled={testing === p.id}
-                          className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-md bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] text-xs font-medium disabled:opacity-50"
                         >
                           {testing === p.id ? "Testing…" : "Test"}
                         </button>
@@ -1851,7 +1803,7 @@ const AiProvidersCard: React.FC = () => {
                           type="button"
                           onClick={() => clearKey(p.id)}
                           disabled={saving}
-                          className="px-3 py-1.5 rounded-md bg-rose-500/10 hover:bg-rose-500/20 ring-1 ring-rose-500/40 text-rose-200 text-xs font-medium"
+                          className="px-3 py-1.5 rounded-md bg-[var(--color-danger-subtle)] hover:bg-[var(--color-danger-subtle)] ring-1 ring-[var(--color-danger)] text-[var(--color-danger)] text-xs font-medium"
                         >
                           Remove
                         </button>
@@ -1922,31 +1874,31 @@ const AiDefaultsCard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6 space-y-5">
+    <div className="max-w-3xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg p-6 space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h3 className="text-base font-semibold text-white tracking-tight">AI Defaults</h3>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h3 className="text-base font-semibold text-[var(--color-text)] tracking-tight">AI Defaults</h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             Default provider and model per task. Dealer-level settings override these.
           </p>
         </div>
         {savedAt && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-success)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />
             Saved {savedAt.toLocaleTimeString()}
           </span>
         )}
       </div>
 
       {error && (
-        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-3 py-2 text-xs text-rose-200">
+        <div className="rounded-lg bg-[var(--color-danger-subtle)] border border-[var(--color-danger)] px-3 py-2 text-xs text-[var(--color-danger)]">
           {error}
         </div>
       )}
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-200 mb-1.5">Provider</label>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Provider</label>
           <select
             value={provider}
             onChange={(e) => {
@@ -1958,7 +1910,7 @@ const AiDefaultsCard: React.FC = () => {
               setDealAnalysisModel(first("dealAnalysis"));
               setQuickModel(first("quick"));
             }}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
           >
             {AI_PROVIDER_ORDER.map((id) => (
               <option key={id} value={id}>
@@ -1976,11 +1928,11 @@ const AiDefaultsCard: React.FC = () => {
           ] as const
         ).map(([label, value, setter, task]) => (
           <div key={task}>
-            <label className="block text-sm font-medium text-slate-200 mb-1.5">{label}</label>
+            <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">{label}</label>
             <select
               value={value}
               onChange={(e) => setter(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
             >
               {modelsFor(task).map((m) => (
                 <option key={m.id} value={m.id}>
@@ -2040,11 +1992,11 @@ const AuditLogCard: React.FC = () => {
   }, [refresh]);
 
   return (
-    <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6 space-y-4">
+    <div className="max-w-3xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg p-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h3 className="text-base font-semibold text-white tracking-tight">Audit Log</h3>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h3 className="text-base font-semibold text-[var(--color-text)] tracking-tight">Audit Log</h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             Most recent 25 entries. Append-only — entries cannot be edited or deleted.
           </p>
         </div>
@@ -2052,24 +2004,24 @@ const AuditLogCard: React.FC = () => {
           type="button"
           onClick={refresh}
           disabled={loading}
-          className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium disabled:opacity-50"
+          className="px-3 py-1.5 rounded-md bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] text-xs font-medium disabled:opacity-50"
         >
           {loading ? "Refreshing…" : "Refresh"}
         </button>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-3 py-2 text-xs text-rose-200">
+        <div className="rounded-lg bg-[var(--color-danger-subtle)] border border-[var(--color-danger)] px-3 py-2 text-xs text-[var(--color-danger)]">
           {error}
         </div>
       )}
 
       {!loading && entries.length === 0 && !error && (
-        <p className="text-xs text-slate-400 italic">No entries yet.</p>
+        <p className="text-xs text-[var(--color-text-muted)] italic">No entries yet.</p>
       )}
 
       {entries.length > 0 && (
-        <div className="divide-y divide-slate-800/80 -mx-2">
+        <div className="divide-y divide-[var(--color-border)] -mx-2">
           {entries.map((entry) => {
             const actor = entry.expand?.actor;
             const actorName = actor
@@ -2083,21 +2035,21 @@ const AuditLogCard: React.FC = () => {
                 key={entry.id}
                 className="px-2 py-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1"
               >
-                <span className="text-[11px] text-slate-400 tabular-nums">
+                <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums">
                   {new Date(entry.created).toLocaleString()}
                 </span>
-                <span className="text-xs font-medium text-slate-100">{actorName}</span>
-                <span className="text-xs text-slate-300">{formatAuditAction(entry.action)}</span>
+                <span className="text-xs font-medium text-[var(--color-text)]">{actorName}</span>
+                <span className="text-xs text-[var(--color-text-muted)]">{formatAuditAction(entry.action)}</span>
                 {entry.target && (
-                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] font-mono">
                     {entry.target}
                   </span>
                 )}
                 {details?.ok === false && details?.error && (
-                  <span className="text-[11px] text-rose-300">— {details.error}</span>
+                  <span className="text-[11px] text-[var(--color-danger)]">— {details.error}</span>
                 )}
                 {details?.ok === true && (
-                  <span className="text-[11px] text-emerald-300">— live</span>
+                  <span className="text-[11px] text-[var(--color-success)]">— live</span>
                 )}
               </div>
             );
@@ -2173,7 +2125,7 @@ const SystemSettingsPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Icons.SpinnerIcon className="w-6 h-6 text-blue-400 animate-spin" />
+        <Icons.SpinnerIcon className="w-6 h-6 text-[var(--color-primary)] animate-spin" />
       </div>
     );
   }
@@ -2182,58 +2134,58 @@ const SystemSettingsPanel: React.FC = () => {
     <div className="space-y-5 animate-fadeIn">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-white tracking-tight">System Settings</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Affects every dealership on the platform.</p>
+          <h2 className="text-lg font-semibold text-[var(--color-text)] tracking-tight">System Settings</h2>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Affects every dealership on the platform.</p>
         </div>
         {savedAt && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-success)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />
             Saved {savedAt.toLocaleTimeString()}
           </span>
         )}
       </div>
 
       {error && (
-        <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-4 py-3 text-sm text-rose-200 max-w-3xl">
+        <div className="rounded-lg bg-[var(--color-danger-subtle)] border border-[var(--color-danger)] px-4 py-3 text-sm text-[var(--color-danger)] max-w-3xl">
           {error}
         </div>
       )}
 
-      <div className="max-w-3xl bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-6 space-y-6">
+      <div className="max-w-3xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg p-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-slate-200 mb-1.5">Support email</label>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Support email</label>
           <input
             type="email"
             value={form.supportEmail || ""}
             onChange={(e) => setForm({ ...form, supportEmail: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
             placeholder="support@ltvdesking.com"
           />
-          <p className="text-xs text-slate-400 mt-1.5">
+          <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
             Shown to dealers in error messages and help screens.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-200 mb-1.5">
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
             Announcement banner
           </label>
           <textarea
             value={form.announcementBanner || ""}
             onChange={(e) => setForm({ ...form, announcementBanner: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] min-h-[60px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
             placeholder="Scheduled maintenance Friday 10pm ET…"
           />
-          <p className="text-xs text-slate-400 mt-1.5">
+          <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
             Leave empty to hide. Displayed at the top of every page when set.
           </p>
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-slate-950 ring-1 ring-slate-800 rounded-xl">
+        <div className="flex items-center justify-between p-4 bg-[var(--color-bg-subtle)] ring-1 ring-[var(--color-border)] rounded-xl">
           <div>
-            <p className="text-sm font-medium text-white">Allow new dealer signups</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              When off, the public registration form on <code className="text-slate-300">/</code> is
+            <p className="text-sm font-medium text-[var(--color-text)]">Allow new dealer signups</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              When off, the public registration form on <code className="text-[var(--color-text-muted)]">/</code> is
               disabled.
             </p>
           </div>
@@ -2244,12 +2196,12 @@ const SystemSettingsPanel: React.FC = () => {
               checked={form.signupsEnabled !== false}
               onChange={(e) => setForm({ ...form, signupsEnabled: e.target.checked })}
             />
-            <div className="w-11 h-6 bg-slate-700 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            <div className="w-11 h-6 bg-[var(--color-bg-muted)] peer-focus:ring-2 peer-focus:ring-[var(--color-primary)] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
           </label>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-200 mb-1.5">
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
             Default LTV thresholds (JSON)
           </label>
           <textarea
@@ -2259,11 +2211,11 @@ const SystemSettingsPanel: React.FC = () => {
                 : JSON.stringify(form.defaultLtvThresholds ?? {}, null, 2)
             }
             onChange={(e) => setForm({ ...form, defaultLtvThresholds: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-500 font-mono text-xs min-h-[140px] focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] font-mono text-xs min-h-[140px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
             placeholder='{"700": 120, "650": 110}'
             spellCheck={false}
           />
-          <p className="text-xs text-slate-400 mt-1.5">
+          <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
             Applied as the default for new dealerships.
           </p>
         </div>
@@ -2286,18 +2238,99 @@ const SystemSettingsPanel: React.FC = () => {
 // Overview Tab
 // ============================================
 
+/**
+ * Cross-dealer pipeline counts the data layer can answer honestly (count-only
+ * getList queries — superadmin list rules allow them). Sums that would need a
+ * full table scan (e.g. financed dollars) stay "—", never fabricated. [P7]
+ */
+interface PipelineCounts {
+  funded: number;
+  declined: number;
+  approvedPlusFunded: number;
+}
+
+const dealerPerfGrid = "2fr 0.85fr 1.2fr 0.8fr 1.3fr 0.9fr";
+
+const perfHeadCell: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.08em",
+  ...adminMono,
+  color: "var(--color-text-subtle)",
+};
+
 const OverviewTab: React.FC<{
   stats: SystemStats;
   dealers: Dealer[];
   users: User[];
   onJumpTab: (tab: "overview" | "dealers" | "users" | "settings") => void;
   onImpersonate: (dealerId: string) => void;
-}> = ({ stats, dealers, users, onJumpTab, onImpersonate }) => {
+  onOnboard: () => void;
+}> = ({ stats, dealers, users, onJumpTab, onImpersonate, onOnboard }) => {
   const inactiveCount = Math.max(0, stats.totalDealers - stats.activeDealers);
   const usersByRole = users.reduce<Record<string, number>>((acc, u) => {
     acc[u.role] = (acc[u.role] ?? 0) + 1;
     return acc;
   }, {});
+
+  const [pipeline, setPipeline] = useState<PipelineCounts | null>(null);
+  const [perf, setPerf] = useState<Record<string, { units: number; deals: number }> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [funded, declined, approved] = await Promise.all([
+          collections.savedDeals.getList(1, 1, { filter: 'status = "funded"' }),
+          collections.savedDeals.getList(1, 1, {
+            filter: 'status = "declined" || status = "cancelled"',
+          }),
+          collections.savedDeals.getList(1, 1, {
+            filter: 'status = "approved" || status = "funded"',
+          }),
+        ]);
+        if (!cancelled) {
+          setPipeline({
+            funded: funded.totalItems,
+            declined: declined.totalItems,
+            approvedPlusFunded: approved.totalItems,
+          });
+        }
+      } catch {
+        /* leave null → rendered as "—" */
+      }
+    })();
+    (async () => {
+      try {
+        // Per-dealer count queries (2 per dealer, capped) — real numbers only.
+        const targets = dealers.slice(0, 12);
+        const rows = await Promise.all(
+          targets.map(async (d) => {
+            const [inv, deals] = await Promise.all([
+              collections.inventory.getList(1, 1, {
+                filter: pb.filter("dealer = {:d}", { d: d.id }),
+              }),
+              collections.savedDeals.getList(1, 1, {
+                filter: pb.filter("dealer = {:d}", { d: d.id }),
+              }),
+            ]);
+            return [d.id, { units: inv.totalItems, deals: deals.totalItems }] as const;
+          })
+        );
+        if (!cancelled) setPerf(Object.fromEntries(rows));
+      } catch {
+        /* leave null → rendered as "—" */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dealers]);
+
+  const approvalRate =
+    pipeline && stats.totalDeals > 0
+      ? Math.round((pipeline.approvedPlusFunded / stats.totalDeals) * 100)
+      : null;
 
   const recentDealers = [...dealers]
     .sort((a, b) => (b.created || "").localeCompare(a.created || ""))
@@ -2307,164 +2340,297 @@ const OverviewTab: React.FC<{
     .slice(0, 5);
 
   return (
-    <div className="space-y-5 animate-fadeIn">
-      {/* Page header (matches Dealers / Users / Settings) */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-white tracking-tight">Overview</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {stats.totalDealers.toLocaleString()} dealership{stats.totalDealers === 1 ? "" : "s"} ·{" "}
-            {stats.totalUsers.toLocaleString()} user{stats.totalUsers === 1 ? "" : "s"} ·{" "}
-            {stats.totalDeals.toLocaleString()} deal{stats.totalDeals === 1 ? "" : "s"}
-          </p>
-        </div>
+    <div className="animate-fadeIn" style={{ maxWidth: 1200 }}>
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", margin: "0 0 4px" }}>
+          Overview
+        </h1>
+        <p style={{ fontSize: 14, color: "var(--color-text-muted)", margin: 0 }}>
+          {stats.totalDealers.toLocaleString()} dealership{stats.totalDealers === 1 ? "" : "s"} ·{" "}
+          {stats.totalUsers.toLocaleString()} user{stats.totalUsers === 1 ? "" : "s"} ·{" "}
+          {stats.totalDeals.toLocaleString()} deal{stats.totalDeals === 1 ? "" : "s"} in pipeline
+        </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Dealers"
-          value={stats.totalDealers}
-          hint={inactiveCount > 0 ? `${inactiveCount} inactive` : "All active"}
-          accent="blue"
-          icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
+      {/* KPI tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
+        <KpiTile
+          label="Total dealers"
+          value={stats.totalDealers.toLocaleString()}
+          sub={inactiveCount > 0 ? `${inactiveCount} inactive` : "All active"}
+          icon={<Icons.BuildingLibraryIcon className="w-4 h-4" />}
         />
-        <StatCard
-          label="Active Dealers"
-          value={stats.activeDealers}
-          hint={
+        <KpiTile
+          label="Active dealers"
+          value={stats.activeDealers.toLocaleString()}
+          sub={
             stats.totalDealers > 0
               ? `${Math.round((stats.activeDealers / stats.totalDealers) * 100)}% of total`
               : undefined
           }
-          accent="emerald"
-          icon={<Icons.CheckCircleIcon className="w-5 h-5" />}
+          icon={<Icons.CheckCircleIcon className="w-4 h-4" />}
         />
-        <StatCard
-          label="Total Users"
-          value={stats.totalUsers}
-          hint={
+        <KpiTile
+          label="Total users"
+          value={stats.totalUsers.toLocaleString()}
+          sub={
             usersByRole.admin
               ? `${usersByRole.admin} admin · ${usersByRole.sales ?? 0} sales`
               : undefined
           }
-          accent="violet"
-          icon={<Icons.UserIcon className="w-5 h-5" />}
+          icon={<Icons.UserIcon className="w-4 h-4" />}
         />
-        <StatCard
-          label="Total Deals"
-          value={stats.totalDeals}
-          hint={
+        <KpiTile
+          label="Total deals"
+          value={stats.totalDeals.toLocaleString()}
+          sub={
             stats.totalInventory > 0
               ? `${stats.totalInventory.toLocaleString()} in inventory`
               : undefined
           }
-          accent="amber"
-          icon={<Icons.ClipboardDocumentIcon className="w-5 h-5" />}
+          icon={<Icons.ClipboardDocumentIcon className="w-4 h-4" />}
         />
       </div>
 
+      {/* Pipeline stat cards — only real cross-dealer numbers, "—" otherwise */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
+        <StatTile label="Pipeline financed" value="—" />
+        <StatTile
+          label="Approval rate"
+          value={approvalRate === null ? "—" : `${approvalRate}%`}
+          color={approvalRate === null ? undefined : "var(--color-success)"}
+        />
+        <StatTile label="Working deals" value={stats.totalDeals.toLocaleString()} />
+        <StatTile
+          label="Funded"
+          value={pipeline ? pipeline.funded.toLocaleString() : "—"}
+          color={pipeline ? "var(--color-primary)" : undefined}
+        />
+      </div>
+
+      {/* Dealer performance */}
+      <div
+        className="dc-card"
+        style={{ ...panelCard, overflow: "hidden", marginBottom: 16 }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: dealerPerfGrid,
+            columnGap: 14,
+            alignItems: "center",
+            padding: "11px 18px",
+            background: "var(--color-bg-subtle)",
+            borderBottom: "1px solid var(--color-border)",
+          }}
+        >
+          <span style={perfHeadCell}>DEALER</span>
+          <span style={{ ...perfHeadCell, textAlign: "right" }}>UNITS</span>
+          <span style={{ ...perfHeadCell, textAlign: "right" }}>AVG APPROVAL</span>
+          <span style={{ ...perfHeadCell, textAlign: "right" }}>DEALS</span>
+          <span style={{ ...perfHeadCell, textAlign: "right" }}>INVENTORY VALUE</span>
+          <span style={{ ...perfHeadCell, textAlign: "right" }}>STATUS</span>
+        </div>
+        {dealers.length === 0 && (
+          <div style={{ padding: "30px 18px", textAlign: "center", fontSize: 13, color: "var(--color-text-muted)" }}>
+            No dealerships yet — onboard your first dealer to get started.
+          </div>
+        )}
+        {dealers.map((dealer) => {
+          const p = perf?.[dealer.id];
+          return (
+            <div
+              key={dealer.id}
+              className="inv-row"
+              role="button"
+              tabIndex={0}
+              title={dealer.active ? "View as this dealership" : "Dealer is inactive"}
+              onClick={() => dealer.active && onImpersonate(dealer.id)}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && dealer.active) {
+                  e.preventDefault();
+                  onImpersonate(dealer.id);
+                }
+              }}
+              style={{
+                display: "grid",
+                gridTemplateColumns: dealerPerfGrid,
+                columnGap: 14,
+                alignItems: "center",
+                padding: "13px 18px",
+                borderBottom: "1px solid var(--color-border)",
+                cursor: dealer.active ? "pointer" : "default",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: "var(--color-bg-muted)",
+                    color: "var(--color-text-muted)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    ...adminMono,
+                    flexShrink: 0,
+                  }}
+                >
+                  {dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
+                </div>
+                <span style={{ fontSize: 14.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {dealer.name}
+                </span>
+              </div>
+              <span style={{ fontSize: 14, textAlign: "right", ...adminMono }}>
+                {p ? p.units.toLocaleString() : "—"}
+              </span>
+              <span style={{ fontSize: 14, textAlign: "right", ...adminMono, color: "var(--color-text-subtle)" }} title="Approval scoring runs inside a dealer context">
+                —
+              </span>
+              <span style={{ fontSize: 14, textAlign: "right", ...adminMono, color: "var(--color-text-muted)" }}>
+                {p ? p.deals.toLocaleString() : "—"}
+              </span>
+              <span style={{ fontSize: 14, textAlign: "right", ...adminMono, color: "var(--color-text-subtle)" }}>
+                —
+              </span>
+              <span style={{ textAlign: "right" }}>
+                {dealer.active ? (
+                  <ActivePill />
+                ) : (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: "var(--color-bg-muted)",
+                      color: "var(--color-text-muted)",
+                      padding: "4px 9px",
+                      borderRadius: 6,
+                    }}
+                  >
+                    Inactive
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Quick actions */}
-      <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-5">
-        <p className="text-xs font-medium text-slate-400 mb-3">Quick actions</p>
-        <div className="flex flex-wrap gap-2">
+      <div className="dc-card" style={{ ...panelCard, padding: 17, marginBottom: 16 }}>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            ...adminMono,
+            color: "var(--color-text-subtle)",
+            marginBottom: 13,
+          }}
+        >
+          QUICK ACTIONS
+        </div>
+        <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
           <button
-            onClick={() => onJumpTab("dealers")}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500/15 text-blue-200 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/25 transition-colors"
+            onClick={onOnboard}
+            className="lift-btn btn-primary"
+            style={{
+              border: "1px solid transparent",
+              borderRadius: 9,
+              padding: "9px 15px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+            }}
           >
             <Icons.PlusIcon className="w-4 h-4" /> Onboard new dealer
           </button>
           <button
             onClick={() => onJumpTab("users")}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[var(--color-primary-subtle)] text-[var(--color-primary)] ring-1 ring-inset ring-[var(--color-border)] hover:bg-[var(--color-bg-muted)] transition-colors"
+            className="lift-btn"
+            style={{
+              background: "transparent",
+              border: "1px solid var(--color-border-strong)",
+              color: "var(--color-text)",
+              borderRadius: 9,
+              padding: "9px 15px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+            }}
           >
             <Icons.UserIcon className="w-4 h-4" /> Manage users
           </button>
           <button
             onClick={() => onJumpTab("settings")}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-700/50 text-slate-200 ring-1 ring-inset ring-slate-600 hover:bg-slate-700 transition-colors"
+            className="lift-btn"
+            style={{
+              background: "transparent",
+              border: "1px solid var(--color-border-strong)",
+              color: "var(--color-text)",
+              borderRadius: 9,
+              padding: "9px 15px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+            }}
           >
             <Icons.Cog6ToothIcon className="w-4 h-4" /> System settings
           </button>
         </div>
       </div>
 
-      {/* Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Icons.BuildingLibraryIcon className="w-4 h-4 text-blue-400" />
-              Recent dealers
-            </h3>
-            <button
-              onClick={() => onJumpTab("dealers")}
-              className="text-xs text-slate-300 hover:text-white"
-            >
-              View all →
-            </button>
-          </div>
+      {/* Recent dealers + Recent users */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <ListCard title="Recent dealers" onViewAll={() => onJumpTab("dealers")}>
           {recentDealers.length === 0 ? (
             <EmptyState
               icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
               title="No dealers yet"
               description="Onboard your first dealership to get started."
-              action={
-                <button
-                  onClick={() => onJumpTab("dealers")}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500/15 text-blue-200 ring-1 ring-inset ring-blue-500/30 hover:bg-blue-500/25"
-                >
-                  <Icons.PlusIcon className="w-4 h-4" /> Onboard new dealer
-                </button>
-              }
             />
           ) : (
-            <ul className="divide-y divide-slate-800">
-              {recentDealers.map((dealer) => (
-                <li key={dealer.id} className="flex items-center justify-between py-2.5 group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center text-blue-300 text-xs font-bold">
-                      {dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-100 truncate">{dealer.name}</p>
-                      <p className="text-xs text-slate-400 truncate">
-                        {dealer.code}
-                        {dealer.city
-                          ? ` · ${dealer.city}${dealer.state ? `, ${dealer.state}` : ""}`
-                          : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StatusPill active={dealer.active} />
-                    <button
-                      onClick={() => onImpersonate(dealer.id)}
-                      className="opacity-0 group-hover:opacity-100 text-xs text-slate-300 hover:text-white px-2 py-1 rounded-md hover:bg-slate-800 transition"
-                      title="View as this dealership"
-                    >
-                      View as →
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            recentDealers.map((dealer) => (
+              <PersonRow
+                key={dealer.id}
+                initials={dealer.code?.slice(0, 2) || dealer.name.slice(0, 2).toUpperCase()}
+                title={dealer.name}
+                sub={
+                  <span style={adminMono}>
+                    {dealer.code}
+                    {dealer.city ? ` · ${dealer.city}${dealer.state ? `, ${dealer.state}` : ""}` : ""}
+                  </span>
+                }
+                right={
+                  dealer.active ? (
+                    <ActivePill />
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 600, background: "var(--color-bg-muted)", color: "var(--color-text-muted)", padding: "4px 9px", borderRadius: 6 }}>
+                      Inactive
+                    </span>
+                  )
+                }
+              />
+            ))
           )}
-        </div>
-
-        <div className="bg-slate-900/60 ring-1 ring-slate-800 rounded-lg p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
-              Recent users
-            </h3>
-            <button
-              onClick={() => onJumpTab("users")}
-              className="text-xs text-slate-300 hover:text-white"
-            >
-              View all →
-            </button>
-          </div>
+        </ListCard>
+        <ListCard title="Recent users" onViewAll={() => onJumpTab("users")}>
           {recentUsers.length === 0 ? (
             <EmptyState
               icon={<Icons.UserIcon className="w-5 h-5" />}
@@ -2472,29 +2638,19 @@ const OverviewTab: React.FC<{
               description="Users will appear here as they are added to dealerships."
             />
           ) : (
-            <ul className="divide-y divide-slate-800">
-              {recentUsers.map((user) => (
-                <li key={user.id} className="flex items-center justify-between py-2.5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-xs font-semibold text-white ring-2 ring-slate-900">
-                      {user.firstName?.[0]}
-                      {user.lastName?.[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-100 truncate">
-                        {user.firstName} {user.lastName}
-                      </p>
-                      <p className="text-xs text-slate-400 truncate">{user.email}</p>
-                    </div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-100 ring-1 ring-inset ring-slate-600">
-                    {user.role}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            recentUsers.map((user) => (
+              <PersonRow
+                key={user.id}
+                compact
+                highlight={user.role === "superadmin"}
+                initials={initialsOf(user.firstName, user.lastName, user.email)}
+                title={`${user.firstName} ${user.lastName}`.trim() || user.email}
+                sub={user.email}
+                right={<RoleChip role={user.role} />}
+              />
+            ))
           )}
-        </div>
+        </ListCard>
       </div>
     </div>
   );
@@ -2513,10 +2669,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   onSwitchToDealer,
   onImpersonate,
 }) => {
-  useForceDarkMode();
   const [activeTab, setActiveTab] = useState<"overview" | "dealers" | "users" | "settings">(
     "overview"
   );
+  // Header/quick-action "Onboard new dealer" → the existing create-dealer
+  // wizard, hoisted to the dashboard level. [P7]
+  const [showOnboard, setShowOnboard] = useState(false);
   const [stats, setStats] = useState<SystemStats>({
     totalDealers: 0,
     activeDealers: 0,
@@ -2554,95 +2712,120 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-blue-400 animate-spin" />
+      <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
+        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(59,130,246,0.08),_transparent_50%),_radial-gradient(ellipse_at_bottom_right,_rgba(139,92,246,0.08),_transparent_50%)] bg-slate-950 text-white">
-      {/* Header */}
-      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[var(--color-primary)] rounded-xl flex items-center justify-center ring-1 ring-white/10">
-                <Icons.Cog6ToothIcon className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-base font-semibold tracking-tight text-white">Owner Console</h1>
-                <p className="text-xs text-slate-400">LTV Desking PRO</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {onSwitchToDealer && (
-                <Button variant="secondary" onClick={onSwitchToDealer} size="sm">
-                  <Icons.ChevronLeftIcon className="w-4 h-4 mr-2" />
-                  Dealer view
-                </Button>
-              )}
-              <div className="hidden md:flex items-center gap-2.5 pl-2 pr-3 py-1.5 bg-slate-800/70 ring-1 ring-slate-700 rounded-full">
-                <div className="w-7 h-7 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-xs font-semibold ring-2 ring-slate-900">
-                  {currentUser?.firstName?.[0]}
-                  {currentUser?.lastName?.[0]}
-                </div>
-                <span className="text-xs font-medium text-slate-200">
-                  {currentUser?.firstName} {currentUser?.lastName}
-                </span>
-              </div>
+    <div className="min-h-screen text-[var(--color-text)]" style={{ background: "var(--color-bg-subtle)", fontFamily: "var(--font-sans)" }}>
+      {/* 58px console header — mockup lines 761-771 */}
+      <ConsoleHeader
+        label="OWNER CONSOLE"
+        title={`${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim() || currentUser?.email || "—"}
+        sub={currentUser?.role === "superadmin" ? "Superadmin" : "Admin"}
+        right={
+          <>
+            {onSwitchToDealer && (
               <button
-                onClick={logout}
-                className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                title="Sign out"
+                onClick={onSwitchToDealer}
+                className="lift-btn"
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--color-border-strong)",
+                  color: "var(--color-text)",
+                  borderRadius: 8,
+                  padding: "8px 13px",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
               >
-                <Icons.ArrowRightStartOnRectangleIcon className="w-4 h-4" />
+                Dealer view
               </button>
-            </div>
-          </div>
+            )}
+            <button
+              onClick={() => setShowOnboard(true)}
+              className="lift-btn btn-primary"
+              style={{
+                border: "1px solid transparent",
+                borderRadius: 8,
+                padding: "8px 13px",
+                fontSize: 13.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Onboard new dealer
+            </button>
+            <button
+              onClick={logout}
+              className="rail-btn"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "transparent",
+                color: "var(--color-text-subtle)",
+              }}
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <Icons.ArrowRightStartOnRectangleIcon className="w-4 h-4" />
+            </button>
+          </>
+        }
+      />
 
-          {/* Tabs (inside header) — single-line scroll on narrow viewports */}
-          <div className="mt-4 flex items-center gap-1.5 overflow-x-auto -mx-2 px-2 pb-1 sm:overflow-visible sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <TabButton
-              active={activeTab === "overview"}
-              onClick={() => setActiveTab("overview")}
-              icon={<Icons.ChartIcon className="w-4 h-4" />}
-              label="Overview"
-            />
-            <TabButton
-              active={activeTab === "dealers"}
-              onClick={() => setActiveTab("dealers")}
-              icon={<Icons.BuildingLibraryIcon className="w-4 h-4" />}
-              label="Dealers"
-              badge={stats.totalDealers}
-            />
-            <TabButton
-              active={activeTab === "users"}
-              onClick={() => setActiveTab("users")}
-              icon={<Icons.UserIcon className="w-4 h-4" />}
-              label="Users"
-              badge={stats.totalUsers}
-            />
-            <TabButton
-              active={activeTab === "settings"}
-              onClick={() => setActiveTab("settings")}
-              icon={<Icons.Cog6ToothIcon className="w-4 h-4" />}
-              label="Settings"
-            />
-            <div className="sm:ml-auto shrink-0">
-              <RefreshBar
-                loading={isRefreshing}
-                lastUpdated={lastUpdated}
-                onRefresh={() => loadData(true)}
-              />
-            </div>
-          </div>
+      {/* Sub-tab bar — .tab-btn idiom, counts live */}
+      <div
+        style={{
+          padding: "0 24px",
+          background: "var(--color-bg)",
+          borderBottom: "1px solid var(--color-border)",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        <ConsoleTab active={activeTab === "overview"} onClick={() => setActiveTab("overview")} label="Overview" />
+        <ConsoleTab active={activeTab === "dealers"} onClick={() => setActiveTab("dealers")} label="Dealers" badge={stats.totalDealers} />
+        <ConsoleTab active={activeTab === "users"} onClick={() => setActiveTab("users")} label="Users" badge={stats.totalUsers} />
+        <ConsoleTab active={activeTab === "settings"} onClick={() => setActiveTab("settings")} label="Settings" />
+        <div style={{ marginLeft: "auto" }}>
+          <RefreshBar
+            loading={isRefreshing}
+            lastUpdated={lastUpdated}
+            onRefresh={() => loadData(true)}
+          />
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* tabs moved into header */}
+      {showOnboard && (
+        <CreateDealerWizard
+          onClose={() => setShowOnboard(false)}
+          onCreated={() => {
+            setShowOnboard(false);
+            loadData(true);
+          }}
+        />
+      )}
 
+      <div style={{ padding: 24 }}>
         {/* Content */}
         {activeTab === "overview" && (
           <OverviewTab
@@ -2651,6 +2834,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
             users={users}
             onJumpTab={setActiveTab}
             onImpersonate={(id) => onImpersonate?.(id)}
+            onOnboard={() => setShowOnboard(true)}
           />
         )}
 

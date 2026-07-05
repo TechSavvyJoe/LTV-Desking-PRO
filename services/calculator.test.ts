@@ -78,6 +78,8 @@ describe("Calculator Service", () => {
       defaultStateFees: 200,
       customTaxRate: null,
       miTradeInCreditCap: 12000,
+      vscPrice: 2495,
+      gapPrice: 895,
       ai: DEFAULT_AI_SETTINGS,
     };
 
@@ -121,24 +123,92 @@ describe("Calculator Service", () => {
     it("should calculate LTV correctly", () => {
       const result = calculateFinancials(mockVehicle, mockDealData, mockSettings);
 
-      // Front LTV: (OTD - taxes/fees) / Book? No, usually (Price - TradeEquity - Down) / Book
-      // Logic in calculator.ts:
-      // frontEndAmountToFinance = baseOutTheDoorPrice - downPayment - netTradeIn
-      // Wait, baseOutTheDoorPrice INCLUDES taxes/fees.
-      // Let's check calculator.ts logic again.
-      // Line 143: frontEndAmountToFinance = baseOutTheDoorPrice - downPayment - netTradeIn;
-      // This seems to be "Amount to Finance" effectively?
-      // Line 128: amountToFinance = baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn;
-      // So frontEndAmountToFinance is amountToFinance without backend products.
-
-      // Book Value: 28000 (Trade)
-      // Amount to Finance (Front): ~32291.5
-      // LTV: 32291.5 / 28000 = ~1.153 -> 115.3%
-
+      // Front-end LTV = selling price / book (trade book preferred), the
+      // deal-independent unit advance metric. [reconciliation 5]
+      // 30000 / 28000 = ~107.14%
       expect(result.frontEndLtv).not.toBe("Error");
       if (typeof result.frontEndLtv === "number") {
-        expect(result.frontEndLtv).toBeCloseTo(115.3, 1);
+        expect(result.frontEndLtv).toBeCloseTo((30000 / 28000) * 100, 5);
       }
+
+      // OTD LTV keeps the full deal structure: amountToFinance / book.
+      if (typeof result.otdLtv === "number" && typeof result.amountToFinance === "number") {
+        expect(result.otdLtv).toBeCloseTo((result.amountToFinance / 28000) * 100, 5);
+      }
+    });
+
+    // --- frontEndLtv = price / book [reconciliation 5] ---
+
+    it("frontEndLtv is deal-independent (down/trade/backend do not move it)", () => {
+      const base = calculateFinancials(mockVehicle, mockDealData, mockSettings);
+      const heavy = calculateFinancials(
+        mockVehicle,
+        { ...mockDealData, downPayment: 5000, tradeInValue: 4000, backendProducts: 3000 },
+        mockSettings
+      );
+      expect(heavy.frontEndLtv).toBeCloseTo(base.frontEndLtv as number, 5);
+      // ...while the OTD LTV does move.
+      expect(heavy.otdLtv).not.toBeCloseTo(base.otdLtv as number, 1);
+    });
+
+    it("frontEndLtv falls back to retail book when the trade book is missing", () => {
+      const noTradeBook: Vehicle = { ...mockVehicle, jdPower: "N/A" };
+      const result = calculateFinancials(noTradeBook, mockDealData, mockSettings);
+      // 30000 / 32000 (retail) = 93.75%
+      expect(result.frontEndLtv).toBeCloseTo(93.75, 5);
+    });
+
+    // --- IL / FL buyer states + reciprocity caps [reconciliation 4] ---
+    // MI-dealer reciprocity collects min(homeRate, MI 6%) for out-of-state buyers.
+
+    it("taxes an IN buyer at the 6% reciprocal cap, not IN's 7%", () => {
+      const deal = { ...mockDealData, stateFees: 0, buyerState: "IN" as const };
+      const settings: Settings = { ...mockSettings, outOfStateTransitFee: 0 };
+      const result = calculateFinancials(mockVehicle, deal, settings);
+      // taxable 30275 at min(7%, 6%) = 6% → 1816.5 (7% would be 2119.25)
+      expect(result.salesTax).toBeCloseTo(1816.5, 2);
+    });
+
+    it("taxes an IL buyer at the 6% reciprocal cap, not IL's 6.25%", () => {
+      const deal = { ...mockDealData, stateFees: 0, buyerState: "IL" as const };
+      const settings: Settings = { ...mockSettings, outOfStateTransitFee: 0 };
+      const result = calculateFinancials(mockVehicle, deal, settings);
+      // taxable 30275 at min(6.25%, 6%) = 6% → 1816.5 (6.25% would be 1892.19)
+      expect(result.salesTax).toBeCloseTo(1816.5, 2);
+    });
+
+    it("taxes a FL buyer at FL's 6% (already at the cap) plus the transit fee", () => {
+      const deal = { ...mockDealData, stateFees: 0, buyerState: "FL" as const };
+      const settings: Settings = { ...mockSettings, outOfStateTransitFee: 10 };
+      const result = calculateFinancials(mockVehicle, deal, settings);
+      expect(result.salesTax).toBeCloseTo(1816.5, 2);
+      // Out-of-state transit fee lands in OTD for FL like any non-MI buyer.
+      expect(result.baseOutTheDoorPrice).toBeCloseTo(30000 + 250 + 25 + 1816.5 + 10, 2);
+    });
+
+    // --- rebate wiring [WS-C] ---
+
+    it("subtracts the rebate from the amount financed without changing the tax", () => {
+      const base = calculateFinancials(mockVehicle, mockDealData, mockSettings);
+      const result = calculateFinancials(
+        mockVehicle,
+        { ...mockDealData, rebate: 2000 },
+        mockSettings
+      );
+      expect(result.salesTax).toBeCloseTo(base.salesTax as number, 2);
+      expect(result.amountToFinance).toBeCloseTo((base.amountToFinance as number) - 2000, 2);
+    });
+
+    it("keeps existing negative-amount semantics when the rebate exceeds the OTD (no clamp)", () => {
+      const result = calculateFinancials(
+        mockVehicle,
+        { ...mockDealData, rebate: 50000 },
+        mockSettings
+      );
+      expect(typeof result.amountToFinance).toBe("number");
+      expect(result.amountToFinance as number).toBeLessThan(0);
+      // Negative principal ⇒ no payment owed, not an "Error".
+      expect(result.monthlyPayment).toBe(0);
     });
 
     // --- Regression: silent-wrong-number paths (B5/B6/B7) ---

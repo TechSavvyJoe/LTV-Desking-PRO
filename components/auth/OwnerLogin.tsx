@@ -6,14 +6,12 @@ import * as Icons from "../common/Icons";
 import { AnnouncementBanner } from "../common/AnnouncementBanner";
 import { BrandMark } from "../common/BrandMark";
 import { toast } from "../../lib/toast";
-import { useForceDarkMode } from "../../hooks/useForceDarkMode";
 
 interface OwnerLoginProps {
   onSuccess: () => void;
 }
 
 export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
-  useForceDarkMode();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,26 +53,9 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen text-white flex flex-col relative overflow-hidden">
-      {/* Branded background — deep slate base with a restrained navy radial
-          glow. One brand color only (navy); the Owner Console is distinguished
-          by the deeper base, not by hue. */}
-      <div className="absolute inset-0 bg-slate-950" />
-      <div
-        className="absolute inset-0 opacity-50"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(30, 64, 175, 0.22) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 20% 100%, rgba(30, 58, 138, 0.14) 0%, transparent 50%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(148, 163, 184, 0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.45) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
+    <div className="auth-bg min-h-screen text-[var(--color-text)] flex flex-col relative overflow-hidden">
+      {/* Branded background — the shared .auth-bg grid + radial glow (tokens),
+          forced dark so the Owner Console keeps its deeper look. [dc-redesign] */}
 
       <div className="relative z-10">
         <AnnouncementBanner />
@@ -86,9 +67,9 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
             <h1 className="text-2xl font-semibold tracking-tight">
               Owner <span className="text-[var(--color-primary)]">Console</span>
             </h1>
-            <p className="mt-2 text-sm text-slate-400">
-              LTV Desking <span className="text-blue-400 font-semibold">PRO</span>
-              <span className="mx-2 text-slate-600">·</span>
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+              LTV Desking <span className="text-[var(--color-primary)] font-semibold">PRO</span>
+              <span className="mx-2 text-[var(--color-text-subtle)]">·</span>
               Authorized personnel only
             </p>
           </div>
@@ -96,7 +77,10 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="owner-email" className="block text-sm font-medium text-slate-300">
+                <label
+                  htmlFor="owner-email"
+                  className="block text-sm font-medium text-[var(--color-text-muted)]"
+                >
                   Email address
                 </label>
                 <div className="mt-1 relative">
@@ -108,17 +92,17 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 text-slate-100 rounded-lg focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
+                    className="dc-input w-full pl-10 pr-4 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] text-[var(--color-text)] rounded-lg"
                     placeholder="owner@example.com"
                   />
-                  <Icons.EnvelopeIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-500" />
+                  <Icons.EnvelopeIcon className="absolute left-3 top-2.5 h-5 w-5 text-[var(--color-text-subtle)]" />
                 </div>
               </div>
 
               <div>
                 <label
                   htmlFor="owner-password"
-                  className="block text-sm font-medium text-slate-300"
+                  className="block text-sm font-medium text-[var(--color-text-muted)]"
                 >
                   Password
                 </label>
@@ -131,10 +115,10 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 text-slate-100 rounded-lg focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
+                    className="dc-input w-full pl-10 pr-4 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] text-[var(--color-text)] rounded-lg"
                     placeholder="••••••••"
                   />
-                  <Icons.LockClosedIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-500" />
+                  <Icons.LockClosedIcon className="absolute left-3 top-2.5 h-5 w-5 text-[var(--color-text-subtle)]" />
                 </div>
               </div>
             </div>
@@ -143,7 +127,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
               <div
                 role="alert"
                 aria-live="assertive"
-                className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300"
+                className="rounded-lg bg-[var(--color-danger-subtle)] border border-[var(--color-danger)]/30 px-4 py-3 text-sm text-[var(--color-danger)]"
               >
                 {error}
               </div>
@@ -152,7 +136,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 rounded shadow-sm text-sm font-medium text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary lift-btn w-full flex justify-center py-2 px-4 rounded shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <Icons.SpinnerIcon className="animate-spin h-5 w-5" />
@@ -162,21 +146,24 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
             </Button>
           </form>
 
-          <p className="text-center text-xs text-slate-500">
+          <p className="text-center text-xs text-[var(--color-text-subtle)]">
             Need dealer access? Visit the main app at{" "}
-            <a href="/" className="font-mono text-slate-400 hover:text-blue-400 transition-colors">
+            <a
+              href="/"
+              className="font-mono text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+            >
               /
             </a>
             .
           </p>
         </div>
       </div>
-      <div className="relative z-10 pb-6 text-center text-xs text-slate-600 flex items-center justify-center gap-3">
-        <a href="/privacy" className="hover:text-slate-400 transition-colors">
+      <div className="relative z-10 pb-6 text-center text-xs text-[var(--color-text-subtle)] flex items-center justify-center gap-3">
+        <a href="/privacy" className="hover:text-[var(--color-text-muted)] transition-colors">
           Privacy
         </a>
         <span aria-hidden>·</span>
-        <a href="/terms" className="hover:text-slate-400 transition-colors">
+        <a href="/terms" className="hover:text-[var(--color-text-muted)] transition-colors">
           Terms
         </a>
       </div>

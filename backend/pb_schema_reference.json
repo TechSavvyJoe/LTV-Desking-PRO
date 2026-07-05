@@ -16,8 +16,30 @@
     ]
   },
   {
+    "name": "users",
+    "type": "auth",
+    "note": "PocketBase's default auth collection extended with app fields (1746999001, 1747800001). PB built-ins (email, password, emailVisibility, verified, avatar, ...) omitted here. `active` is the instant-offboarding switch enforced by the users_guard auth hook; the same hook blocks role/dealer self-escalation and validates dealerCode + system_settings.signupsEnabled on public self-registration.",
+    "schema": [
+      { "name": "firstName", "type": "text" },
+      { "name": "lastName", "type": "text" },
+      { "name": "phone", "type": "text" },
+      {
+        "name": "dealer",
+        "type": "relation",
+        "options": { "collectionId": "dealers" }
+      },
+      {
+        "name": "role",
+        "type": "select",
+        "options": { "values": ["sales", "manager", "admin", "superadmin"] }
+      },
+      { "name": "active", "type": "bool" }
+    ]
+  },
+  {
     "name": "inventory",
     "type": "base",
+    "note": "The field_visibility hook strips `unitCost` from API responses unless the requester is manager/admin/superadmin.",
     "schema": [
       {
         "name": "dealer",
@@ -70,7 +92,9 @@
       { "name": "website", "type": "url" },
       { "name": "portalUrl", "type": "url" },
       { "name": "generalNotes", "type": "text" },
-      { "name": "enrichmentSources", "type": "json" }
+      { "name": "enrichmentSources", "type": "json" },
+      { "name": "reservePct", "type": "number" },
+      { "name": "fundingDays", "type": "text" }
     ]
   },
   {
@@ -103,9 +127,10 @@
         "name": "status",
         "type": "select",
         "options": {
-          "values": ["draft", "pending", "submitted", "approved", "funded", "cancelled"]
+          "values": ["draft", "pending", "submitted", "approved", "funded", "cancelled", "declined"]
         }
       },
+      { "name": "lenderName", "type": "text" },
       { "name": "notes", "type": "text" }
     ]
   },
@@ -126,18 +151,69 @@
       { "name": "defaultStateFees", "type": "number" },
       { "name": "outOfStateTransitFee", "type": "number" },
       { "name": "customTaxRate", "type": "number" },
-      { "name": "ltvThresholds", "type": "json" }
+      { "name": "ltvThresholds", "type": "json" },
+      { "name": "vscPrice", "type": "number" },
+      { "name": "gapPrice", "type": "number" },
+      { "name": "miTradeInCreditCap", "type": "number" }
     ]
   },
   {
     "name": "system_settings",
     "type": "base",
-    "note": "Singleton record. listRule + viewRule should be empty (public-readable) so login pages can render the announcement banner. createRule, updateRule, deleteRule should be '@request.auth.role = \"superadmin\"'.",
+    "note": "Singleton record. listRule + viewRule should be empty (public-readable) so login pages can render the announcement banner. createRule, updateRule, deleteRule should be '@request.auth.role = \"superadmin\"'. `signupsEnabled` is also enforced server-side by the users_guard create hook.",
     "schema": [
       { "name": "supportEmail", "type": "email" },
       { "name": "announcementBanner", "type": "text" },
       { "name": "signupsEnabled", "type": "bool" },
-      { "name": "defaultLtvThresholds", "type": "json" }
+      { "name": "defaultLtvThresholds", "type": "json" },
+      { "name": "aiDefaults", "type": "json" }
+    ]
+  },
+  {
+    "name": "ai_provider_keys",
+    "type": "base",
+    "note": "Singleton record holding AI provider API keys. All five rules are '@request.auth.id != \"\" && @request.auth.role = \"superadmin\"' — kept out of the publicly-readable system_settings on purpose. The frontend only ever receives masked keys.",
+    "schema": [
+      { "name": "openaiApiKey", "type": "text" },
+      { "name": "anthropicApiKey", "type": "text" },
+      { "name": "geminiApiKey", "type": "text" },
+      { "name": "lastTested", "type": "json" }
+    ]
+  },
+  {
+    "name": "audit_log",
+    "type": "base",
+    "note": "Append-only security audit trail (AI key changes). list/view superadmin-only; create is superadmin with @request.body.actor = @request.auth.id (1747700000); update/delete are null.",
+    "schema": [
+      {
+        "name": "actor",
+        "type": "relation",
+        "options": { "collectionId": "users" }
+      },
+      { "name": "action", "type": "text", "required": true },
+      { "name": "target", "type": "text" },
+      { "name": "details", "type": "json" }
+    ]
+  },
+  {
+    "name": "deal_events",
+    "type": "base",
+    "note": "Append-only evidentiary record of customer-facing events (what payment was shown, when, by whom). create: any authenticated same-dealer user (dealer_guard force-stamps `dealer`); list/view: same-dealer admin or superadmin; update/delete: null. Rules asserted by 1747800003.",
+    "schema": [
+      {
+        "name": "dealer",
+        "type": "relation",
+        "options": { "collectionId": "dealers" }
+      },
+      {
+        "name": "user",
+        "type": "relation",
+        "options": { "collectionId": "users" }
+      },
+      { "name": "action", "type": "text", "required": true },
+      { "name": "customerName", "type": "text" },
+      { "name": "vin", "type": "text" },
+      { "name": "snapshot", "type": "json" }
     ]
   }
 ]

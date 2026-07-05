@@ -72,10 +72,10 @@ jobs:
           sqlite3 "$DB" "SELECT file FROM _migrations ORDER BY file;"
           echo "---"
 
-          # Each of our 3 migrations must be recorded.
-          for f in 1747400000_create_system_settings.js \
-                   1747400001_lender_profiles_enrichment_fields.js \
-                   1747400002_tighten_api_rules.js; do
+          # EVERY migration file in the repo must be recorded as applied —
+          # no hardcoded list to forget to update when a migration is added.
+          for path in backend/pb_migrations/*.js; do
+            f=$(basename "$path")
             count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM _migrations WHERE file='$f';")
             if [ "$count" != "1" ]; then
               echo "ERROR: migration $f not recorded as applied (count=$count)"
@@ -85,12 +85,15 @@ jobs:
             echo "OK: $f applied"
           done
 
-          # system_settings collection must have been created.
-          if ! sqlite3 "$DB" "SELECT name FROM _collections WHERE name='system_settings';" | grep -q system_settings; then
-            echo "ERROR: system_settings collection not in _collections"
-            exit 1
-          fi
-          echo "OK: system_settings collection exists"
+          # Collections the app depends on must have been created.
+          for col in system_settings ai_provider_keys audit_log deal_events; do
+            if ! sqlite3 "$DB" "SELECT name FROM _collections WHERE name='$col';" | grep -q "$col"; then
+              echo "ERROR: $col collection not in _collections"
+              cat /tmp/pb-test/serve.log
+              exit 1
+            fi
+            echo "OK: $col collection exists"
+          done
 
           # Seed row was inserted by migration 0.
           seed_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM system_settings;")

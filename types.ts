@@ -16,6 +16,15 @@ export interface Vehicle {
   // Calculated properties will be added to a different type
 }
 
+/**
+ * Approval-odds band, per the dc design contract: "strong" (score ≥ 72),
+ * "moderate" (≥ 50), "weak" (below), and "none". The numeric score is shown on
+ * the gauge, but the band is cross-checked against real lender eligibility — a
+ * deal that fits no active lender can never read better than "none".
+ * [dc-redesign / reconciliation 1]
+ */
+export type ApprovalBand = "strong" | "moderate" | "weak" | "none";
+
 export interface CalculatedVehicle extends Vehicle {
   salesTax: number | "Error" | "N/A";
   frontEndLtv: number | "Error" | "N/A";
@@ -23,6 +32,13 @@ export interface CalculatedVehicle extends Vehicle {
   amountToFinance: number | "Error" | "N/A";
   otdLtv: number | "Error" | "N/A";
   monthlyPayment: number | "Error" | "N/A";
+  // Redesign-derived metrics, populated by the processedInventory selector via
+  // approvalScorer + lenderFit. Optional so existing call sites stay valid.
+  approvalScore?: number; // 0-100 internal odds index (hardened, eligibility-capped)
+  approvalBand?: ApprovalBand;
+  ptiRatio?: number; // payment-to-income %, or undefined when income is unknown
+  fitCount?: number; // # of active lenders the current deal fits
+  fitNames?: string[]; // names of the active lenders the current deal fits
 }
 
 export interface DealData {
@@ -39,7 +55,16 @@ export interface DealData {
    * settings.defaultState in the tax engine; undefined preserves the
    * settings-level behavior. [G18]
    */
-  buyerState?: "MI" | "OH" | "IN";
+  buyerState?: AppState;
+  rebate?: number; // Manufacturer/dealer rebate applied to the amount financed [WS-C]
+  /**
+   * UI-level split of backend products (VSC / GAP add-ons on the desk).
+   * `backendProducts` remains the canonical TOTAL the calculator consumes —
+   * these fields only record how that total was composed, so no schema change
+   * is needed. [reconciliation 6]
+   */
+  vscAmount?: number;
+  gapAmount?: number;
 }
 
 export interface FilterData {
@@ -51,6 +76,8 @@ export interface FilterData {
   maxMiles: number | null; // Optional max mileage filter for inventory
   maxOtdLtv: number | null; // Optional max OTD LTV filter
   vin: string;
+  /** Min approval odds (0-100) filter, applied post-scoring. [reconciliation 12] */
+  minScore?: number | null;
 }
 
 export interface SortConfig {
@@ -126,6 +153,10 @@ export interface LenderProfile {
   portalUrl?: string;
   generalNotes?: string;
   enrichmentSources?: { url: string; title?: string; fieldsCited?: string[] }[];
+  /** Dealer reserve/participation %, display metadata only (never consumed by the rules engine). */
+  reservePct?: number;
+  /** Typical funding speed, e.g. "same day", "1–2 days" — display metadata only. */
+  fundingDays?: string;
   tiers: LenderTier[];
 }
 
@@ -180,7 +211,7 @@ export interface DealPdfData {
   dealNumber?: number;
 }
 
-export type AppState = "MI" | "OH" | "IN";
+export type AppState = "MI" | "OH" | "IN" | "IL" | "FL";
 
 export interface Settings {
   defaultTerm: number;
@@ -196,6 +227,10 @@ export interface Settings {
    * TODO(owner): verify current MI statutory trade-in credit cap before pilot.
    */
   miTradeInCreditCap: number;
+  /** Default VSC (service contract) price for the desk's add-on toggle. [reconciliation 6] */
+  vscPrice: number;
+  /** Default GAP price for the desk's add-on toggle. [reconciliation 6] */
+  gapPrice: number;
   ltvThresholds: {
     warn: number;
     danger: number;

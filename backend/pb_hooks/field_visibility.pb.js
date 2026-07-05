@@ -29,3 +29,38 @@ onRecordEnrich((e) => {
 
   return e.next();
 }, "inventory");
+
+/**
+ * saved_deals embeds a full CalculatedVehicle snapshot in the `vehicleData`
+ * JSON blob — including `unitCost` and `frontEndGross` — which bypassed the
+ * inventory field hide above: a sales login could read cost/gross off any
+ * saved deal. Sanitize the blob for non-privileged readers; if the blob can't
+ * be parsed, hide it entirely (fail closed — never leak cost). [review/P1]
+ */
+onRecordEnrich((e) => {
+  let role = "";
+  try {
+    const auth = (e.requestInfo && e.requestInfo.auth) || null;
+    role = auth ? String(auth.get("role") || "") : "";
+  } catch (_) {
+    role = "";
+  }
+
+  if (role !== "superadmin" && role !== "admin" && role !== "manager") {
+    try {
+      const raw = e.record.get("vehicleData");
+      let text = raw;
+      if (text && typeof text !== "string") text = JSON.stringify(text);
+      const data = JSON.parse(text || "{}");
+      if (data && typeof data === "object") {
+        delete data.unitCost;
+        delete data.frontEndGross;
+        e.record.set("vehicleData", data);
+      }
+    } catch (_) {
+      e.record.hide("vehicleData");
+    }
+  }
+
+  return e.next();
+}, "saved_deals");
