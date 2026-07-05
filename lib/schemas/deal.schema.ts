@@ -43,6 +43,22 @@ export const DealDataSchema = z
       .max(50000, "State fees seem unrealistically high"),
 
     notes: z.string().max(5000, "Notes cannot exceed 5000 characters").default(""),
+
+    buyerState: z.enum(["MI", "OH", "IN", "IL", "FL"]).optional(),
+
+    rebate: z.number().min(0, "Rebate cannot be negative").max(500000).optional(),
+
+    vscAmount: z
+      .number()
+      .min(0, "VSC amount cannot be negative")
+      .max(50000, "VSC amount seems unrealistically high")
+      .optional(),
+
+    gapAmount: z
+      .number()
+      .min(0, "GAP amount cannot be negative")
+      .max(50000, "GAP amount seems unrealistically high")
+      .optional(),
   })
   .strict();
 

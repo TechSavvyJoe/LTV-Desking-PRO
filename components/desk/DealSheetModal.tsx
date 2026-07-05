@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDealContext } from "../../context/DealContext";
 import { fmt, splitPay } from "../../utils/format";
-import { generateDealPdf } from "../../services/pdfGenerator";
+import { PdfGenerationError, generateDealPdf } from "../../services/pdfGenerator";
 import { checkBankEligibility } from "../../services/lenderMatcher";
 import { getCurrentDealerDetails, logDealEvent } from "../../lib/api";
+import { capture } from "../../lib/analytics";
 import { toast } from "../../lib/toast";
+import { BlobDownloadError, downloadBlob } from "../../utils/downloadBlob";
 import type { CalculatedVehicle, DealPdfData } from "../../types";
 
 const mono = "var(--mono)";
@@ -42,6 +44,29 @@ const secondaryBtn: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
+type PdfUiState =
+  | { status: "idle" }
+  | { status: "generating"; message: string }
+  | { status: "downloaded"; message: string; filename: string; url: string | null }
+  | { status: "error"; code: string; message: string };
+
+const PDF_FALLBACK_LIFETIME_MS = 60_000;
+
+const pdfErrorCode = (error: unknown): string => {
+  if (error instanceof PdfGenerationError || error instanceof BlobDownloadError) return error.code;
+  return "unknown";
+};
+
+const pdfErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) return error.message;
+  return "The deal sheet PDF could not be generated.";
+};
+
+const dealSheetFilename = (vehicle: CalculatedVehicle): string => {
+  const id = vehicle.stock && vehicle.stock !== "N/A" ? vehicle.stock : vehicle.vin;
+  return `Deal_Sheet_${id}.pdf`;
+};
+
 /**
  * Deal sheet modal — the customer-facing summary per LTV Desking PRO.dc.html
  * lines 910-945: dealer + date eyebrow, payment hero, financial breakdown with
@@ -58,7 +83,10 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
     useDealContext();
 
   const [dealerName, setDealerName] = useState<string>("");
-  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfState, setPdfState] = useState<PdfUiState>({ status: "idle" });
+  const revokePdfUrlRef = useRef<(() => void) | null>(null);
+  const expirePdfFallbackRef = useRef<number | null>(null);
+  const pdfBusy = pdfState.status === "generating";
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +113,14 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
   useEffect(() => {
     dialogRef.current?.focus();
   }, []);
+
+  useEffect(
+    () => () => {
+      if (expirePdfFallbackRef.current) window.clearTimeout(expirePdfFallbackRef.current);
+      revokePdfUrlRef.current?.();
+    },
+    []
+  );
 
   const dateLabel = new Date()
     .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -123,7 +159,7 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
 
   const handleDownloadPdf = async () => {
     if (pdfBusy) return;
-    setPdfBusy(true);
+    setPdfState({ status: "generating", message: "Generating PDF..." });
     try {
       // Same DealPdfData shape the legacy flow built (FavoritesTable
       // preparePdfData): full lender-eligibility pass across ALL profiles.
@@ -142,20 +178,66 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
         })),
       };
       const blob = await generateDealPdf(pdfData, settings);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Deal_Sheet_${vehicle.stock && vehicle.stock !== "N/A" ? vehicle.stock : vehicle.vin}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      logDealEvent("deal_sheet_generated", { vin: vehicle.vin, customerName });
+      const result = downloadBlob(blob, dealSheetFilename(vehicle), {
+        revokeAfterMs: PDF_FALLBACK_LIFETIME_MS,
+      });
+      revokePdfUrlRef.current?.();
+      if (expirePdfFallbackRef.current) window.clearTimeout(expirePdfFallbackRef.current);
+      revokePdfUrlRef.current = result.revoke;
+      setPdfState({
+        status: "downloaded",
+        message: "Download started. If Chrome blocks it, open the PDF below.",
+        filename: result.filename,
+        url: result.url,
+      });
+      expirePdfFallbackRef.current = window.setTimeout(() => {
+        setPdfState((current) =>
+          current.status === "downloaded" && current.url === result.url
+            ? {
+                ...current,
+                url: null,
+                message:
+                  "Download started. The fallback link expired; generate again to reopen it.",
+              }
+            : current
+        );
+      }, PDF_FALLBACK_LIFETIME_MS);
+      toast.success("PDF ready. Download started.");
+      capture("pdf_generated", {
+        pdfType: "deal_sheet",
+        status: result.status,
+        term: dealData.loanTerm,
+        fitCount: vehicle.fitCount ?? 0,
+      });
+      logDealEvent("deal_sheet_generated", {
+        vin: vehicle.vin,
+        customerName,
+        snapshot: {
+          stock: vehicle.stock,
+          term: dealData.loanTerm,
+          amountFinanced: vehicle.amountToFinance,
+          monthlyPayment: vehicle.monthlyPayment,
+          otdLtv: vehicle.otdLtv,
+          ptiRatio: vehicle.ptiRatio,
+          backendProducts: dealData.backendProducts,
+          vscAmount: dealData.vscAmount ?? 0,
+          gapAmount: dealData.gapAmount ?? 0,
+          fitCount: vehicle.fitCount ?? 0,
+          pdfStatus: result.status,
+        },
+      });
     } catch (error) {
       console.error("Error generating deal sheet PDF:", error);
-      toast.error("Failed to generate PDF. Please check deal data.");
-    } finally {
-      setPdfBusy(false);
+      const code = pdfErrorCode(error);
+      const message = pdfErrorMessage(error);
+      setPdfState({ status: "error", code, message });
+      capture("pdf_failed", {
+        pdfType: "deal_sheet",
+        code,
+        term: dealData.loanTerm,
+        fitCount: vehicle.fitCount ?? 0,
+      });
+      toast.error(`PDF failed (${code}).`);
     }
   };
 
@@ -348,6 +430,51 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
             selected buyer state. Subject to lender verification of income, identity, and vehicle
             condition.
           </div>
+
+          {pdfState.status !== "idle" && (
+            <div
+              role={pdfState.status === "error" ? "alert" : "status"}
+              aria-live={pdfState.status === "error" ? "assertive" : "polite"}
+              style={{
+                marginTop: 14,
+                border: `1px solid ${
+                  pdfState.status === "error" ? "var(--color-danger)" : "var(--color-border)"
+                }`,
+                background:
+                  pdfState.status === "error"
+                    ? "var(--color-danger-subtle)"
+                    : "var(--color-bg-subtle)",
+                borderRadius: 10,
+                padding: "10px 12px",
+                fontSize: 12.5,
+                lineHeight: 1.45,
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>
+                {pdfState.status === "generating" && "Generating PDF"}
+                {pdfState.status === "downloaded" && "PDF ready"}
+                {pdfState.status === "error" && `PDF error · ${pdfState.code}`}
+              </div>
+              <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
+                {pdfState.message}
+              </div>
+              {pdfState.status === "downloaded" && pdfState.url && (
+                <a
+                  href={pdfState.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    marginTop: 8,
+                    color: "var(--color-primary)",
+                    fontWeight: 700,
+                  }}
+                >
+                  Open PDF fallback
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

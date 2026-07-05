@@ -109,12 +109,15 @@ const pbDeal = (overrides: Partial<PocketBaseSavedDeal> = {}): PocketBaseSavedDe
     downPayment: 2000,
     tradeInValue: 0,
     tradeInPayoff: 0,
-    backendProducts: 0,
+    backendProducts: 3695,
     loanTerm: 72,
     interestRate: 8.9,
     stateFees: 31,
     notes: "",
     buyerState: "IL",
+    rebate: 500,
+    vscAmount: 2495,
+    gapAmount: 895,
   },
   customerFilters: { creditScore: 712, monthlyIncome: 4800 },
   calculatedData: {
@@ -162,6 +165,10 @@ describe("mapPocketBaseSavedDeal", () => {
     expect(mapped.dealData.loanTerm).toBe(72);
     expect(mapped.dealData.interestRate).toBe(8.9);
     expect(mapped.dealData.buyerState).toBe("IL");
+    expect(mapped.dealData.backendProducts).toBe(3695);
+    expect(mapped.dealData.rebate).toBe(500);
+    expect(mapped.dealData.vscAmount).toBe(2495);
+    expect(mapped.dealData.gapAmount).toBe(895);
 
     expect(mapped.customerFilters).toEqual({ creditScore: 712, monthlyIncome: 4800 });
 

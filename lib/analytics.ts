@@ -44,6 +44,7 @@ export type AnalyticsEvent =
   | "deal_desked"
   | "lender_match_viewed"
   | "pdf_generated"
+  | "pdf_failed"
   | "import_completed"
   | "deal_saved";
 

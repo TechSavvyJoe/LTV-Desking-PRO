@@ -2,6 +2,11 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDealContext } from "../../context/DealContext";
 import { calculateFinancials } from "../../services/calculator";
+import {
+  applyBackendProductPatch,
+  getBackendProductSplit,
+  parseMoneyInput,
+} from "../../services/backendProducts";
 import { lenderFitForVehicle, activeLenderCount } from "../../services/lenderFit";
 import type { LenderFitEntry } from "../../services/lenderFit";
 import { APPROVAL_CONFIG, BAND_META } from "../../services/approvalScorer";
@@ -48,10 +53,7 @@ const pct = (v: number | "Error" | "N/A") =>
   numVal(v) === null ? "—" : `${Math.round(v as number)}%`;
 
 /** OTD LTV band colors from settings.ltvThresholds — never hardcoded. */
-const otdColorFor = (
-  v: number | "Error" | "N/A",
-  th: { warn: number; danger: number }
-): string => {
+const otdColorFor = (v: number | "Error" | "N/A", th: { warn: number; danger: number }): string => {
   const n = numVal(v);
   if (n === null) return "var(--color-text-subtle)";
   return n >= th.danger
@@ -207,13 +209,23 @@ export const DeskScreen: React.FC = () => {
 
   const [dealSheetOpen, setDealSheetOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [advancedTermsOpen, setAdvancedTermsOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [compactInspector, setCompactInspector] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 1023px)");
+    const syncCompactInspector = () => setCompactInspector(media.matches);
+    syncCompactInspector();
+    media.addEventListener?.("change", syncCompactInspector);
+    return () => media.removeEventListener?.("change", syncCompactInspector);
+  }, []);
 
   /* ---------- sorting (context inventorySort → persisted in the DESK_UI blob) ---------- */
 
   const sortKey: SortKey = isSortKey(inventorySort.key) ? inventorySort.key : "approvalScore";
-  const sortDir: "asc" | "desc" = isSortKey(inventorySort.key)
-    ? inventorySort.direction
-    : "desc";
+  const sortDir: "asc" | "desc" = isSortKey(inventorySort.key) ? inventorySort.direction : "desc";
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -280,11 +292,10 @@ export const DeskScreen: React.FC = () => {
 
   const setDeal = (patch: Partial<DealData>) => setDealData((d) => ({ ...d, ...patch }));
   const setFilter = (patch: Partial<FilterData>) => setFilters((f) => ({ ...f, ...patch }));
-  const numOnChange =
-    (fn: (n: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const x = parseFloat(e.target.value.replace(/[^0-9.]/g, ""));
-      fn(Number.isFinite(x) ? x : 0);
-    };
+  const numOnChange = (fn: (n: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const x = parseFloat(e.target.value.replace(/[^0-9.]/g, ""));
+    fn(Number.isFinite(x) ? x : 0);
+  };
 
   /* ---------- per-focused-vehicle lender detail (matched tiers, buy rate) ---------- */
 
@@ -347,7 +358,6 @@ export const DeskScreen: React.FC = () => {
     const cur = parseFloat(aprText);
     if ((Number.isNaN(cur) && Number.isNaN(target)) || cur === target) return;
     setAprText(Number.isNaN(target) ? "" : String(target));
-     
   }, [dealData.interestRate]);
   const onAprChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/[^0-9.]/g, "");
@@ -357,33 +367,29 @@ export const DeskScreen: React.FC = () => {
 
   /* ---------- back-end add-ons (VSC / GAP / other; backendProducts = sum) ---------- */
 
-  const vscAmt = dealData.vscAmount ?? 0;
-  const gapAmt = dealData.gapAmount ?? 0;
-  // Legacy deals carry only the total: whatever isn't VSC/GAP is "other".
-  const otherBackend = Math.max(0, (dealData.backendProducts || 0) - vscAmt - gapAmt);
+  const backendSplit = getBackendProductSplit(dealData);
+  const vscAmt = backendSplit.vscAmount;
+  const gapAmt = backendSplit.gapAmount;
+  const otherBackend = backendSplit.otherBackend;
 
   const toggleVsc = () =>
     setDealData((d) => {
-      const vsc = d.vscAmount ?? 0;
-      const gap = d.gapAmount ?? 0;
-      const other = Math.max(0, (d.backendProducts || 0) - vsc - gap);
-      const next = vsc > 0 ? 0 : settings.vscPrice;
-      return { ...d, vscAmount: next, backendProducts: next + gap + other };
+      const split = getBackendProductSplit(d);
+      const next = split.vscAmount > 0 ? 0 : settings.vscPrice;
+      return { ...d, ...applyBackendProductPatch(d, { vscAmount: next }) };
     });
   const toggleGap = () =>
     setDealData((d) => {
-      const vsc = d.vscAmount ?? 0;
-      const gap = d.gapAmount ?? 0;
-      const other = Math.max(0, (d.backendProducts || 0) - vsc - gap);
-      const next = gap > 0 ? 0 : settings.gapPrice;
-      return { ...d, gapAmount: next, backendProducts: vsc + next + other };
+      const split = getBackendProductSplit(d);
+      const next = split.gapAmount > 0 ? 0 : settings.gapPrice;
+      return { ...d, ...applyBackendProductPatch(d, { gapAmount: next }) };
     });
+  const setVscAmount = (n: number) =>
+    setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { vscAmount: n }) }));
+  const setGapAmount = (n: number) =>
+    setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { gapAmount: n }) }));
   const setOtherBackend = (n: number) =>
-    setDealData((d) => {
-      const vsc = d.vscAmount ?? 0;
-      const gap = d.gapAmount ?? 0;
-      return { ...d, backendProducts: vsc + gap + Math.max(0, n) };
-    });
+    setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { otherBackend: n }) }));
 
   /* ---------- reset / clear ---------- */
 
@@ -438,6 +444,16 @@ export const DeskScreen: React.FC = () => {
     saveFocusedDeal();
   };
 
+  const focusInventoryVin = useCallback(
+    (vin: string) => {
+      setFocusVin(vin);
+      if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+        setInspectorOpen(true);
+      }
+    },
+    [setFocusVin]
+  );
+
   /* ---------- keyboard shortcuts ---------- */
 
   const orderedVins = useMemo(() => rows.map((r) => r.vin), [rows]);
@@ -465,383 +481,32 @@ export const DeskScreen: React.FC = () => {
     if (!focused) return;
     const idx = rows.findIndex((r) => r.vin === focused.vin);
     if (idx >= 0) virtualizer.scrollToIndex(idx, { align: "auto" });
-     
   }, [focused?.vin]);
 
   const buyerState = dealData.buyerState ?? settings.defaultState;
 
   return (
     <div data-screen-label="Dealer desk">
-      <div
-        className="desk-body"
-        style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 16 }}
-      >
+      <div className="desk-body">
         {/* ---------- 01 · DEAL TERMS ---------- */}
-        <div style={cardStyle}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "13px 18px",
-              borderBottom: "1px solid var(--color-border)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 11, fontFamily: mono, color: "var(--color-text-subtle)" }}>
-                01
-              </span>
-              <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>
-                Deal terms
-              </span>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  background: "var(--color-primary-subtle)",
-                  color: "var(--color-primary)",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: "3px 8px",
-                  borderRadius: 6,
-                  letterSpacing: "0.08em",
-                  fontFamily: mono,
-                }}
-              >
-                <span
-                  className="live-dot"
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: "50%",
-                    background: "var(--color-primary)",
-                    display: "inline-block",
-                  }}
-                />
-                LIVE
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <span style={{ fontSize: 12.5, color: "var(--color-text-subtle)" }}>
-                Every change re-prices all inventory instantly
-              </span>
-              <button
-                onClick={handleReset}
-                className="lift-btn"
-                style={{
-                  background: "transparent",
-                  border: "1px solid var(--color-border-strong)",
-                  color: "var(--color-text-muted)",
-                  borderRadius: 8,
-                  padding: "5px 12px",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", padding: 18 }}>
-            {/* CUSTOMER & CREDIT */}
-            <div
-              style={{ flex: 1.15, paddingRight: 22, borderRight: "1px solid var(--color-border)" }}
-            >
-              <div style={sectionLabel}>CUSTOMER &amp; CREDIT</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <div>
-                  <label style={labelStyle}>Customer name</label>
-                  <input
-                    className="dc-input"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Add customer"
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={labelStyle}>Credit score</label>
-                    <input
-                      className="dc-input"
-                      inputMode="numeric"
-                      value={filters.creditScore ?? ""}
-                      onChange={numOnChange((n) => setFilter({ creditScore: n || null }))}
-                      style={monoInput}
-                    />
-                  </div>
-                  <div style={{ flex: 1.2 }}>
-                    <label style={labelStyle}>Buyer state</label>
-                    <select
-                      className="dc-input"
-                      value={buyerState}
-                      onChange={(e) => setDeal({ buyerState: e.target.value as AppState })}
-                      style={{ ...inputStyle, padding: "8px 9px", cursor: "pointer" }}
-                    >
-                      <option value="MI">MI · 6%</option>
-                      <option value="OH">OH · 5.75%</option>
-                      <option value="IN">IN · 6% recip.</option>
-                      <option value="IL">IL · 6% recip.</option>
-                      <option value="FL">FL · 6%</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label style={labelStyle}>Monthly income ($)</label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      className="dc-input"
-                      inputMode="numeric"
-                      value={filters.monthlyIncome ?? ""}
-                      onChange={numOnChange((n) => setFilter({ monthlyIncome: n || null }))}
-                      placeholder="Gross / mo"
-                      style={{ ...monoInput, paddingRight: 34 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setScannerOpen(true)}
-                      aria-label="Scan pay stub"
-                      title="Scan pay stub"
-                      style={{
-                        position: "absolute",
-                        right: 6,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "transparent",
-                        border: "none",
-                        color: "var(--color-text-subtle)",
-                        cursor: "pointer",
-                        width: 24,
-                        height: 24,
-                        borderRadius: 6,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 0,
-                      }}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        aria-hidden="true"
-                      >
-                        <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
-                        <path d="M3 12h18" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* CASH & TRADE */}
-            <div
-              style={{ flex: 1.2, padding: "0 22px", borderRight: "1px solid var(--color-border)" }}
-            >
-              <div style={sectionLabel}>CASH &amp; TRADE</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={labelStyle}>Cash down ($)</label>
-                    <input
-                      className="dc-input"
-                      inputMode="numeric"
-                      value={dealData.downPayment || ""}
-                      onChange={numOnChange((n) => setDeal({ downPayment: n }))}
-                      style={monoInput}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={labelStyle}>Trade value ($)</label>
-                    <input
-                      className="dc-input"
-                      inputMode="numeric"
-                      value={dealData.tradeInValue || ""}
-                      onChange={numOnChange((n) => setDeal({ tradeInValue: n }))}
-                      style={monoInput}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label style={labelStyle}>Trade payoff ($)</label>
-                  <input
-                    className="dc-input"
-                    inputMode="numeric"
-                    value={dealData.tradeInPayoff || ""}
-                    onChange={numOnChange((n) => setDeal({ tradeInPayoff: n }))}
-                    style={monoInput}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* FIND / FILTER */}
-            <div
-              style={{ flex: 1.5, padding: "0 22px", borderRight: "1px solid var(--color-border)" }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 13,
-                }}
-              >
-                <span style={{ ...sectionLabel, marginBottom: 0 }}>FIND / FILTER</span>
-                <button
-                  onClick={clearFilters}
-                  className="lift-btn"
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "var(--color-primary)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    padding: 0,
-                  }}
-                >
-                  Clear
-                </button>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ flex: 1.1 }}>
-                    <label style={labelStyle}>Vehicle</label>
-                    <input
-                      className="dc-input"
-                      value={filters.vehicle}
-                      onChange={(e) => setFilter({ vehicle: e.target.value })}
-                      placeholder="Make / model"
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={labelStyle}>Max price ($)</label>
-                    <input
-                      className="dc-input"
-                      inputMode="numeric"
-                      value={filters.maxPrice ?? ""}
-                      onChange={numOnChange((n) => setFilter({ maxPrice: n || null }))}
-                      placeholder="Any"
-                      style={monoInput}
-                    />
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={labelStyle}>Max $/mo</label>
-                    <input
-                      className="dc-input"
-                      inputMode="numeric"
-                      value={filters.maxPayment ?? ""}
-                      onChange={numOnChange((n) => setFilter({ maxPayment: n || null }))}
-                      placeholder="Any"
-                      style={monoInput}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={labelStyle}>Max miles</label>
-                    <input
-                      className="dc-input"
-                      inputMode="numeric"
-                      value={filters.maxMiles ?? ""}
-                      onChange={numOnChange((n) => setFilter({ maxMiles: n || null }))}
-                      placeholder="Any"
-                      style={monoInput}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={labelStyle}>Min odds</label>
-                    <input
-                      className="dc-input"
-                      inputMode="numeric"
-                      value={filters.minScore ?? ""}
-                      onChange={numOnChange((n) => setFilter({ minScore: n || null }))}
-                      placeholder="Any"
-                      style={monoInput}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* STRUCTURE */}
-            <div style={{ flex: 1.35, paddingLeft: 22 }}>
-              <div style={sectionLabel}>STRUCTURE</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <div>
-                  <label style={labelStyle}>Term (months)</label>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {DESK_TERMS.map((t) => {
-                      const active = dealData.loanTerm === t;
-                      return (
-                        <button
-                          key={t}
-                          onClick={() => setDeal({ loanTerm: t })}
-                          className="lift-btn"
-                          style={{
-                            flex: 1,
-                            borderRadius: 8,
-                            padding: "8px 0",
-                            fontSize: 14,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            fontFamily: mono,
-                            background: active ? "var(--color-primary)" : "var(--color-bg-subtle)",
-                            color: active ? "var(--on-primary)" : "var(--color-text-muted)",
-                            border: `1px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
-                          }}
-                        >
-                          {t}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div style={{ width: "52%" }}>
-                  <label style={labelStyle}>APR (%)</label>
-                  <input
-                    className="dc-input"
-                    inputMode="decimal"
-                    value={aprText}
-                    onChange={onAprChange}
-                    style={monoInput}
-                  />
-                  {buyRate && (
-                    <button
-                      onClick={applyBuyRate}
-                      className="lift-btn"
-                      style={{
-                        marginTop: 6,
-                        background: "transparent",
-                        border: "none",
-                        color: "var(--color-primary)",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        padding: 0,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Use {buyRate.rate}% · {buyRate.lender}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <DeskTermsRail
+          customerName={customerName}
+          setCustomerName={setCustomerName}
+          filters={filters}
+          setFilter={setFilter}
+          dealData={dealData}
+          setDeal={setDeal}
+          buyerState={buyerState}
+          aprText={aprText}
+          onAprChange={onAprChange}
+          buyRate={buyRate}
+          applyBuyRate={applyBuyRate}
+          advancedOpen={advancedTermsOpen}
+          onToggleAdvanced={() => setAdvancedTermsOpen((open) => !open)}
+          onReset={handleReset}
+          onClearFilters={clearFilters}
+          onScanIncome={() => setScannerOpen(true)}
+        />
 
         {/* ---------- COMPARE STRIP ---------- */}
         {/* Gate on resolvable cards, not raw favorites — pins left over from
@@ -872,7 +537,7 @@ export const DeskScreen: React.FC = () => {
                 return (
                   <div
                     key={v.vin}
-                    onClick={() => setFocusVin(v.vin)}
+                    onClick={() => focusInventoryVin(v.vin)}
                     className="lift-btn"
                     style={{
                       flex: "0 0 196px",
@@ -976,7 +641,7 @@ export const DeskScreen: React.FC = () => {
         )}
 
         {/* ---------- 02 · INVENTORY + 03 · FOCUSED ---------- */}
-        <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+        <div className="desk-workspace">
           <div style={{ flex: 1, minWidth: 0, ...cardStyle, overflow: "hidden" }}>
             <div
               style={{
@@ -989,9 +654,7 @@ export const DeskScreen: React.FC = () => {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                <span
-                  style={{ fontSize: 11, fontFamily: mono, color: "var(--color-text-subtle)" }}
-                >
+                <span style={{ fontSize: 11, fontFamily: mono, color: "var(--color-text-subtle)" }}>
                   02
                 </span>
                 <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>
@@ -1007,47 +670,59 @@ export const DeskScreen: React.FC = () => {
                   {rows.length} of {processedInventory.length} · ranked by odds
                 </span>
               </div>
-              <div style={{ position: "relative" }}>
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--color-text-subtle)"
-                  strokeWidth="2"
-                  style={{
-                    position: "absolute",
-                    left: 10,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                  }}
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-                <input
-                  id="desk-search"
-                  className="dc-input"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search inventory · press /"
-                  style={{
-                    background: "var(--color-bg-subtle)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 8,
-                    padding: "7px 11px 7px 30px",
-                    fontSize: 13,
-                    color: "var(--color-text)",
-                    fontFamily: "inherit",
-                    outline: "none",
-                    width: 230,
-                  }}
-                />
+              <div className="desk-inventory-tools">
+                <div style={{ position: "relative" }}>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--color-text-subtle)"
+                    strokeWidth="2"
+                    style={{
+                      position: "absolute",
+                      left: 10,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                  <input
+                    id="desk-search"
+                    className="dc-input"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search inventory · press /"
+                    style={{
+                      background: "var(--color-bg-subtle)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 8,
+                      padding: "7px 11px 7px 30px",
+                      fontSize: 13,
+                      color: "var(--color-text)",
+                      fontFamily: "inherit",
+                      outline: "none",
+                      width: 230,
+                    }}
+                  />
+                </div>
+                {focused && (
+                  <button
+                    type="button"
+                    className="desk-mobile-inspector-btn lift-btn"
+                    onClick={() => setInspectorOpen(true)}
+                  >
+                    View deal
+                  </button>
+                )}
               </div>
             </div>
 
             {/* column headers */}
             <div
+              className="desk-inventory-columns"
               style={{
                 display: "grid",
                 gridTemplateColumns: GRID,
@@ -1163,7 +838,7 @@ export const DeskScreen: React.FC = () => {
                       >
                         <div
                           className="inv-row"
-                          onClick={() => setFocusVin(v.vin)}
+                          onClick={() => focusInventoryVin(v.vin)}
                           style={{
                             display: "grid",
                             gridTemplateColumns: GRID,
@@ -1208,6 +883,7 @@ export const DeskScreen: React.FC = () => {
                             </div>
                           </div>
                           <span
+                            data-label="Price"
                             style={{
                               fontSize: 13.5,
                               textAlign: "right",
@@ -1218,6 +894,7 @@ export const DeskScreen: React.FC = () => {
                             {numVal(v.price) === null ? "—" : fmt(v.price as number)}
                           </span>
                           <span
+                            data-label="F-LTV"
                             style={{
                               fontSize: 13.5,
                               textAlign: "right",
@@ -1229,6 +906,7 @@ export const DeskScreen: React.FC = () => {
                             {pct(v.frontEndLtv)}
                           </span>
                           <span
+                            data-label="Financed"
                             style={{
                               fontSize: 14,
                               textAlign: "right",
@@ -1241,7 +919,7 @@ export const DeskScreen: React.FC = () => {
                               ? "—"
                               : fmt(v.amountToFinance as number)}
                           </span>
-                          <span style={{ textAlign: "right" }}>
+                          <span data-label="OTD LTV" style={{ textAlign: "right" }}>
                             <span
                               style={{
                                 fontSize: 12.5,
@@ -1258,6 +936,7 @@ export const DeskScreen: React.FC = () => {
                             </span>
                           </span>
                           <span
+                            data-label="Payment"
                             style={{
                               fontSize: 13.5,
                               textAlign: "right",
@@ -1271,6 +950,7 @@ export const DeskScreen: React.FC = () => {
                               : `${fmt(v.monthlyPayment as number)}/mo`}
                           </span>
                           <span
+                            data-label="Odds"
                             style={{
                               display: "flex",
                               alignItems: "center",
@@ -1302,8 +982,16 @@ export const DeskScreen: React.FC = () => {
           </div>
 
           {/* FOCUSED PANEL */}
+          {inspectorOpen && (
+            <button
+              type="button"
+              aria-label="Close deal inspector"
+              className="desk-inspector-backdrop"
+              onClick={() => setInspectorOpen(false)}
+            />
+          )}
           {focused && (
-            <FocusedPanel
+            <DealInspector
               vehicle={focused}
               entries={focusedEntries}
               profilesById={profilesById}
@@ -1313,11 +1001,16 @@ export const DeskScreen: React.FC = () => {
               pinned={isPinned}
               onPin={() => toggleFavorite(focused.vin)}
               onSetTermDown={(term, down) => setDeal({ loanTerm: term, downPayment: down })}
+              compactMode={compactInspector}
+              onCloseCompact={() => setInspectorOpen(false)}
+              compactOpen={inspectorOpen}
               vscAmount={vscAmt}
               gapAmount={gapAmt}
               otherBackend={otherBackend}
               onToggleVsc={toggleVsc}
               onToggleGap={toggleGap}
+              onVscAmountChange={setVscAmount}
+              onGapAmountChange={setGapAmount}
               onOtherBackendChange={setOtherBackend}
               onDealSheet={() => setDealSheetOpen(true)}
               onSaveDeal={saveFocusedDeal}
@@ -1354,7 +1047,267 @@ export const DeskScreen: React.FC = () => {
 /* back-end add-ons, desking grid, actions (mockup lines 376-477).    */
 /* ================================================================== */
 
-interface FocusedPanelProps {
+interface DeskTermsRailProps {
+  customerName: string;
+  setCustomerName: (value: string) => void;
+  filters: FilterData;
+  setFilter: (patch: Partial<FilterData>) => void;
+  dealData: DealData;
+  setDeal: (patch: Partial<DealData>) => void;
+  buyerState: AppState;
+  aprText: string;
+  onAprChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  buyRate: { rate: number; lender: string } | null;
+  applyBuyRate: () => void;
+  advancedOpen: boolean;
+  onToggleAdvanced: () => void;
+  onReset: () => void;
+  onClearFilters: () => void;
+  onScanIncome: () => void;
+}
+
+const DeskTermsRail: React.FC<DeskTermsRailProps> = ({
+  customerName,
+  setCustomerName,
+  filters,
+  setFilter,
+  dealData,
+  setDeal,
+  buyerState,
+  aprText,
+  onAprChange,
+  buyRate,
+  applyBuyRate,
+  advancedOpen,
+  onToggleAdvanced,
+  onReset,
+  onClearFilters,
+  onScanIncome,
+}) => {
+  const setNumber = (fn: (n: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const n = parseMoneyInput(e.target.value);
+    fn(n);
+  };
+
+  return (
+    <section className="desk-terms-card">
+      <div className="desk-terms-head">
+        <div className="desk-section-title">
+          <span>01</span>
+          <strong>Deal terms</strong>
+          <span className="desk-live-pill">
+            <span className="live-dot" />
+            Live
+          </span>
+        </div>
+        <div className="desk-terms-actions">
+          <span>Every edit reprices inventory and lender fit.</span>
+          <button type="button" className="desk-ghost-btn lift-btn" onClick={onToggleAdvanced}>
+            {advancedOpen ? "Hide filters" : "More filters"}
+          </button>
+          <button type="button" className="desk-ghost-btn lift-btn" onClick={onReset}>
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div className="desk-terms-primary">
+        <div className="desk-field">
+          <label htmlFor="desk-customer">Customer</label>
+          <input
+            id="desk-customer"
+            className="dc-input"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            placeholder="Add customer"
+          />
+        </div>
+        <div className="desk-field compact">
+          <label htmlFor="desk-fico">FICO</label>
+          <input
+            id="desk-fico"
+            className="dc-input mono"
+            inputMode="numeric"
+            value={filters.creditScore ?? ""}
+            onChange={setNumber((n) => setFilter({ creditScore: n || null }))}
+          />
+        </div>
+        <div className="desk-field">
+          <label htmlFor="desk-income">Income / mo</label>
+          <div className="desk-input-action">
+            <input
+              id="desk-income"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={filters.monthlyIncome ?? ""}
+              onChange={setNumber((n) => setFilter({ monthlyIncome: n || null }))}
+              placeholder="Gross"
+            />
+            <button
+              type="button"
+              onClick={onScanIncome}
+              aria-label="Scan pay stub"
+              title="Scan pay stub"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
+                <path d="M3 12h18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className="desk-field compact">
+          <label htmlFor="desk-down">Down</label>
+          <input
+            id="desk-down"
+            className="dc-input mono"
+            inputMode="numeric"
+            value={dealData.downPayment || ""}
+            onChange={setNumber((n) => setDeal({ downPayment: n }))}
+          />
+        </div>
+        <div className="desk-field term">
+          <label>Term</label>
+          <div className="desk-term-buttons" role="group" aria-label="Loan term">
+            {DESK_TERMS.map((term) => (
+              <button
+                type="button"
+                key={term}
+                className="lift-btn"
+                data-active={dealData.loanTerm === term}
+                onClick={() => setDeal({ loanTerm: term })}
+              >
+                {term}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="desk-field compact">
+          <label htmlFor="desk-apr">APR</label>
+          <input
+            id="desk-apr"
+            className="dc-input mono"
+            inputMode="decimal"
+            value={aprText}
+            onChange={onAprChange}
+          />
+          {buyRate && (
+            <button type="button" className="desk-inline-link" onClick={applyBuyRate}>
+              Use {buyRate.rate}% · {buyRate.lender}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {advancedOpen && (
+        <div className="desk-terms-advanced">
+          <div className="desk-field">
+            <label htmlFor="desk-buyer-state">Buyer state</label>
+            <select
+              id="desk-buyer-state"
+              className="dc-input"
+              value={buyerState}
+              onChange={(e) => setDeal({ buyerState: e.target.value as AppState })}
+            >
+              <option value="MI">MI · 6%</option>
+              <option value="OH">OH · 5.75%</option>
+              <option value="IN">IN · 6% recip.</option>
+              <option value="IL">IL · 6% recip.</option>
+              <option value="FL">FL · 6%</option>
+            </select>
+          </div>
+          <div className="desk-field">
+            <label htmlFor="desk-trade-value">Trade value</label>
+            <input
+              id="desk-trade-value"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={dealData.tradeInValue || ""}
+              onChange={setNumber((n) => setDeal({ tradeInValue: n }))}
+            />
+          </div>
+          <div className="desk-field">
+            <label htmlFor="desk-trade-payoff">Trade payoff</label>
+            <input
+              id="desk-trade-payoff"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={dealData.tradeInPayoff || ""}
+              onChange={setNumber((n) => setDeal({ tradeInPayoff: n }))}
+            />
+          </div>
+          <div className="desk-field">
+            <label htmlFor="desk-filter-vehicle">Vehicle filter</label>
+            <input
+              id="desk-filter-vehicle"
+              className="dc-input"
+              value={filters.vehicle}
+              onChange={(e) => setFilter({ vehicle: e.target.value })}
+              placeholder="Make / model"
+            />
+          </div>
+          <div className="desk-field compact">
+            <label htmlFor="desk-max-price">Max price</label>
+            <input
+              id="desk-max-price"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={filters.maxPrice ?? ""}
+              onChange={setNumber((n) => setFilter({ maxPrice: n || null }))}
+              placeholder="Any"
+            />
+          </div>
+          <div className="desk-field compact">
+            <label htmlFor="desk-max-payment">Max $/mo</label>
+            <input
+              id="desk-max-payment"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={filters.maxPayment ?? ""}
+              onChange={setNumber((n) => setFilter({ maxPayment: n || null }))}
+              placeholder="Any"
+            />
+          </div>
+          <div className="desk-field compact">
+            <label htmlFor="desk-max-miles">Max miles</label>
+            <input
+              id="desk-max-miles"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={filters.maxMiles ?? ""}
+              onChange={setNumber((n) => setFilter({ maxMiles: n || null }))}
+              placeholder="Any"
+            />
+          </div>
+          <div className="desk-field compact">
+            <label htmlFor="desk-min-score">Min odds</label>
+            <input
+              id="desk-min-score"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={filters.minScore ?? ""}
+              onChange={setNumber((n) => setFilter({ minScore: n || null }))}
+              placeholder="Any"
+            />
+          </div>
+          <button type="button" className="desk-clear-btn lift-btn" onClick={onClearFilters}>
+            Clear filters
+          </button>
+        </div>
+      )}
+    </section>
+  );
+};
+
+interface DealInspectorProps {
   vehicle: CalculatedVehicle;
   entries: LenderFitEntry[];
   profilesById: Map<string, LenderProfile>;
@@ -1364,11 +1317,16 @@ interface FocusedPanelProps {
   pinned: boolean;
   onPin: () => void;
   onSetTermDown: (term: number, down: number) => void;
+  compactMode: boolean;
+  compactOpen: boolean;
+  onCloseCompact: () => void;
   vscAmount: number;
   gapAmount: number;
   otherBackend: number;
   onToggleVsc: () => void;
   onToggleGap: () => void;
+  onVscAmountChange: (n: number) => void;
+  onGapAmountChange: (n: number) => void;
   onOtherBackendChange: (n: number) => void;
   onDealSheet: () => void;
   onSaveDeal: () => void;
@@ -1400,7 +1358,9 @@ const lenderMeta = (entry: LenderFitEntry, profile: LenderProfile | undefined): 
   return `${ltv != null ? `${Math.round(ltv)}%` : "—"} · ${term != null ? `${term} mo` : "—"}`;
 };
 
-const FocusedPanel: React.FC<FocusedPanelProps> = ({
+type InspectorTab = "summary" | "addons" | "matrix";
+
+const DealInspector: React.FC<DealInspectorProps> = ({
   vehicle: v,
   entries,
   profilesById,
@@ -1410,15 +1370,23 @@ const FocusedPanel: React.FC<FocusedPanelProps> = ({
   pinned,
   onPin,
   onSetTermDown,
+  compactMode,
+  compactOpen,
+  onCloseCompact,
   vscAmount,
   gapAmount,
   otherBackend,
   onToggleVsc,
   onToggleGap,
+  onVscAmountChange,
+  onGapAmountChange,
   onOtherBackendChange,
   onDealSheet,
   onSaveDeal,
 }) => {
+  const [tab, setTab] = useState<InspectorTab>("summary");
+  const panelRef = useRef<HTMLElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const thresholds = settings.ltvThresholds;
   const band = v.approvalBand ?? "none";
   const fitCount = v.fitCount ?? 0;
@@ -1473,505 +1441,184 @@ const FocusedPanel: React.FC<FocusedPanelProps> = ({
     [v, dealData, settings]
   );
 
-  const addonRowStyle = (active: boolean): React.CSSProperties => ({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "8px 10px",
-    borderRadius: 8,
-    cursor: "pointer",
-    border: `1px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
-    background: active ? "var(--color-primary-subtle)" : "var(--color-bg-subtle)",
-    fontFamily: "inherit",
-    width: "100%",
-  });
-  const addonMark: React.CSSProperties = {
-    width: 16,
-    height: 16,
-    borderRadius: 5,
-    border: "1px solid var(--color-border-strong)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 11,
-    color: "var(--color-primary)",
-    fontWeight: 700,
-    flexShrink: 0,
+  useEffect(() => {
+    if (!compactMode) return;
+    if (compactOpen) {
+      previousFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      panelRef.current?.focus();
+      return;
+    }
+    previousFocusRef.current?.focus();
+  }, [compactMode, compactOpen]);
+
+  const handleInspectorKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!compactMode) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onCloseCompact();
+      return;
+    }
+    if (event.key !== "Tab" || !compactOpen || !panelRef.current) return;
+
+    const focusables = Array.from(
+      panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => !el.hasAttribute("inert") && el.offsetParent !== null);
+    if (!focusables.length) return;
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   };
 
+  const compactA11yProps: React.HTMLAttributes<HTMLElement> = compactMode
+    ? {
+        role: "dialog",
+        "aria-modal": compactOpen,
+        "aria-label": "Deal inspector",
+        "aria-hidden": !compactOpen,
+        inert: !compactOpen,
+      }
+    : {};
+
   return (
-    <div
-      style={{
-        width: 280,
-        flexShrink: 0,
-        background: "var(--color-bg)",
-        border: "1px solid var(--color-border-strong)",
-        borderRadius: 14,
-        boxShadow: "var(--shadow-md)",
-        overflow: "hidden",
-      }}
+    <aside
+      ref={panelRef}
+      className="desk-inspector"
+      data-open={compactOpen}
+      tabIndex={compactMode && compactOpen ? -1 : undefined}
+      onKeyDown={handleInspectorKeyDown}
+      {...compactA11yProps}
     >
-      {/* Header */}
-      <div style={{ padding: "16px 19px 14px", borderBottom: "1px solid var(--color-border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
-          <span style={{ fontSize: 11, fontFamily: mono, color: "var(--color-text-subtle)" }}>
-            03
-          </span>
-          <span style={{ fontSize: 12, fontFamily: mono, color: "var(--color-text-subtle)" }}>
-            STK {v.stock} · {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi
-          </span>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              fontFamily: mono,
-              background: "var(--color-primary-subtle)",
-              color: "var(--color-primary)",
-              padding: "2px 7px",
-              borderRadius: 5,
-            }}
-          >
-            FOCUSED
-          </span>
+      <div className="desk-inspector-head">
+        <div className="desk-inspector-kicker">
+          <span>03</span>
+          <span>STK {v.stock}</span>
+          <span>{typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi</span>
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {v.vehicle}
+        <div className="desk-inspector-title-row">
+          <h2>{v.vehicle}</h2>
+          <div className="desk-inspector-head-actions">
+            <button type="button" className="desk-ghost-btn lift-btn" onClick={onPin}>
+              {pinned ? "Comparing" : "Compare"}
+            </button>
+            <button
+              type="button"
+              className="desk-inspector-close lift-btn"
+              onClick={onCloseCompact}
+              aria-label="Close deal inspector"
+            >
+              ×
+            </button>
           </div>
+        </div>
+      </div>
+
+      <InspectorSummary
+        score={dispScore}
+        bandLabel={BAND_META[dispBand].label}
+        gaugeColor={gaugeColor}
+        pay={pay}
+        loanTerm={dealData.loanTerm}
+        apr={aprLabel(dealData.interestRate)}
+        fitCount={fitCount}
+        totalLenders={totalLenders}
+        financed={financed}
+        backendProducts={dealData.backendProducts || 0}
+        otdLtv={v.otdLtv}
+        pti={pti}
+        thresholds={thresholds}
+      />
+
+      <div className="desk-inspector-tabs" role="tablist" aria-label="Deal inspector sections">
+        {[
+          ["summary", "Summary"],
+          ["addons", "Add-ons"],
+          ["matrix", "Matrix"],
+        ].map(([key, label]) => (
           <button
-            onClick={onPin}
+            type="button"
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            data-active={tab === key}
             className="lift-btn"
-            style={{
-              flexShrink: 0,
-              background: pinned ? "var(--color-primary-subtle)" : "transparent",
-              border: `1px solid ${pinned ? "var(--color-primary)" : "var(--color-border-strong)"}`,
-              color: pinned ? "var(--color-primary)" : "var(--color-text-muted)",
-              borderRadius: 7,
-              padding: "5px 9px",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              whiteSpace: "nowrap",
-            }}
+            onClick={() => setTab(key as InspectorTab)}
           >
-            {pinned ? "✓ Comparing" : "+ Compare"}
+            {label}
           </button>
-        </div>
+        ))}
       </div>
 
-      {/* Gauge */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          padding: "18px 19px 16px",
-          borderBottom: "1px solid var(--color-border)",
-          position: "relative",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 6,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 190,
-            height: 110,
-            borderRadius: "50%",
-            background: `radial-gradient(closest-side, color-mix(in srgb, ${gaugeColor} 16%, transparent), transparent)`,
-            pointerEvents: "none",
-          }}
-        />
-        <ApprovalGauge score={dispScore} colorVar={gaugeColor} label={BAND_META[dispBand].label} />
-        <div
-          style={{
-            fontSize: 11,
-            fontFamily: mono,
-            letterSpacing: "0.16em",
-            color: "var(--color-text-muted)",
-            marginTop: -2,
-          }}
-        >
-          APPROVAL ODDS / 100
-        </div>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            letterSpacing: "-0.01em",
-            marginTop: 8,
-            color: gaugeColor,
-          }}
-        >
-          {BAND_META[dispBand].label}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            marginTop: 6,
-            fontSize: 12,
-            fontFamily: mono,
-            color: "var(--color-text-subtle)",
-          }}
-        >
-          <span style={{ color: fitCountColor(fitCount), fontWeight: 600 }}>
-            {fitCount}/{totalLenders}
-          </span>
-          lenders fit
-          <span style={{ opacity: 0.4 }}>·</span>
-          {dealData.loanTerm} mo
-        </div>
-      </div>
-
-      {/* Payment hero */}
-      <div
-        className="pay-glow"
-        style={{ padding: 19, borderBottom: "1px solid var(--color-border)", position: "relative" }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.1em",
-            fontFamily: mono,
-            color: "var(--color-text-muted)",
-            marginBottom: 6,
-          }}
-        >
-          EST. MONTHLY PAYMENT
-        </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 1 }}>
-          <span
-            style={{
-              fontSize: 46,
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              lineHeight: 1,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {pay ? pay.whole : "—"}
-          </span>
-          <span
-            style={{
-              fontSize: 21,
-              fontWeight: 600,
-              color: "var(--color-text-muted)",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {pay ? pay.frac : ""}
-          </span>
-        </div>
-        <div style={{ fontSize: 12, color: "var(--color-text-subtle)", marginTop: 6 }}>
-          {dealData.loanTerm} mo · {aprLabel(dealData.interestRate)} APR · estimate, not an offer of
-          credit
-        </div>
-      </div>
-
-      {/* Lender fits */}
-      <div style={{ padding: "15px 19px", borderBottom: "1px solid var(--color-border)" }}>
-        <div style={panelEyebrow}>
-          LENDER FITS · {fitCount}/{totalLenders}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {entries.length === 0 && (
-            <span style={{ fontSize: 12.5, color: "var(--color-text-subtle)" }}>
-              No active lenders configured.
-            </span>
-          )}
-          {entries.map((l) => {
-            // Badge follows the SAME scoring pass as the gauge (fitNames), so
-            // the panel can never contradict itself mid-debounce.
-            const fits = fitNames.includes(l.name);
-            return (
-              <div
-                key={l.lenderId}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.04em",
-                      fontFamily: mono,
-                      padding: "2px 6px",
-                      borderRadius: 5,
-                      background: fits ? "var(--color-success-subtle)" : "var(--color-bg-muted)",
-                      color: fits ? "var(--color-success)" : "var(--color-text-subtle)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {fits ? "FIT" : "CHK"}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {l.name}
-                  </span>
-                </div>
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontFamily: mono,
-                    color: "var(--color-text-subtle)",
-                    flexShrink: 0,
-                    marginLeft: 8,
-                  }}
-                >
-                  {lenderMeta(l, profilesById.get(l.lenderId))}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Financial breakdown */}
-      <div
-        style={{
-          padding: "15px 19px",
-          borderBottom: "1px solid var(--color-border)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 9,
-        }}
-      >
-        <Line label="Selling price" value={price === null ? "—" : fmt(price)} />
-        <Line label="Tax + fees" value={taxFees === null ? "—" : fmt(taxFees)} />
-        <Line
-          label="Down + trade + rebate"
-          value={down >= 0 ? `−${fmt(down)}` : `+${fmt(-down)}`}
-          color="var(--color-danger)"
-        />
-        <Line
-          label="OTD LTV"
-          value={pct(v.otdLtv)}
-          color={otdColorFor(v.otdLtv, thresholds)}
-          bold
-        />
-        <Line
-          label="Payment-to-income"
-          value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
-          color={ptiColorFor(pti)}
-          bold
-        />
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: 14,
-            paddingTop: 9,
-            borderTop: "1px solid var(--color-border)",
-          }}
-        >
-          <span style={{ fontWeight: 600 }}>Amount financed</span>
-          <span style={{ fontFamily: mono, fontWeight: 700, color: "var(--color-primary)" }}>
-            {financed === null ? "—" : fmt(financed)}
-          </span>
-        </div>
-      </div>
-
-      {/* Back-end add-ons */}
-      <div style={{ padding: "15px 19px", borderBottom: "1px solid var(--color-border)" }}>
-        <div style={panelEyebrow}>BACK-END ADD-ONS</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <button onClick={onToggleVsc} className="lift-btn" style={addonRowStyle(vscAmount > 0)}>
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={addonMark}>{vscAmount > 0 ? "✓" : "+"}</span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}>
-                Service contract
-              </span>
-            </span>
-            <span style={{ fontSize: 13, fontFamily: mono, color: "var(--color-text-muted)" }}>
-              {fmt(settings.vscPrice)}
-            </span>
-          </button>
-          <button onClick={onToggleGap} className="lift-btn" style={addonRowStyle(gapAmount > 0)}>
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={addonMark}>{gapAmount > 0 ? "✓" : "+"}</span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}>
-                GAP coverage
-              </span>
-            </span>
-            <span style={{ fontSize: 13, fontFamily: mono, color: "var(--color-text-muted)" }}>
-              {fmt(settings.gapPrice)}
-            </span>
-          </button>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-              padding: "8px 10px",
-              borderRadius: 8,
-              border: `1px solid ${otherBackend > 0 ? "var(--color-primary)" : "var(--color-border)"}`,
-              background: otherBackend > 0 ? "var(--color-primary-subtle)" : "var(--color-bg-subtle)",
-            }}
-          >
-            <label
-              htmlFor="desk-other-backend"
-              style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}
-            >
-              Other backend ($)
-            </label>
-            <input
-              id="desk-other-backend"
-              className="dc-input"
-              inputMode="numeric"
-              value={otherBackend || ""}
-              onChange={(e) => {
-                const x = parseFloat(e.target.value.replace(/[^0-9.]/g, ""));
-                onOtherBackendChange(Number.isFinite(x) ? x : 0);
-              }}
-              placeholder="0"
-              style={{
-                width: 84,
-                background: "var(--color-bg)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 6,
-                padding: "4px 8px",
-                fontSize: 13,
-                color: "var(--color-text)",
-                fontFamily: mono,
-                outline: "none",
-                textAlign: "right",
-              }}
+      <div className="desk-inspector-body">
+        {tab === "summary" && (
+          <>
+            <LenderLadder
+              entries={entries}
+              fitNames={fitNames}
+              profilesById={profilesById}
+              fitCount={fitCount}
+              totalLenders={totalLenders}
+              limit={3}
             />
-          </div>
-        </div>
+            <FinancialBreakdown
+              price={price}
+              taxFees={taxFees}
+              down={down}
+              otdLtv={v.otdLtv}
+              pti={pti}
+              financed={financed}
+              thresholds={thresholds}
+            />
+            <BackendAddons
+              vscAmount={vscAmount}
+              gapAmount={gapAmount}
+              otherBackend={otherBackend}
+              defaultVsc={settings.vscPrice}
+              defaultGap={settings.gapPrice}
+              onToggleVsc={onToggleVsc}
+              onToggleGap={onToggleGap}
+              onVscAmountChange={onVscAmountChange}
+              onGapAmountChange={onGapAmountChange}
+              onOtherBackendChange={onOtherBackendChange}
+            />
+          </>
+        )}
+        {tab === "addons" && (
+          <BackendAddons
+            vscAmount={vscAmount}
+            gapAmount={gapAmount}
+            otherBackend={otherBackend}
+            defaultVsc={settings.vscPrice}
+            defaultGap={settings.gapPrice}
+            onToggleVsc={onToggleVsc}
+            onToggleGap={onToggleGap}
+            onVscAmountChange={onVscAmountChange}
+            onGapAmountChange={onGapAmountChange}
+            onOtherBackendChange={onOtherBackendChange}
+          />
+        )}
+        {tab === "matrix" && (
+          <StructureMatrix
+            grid={grid}
+            loanTerm={dealData.loanTerm}
+            downPayment={dealData.downPayment || 0}
+            onSetTermDown={onSetTermDown}
+          />
+        )}
       </div>
 
-      {/* Desking grid */}
-      <div style={{ padding: "15px 19px", borderBottom: "1px solid var(--color-border)" }}>
-        <div style={panelEyebrow}>DESKING GRID · TERM × DOWN</div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "0.72fr 1fr 1fr 1fr 1fr",
-            gap: 3,
-            marginBottom: 3,
-          }}
-        >
-          <span />
-          {DOWN_LABELS.map((d) => (
-            <span
-              key={d}
-              style={{
-                fontSize: 11,
-                fontFamily: mono,
-                color: "var(--color-text-subtle)",
-                textAlign: "center",
-              }}
-            >
-              {d}
-            </span>
-          ))}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {grid.map((gr) => (
-            <div
-              key={gr.term}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "0.72fr 1fr 1fr 1fr 1fr",
-                gap: 3,
-                alignItems: "stretch",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 12,
-                  fontFamily: mono,
-                  color: "var(--color-text-muted)",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                {gr.term}mo
-              </span>
-              {gr.cells.map((gc) => {
-                const active =
-                  gr.term === dealData.loanTerm && gc.down === (dealData.downPayment || 0);
-                return (
-                  <button
-                    key={gc.down}
-                    onClick={() => onSetTermDown(gr.term, gc.down)}
-                    className="lift-btn"
-                    style={{
-                      padding: "6px 2px",
-                      borderRadius: 7,
-                      cursor: "pointer",
-                      border: `1px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
-                      background: active ? "var(--color-primary-subtle)" : "var(--color-bg-subtle)",
-                      fontFamily: mono,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "var(--color-text)",
-                      textAlign: "center",
-                    }}
-                  >
-                    {gc.pay === null ? "—" : fmt(gc.pay)}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div style={{ padding: "15px 19px", display: "flex", gap: 9 }}>
-        <button
-          onClick={onDealSheet}
-          className="lift-btn"
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "1px solid var(--color-border-strong)",
-            color: "var(--color-text)",
-            borderRadius: 9,
-            padding: 9,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-          }}
-        >
+      <div className="desk-inspector-actions">
+        <button type="button" onClick={onDealSheet} className="desk-secondary-action lift-btn">
           <svg
             width="14"
             height="14"
@@ -1985,26 +1632,7 @@ const FocusedPanel: React.FC<FocusedPanelProps> = ({
           </svg>
           Deal sheet
         </button>
-        <button
-          onClick={onSaveDeal}
-          className="lift-btn"
-          style={{
-            flex: 1.4,
-            background: "var(--color-primary)",
-            border: "1px solid transparent",
-            color: "var(--on-primary)",
-            borderRadius: 9,
-            padding: 9,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-          }}
-        >
+        <button type="button" onClick={onSaveDeal} className="desk-primary-action lift-btn">
           <svg
             width="14"
             height="14"
@@ -2019,9 +1647,329 @@ const FocusedPanel: React.FC<FocusedPanelProps> = ({
           Save deal
         </button>
       </div>
-    </div>
+    </aside>
   );
 };
+
+interface InspectorSummaryProps {
+  score: number;
+  bandLabel: string;
+  gaugeColor: string;
+  pay: ReturnType<typeof splitPay> | null;
+  loanTerm: number;
+  apr: string;
+  fitCount: number;
+  totalLenders: number;
+  financed: number | null;
+  backendProducts: number;
+  otdLtv: number | "Error" | "N/A";
+  pti: number | undefined;
+  thresholds: Settings["ltvThresholds"];
+}
+
+const InspectorSummary: React.FC<InspectorSummaryProps> = ({
+  score,
+  bandLabel,
+  gaugeColor,
+  pay,
+  loanTerm,
+  apr,
+  fitCount,
+  totalLenders,
+  financed,
+  backendProducts,
+  otdLtv,
+  pti,
+  thresholds,
+}) => (
+  <section className="desk-inspector-summary pay-glow">
+    <div className="desk-score-cell">
+      <ApprovalGauge score={score} colorVar={gaugeColor} label={bandLabel} width={150} />
+      <div className="desk-score-label" style={{ color: gaugeColor }}>
+        {bandLabel}
+      </div>
+      <div className="desk-fit-caption">
+        <strong style={{ color: fitCountColor(fitCount) }}>
+          {fitCount}/{totalLenders}
+        </strong>{" "}
+        lenders fit
+      </div>
+    </div>
+    <div className="desk-payment-cell">
+      <div className="desk-payment-label">Est. monthly payment</div>
+      <div className="desk-payment-value">
+        <span>{pay ? pay.whole : "—"}</span>
+        <small>{pay ? pay.frac : ""}</small>
+      </div>
+      <div className="desk-payment-meta">
+        {loanTerm} mo · {apr} APR · estimate
+      </div>
+      <div className="desk-summary-metrics">
+        <Metric label="Financed" value={financed === null ? "—" : fmt(financed)} tone="primary" />
+        <Metric label="Back-end" value={fmt(backendProducts)} color="var(--color-text)" />
+        <Metric label="OTD LTV" value={pct(otdLtv)} color={otdColorFor(otdLtv, thresholds)} />
+        <Metric
+          label="PTI"
+          value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
+          color={ptiColorFor(pti)}
+        />
+      </div>
+    </div>
+  </section>
+);
+
+const Metric: React.FC<{ label: string; value: string; tone?: "primary"; color?: string }> = ({
+  label,
+  value,
+  tone,
+  color,
+}) => (
+  <div>
+    <span>{label}</span>
+    <strong style={{ color: tone === "primary" ? "var(--color-primary)" : color }}>{value}</strong>
+  </div>
+);
+
+interface LenderLadderProps {
+  entries: LenderFitEntry[];
+  fitNames: string[];
+  profilesById: Map<string, LenderProfile>;
+  fitCount: number;
+  totalLenders: number;
+  limit?: number;
+}
+
+const LenderLadder: React.FC<LenderLadderProps> = ({
+  entries,
+  fitNames,
+  profilesById,
+  fitCount,
+  totalLenders,
+  limit,
+}) => {
+  const visible = (limit ? entries.slice(0, limit) : entries).filter(Boolean);
+  return (
+    <section className="desk-panel-section">
+      <div className="desk-panel-heading">
+        <span>Lender paths</span>
+        <strong style={{ color: fitCountColor(fitCount) }}>
+          {fitCount}/{totalLenders}
+        </strong>
+      </div>
+      {fitNames.length > 0 && (
+        <div className="desk-lender-paths">
+          {fitNames.slice(0, 3).map((name) => (
+            <span key={name}>{name}</span>
+          ))}
+        </div>
+      )}
+      <div className="desk-lender-list">
+        {visible.map((entry) => {
+          const profile = profilesById.get(entry.lenderId);
+          return (
+            <div key={entry.lenderId} className="desk-lender-row">
+              <span className="desk-lender-badge" data-fit={entry.eligible}>
+                {entry.eligible ? "FIT" : "CHK"}
+              </span>
+              <span className="desk-lender-name" title={entry.name}>
+                {entry.name}
+              </span>
+              <span className="desk-lender-meta">{lenderMeta(entry, profile)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+interface FinancialBreakdownProps {
+  price: number | null;
+  taxFees: number | null;
+  down: number;
+  otdLtv: number | "Error" | "N/A";
+  pti: number | undefined;
+  financed: number | null;
+  thresholds: Settings["ltvThresholds"];
+}
+
+const FinancialBreakdown: React.FC<FinancialBreakdownProps> = ({
+  price,
+  taxFees,
+  down,
+  otdLtv,
+  pti,
+  financed,
+  thresholds,
+}) => (
+  <section className="desk-panel-section">
+    <div className="desk-panel-heading">
+      <span>Structure</span>
+      <strong style={{ color: otdColorFor(otdLtv, thresholds) }}>{pct(otdLtv)}</strong>
+    </div>
+    <div className="desk-breakdown-list">
+      <Line label="Selling price" value={price === null ? "—" : fmt(price)} />
+      <Line label="Tax + fees" value={taxFees === null ? "—" : fmt(taxFees)} />
+      <Line
+        label="Down + trade + rebate"
+        value={down ? `-${fmt(down)}` : "-$0"}
+        color="var(--color-danger)"
+      />
+      <Line
+        label="Payment-to-income"
+        value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
+        color={ptiColorFor(pti)}
+      />
+      <Line
+        label="Amount financed"
+        value={financed === null ? "—" : fmt(financed)}
+        color="var(--color-primary)"
+        bold
+      />
+    </div>
+  </section>
+);
+
+interface BackendAddonsProps {
+  vscAmount: number;
+  gapAmount: number;
+  otherBackend: number;
+  defaultVsc: number;
+  defaultGap: number;
+  onToggleVsc: () => void;
+  onToggleGap: () => void;
+  onVscAmountChange: (n: number) => void;
+  onGapAmountChange: (n: number) => void;
+  onOtherBackendChange: (n: number) => void;
+}
+
+const amountValue = (value: number): string => (value > 0 ? String(value) : "");
+
+const BackendAddons: React.FC<BackendAddonsProps> = ({
+  vscAmount,
+  gapAmount,
+  otherBackend,
+  defaultVsc,
+  defaultGap,
+  onToggleVsc,
+  onToggleGap,
+  onVscAmountChange,
+  onGapAmountChange,
+  onOtherBackendChange,
+}) => {
+  const total = vscAmount + gapAmount + otherBackend;
+  const onMoney = (fn: (n: number) => void) => (event: React.ChangeEvent<HTMLInputElement>) =>
+    fn(parseMoneyInput(event.target.value));
+
+  return (
+    <section className="desk-panel-section">
+      <div className="desk-panel-heading">
+        <span>Back-end add-ons</span>
+        <strong>{fmt(total)}</strong>
+      </div>
+      <div className="desk-backend-list">
+        <div className="desk-backend-row">
+          <button
+            type="button"
+            className="desk-backend-toggle lift-btn"
+            data-active={vscAmount > 0}
+            onClick={onToggleVsc}
+          >
+            <span>{vscAmount > 0 ? "−" : "+"}</span>
+            Service contract
+          </button>
+          <input
+            className="dc-input desk-backend-input"
+            inputMode="numeric"
+            value={amountValue(vscAmount)}
+            onChange={onMoney(onVscAmountChange)}
+            placeholder={String(defaultVsc)}
+            aria-label="Service contract amount"
+          />
+        </div>
+        <div className="desk-backend-row">
+          <button
+            type="button"
+            className="desk-backend-toggle lift-btn"
+            data-active={gapAmount > 0}
+            onClick={onToggleGap}
+          >
+            <span>{gapAmount > 0 ? "−" : "+"}</span>
+            GAP coverage
+          </button>
+          <input
+            className="dc-input desk-backend-input"
+            inputMode="numeric"
+            value={amountValue(gapAmount)}
+            onChange={onMoney(onGapAmountChange)}
+            placeholder={String(defaultGap)}
+            aria-label="GAP coverage amount"
+          />
+        </div>
+        <div className="desk-backend-row">
+          <div className="desk-backend-label">Other backend</div>
+          <input
+            className="dc-input desk-backend-input"
+            inputMode="numeric"
+            value={amountValue(otherBackend)}
+            onChange={onMoney(onOtherBackendChange)}
+            placeholder="0"
+            aria-label="Other backend amount"
+          />
+        </div>
+      </div>
+      <div className="desk-backend-total">
+        <span>Calculator total</span>
+        <strong>{fmt(total)}</strong>
+      </div>
+    </section>
+  );
+};
+
+interface StructureMatrixProps {
+  grid: { term: number; cells: { down: number; pay: number | null }[] }[];
+  loanTerm: number;
+  downPayment: number;
+  onSetTermDown: (term: number, down: number) => void;
+}
+
+const StructureMatrix: React.FC<StructureMatrixProps> = ({
+  grid,
+  loanTerm,
+  downPayment,
+  onSetTermDown,
+}) => (
+  <section className="desk-panel-section">
+    <div className="desk-panel-heading">
+      <span>Desking grid</span>
+      <strong>Term × down</strong>
+    </div>
+    <div className="desk-matrix">
+      <div className="desk-matrix-head">
+        <span />
+        {DOWN_LABELS.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+      {grid.map((row) => (
+        <div key={row.term} className="desk-matrix-row">
+          <span>{row.term}mo</span>
+          {row.cells.map((cell) => (
+            <button
+              type="button"
+              key={`${row.term}-${cell.down}`}
+              className="desk-matrix-cell lift-btn"
+              data-active={row.term === loanTerm && cell.down === downPayment}
+              onClick={() => onSetTermDown(row.term, cell.down)}
+            >
+              {cell.pay === null ? "—" : fmt(cell.pay)}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  </section>
+);
 
 const Line: React.FC<{ label: string; value: string; color?: string; bold?: boolean }> = ({
   label,
@@ -2031,7 +1979,13 @@ const Line: React.FC<{ label: string; value: string; color?: string; bold?: bool
 }) => (
   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
     <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
-    <span style={{ fontFamily: mono, fontWeight: bold ? 600 : 400, color: color || "var(--color-text)" }}>
+    <span
+      style={{
+        fontFamily: mono,
+        fontWeight: bold ? 600 : 400,
+        color: color || "var(--color-text)",
+      }}
+    >
       {value}
     </span>
   </div>

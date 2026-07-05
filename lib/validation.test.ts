@@ -106,6 +106,26 @@ describe("validateDealData", () => {
     expect(result.success).toBe(true);
   });
 
+  it("should validate richer deal JSON stored by saved deals", () => {
+    const deal = {
+      downPayment: 5000,
+      tradeInValue: 10000,
+      tradeInPayoff: 8000,
+      backendProducts: 3695,
+      loanTerm: 72,
+      interestRate: 6.99,
+      stateFees: 500,
+      notes: "",
+      buyerState: "IL",
+      rebate: 750,
+      vscAmount: 2495,
+      gapAmount: 895,
+    };
+
+    const result = validateDealData(deal);
+    expect(result.success).toBe(true);
+  });
+
   it("should reject negative down payment", () => {
     const deal = {
       downPayment: -100,

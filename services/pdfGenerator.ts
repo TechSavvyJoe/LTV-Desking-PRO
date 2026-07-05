@@ -4,7 +4,25 @@ import { PdfTemplate } from "../components/pdf/PdfTemplate";
 import { FavoritesPdfTemplate } from "../components/pdf/FavoritesPdfTemplate";
 import { LenderCheatSheetTemplate } from "../components/pdf/LenderCheatSheetTemplate";
 import { mapDealData } from "../lib/dealMappers";
+import { BlobDownloadError, assertDownloadBlob } from "../utils/downloadBlob";
 import type { DealPdfData, LenderProfile, Settings } from "../types";
+
+export type PdfGenerationErrorCode =
+  | "browser_unsupported"
+  | "dependency_load_failed"
+  | "render_failed"
+  | "blank_canvas"
+  | "invalid_blob";
+
+export class PdfGenerationError extends Error {
+  readonly code: PdfGenerationErrorCode;
+
+  constructor(code: PdfGenerationErrorCode, message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "PdfGenerationError";
+    this.code = code;
+  }
+}
 
 /**
  * Deal data persisted via localStorage can contain "" for cleared numeric
@@ -28,14 +46,65 @@ const normalizePdfData = (data: DealPdfData): DealPdfData => {
 // Defer until the user actually clicks "Download PDF" — they're then loaded
 // once per session and the browser caches the chunks for subsequent uses.
 const loadPdfDeps = async () => {
-  const [jsPDFModule, html2canvasModule] = await Promise.all([
-    import("jspdf"),
-    import("html2canvas"),
-  ]);
-  return {
-    jsPDF: jsPDFModule.default,
-    html2canvas: html2canvasModule.default,
-  };
+  try {
+    const [jsPDFModule, html2canvasModule] = await Promise.all([
+      import("jspdf"),
+      import("html2canvas"),
+    ]);
+    return {
+      jsPDF: jsPDFModule.default,
+      html2canvas: html2canvasModule.default,
+    };
+  } catch (error) {
+    throw new PdfGenerationError("dependency_load_failed", "PDF libraries could not be loaded.", {
+      cause: error,
+    });
+  }
+};
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const nextFrame = (): Promise<void> =>
+  new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 16);
+    }
+  });
+
+const waitForRenderReady = async (): Promise<void> => {
+  await delay(0);
+  await nextFrame();
+  await nextFrame();
+  if (document.fonts?.ready) {
+    await Promise.race([document.fonts.ready.then(() => undefined), delay(1_200)]);
+  }
+  await delay(80);
+};
+
+export const assertRenderedCanvas = (
+  canvas: Pick<HTMLCanvasElement, "width" | "height">,
+  imgData: string
+): void => {
+  if (!canvas.width || !canvas.height || imgData.length < 256) {
+    throw new PdfGenerationError(
+      "blank_canvas",
+      "The PDF could not be rendered (the page is too large for this device's browser). " +
+        "Try fewer vehicles per PDF or generate from a desktop browser."
+    );
+  }
+};
+
+export const assertGeneratedPdfBlob = (blob: Blob): void => {
+  try {
+    assertDownloadBlob(blob, { expectedType: "application/pdf", minBytes: 512 });
+  } catch (error) {
+    if (error instanceof BlobDownloadError) {
+      throw new PdfGenerationError("invalid_blob", error.message, { cause: error });
+    }
+    throw error;
+  }
 };
 
 const renderComponentAsPdfBlob = async (
@@ -43,7 +112,10 @@ const renderComponentAsPdfBlob = async (
   orientation: "portrait" | "landscape" = "portrait"
 ): Promise<Blob> => {
   if (typeof document === "undefined") {
-    throw new Error("PDF generation is only supported in the browser.");
+    throw new PdfGenerationError(
+      "browser_unsupported",
+      "PDF generation is only supported in the browser."
+    );
   }
 
   const { jsPDF, html2canvas } = await loadPdfDeps();
@@ -67,15 +139,8 @@ const renderComponentAsPdfBlob = async (
 
   try {
     // Render the component and wait for it to be fully painted in the DOM.
-    await new Promise<void>((resolve) => {
-      root.render(component);
-      // Use setTimeout to wait for the next event loop tick + paint
-      // requestAnimationFrame fires before paint, so it's unreliable here
-      setTimeout(() => resolve(), 50);
-    });
-
-    // A small extra delay can help with complex layouts or web fonts.
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    root.render(component);
+    await waitForRenderReady();
 
     const canvas = await html2canvas(container, {
       scale: 2, // Higher scale for better quality
@@ -90,12 +155,7 @@ const renderComponentAsPdfBlob = async (
     // returns an empty canvas / "data:," past the limit. Fail with a clear
     // message instead of handing the user an empty PDF. [C-services]
     const imgData = canvas.toDataURL("image/png");
-    if (!canvas.width || !canvas.height || imgData.length < 256) {
-      throw new Error(
-        "The PDF could not be rendered (the page is too large for this device's browser). " +
-          "Try fewer vehicles per PDF or generate from a desktop browser."
-      );
-    }
+    assertRenderedCanvas(canvas, imgData);
 
     const pdf = new jsPDF({
       orientation,
@@ -126,10 +186,14 @@ const renderComponentAsPdfBlob = async (
       heightLeft -= pdfHeight;
     }
 
-    return pdf.output("blob");
+    const blob = pdf.output("blob");
+    assertGeneratedPdfBlob(blob);
+    return blob;
   } catch (error) {
-    console.error("PDF Generation Error:", error);
-    throw new Error("Failed to create the PDF. Please check the console for details.");
+    if (error instanceof PdfGenerationError) throw error;
+    throw new PdfGenerationError("render_failed", "Failed to create the PDF.", {
+      cause: error,
+    });
   } finally {
     // CRITICAL: Always clean up the DOM element and unmount the React component.
     try {
