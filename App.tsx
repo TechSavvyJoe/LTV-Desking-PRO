@@ -57,14 +57,20 @@ const DeskRoute: React.FC = () => <DeskScreen />;
 
 /** Finance tools drawer route — the old "scratchpad" tab, now at /tools. */
 const ToolsRoute: React.FC = () => {
-  const { scratchPadNotes, setScratchPadNotes, dealData, activeVehicle } = useDealContext();
+  const { scratchPadNotes, setScratchPadNotes, dealData, activeVehicle, processedInventory } =
+    useDealContext();
+  // activeVehicle is a snapshot frozen at focus time; resolve the LIVE
+  // computed vehicle so the tools' charts reprice with the deal. [review/P2]
+  const liveVehicle =
+    (activeVehicle && processedInventory.find((v) => v.vin === activeVehicle.vin)) ||
+    activeVehicle;
   return (
     <Suspense fallback={<DataLoading label="Loading tools…" />}>
       <FinanceTools
         scratchPadNotes={scratchPadNotes}
         setScratchPadNotes={setScratchPadNotes}
         dealData={dealData}
-        activeVehicle={activeVehicle}
+        activeVehicle={liveVehicle}
       />
     </Suspense>
   );

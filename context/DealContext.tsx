@@ -16,8 +16,10 @@ import {
   updateInventoryItem,
   subscribeToInventory,
   subscribeToSavedDeals,
+  subscribeToLenderProfiles,
 } from "../lib/api";
 import { isAuthenticated } from "../lib/auth";
+import { toast } from "../lib/toast";
 import type {
   Vehicle,
   DealData,
@@ -144,7 +146,10 @@ interface DeskUiState {
 const DESK_UI_FALLBACK: DeskUiState = {
   v: 1,
   focusVin: null,
-  sort: { key: null, direction: "asc" },
+  // "Ranked by odds" is the product's default ordering on BOTH the desk and
+  // the inventory screen — a null key left the Inventory screen unsorted
+  // (PB insertion order) on first run. [review/P2]
+  sort: { key: "approvalScore", direction: "desc" },
 };
 
 const loadDeskUi = (): DeskUiState => {
@@ -418,10 +423,16 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubDeals = subscribeToSavedDeals((data) =>
       setSavedDeals(data.map(mapPocketBaseSavedDeal))
     );
+    // Lender programs sync live too — otherwise a second tab/user's edits are
+    // invisible here and the next local edit clobbers them wholesale. The
+    // Lenders screen's optimistic edits survive: its 500ms write lands first,
+    // then this refetch echoes the server truth back. [review/P2]
+    const unsubLenders = subscribeToLenderProfiles((data) => setLenderProfiles(data));
 
     return () => {
       unsubInv();
       unsubDeals();
+      unsubLenders();
     };
   }, [loadData, dealerEpoch]);
 
@@ -463,16 +474,27 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         miTradeInCreditCap: newSettings.miTradeInCreditCap,
         vscPrice: newSettings.vscPrice,
         gapPrice: newSettings.gapPrice,
-      }).catch((err) => console.error("Failed to persist settings", err));
+      }).catch((err) => {
+        console.error("Failed to persist settings", err);
+        toast.error("Couldn't sync settings to the server — local defaults still apply.");
+      });
 
       return newSettings;
     });
   }, []);
 
+  // Mark the deal dirty only on USER edits while a vehicle is active. The desk
+  // auto-focuses the top-ranked row (which sets activeVehicle), and that
+  // transition alone must NOT arm the beforeunload "unsaved deal" warning —
+  // otherwise every session shows the leave-site dialog untouched. [review/P1]
+  const prevDirtyVinRef = useRef<string | null>(null);
   useEffect(() => {
-    if (activeVehicle) {
-      setIsDealDirty(true);
-    }
+    const vin = activeVehicle?.vin ?? null;
+    const vehicleChanged = vin !== prevDirtyVinRef.current;
+    prevDirtyVinRef.current = vin;
+    if (!activeVehicle) return;
+    if (vehicleChanged) return; // focusing/auto-selection is not an edit
+    setIsDealDirty(true);
   }, [dealData, filters, customerName, salespersonName, activeVehicle]);
 
   // Debounce expensive calculation inputs

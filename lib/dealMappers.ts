@@ -149,6 +149,12 @@ export const mapDealData = (value: unknown): DealData => {
     buyerState: APP_STATES.includes(record.buyerState as AppState)
       ? (record.buyerState as DealData["buyerState"])
       : undefined,
+    // Round-trip the add-on split and rebate: dropping them made a restored
+    // deal misreport VSC/GAP (re-toggling would double-count into
+    // backendProducts) and silently discard the rebate. [review/P1]
+    rebate: toFiniteNumber(record.rebate),
+    vscAmount: toFiniteNumber(record.vscAmount),
+    gapAmount: toFiniteNumber(record.gapAmount),
   };
 };
 

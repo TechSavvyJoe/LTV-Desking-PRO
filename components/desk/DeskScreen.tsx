@@ -18,6 +18,7 @@ import { INITIAL_DEAL_DATA, INITIAL_FILTER_DATA } from "../../constants";
 import { DealSheetModal } from "./DealSheetModal";
 import type {
   AppState,
+  ApprovalBand,
   CalculatedVehicle,
   DealData,
   FilterData,
@@ -227,10 +228,17 @@ export const DeskScreen: React.FC = () => {
   // filters; the local pass only orders it (context sortedInventory can't
   // express the "no key yet → odds desc" default without persisting it).
   const rows = useMemo(() => {
+    // Sort the VEHICLE column by the DISPLAYED name (make model trim, like the
+    // mockup's mk+md), not the year-prefixed `vehicle` string — otherwise an
+    // "ascending name" sort silently orders by hidden model year. [review]
+    const displayName = (v: CalculatedVehicle): string =>
+      v.make && v.model
+        ? `${v.make} ${v.model} ${v.trim ?? ""}`
+        : String(v.vehicle).replace(/^\d{4}\s+/, "");
     const sorted = [...filteredInventory];
     sorted.sort((a, b) => {
-      const va = a[sortKey];
-      const vb = b[sortKey];
+      const va = sortKey === "vehicle" ? displayName(a) : a[sortKey];
+      const vb = sortKey === "vehicle" ? displayName(b) : b[sortKey];
       const aBad = va === null || va === undefined || va === "Error" || va === "N/A";
       const bBad = vb === null || vb === undefined || vb === "Error" || vb === "N/A";
       if (aBad && bBad) return 0;
@@ -294,11 +302,21 @@ export const DeskScreen: React.FC = () => {
   // "Use X% · Lender" — the first eligible lender whose matched tier exposes a
   // buy rate. Hidden when no fitting lender exposes one.
   const buyRate = useMemo(() => {
+    // PB `tiers` is freeform JSON: AI-extracted rates arrive as numbers OR
+    // strings ("6.99", "6.99%"). Coerce like the Lenders screen does so the
+    // shortcut appears for every rate the matrix displays. [review]
+    const coerce = (v: unknown): number | null => {
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      if (typeof v === "string") {
+        const n = parseFloat(v.replace(/%\s*$/, ""));
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    };
     for (const e of focusedEntries) {
-      if (e.eligible && typeof e.matchedTier?.baseInterestRate === "number") {
-        const rate = Number(
-          (e.matchedTier.baseInterestRate + (e.matchedTier.rateAdder ?? 0)).toFixed(2)
-        );
+      const base = coerce(e.matchedTier?.baseInterestRate);
+      if (e.eligible && base !== null) {
+        const rate = Number((base + (coerce(e.matchedTier?.rateAdder) ?? 0)).toFixed(2));
         return { rate, lender: e.name };
       }
     }
@@ -826,7 +844,9 @@ export const DeskScreen: React.FC = () => {
         </div>
 
         {/* ---------- COMPARE STRIP ---------- */}
-        {favorites.length > 0 && (
+        {/* Gate on resolvable cards, not raw favorites — pins left over from
+            another dealer's inventory rendered an empty "0 pinned" shell. */}
+        {compareCards.length > 0 && (
           <div style={cardStyle}>
             <div
               style={{
@@ -1109,7 +1129,12 @@ export const DeskScreen: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div ref={scrollRef} style={{ maxHeight: 560, overflowY: "auto" }}>
+              <div
+                ref={scrollRef}
+                // Fill the viewport below the deal-terms card instead of a
+                // fixed 560px box — the mockup's table runs the page. [review]
+                style={{ maxHeight: "max(560px, calc(100vh - 340px))", overflowY: "auto" }}
+              >
                 <div
                   style={{
                     height: virtualizer.getTotalSize(),
@@ -1406,16 +1431,18 @@ const FocusedPanel: React.FC<FocusedPanelProps> = ({
   const dispScore = useAnimatedNumber(scoreTarget);
   const dispPay = useAnimatedNumber(payN ?? 0);
 
-  // Color follows the tweened score through the mockup's bands; a no-fit deal
-  // stays danger regardless (its capped score sits below "moderate" anyway).
-  const gaugeColor =
+  // Color AND zone label follow the tweened score through the mockup's bands
+  // so arc/number/color/label all move together; "none" (no lender fit) stays
+  // authoritative regardless of the animated number. [review]
+  const dispBand: ApprovalBand =
     band === "none"
-      ? BAND_META.none.colorVar
+      ? "none"
       : dispScore >= APPROVAL_CONFIG.bands.strong
-        ? "var(--color-success)"
+        ? "strong"
         : dispScore >= APPROVAL_CONFIG.bands.moderate
-          ? "var(--color-warning)"
-          : "var(--color-danger)";
+          ? "moderate"
+          : "weak";
+  const gaugeColor = BAND_META[dispBand].colorVar;
 
   const pay = payN === null ? null : splitPay(dispPay);
 
@@ -1575,7 +1602,7 @@ const FocusedPanel: React.FC<FocusedPanelProps> = ({
             pointerEvents: "none",
           }}
         />
-        <ApprovalGauge score={dispScore} colorVar={gaugeColor} label={BAND_META[band].label} />
+        <ApprovalGauge score={dispScore} colorVar={gaugeColor} label={BAND_META[dispBand].label} />
         <div
           style={{
             fontSize: 11,
@@ -1596,7 +1623,7 @@ const FocusedPanel: React.FC<FocusedPanelProps> = ({
             color: gaugeColor,
           }}
         >
-          {BAND_META[band].label}
+          {BAND_META[dispBand].label}
         </div>
         <div
           style={{

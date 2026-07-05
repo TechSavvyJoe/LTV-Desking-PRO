@@ -43,7 +43,6 @@ import Button from "../common/Button";
 import * as Icons from "../common/Icons";
 import { confirmAction } from "../../lib/confirm";
 import { toast } from "../../lib/toast";
-import { useForceDarkMode } from "../../hooks/useForceDarkMode";
 
 // ============================================
 // Helper Components
@@ -2670,7 +2669,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   onSwitchToDealer,
   onImpersonate,
 }) => {
-  useForceDarkMode();
   const [activeTab, setActiveTab] = useState<"overview" | "dealers" | "users" | "settings">(
     "overview"
   );

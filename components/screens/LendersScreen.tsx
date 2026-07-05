@@ -55,9 +55,16 @@ const editInput: React.CSSProperties = {
   outline: "none",
 };
 
-const num = (e: React.ChangeEvent<HTMLInputElement>): number => {
+/**
+ * Parse a numeric program field. An EMPTY input returns undefined — meaning
+ * "constraint removed" — never 0: the rules engine treats 0 as a hard cap
+ * (maxTerm 0 rejects every term, maxLtv 0 rejects every deal), so a cleared
+ * field briefly persisted as 0 would silently kill the lender. [review/P1]
+ */
+const num = (e: React.ChangeEvent<HTMLInputElement>): number | undefined => {
+  if (String(e.target.value).trim() === "") return undefined;
   const x = parseFloat(String(e.target.value).replace(/[^0-9.]/g, ""));
-  return Number.isNaN(x) ? 0 : x;
+  return Number.isNaN(x) ? undefined : x;
 };
 
 /* --- Derived read-only tier badge (reconciliation 2) --------------------- */
@@ -201,6 +208,7 @@ export const LendersScreen: React.FC = () => {
     unitsPerLender,
     focusVin,
     activeVehicle,
+    refetchData,
   } = useDealContext();
 
   const role = getCurrentUser()?.role;
@@ -249,9 +257,19 @@ export const LendersScreen: React.FC = () => {
     if (pending) window.clearTimeout(pending.timer);
     const timer = window.setTimeout(async () => {
       delete pendingRef.current[id];
-      const res = await updateLenderProfile(id, data as never);
-      if (res) toast.success("Lender program saved");
-      else toast.error("Couldn't save lender changes to the server.");
+      // JSON drops `undefined`, so a cleared field would silently KEEP its old
+      // server value; send explicit nulls so "constraint removed" persists.
+      const wire: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data)) wire[k] = v === undefined ? null : v;
+      const res = await updateLenderProfile(id, wire as never);
+      if (res) {
+        toast.success("Lender program saved");
+      } else {
+        // Revert the optimistic edit to the server's truth — otherwise the
+        // screen shows terms the backend never accepted, forever. [review/P1]
+        toast.error("Couldn't save lender changes — restoring server values.");
+        void refetchData();
+      }
     }, 500);
     pendingRef.current[id] = { timer, data };
   };
@@ -267,8 +285,12 @@ export const LendersScreen: React.FC = () => {
     setLenderProfiles((prev) => prev.map((p) => (p.id === profile.id ? { ...p, ...profile } : p)));
     setModalProfile(null);
     const res = await updateLenderProfile(profile.id, profile as never);
-    if (res) toast.success(`${profile.name} updated`);
-    else toast.error("Couldn't save the lender program to the server.");
+    if (res) {
+      toast.success(`${profile.name} updated`);
+    } else {
+      toast.error("Couldn't save the lender program — restoring server values.");
+      void refetchData();
+    }
   };
 
   /* ----------------------------------------------------------------------- */

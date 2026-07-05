@@ -259,3 +259,30 @@ describe("checkBankEligibility", () => {
     });
   });
 });
+
+describe("tier otdLtv cap enforcement [review/P2]", () => {
+  it("rejects when the deal exceeds a tier that only carries otdLtv", () => {
+    // amt 25000 / trade book 22000 ≈ 113.6% — above the 110% otdLtv cap.
+    const lender = mockLender({
+      tiers: [{ name: "AI-extracted", minFico: 600, otdLtv: 110 }],
+    });
+    const result = checkBankEligibility(mockVehicle(), mockDeal(), lender);
+    expect(result.eligible).toBe(false);
+  });
+
+  it("passes when the deal is under the otdLtv-only cap", () => {
+    const lender = mockLender({
+      tiers: [{ name: "AI-extracted", minFico: 600, otdLtv: 120 }],
+    });
+    const result = checkBankEligibility(mockVehicle(), mockDeal(), lender);
+    expect(result.eligible).toBe(true);
+  });
+
+  it("enforces the STRICTER of maxLtv and otdLtv when both exist", () => {
+    const lender = mockLender({
+      tiers: [{ name: "Dual-cap", minFico: 600, maxLtv: 130, otdLtv: 110 }],
+    });
+    const result = checkBankEligibility(mockVehicle(), mockDeal(), lender);
+    expect(result.eligible).toBe(false);
+  });
+});

@@ -204,8 +204,14 @@ export const checkBankEligibility = (
       }
     }
 
-    // LTV (Loan-to-Value) Check
-    if (tier.maxLtv !== undefined) {
+    // LTV (Loan-to-Value) Check — enforce BOTH `maxLtv` (generic cap) and
+    // `otdLtv` (explicit out-the-door cap). AI-extracted tiers often carry
+    // only `otdLtv`; ignoring it overstated eligibility and made the Lenders
+    // screen's otdLtv editor a no-op. [review/P2]
+    const ltvCaps = [tier.maxLtv, tier.otdLtv].filter(
+      (n): n is number => typeof n === "number" && n > 0
+    );
+    if (ltvCaps.length > 0) {
       const bookValueSource = bank.bookValueSource || "Trade";
       const bookValue =
         bookValueSource === "Retail" && typeof jdPowerRetail === "number" && jdPowerRetail > 0
@@ -218,7 +224,7 @@ export const checkBankEligibility = (
       if (amt <= 0) continue;
 
       const otdLtv = (amt / bookValue) * 100;
-      if (otdLtv > tier.maxLtv) continue;
+      if (otdLtv > Math.min(...ltvCaps)) continue;
     }
 
     // Front-end LTV cap, using the calculator's front-end figure. [G20]

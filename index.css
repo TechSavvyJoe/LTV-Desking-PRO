@@ -249,13 +249,13 @@ main {
     var(--color-bg-subtle);
 }
 
-/* Selection Color */
+/* Selection Color — primary-tinted, both themes. [review/P2] */
 ::selection {
-  background: rgba(59, 130, 246, 0.25);
+  background: rgba(12, 143, 93, 0.22);
 }
 
 .dark ::selection {
-  background: rgba(99, 102, 241, 0.35);
+  background: rgba(47, 221, 150, 0.3);
 }
 
 /* ============================================================================
@@ -1334,9 +1334,9 @@ html {
   }
 }
 
-/* Focus Visible Enhancement */
+/* Focus Visible Enhancement — brand green, both themes. [review/P2] */
 *:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: 4px;
 }

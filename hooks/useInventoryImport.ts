@@ -325,7 +325,10 @@ export function useInventoryImport() {
       void logDealEvent({
         action: "pdf_generated",
         customerName,
-        vin: pdfData.map((d) => d.vehicle.vin).join(","),
+        // deal_events.vin is a single-VIN field (max 32 chars) — a joined list
+        // exceeded it and PB rejected the whole event. The full VIN list lives
+        // in snapshot.vehicles below. [review/P2]
+        vin: pdfData.length === 1 ? pdfData[0]?.vehicle.vin : undefined,
         snapshot: {
           type: "favorites",
           dealData,

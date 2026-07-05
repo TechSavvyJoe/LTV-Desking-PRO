@@ -3,6 +3,9 @@ import { useDealContext } from "../context/DealContext";
 import { saveDeal, logDealEvent } from "../lib/api";
 import { capture } from "../lib/analytics";
 import { checkBankEligibility } from "../services/lenderMatcher";
+import { calculateFinancials } from "../services/calculator";
+import { lenderFitForVehicle } from "../services/lenderFit";
+import { scoreApprovalOdds } from "../services/approvalScorer";
 import { mapPocketBaseSavedDeal } from "../lib/dealMappers";
 import type { CalculatedVehicle, SavedDeal } from "../types";
 import type { SavedDeal as PocketBaseSavedDeal } from "../lib/pocketbase";
@@ -65,10 +68,31 @@ export function useSaveDeal() {
       }
 
       const now = new Date().toISOString();
+
+      // Recompute financials synchronously from the LIVE deal inputs — the
+      // vehicle handed in comes from the 300ms-debounced scoring pass, so a
+      // save clicked right after a term/down change would otherwise persist a
+      // payment that never coexisted with the saved dealData. [review/P1]
+      const freshVehicle = calculateFinancials(vehicleToSave, dealData, settings);
+      const freshFit = lenderFitForVehicle(
+        freshVehicle,
+        { ...dealData, ...filters },
+        safeLenderProfiles
+      );
+      const freshApproval = scoreApprovalOdds(freshVehicle, filters, freshFit.fitCount);
+      const vehicleSnapshot: CalculatedVehicle = {
+        ...freshVehicle,
+        approvalScore: freshApproval.internalScore,
+        approvalBand: freshApproval.band,
+        ptiRatio: freshApproval.ptiRatio,
+        fitCount: freshFit.fitCount,
+        fitNames: freshFit.fitNames,
+      };
+
       // Lender grid + settings snapshot make the saved deal self-contained
       // evidence of what was on screen at save time. [G48]
       const eligibilitySnapshot = safeLenderProfiles.map((profile) => {
-        const result = checkBankEligibility(vehicleToSave, { ...dealData, ...filters }, profile);
+        const result = checkBankEligibility(vehicleSnapshot, { ...dealData, ...filters }, profile);
         return {
           name: profile.name,
           eligible: result.eligible,
@@ -82,7 +106,7 @@ export function useSaveDeal() {
         customerName,
         salespersonName,
         vehicle: vehicleToSave.id, // Assuming calculated vehicle has ID matching inventory
-        vehicleData: vehicleToSave as unknown as Record<string, unknown>, // Serialized to JSON in PocketBase
+        vehicleData: vehicleSnapshot as unknown as Record<string, unknown>, // Serialized to JSON in PocketBase
         dealData: { ...dealData } as unknown as Record<string, unknown>,
         customerFilters: {
           creditScore: filters.creditScore,
@@ -98,6 +122,14 @@ export function useSaveDeal() {
           lenderEligibility: eligibilitySnapshot,
           settings: { ...settings, ai: undefined },
           savedAt: now,
+          // Frozen at-save metrics the Pipeline/Reports mappers read
+          // (pipelineMetricsFromCalculatedData) — without them every
+          // historical deal was recomputed against CURRENT settings and
+          // misreported the quote actually shown. [review/P1]
+          monthlyPayment: vehicleSnapshot.monthlyPayment,
+          otdLtv: vehicleSnapshot.otdLtv,
+          amountToFinance: vehicleSnapshot.amountToFinance,
+          approvalScore: vehicleSnapshot.approvalScore,
         } as unknown as Record<string, unknown>,
       };
 
@@ -113,7 +145,7 @@ export function useSaveDeal() {
             action: "deal_saved",
             customerName,
             vin: vehicleToSave.vin,
-            snapshot: { dealData, monthlyPayment: vehicleToSave.monthlyPayment },
+            snapshot: { dealData, monthlyPayment: vehicleSnapshot.monthlyPayment },
           });
           capture("deal_saved", { term: dealData.loanTerm });
         } else {

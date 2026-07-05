@@ -71,10 +71,9 @@ export const ApprovalGauge: React.FC<ApprovalGaugeProps> = ({
         x="100"
         y="86"
         textAnchor="middle"
-        fontFamily="JetBrains Mono, monospace"
         fontSize="46"
         fontWeight={700}
-        style={{ fill: colorVar }}
+        style={{ fill: colorVar, fontFamily: "var(--mono)" }}
       >
         {s}
       </text>

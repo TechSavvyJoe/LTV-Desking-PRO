@@ -14,7 +14,6 @@ import {
 import { toast } from "../lib/toast";
 import { confirmAction } from "../lib/confirm";
 import { MI_DOC_FEE_WARN_THRESHOLD, INITIAL_SETTINGS, STORAGE_KEYS } from "../constants";
-import { updateDealerSettings } from "../lib/api";
 import { getCurrentUser } from "../lib/pocketbase";
 
 interface SettingsModalProps {
@@ -143,27 +142,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
   const handleSave = () => {
     if (!canEdit) return;
     const next: Settings = { ...localSettings, ai: normalizeAiSettings(localSettings.ai) };
-    // Context write: persists the full Settings blob locally + legacy PB sync.
+    // Single write path: DealContext.updateSettings persists locally AND to
+    // PocketBase with the real dealer_settings column names. A second direct
+    // updateDealerSettings here raced the context's write — two concurrent
+    // get-then-create calls could duplicate the dealer_settings record on
+    // first save. [review/P2]
     onSave(next);
-    // Authoritative PB write with the REAL dealer_settings column names —
-    // defaultTerm/defaultApr (the context's legacy path sends phantom
-    // defaultLoanTerm/defaultInterestRate keys PB ignores) plus the new desk
-    // fields from migration 1747810002. [P7 settings binding]
-    updateDealerSettings({
-      defaultTerm: next.defaultTerm,
-      defaultApr: next.defaultApr,
-      defaultState: next.defaultState,
-      docFee: next.docFee,
-      cvrFee: next.cvrFee,
-      defaultStateFees: next.defaultStateFees,
-      outOfStateTransitFee: next.outOfStateTransitFee,
-      customTaxRate: next.customTaxRate ?? undefined,
-      vscPrice: next.vscPrice,
-      gapPrice: next.gapPrice,
-      miTradeInCreditCap: next.miTradeInCreditCap,
-    }).then((res) => {
-      if (!res) toast.error("Couldn't sync settings to the server — local defaults still apply.");
-    });
     onClose();
   };
 

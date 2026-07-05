@@ -717,6 +717,47 @@ export const subscribeToSavedDeals = (callback: (data: SavedDeal[]) => void): ((
   };
 };
 
+/**
+ * Realtime lender-program updates. Without this, two open tabs (or two
+ * managers) editing lenders silently clobbered each other's full tiers array —
+ * the screen only knew the server state from its initial load. [review/P2]
+ */
+export const subscribeToLenderProfiles = (
+  callback: (data: LenderProfile[]) => void
+): (() => void) => {
+  const dealerId = getCurrentDealerId();
+  if (!dealerId) return () => {};
+
+  let unsubscribe: (() => void) | null = null;
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const refetch = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      getLenderProfiles()
+        .then((data) => {
+          if (!cancelled) callback(data);
+        })
+        .catch((err) => console.error("Lender refetch after realtime event failed:", err));
+    }, SUBSCRIPTION_REFETCH_DEBOUNCE_MS);
+  };
+
+  collections.lenderProfiles
+    .subscribe("*", () => refetch())
+    .then((fn) => {
+      if (cancelled) fn();
+      else unsubscribe = fn;
+    })
+    .catch((err) => console.error("Failed to subscribe to lender updates:", err));
+
+  return () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+    if (unsubscribe) unsubscribe();
+  };
+};
+
 // ============================================
 // SUPERADMIN: System Settings (global, singleton)
 // ============================================

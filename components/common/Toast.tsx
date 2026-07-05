@@ -52,7 +52,9 @@ export const Toast: React.FC = () => {
     return () => {
       clearTimeout(timer);
     };
-  }, [isVisible, message, persistent, isPaused]); // Reset timer when message changes
+    // `nonce` bumps on every publish — without it, re-publishing the SAME
+    // message near expiry kept the old timer and dismissed almost instantly.
+  }, [isVisible, message, persistent, isPaused, nonce]);
 
   if (!isVisible) return null;
 
