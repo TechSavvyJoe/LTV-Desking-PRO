@@ -2621,3 +2621,53 @@ select.dc-input:focus {
   border: 3px solid transparent;
   background-clip: content-box;
 }
+
+.desk-compare-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  box-shadow: var(--shadow-sm);
+}
+
+.desk-compare-card[data-focused="true"] {
+  border: 2px solid var(--color-primary);
+  padding: 9px 13px; /* Adjust padding to prevent layout shift from thicker border */
+}
+
+.desk-compare-search-wrapper {
+  position: relative;
+}
+
+.desk-compare-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.desk-compare-search-input {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 7px 11px 7px 30px;
+  font-size: 13px;
+  color: var(--color-text);
+  font-family: inherit;
+  outline: none;
+  width: 230px;
+}
+
+.desk-compare-odds-pill {
+  font-size: 12px;
+  font-family: var(--mono);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 5px;
+  margin-left: auto;
+}
