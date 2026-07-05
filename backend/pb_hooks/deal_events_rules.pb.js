@@ -41,3 +41,36 @@ onBootstrap((e) => {
     );
   }
 });
+
+/**
+ * Retry via cron: bootstrap fires before same-boot migrations finish, so a
+ * boot that REPAIRS the schema (e.g. 1747810005 adding the dealer relation)
+ * still ends with unapplied rules until the next restart. This idempotent
+ * cron closes that gap within a minute and no-ops forever after.
+ */
+cronAdd("deal_events_rules_retry", "* * * * *", () => {
+  try {
+    const c = $app.findCollectionByNameOrId("deal_events");
+
+    const AUTHED = '@request.auth.id != ""';
+    const SUPER = '@request.auth.role = "superadmin"';
+    const ADMIN_OR_SUPER = '(@request.auth.role = "superadmin" || @request.auth.role = "admin")';
+    const dealerScopedRead =
+      AUTHED + " && (" + SUPER + " || (" + ADMIN_OR_SUPER + " && @request.auth.dealer.id ?= dealer.id))";
+    const dealerScopedCreate = AUTHED + " && (" + SUPER + " || @request.auth.dealer.id ?= dealer.id)";
+
+    if (c.listRule === dealerScopedRead && c.createRule === dealerScopedCreate) {
+      return; // applied — stays a cheap no-op
+    }
+
+    c.listRule = dealerScopedRead;
+    c.viewRule = dealerScopedRead;
+    c.createRule = dealerScopedCreate;
+    c.updateRule = null;
+    c.deleteRule = null;
+    $app.save(c);
+    console.log("[ok] deal_events dealer-scoped rules applied by cron retry");
+  } catch (err) {
+    console.log("[retry] deal_events cron rule apply failed (will retry): " + err);
+  }
+});
