@@ -76,14 +76,16 @@ export async function seedData(
       .collection("dealers")
       .create({ id: dealerA, name: "Dealer A", code: "DEALERA", active: true });
   } catch (e: any) {
-    if (!/already exists|unique/.test(String(e))) console.warn("dealerA seed note:", e?.message);
+    if (!/already exists|unique/.test(String(e)))
+      console.warn("dealerA seed failed:", e?.message || e);
   }
   try {
     await pb
       .collection("dealers")
       .create({ id: dealerB, name: "Dealer B", code: "DEALERB", active: true });
   } catch (e: any) {
-    if (!/already exists|unique/.test(String(e))) console.warn("dealerB seed note:", e?.message);
+    if (!/already exists|unique/.test(String(e)))
+      console.warn("dealerB seed failed:", e?.message || e);
   }
 
   console.log("Seeding users...");
@@ -164,7 +166,9 @@ export async function seedData(
     try {
       await pb.collection("users").create(u);
     } catch (e: any) {
-      if (!/already|exists|unique/.test(String(e))) console.warn("user seed:", e?.message);
+      if (!/already|exists|unique/.test(String(e))) {
+        console.warn("user seed failed:", e?.message || e);
+      }
     }
   }
 

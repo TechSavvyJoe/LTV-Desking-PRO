@@ -40,8 +40,13 @@ onRecordUpdateRequest((e) => {
   const auth = e.auth;
   const actorRole = auth ? auth.get("role") : "";
 
+  // Detect platform superuser (from _superusers) or app superadmin.
+  const isSuperuser =
+    (auth && auth.collection()?.name === "_superusers") ||
+    actorRole === "superadmin";
+
   // Superadmins may legitimately change roles / move users between dealerships.
-  if (actorRole === "superadmin") return e.next();
+  if (isSuperuser) return e.next();
 
   // The persisted (pre-update) state of the record being modified.
   const original = e.record.original();
@@ -86,6 +91,11 @@ onRecordCreateRequest((e) => {
   const auth = e.auth;
   const actorRole = auth ? auth.get("role") : "";
 
+  // Detect platform superuser (from _superusers) or app superadmin.
+  const isSuperuser =
+    (auth && auth.collection()?.name === "_superusers") ||
+    actorRole === "superadmin";
+
   // CRITICAL: PocketBase BoolField is non-nullable and defaults to the zero
   // value `false` when omitted on create — and NO create path (register,
   // createUser, createDealerUser, admin) sets `active`. Without this, every new
@@ -95,7 +105,7 @@ onRecordCreateRequest((e) => {
   if (e.record.get("active") !== false) e.record.set("active", true);
 
   // Only a superadmin may create a user with an arbitrary role / dealership.
-  if (actorRole === "superadmin") return e.next();
+  if (isSuperuser) return e.next();
 
   if (actorRole === "admin") {
     // A dealership admin may create users within their OWN dealership and must
@@ -170,7 +180,10 @@ onRecordCreateRequest((e) => {
 onRecordDeleteRequest((e) => {
   const auth = e.auth;
   const actorRole = auth ? auth.get("role") : "";
-  if (actorRole !== "superadmin" && e.record.get("role") === "superadmin") {
+  const isSuperuser =
+    (auth && auth.collection()?.name === "_superusers") ||
+    actorRole === "superadmin";
+  if (!isSuperuser && e.record.get("role") === "superadmin") {
     throw new ForbiddenError("Only the platform owner can delete a superadmin account.");
   }
   return e.next();

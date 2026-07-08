@@ -25,8 +25,14 @@ const registerDealerGuard = (collectionName) => {
   const enforce = (e) => {
     const auth = e.auth;
 
+    // Detect platform superuser (from _superusers collection) or app user with role=superadmin.
+    // The former is used by the seed helper and admin tools; the latter for app superadmins.
+    const isSuperuser =
+      (auth && auth.collection()?.name === "_superusers") ||
+      (auth && auth.get("role") === "superadmin");
+
     // Superadmins are trusted to write across dealerships (seeding, support).
-    if (auth && auth.get("role") === "superadmin") return e.next();
+    if (isSuperuser) return e.next();
 
     // Fail CLOSED. A write to a dealer-scoped collection with no enforceable
     // tenant must be rejected, never passed through with a client-supplied
