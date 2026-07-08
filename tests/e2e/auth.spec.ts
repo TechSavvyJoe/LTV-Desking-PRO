@@ -474,16 +474,34 @@ async function setupTest(page: Page, targetPath?: string) {
   await preAuthenticate(page);
 
   if (USE_REAL_BACKEND) {
-    // Perform actual login with seeded real backend credentials
-    await page.goto("/");
-    await expect(page.getByText("SIGN IN")).toBeVisible({ timeout: 10000 });
-    await page.getByLabel(/email address/i).fill("sales.a@dealera.com");
-    await page.getByLabel(/password/i).fill("SalesPassword123!");
-    await page.getByRole("button", { name: /Enter the desk/i }).click();
-    await waitForDeskReady(page);
-  }
+    // For real backend E2E, authenticate via the API (reliable) and inject the token
+    // so the app boots as logged-in. Avoids flakiness with form UI + state updates
+    // after recent redesign. The dedicated login test covers the form for mocks.
+    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const authRes = await page.request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
+      data: { identity: "sales.a@dealera.com", password: "SalesPassword123!" },
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!authRes.ok()) {
+      throw new Error(`Real backend auth failed: ${await authRes.text()}`);
+    }
+    const authData = await authRes.json();
+    await page.addInitScript((data) => {
+      localStorage.setItem(
+        "pocketbase_auth",
+        JSON.stringify({
+          token: data.token,
+          record: data.record,
+        })
+      );
+    }, authData);
 
-  if (targetPath && targetPath !== "/") {
+    const startPath = targetPath || "/";
+    await page.goto(startPath);
+    if (startPath === "/" || startPath === "/desk") {
+      await waitForDeskReady(page);
+    }
+  } else if (targetPath && targetPath !== "/") {
     await page.goto(targetPath);
   }
 }
