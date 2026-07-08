@@ -51,26 +51,7 @@ test.describe("Load desk", () => {
   test("loads desk after login (key flow: desk render, terms rail, inventory context)", async ({
     page,
   }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-
-    await page.goto("/");
-
-    if (!USE_REAL_BACKEND) {
-      // For mock path, fill+submit uses mocked auth
-      await expect(page.getByText("SIGN IN")).toBeVisible();
-      await page.getByLabel(/email address/i).fill("sales.a@dealera.com");
-      await page.getByLabel(/password/i).fill("SalesPassword123!");
-      await page.getByRole("button", { name: /Enter the desk/i }).click();
-    } else {
-      // Real backend (seeded): use the login form with real creds from seed helper
-      await page.getByLabel(/email address/i).fill("sales.a@dealera.com");
-      await page.getByLabel(/password/i).fill("SalesPassword123!");
-      await page.getByRole("button", { name: /Enter the desk/i }).click();
-    }
-
-    await waitForDeskReady(page);
+    await setupTest(page);
 
     // Verify desk loaded: nav, customer field, terms, some inventory context (active vehicle or table)
     await expect(page.getByRole("link", { name: /The Desk/i })).toBeVisible();
@@ -486,11 +467,36 @@ async function waitForDeskReady(page: Page) {
   });
 }
 
+async function setupTest(page: Page, targetPath?: string) {
+  if (!USE_REAL_BACKEND) {
+    await mockPocketBaseEndpoints(page);
+  }
+  await preAuthenticate(page);
+
+  if (USE_REAL_BACKEND) {
+    // Perform actual login with seeded real backend credentials
+    await page.goto("/");
+    await expect(page.getByText("SIGN IN")).toBeVisible({ timeout: 10000 });
+    await page.getByLabel(/email address/i).fill("sales.a@dealera.com");
+    await page.getByLabel(/password/i).fill("SalesPassword123!");
+    await page.getByRole("button", { name: /Enter the desk/i }).click();
+    await waitForDeskReady(page);
+  }
+
+  if (targetPath && targetPath !== "/") {
+    await page.goto(targetPath);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // LOGIN FLOW
 // ---------------------------------------------------------------------------
 test.describe("Login flow", () => {
   test("logs in via UI form and lands on desk (with mocked backend)", async ({ page }) => {
+    if (USE_REAL_BACKEND) {
+      test.skip(true, "Real login covered in Load desk test");
+      return;
+    }
     if (!USE_REAL_BACKEND) {
       await mockPocketBaseEndpoints(page);
     }
@@ -506,10 +512,6 @@ test.describe("Login flow", () => {
       await page.getByLabel(/password/i).fill("SalesPassword123!");
 
       // Submit triggers login -> pb.authWithPassword (mocked or real)
-      await page.getByRole("button", { name: /Enter the desk/i }).click();
-    } else {
-      await page.getByLabel(/email address/i).fill("sales.a@dealera.com");
-      await page.getByLabel(/password/i).fill("SalesPassword123!");
       await page.getByRole("button", { name: /Enter the desk/i }).click();
     }
 
@@ -550,12 +552,7 @@ test.describe("Login flow", () => {
 // ---------------------------------------------------------------------------
 test.describe("Inventory import", () => {
   test("imports CSV via hidden input and shows success state", async ({ page }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-    await preAuthenticate(page);
-
-    await page.goto("/inventory");
+    await setupTest(page, "/inventory");
 
     // Toolbar buttons from InventoryScreen + useInventoryImport
     await expect(page.getByRole("button", { name: "Import CSV/XLSX" }).first()).toBeVisible();
@@ -578,12 +575,7 @@ E2E002,2022,Honda,Accord,LX,2HGES16575H123456,45000,18900,15500,17200,19900,1550
   });
 
   test("shows sample CSV button and inventory toolbar", async ({ page }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-    await preAuthenticate(page);
-
-    await page.goto("/inventory");
+    await setupTest(page, "/inventory");
 
     await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
     // Direct click would download; just verify presence for skeleton coverage
@@ -598,12 +590,7 @@ test.describe("AI lender upload", () => {
   test("opens AI Lender Upload modal, uploads PDF, analyzes, and confirms save", async ({
     page,
   }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-    await preAuthenticate(page);
-
-    await page.goto("/desk"); // Shell header AI button visible on all authed routes
+    await setupTest(page, "/desk"); // Shell header AI button visible on all authed routes
     await waitForDeskReady(page);
 
     // Open modal via header button (AppShell + LendersScreen also expose)
@@ -672,12 +659,7 @@ test.describe("Deal calculation", () => {
   test("editing deal terms and customer data updates live calculations (payment/LTV)", async ({
     page,
   }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-    await preAuthenticate(page);
-
-    await page.goto("/desk");
+    await setupTest(page, "/desk");
     await waitForDeskReady(page);
 
     // Set customer + credit (FICO) + down payment — triggers calculator + re-render
@@ -709,12 +691,7 @@ test.describe("Deal calculation", () => {
 // ---------------------------------------------------------------------------
 test.describe("Lender match", () => {
   test("lender ladder updates FIT count based on customer profile", async ({ page }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-    await preAuthenticate(page);
-
-    await page.goto("/desk");
+    await setupTest(page, "/desk");
     await waitForDeskReady(page);
 
     // Good credit + reasonable down should produce FITs
@@ -744,12 +721,7 @@ test.describe("Lender match", () => {
 // ---------------------------------------------------------------------------
 test.describe("Deal save", () => {
   test("fills deal terms then saves to pipeline and shows success message", async ({ page }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-    await preAuthenticate(page);
-
-    await page.goto("/desk");
+    await setupTest(page, "/desk");
     await waitForDeskReady(page);
 
     // Populate required fields for save validation in useSaveDeal
@@ -781,12 +753,7 @@ test.describe("Deal save", () => {
 // ---------------------------------------------------------------------------
 test.describe("PDF generation", () => {
   test("opens deal sheet and downloads PDF (client-side jspdf)", async ({ page }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-    await preAuthenticate(page);
-
-    await page.goto("/desk");
+    await setupTest(page, "/desk");
     await waitForDeskReady(page);
 
     // Inspector is populated from mocked inventory default focus (rows[0])
@@ -809,12 +776,7 @@ test.describe("PDF generation", () => {
   });
 
   test("inventory favorites PDF button is present and triggers (with data)", async ({ page }) => {
-    if (!USE_REAL_BACKEND) {
-      await mockPocketBaseEndpoints(page);
-    }
-    await preAuthenticate(page);
-
-    await page.goto("/inventory");
+    await setupTest(page, "/inventory");
 
     // Button from InventoryScreen toolbar (may require favorites for full click, presence is key assertion)
     await expect(page.getByRole("button", { name: /Favorites PDF/i })).toBeVisible({
