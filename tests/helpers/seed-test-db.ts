@@ -52,7 +52,9 @@ async function ensurePocketBaseBinary(targetPath: string): Promise<string> {
   const tmpDir = path.resolve("/tmp/pb-download-" + Date.now());
   fs.mkdirSync(tmpDir, { recursive: true });
   const zipPath = path.join(tmpDir, "pocketbase.zip");
-  execSync(`curl -L -o "${zipPath}" "${url}"`, { stdio: "inherit" });
+  execSync(`curl -L --max-time 120 --connect-timeout 30 -o "${zipPath}" "${url}"`, {
+    stdio: "inherit",
+  });
   execSync(`unzip -o "${zipPath}" -d "${tmpDir}"`, { stdio: "inherit" });
   const extracted = path.join(tmpDir, "pocketbase");
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
@@ -274,17 +276,26 @@ async function main() {
 
   // 4. Start PocketBase server on port 8090 (background)
   console.log("Starting PocketBase server on port 8090...");
+  // Use 'ignore' + detached+unref for KEEP_RUNNING to avoid pipe-buffer deadlocks
+  // and let the server reliably outlive this script in CI.
   const pbProcess = spawn(
     effectivePbPath,
     ["serve", "--http=127.0.0.1:8090", `--dir=${PB_DATA_DIR}`],
     {
-      stdio: "pipe",
+      stdio: KEEP_RUNNING ? "ignore" : "pipe",
+      detached: KEEP_RUNNING,
     }
   );
+  if (KEEP_RUNNING && pbProcess.pid) {
+    pbProcess.unref();
+  }
 
-  // Wait for PocketBase to be ready
+  // Wait for PocketBase to be ready (much longer timeout for cold CI start after download + migrate).
+  console.log("Waiting for PocketBase health (up to ~120s)...");
   let isReady = false;
-  for (let i = 0; i < 30; i++) {
+  const healthStart = Date.now();
+  for (let i = 0; i < 600; i++) {
+    // ~120s at 200ms
     try {
       const res = await fetch("http://127.0.0.1:8090/api/health");
       if (res.status === 200) {
@@ -295,37 +306,55 @@ async function main() {
       // Ignored
     }
     await wait(200);
+    if (Date.now() - healthStart > 120000) break;
   }
 
   if (!isReady) {
     console.error("PocketBase failed to start on port 8090.");
-    pbProcess.kill();
+    if (pbProcess && !KEEP_RUNNING) pbProcess.kill();
     process.exit(1);
   }
   console.log("PocketBase is online and healthy.");
 
+  // Extra settle time + retry auth: health can pass before full API/hooks/superuser are ready.
+  await wait(2000);
   const pb = new PocketBase("http://127.0.0.1:8090");
 
-  // 5. Authenticate
-  try {
+  // 5. Authenticate (with retries)
+  let authenticated = false;
+  for (let attempt = 0; attempt < 30; attempt++) {
     try {
-      console.log("Authenticating as superuser via _superusers collection...");
-      await pb
-        .collection("_superusers")
-        .authWithPassword("superadmin@ltvpro.com", "SuperAdminPass123!");
+      console.log(`Authenticating as superuser (attempt ${attempt + 1})...`);
+      try {
+        await pb
+          .collection("_superusers")
+          .authWithPassword("superadmin@ltvpro.com", "SuperAdminPass123!");
+      } catch (err) {
+        await pb.admins.authWithPassword("superadmin@ltvpro.com", "SuperAdminPass123!");
+      }
+      authenticated = true;
+      console.log("Authenticated successfully.");
+      break;
     } catch (err) {
-      console.log("Failed _superusers fallback, attempting legacy admins auth...");
-      await pb.admins.authWithPassword("superadmin@ltvpro.com", "SuperAdminPass123!");
+      if (attempt === 29) {
+        console.error("Superuser auth failed after retries:", err);
+      }
+      await wait(1000);
     }
-    console.log("Authenticated successfully.");
+  }
 
+  if (!authenticated) {
+    if (pbProcess && !KEEP_RUNNING) pbProcess.kill();
+    process.exit(1);
+  }
+
+  try {
     // Use the exported seedData helper (deduped logic)
     await seedData(pb);
-
     console.log("Database seeding completed successfully.");
   } catch (err) {
     console.error("Seeding error:", err);
-    pbProcess.kill();
+    if (pbProcess && !KEEP_RUNNING) pbProcess.kill();
     process.exit(1);
   }
 

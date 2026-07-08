@@ -77,6 +77,8 @@ jobs:
       # - This exercises load desk, inventory import, AI upload, save deal, lender matching, PDF against seeded data.
       # ----------------------------------------------------------------------
       - name: Prepare seeded backend for E2E (use seed helper)
+        if: github.event_name == 'pull_request'
+        timeout-minutes: 6
         run: |
           # Ensure clean data dir for CI
           mkdir -p backend/pb_data
@@ -87,6 +89,7 @@ jobs:
           PB_VERSION: "0.26.5"
 
       - name: Start frontend dev server (for E2E, pointed at seeded PB)
+        if: github.event_name == 'pull_request'
         run: |
           VITE_POCKETBASE_URL=http://127.0.0.1:8090 npm run dev &
           # Wait for vite to be ready (playwright config also checks but explicit here)
@@ -94,14 +97,15 @@ jobs:
           curl -sf http://127.0.0.1:3000 || (echo "Dev server failed to start"; exit 1)
 
       - name: Run E2E tests (real backend via seed helper)
+        if: github.event_name == 'pull_request'
         run: E2E_REAL_BACKEND=1 VITE_POCKETBASE_URL=http://127.0.0.1:8090 npm run test:e2e
         env:
           E2E_REAL_BACKEND: "1"
           VITE_POCKETBASE_URL: "http://127.0.0.1:8090"
 
       - name: Upload E2E report (on failure or always for review)
+        if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: playwright-report
           path: playwright-report/
