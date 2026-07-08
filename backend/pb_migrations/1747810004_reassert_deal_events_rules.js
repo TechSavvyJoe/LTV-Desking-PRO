@@ -28,8 +28,8 @@ migrate(
     const AUTHED = '@request.auth.id != ""';
     const SUPER = '@request.auth.role = "superadmin"';
     const ADMIN_OR_SUPER = '(@request.auth.role = "superadmin" || @request.auth.role = "admin")';
-    const dealerScopedRead = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.auth.dealer.id ?= dealer.id))`;
-    const dealerScopedCreate = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= dealer.id)`;
+    const dealerScopedRead = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && dealer = @request.auth.dealer))`;
+    const dealerScopedCreate = `${AUTHED} && (${SUPER} || @request.body.dealer = @request.auth.dealer)`;
 
     if (c.listRule === dealerScopedRead && c.createRule === dealerScopedCreate) {
       console.log("[skip] deal_events rules already correct");

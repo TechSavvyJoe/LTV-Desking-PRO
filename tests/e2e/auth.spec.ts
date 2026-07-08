@@ -178,6 +178,48 @@ const SAMPLE_LENDERS = [
   },
 ];
 
+const AI_UPLOAD_LENDERS = [
+  {
+    name: "E2E Alliance Credit Union",
+    tiers: [
+      {
+        minFico: 680,
+        maxFico: 850,
+        rate: 5.99,
+        maxLtv: 110,
+        maxTerm: 72,
+        tierName: "Prime",
+      },
+      {
+        minFico: 620,
+        maxFico: 679,
+        rate: 7.49,
+        maxLtv: 105,
+        maxTerm: 66,
+        tierName: "Near Prime",
+      },
+    ],
+    bookValueSource: "Trade",
+    contactPhone: "555-0100",
+    active: true,
+  },
+  {
+    name: "E2E Capital One Auto",
+    tiers: [
+      {
+        minFico: 640,
+        maxFico: 850,
+        rate: 6.49,
+        maxLtv: 115,
+        maxTerm: 75,
+        tierName: "Standard",
+      },
+    ],
+    bookValueSource: "Retail",
+    active: true,
+  },
+];
+
 const MOCK_SETTINGS = {
   id: "settings_a_id_1",
   dealer: "dealer000000001",
@@ -198,6 +240,103 @@ const MOCK_SETTINGS = {
 };
 
 const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND || !!process.env.USE_SEED_BACKEND;
+
+async function mockAiEndpoints(page: Page) {
+  // AI endpoints (used in various modals)
+  // Specific mocks for lender extract/enrich to support full AI Lender Upload flow.
+  await page.route("**/api/ai/lender-extract", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          data: AI_UPLOAD_LENDERS,
+          meta: { provider: "mock", model: "e2e-mock-model", warning: null },
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.route("**/api/ai/lender-enrich", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            enrichment: {
+              website: "https://e2e-lender.example.com",
+              generalNotes: "E2E mock enrichment applied.",
+            },
+            sources: [{ url: "https://example.com/rates", title: "E2E Rate Sheet" }],
+          },
+          meta: { provider: "mock", model: "e2e-enrich" },
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  // Catch-all for other AI endpoints (deal analysis etc.)
+  await page.route("**/api/ai/**", async (route) => {
+    const url = route.request().url();
+    if (url.includes("/lender-extract") || url.includes("/lender-enrich")) {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, mocked: true }),
+    });
+  });
+}
+
+async function mockAiLenderProfileWrites(page: Page) {
+  await page.route("**/api/collections/lender_profiles/records**", async (route) => {
+    const method = route.request().method();
+    if (!["POST", "PATCH", "PUT", "DELETE"].includes(method)) {
+      await route.fallback();
+      return;
+    }
+
+    if (method === "DELETE") {
+      await route.fulfill({ status: 204 });
+      return;
+    }
+
+    let body: Record<string, unknown> = {};
+    try {
+      body = route.request().postDataJSON() as Record<string, unknown>;
+    } catch {
+      body = {};
+    }
+
+    const nameSlug = String(body.name ?? "lender")
+      .replace(/[^a-z0-9]+/gi, "")
+      .toLowerCase()
+      .slice(0, 11)
+      .padEnd(11, "x");
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: `e2e${nameSlug}x`,
+        dealer: MOCK_USER.dealer,
+        active: true,
+        created: "2026-01-01 00:00:00",
+        updated: "2026-01-01 00:00:00",
+        ...body,
+      }),
+    });
+  });
+}
 
 async function mockPocketBaseEndpoints(page: Page) {
   if (USE_REAL_BACKEND) {
@@ -338,99 +477,7 @@ async function mockPocketBaseEndpoints(page: Page) {
     await route.fallback();
   });
 
-  // AI endpoints (used in various modals)
-  // Specific mocks for lender extract/enrich to support full AI Lender Upload flow.
-  await page.route("**/api/ai/lender-extract", async (route) => {
-    if (route.request().method() === "POST") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          ok: true,
-          data: [
-            {
-              name: "E2E Alliance Credit Union",
-              tiers: [
-                {
-                  minFico: 680,
-                  maxFico: 850,
-                  rate: 5.99,
-                  maxLtv: 110,
-                  maxTerm: 72,
-                  tierName: "Prime",
-                },
-                {
-                  minFico: 620,
-                  maxFico: 679,
-                  rate: 7.49,
-                  maxLtv: 105,
-                  maxTerm: 66,
-                  tierName: "Near Prime",
-                },
-              ],
-              bookValueSource: "Trade",
-              contactPhone: "555-0100",
-              active: true,
-            },
-            {
-              name: "E2E Capital One Auto",
-              tiers: [
-                {
-                  minFico: 640,
-                  maxFico: 850,
-                  rate: 6.49,
-                  maxLtv: 115,
-                  maxTerm: 75,
-                  tierName: "Standard",
-                },
-              ],
-              bookValueSource: "Retail",
-              active: true,
-            },
-          ],
-          meta: { provider: "mock", model: "e2e-mock-model", warning: null },
-        }),
-      });
-      return;
-    }
-    await route.continue();
-  });
-
-  await page.route("**/api/ai/lender-enrich", async (route) => {
-    if (route.request().method() === "POST") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          ok: true,
-          data: {
-            enrichment: {
-              website: "https://e2e-lender.example.com",
-              generalNotes: "E2E mock enrichment applied.",
-            },
-            sources: [{ url: "https://example.com/rates", title: "E2E Rate Sheet" }],
-          },
-          meta: { provider: "mock", model: "e2e-enrich" },
-        }),
-      });
-      return;
-    }
-    await route.continue();
-  });
-
-  // Catch-all for other AI endpoints (deal analysis etc.)
-  await page.route("**/api/ai/**", async (route) => {
-    const url = route.request().url();
-    if (url.includes("/lender-extract") || url.includes("/lender-enrich")) {
-      await route.fallback();
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: true, mocked: true }),
-    });
-  });
+  await mockAiEndpoints(page);
 }
 
 async function preAuthenticate(page: Page) {
@@ -610,6 +657,11 @@ test.describe("AI lender upload", () => {
   }) => {
     await setupTest(page, "/desk"); // Shell header AI button visible on all authed routes
     await waitForDeskReady(page);
+
+    if (USE_REAL_BACKEND) {
+      await mockAiEndpoints(page);
+      await mockAiLenderProfileWrites(page);
+    }
 
     // Open modal via header button (AppShell + LendersScreen also expose)
     const aiBtn = page.getByRole("button", { name: /AI Lender Upload/i });

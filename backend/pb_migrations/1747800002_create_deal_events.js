@@ -82,9 +82,9 @@ migrate(
     // fail-closed, never fail-open.
     try {
       const saved = app.findCollectionByNameOrId("deal_events");
-      saved.listRule = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.auth.dealer.id ?= dealer.id))`;
-      saved.viewRule = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.auth.dealer.id ?= dealer.id))`;
-      saved.createRule = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= dealer.id)`;
+      saved.listRule = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && dealer = @request.auth.dealer))`;
+      saved.viewRule = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && dealer = @request.auth.dealer))`;
+      saved.createRule = `${AUTHED} && (${SUPER} || @request.body.dealer = @request.auth.dealer)`;
       app.save(saved);
       console.log("[ok] deal_events rules applied");
     } catch (e) {

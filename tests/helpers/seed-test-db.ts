@@ -21,9 +21,42 @@ const DB_PATH = path.resolve(
 const PB_PATH = PB_BIN_OVERRIDE || path.resolve("backend/pocketbase");
 const MIGRATIONS_DIR = path.resolve("backend/pb_migrations");
 const PB_DATA_DIR = path.resolve(PB_DATA_OVERRIDE || "backend/pb_data");
+const DEFAULT_DEALER_A_ID = "dealeraid12345x";
+const DEFAULT_DEALER_B_ID = "dealerbid45678x";
 
 async function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function seedErrorDetails(error: unknown): string {
+  if (error && typeof error === "object") {
+    const err = error as { status?: number; message?: string; data?: unknown };
+    const data = err.data ? ` ${JSON.stringify(err.data)}` : "";
+    return `${err.status ? `${err.status} ` : ""}${err.message || String(error)}${data}`;
+  }
+  return String(error);
+}
+
+function isDuplicateSeedError(error: unknown): boolean {
+  return /already|exists|unique|validation_not_unique/i.test(seedErrorDetails(error));
+}
+
+function ignoreDuplicateOrThrow(label: string, error: unknown): void {
+  if (isDuplicateSeedError(error)) return;
+  throw new Error(`${label} seed failed: ${seedErrorDetails(error)}`);
+}
+
+async function assertCollectionCount(
+  pb: PocketBase,
+  collection: string,
+  minimum: number
+): Promise<void> {
+  const page = await pb.collection(collection).getList(1, 1, { requestKey: null });
+  if (page.totalItems < minimum) {
+    throw new Error(
+      `${collection} seed incomplete: expected at least ${minimum}, found ${page.totalItems}`
+    );
+  }
 }
 
 /**
@@ -67,8 +100,8 @@ async function ensurePocketBaseBinary(targetPath: string): Promise<string> {
 /** Seed just the data records using an already-running/auth'd PB client. Exported for reuse. */
 export async function seedData(
   pb: PocketBase,
-  dealerA = "dealer_a_id_123",
-  dealerB = "dealer_b_id_456"
+  dealerA = DEFAULT_DEALER_A_ID,
+  dealerB = DEFAULT_DEALER_B_ID
 ) {
   console.log("Seeding dealers (idempotent create or skip)...");
   try {
@@ -76,22 +109,20 @@ export async function seedData(
       .collection("dealers")
       .create({ id: dealerA, name: "Dealer A", code: "DEALERA", active: true });
   } catch (e: any) {
-    if (!/already exists|unique/.test(String(e)))
-      console.warn("dealerA seed failed:", e?.message || e);
+    ignoreDuplicateOrThrow("dealerA", e);
   }
   try {
     await pb
       .collection("dealers")
       .create({ id: dealerB, name: "Dealer B", code: "DEALERB", active: true });
   } catch (e: any) {
-    if (!/already exists|unique/.test(String(e)))
-      console.warn("dealerB seed failed:", e?.message || e);
+    ignoreDuplicateOrThrow("dealerB", e);
   }
 
   console.log("Seeding users...");
   const usersToCreate = [
     {
-      id: "sales_a_id_123",
+      id: "salesaid123456x",
       email: "sales.a@dealera.com",
       password: "SalesPassword123!",
       passwordConfirm: "SalesPassword123!",
@@ -103,7 +134,7 @@ export async function seedData(
       emailVisibility: true,
     },
     {
-      id: "manager_a_id_12",
+      id: "manageraid1234x",
       email: "manager.a@dealera.com",
       password: "ManagerPassword123!",
       passwordConfirm: "ManagerPassword123!",
@@ -115,7 +146,7 @@ export async function seedData(
       emailVisibility: true,
     },
     {
-      id: "admin_a_id_123",
+      id: "adminaid123456x",
       email: "admin.a@dealera.com",
       password: "AdminPassword123!",
       passwordConfirm: "AdminPassword123!",
@@ -127,7 +158,7 @@ export async function seedData(
       emailVisibility: true,
     },
     {
-      id: "sales_b_id_456",
+      id: "salesbid456789x",
       email: "sales.b@dealerb.com",
       password: "SalesPassword123!",
       passwordConfirm: "SalesPassword123!",
@@ -139,7 +170,7 @@ export async function seedData(
       emailVisibility: true,
     },
     {
-      id: "admin_b_id_456",
+      id: "adminbid456789x",
       email: "admin.b@dealerb.com",
       password: "AdminPassword123!",
       passwordConfirm: "AdminPassword123!",
@@ -151,7 +182,7 @@ export async function seedData(
       emailVisibility: true,
     },
     {
-      id: "superadmin_id_1",
+      id: "superadminid001",
       email: "superadmin@ltvpro.com",
       password: "SuperAdminPass123!",
       passwordConfirm: "SuperAdminPass123!",
@@ -166,16 +197,14 @@ export async function seedData(
     try {
       await pb.collection("users").create(u);
     } catch (e: any) {
-      if (!/already|exists|unique/.test(String(e))) {
-        console.warn("user seed failed:", e?.message || e);
-      }
+      ignoreDuplicateOrThrow(`user ${u.email}`, e);
     }
   }
 
   console.log("Seeding dealer settings...");
   try {
     await pb.collection("dealer_settings").create({
-      id: "settings_a_id_1",
+      id: "settingsaid123x",
       dealer: dealerA,
       docFee: 280,
       cvrFee: 24,
@@ -190,11 +219,11 @@ export async function seedData(
       miTradeInCreditCap: 12000,
     });
   } catch (e: any) {
-    if (!/already|exists/.test(String(e))) console.warn(e?.message);
+    ignoreDuplicateOrThrow("dealer_settings A", e);
   }
   try {
     await pb.collection("dealer_settings").create({
-      id: "settings_b_id_1",
+      id: "settingsbid456x",
       dealer: dealerB,
       docFee: 280,
       cvrFee: 24,
@@ -209,7 +238,7 @@ export async function seedData(
       miTradeInCreditCap: 12000,
     });
   } catch (e: any) {
-    if (!/already|exists/.test(String(e))) console.warn(e?.message);
+    ignoreDuplicateOrThrow("dealer_settings B", e);
   }
 
   console.log("Seeding inventory...");
@@ -223,7 +252,7 @@ export async function seedData(
         .collection("inventory")
         .create({ ...vehicleData, dealer: dealerB, status: "available" });
     } catch (e: any) {
-      if (!/already|exists/.test(String(e))) console.warn("inv seed:", e?.message);
+      ignoreDuplicateOrThrow(`inventory ${vehicle.vin || vehicle.stock}`, e);
     }
   }
 
@@ -238,9 +267,14 @@ export async function seedData(
         .collection("lender_profiles")
         .create({ ...profileData, dealer: dealerB, active: true });
     } catch (e: any) {
-      if (!/already|exists/.test(String(e))) console.warn("lender seed:", e?.message);
+      ignoreDuplicateOrThrow(`lender ${profile.name}`, e);
     }
   }
+  await assertCollectionCount(pb, "dealers", 2);
+  await assertCollectionCount(pb, "users", usersToCreate.length);
+  await assertCollectionCount(pb, "dealer_settings", 2);
+  await assertCollectionCount(pb, "inventory", SAMPLE_INVENTORY.length * 2);
+  await assertCollectionCount(pb, "lender_profiles", DEFAULT_LENDER_PROFILES.length * 2);
   console.log("Data seeding complete.");
 }
 
@@ -282,7 +316,7 @@ async function main() {
   console.log("Starting PocketBase server on port 8090...");
   // Use 'ignore' + detached+unref for KEEP_RUNNING to avoid pipe-buffer deadlocks
   // and let the server reliably outlive this script in CI.
-  const pbProcess = spawn(
+  let pbProcess = spawn(
     effectivePbPath,
     ["serve", "--http=127.0.0.1:8090", `--dir=${PB_DATA_DIR}`],
     {
@@ -293,6 +327,65 @@ async function main() {
   if (KEEP_RUNNING && pbProcess.pid) {
     pbProcess.unref();
   }
+
+  const stopPocketBase = async () => {
+    pbProcess.kill("SIGTERM");
+    await wait(1000);
+    for (let i = 0; i < 50; i++) {
+      try {
+        await fetch("http://127.0.0.1:8090/api/health");
+      } catch {
+        return;
+      }
+      await wait(200);
+    }
+  };
+
+  const resetSkippedRuleMigrations = () => {
+    console.log("Resetting skipped migrations in SQLite database...");
+    const resetQuery = `DELETE FROM _migrations WHERE file IN (
+      '1747400002_tighten_api_rules.js',
+      '1747800001_role_gated_writes_and_active_flag.js',
+      '1747800003_assert_deal_events_rules.js',
+      '1747810004_reassert_deal_events_rules.js',
+      '1747810006_reassert_dealer_scoped_rules.js'
+    );`;
+    try {
+      execSync(`sqlite3 "${DB_PATH}" "${resetQuery}"`, { stdio: "inherit" });
+    } catch (e) {
+      console.warn("sqlite reset skipped (may be ok if no sqlite3):", (e as Error).message);
+    }
+  };
+
+  const rerunRuleMigrations = () => {
+    console.log("Re-running rules migrations to apply security guards...");
+    execSync(
+      `"${effectivePbPath}" migrate up --dir="${PB_DATA_DIR}" --migrationsDir="${MIGRATIONS_DIR}"`,
+      {
+        stdio: "inherit",
+      }
+    );
+  };
+
+  const restartPocketBase = async () => {
+    console.log("Restarting PocketBase on port 8090 after rule migration re-run...");
+    pbProcess = spawn(effectivePbPath, ["serve", "--http=127.0.0.1:8090", `--dir=${PB_DATA_DIR}`], {
+      stdio: "ignore",
+      detached: true,
+    });
+    if (pbProcess.pid) pbProcess.unref();
+
+    for (let i = 0; i < 600; i++) {
+      try {
+        const res = await fetch("http://127.0.0.1:8090/api/health");
+        if (res.status === 200) return;
+      } catch {
+        // Ignored
+      }
+      await wait(200);
+    }
+    throw new Error("PocketBase failed to restart after rule migration re-run.");
+  };
 
   // Wait for PocketBase to be ready (much longer timeout for cold CI start after download + migrate).
   console.log("Waiting for PocketBase health (up to ~120s)...");
@@ -365,37 +458,24 @@ async function main() {
   if (!KEEP_RUNNING) {
     // 11. Shut down temporary server
     console.log("Stopping PocketBase temporary server...");
-    pbProcess.kill("SIGTERM");
-    await wait(1000);
+    await stopPocketBase();
 
     // 12. Reset migrations that skipped rules validation due to fresh DB schema cache quirk
-    console.log("Resetting skipped migrations in SQLite database...");
-    const resetQuery = `DELETE FROM _migrations WHERE file IN (
-      '1747400002_tighten_api_rules.js',
-      '1747800001_role_gated_writes_and_active_flag.js',
-      '1747800003_assert_deal_events_rules.js',
-      '1747810004_reassert_deal_events_rules.js'
-    );`;
-    try {
-      execSync(`sqlite3 "${DB_PATH}" "${resetQuery}"`, { stdio: "inherit" });
-    } catch (e) {
-      console.warn("sqlite reset skipped (may be ok if no sqlite3):", (e as Error).message);
-    }
+    resetSkippedRuleMigrations();
 
     // 13. Re-run migrations so the security rules compile and apply with dealers/users seeded
-    console.log("Re-running rules migrations to apply security guards...");
-    execSync(
-      `"${effectivePbPath}" migrate up --dir="${PB_DATA_DIR}" --migrationsDir="${MIGRATIONS_DIR}"`,
-      {
-        stdio: "inherit",
-      }
-    );
+    rerunRuleMigrations();
 
     console.log("All E2E database seeding and rule assertions finished successfully.");
   } else {
-    console.log("KEEP_RUNNING mode: PB left running on 8090 with seeded data. Do not kill.");
-    // In CI keep-alive, the process will be managed by workflow (bg & or later kill)
-    // Detach note: for long lived, caller should manage pbProcess if needed, but spawn here keeps it.
+    // CI real-backend E2E needs PB left running, but it must be restarted after
+    // seeding so fresh-DB rule migrations can see dealer/user fields and apply.
+    console.log("KEEP_RUNNING mode: applying skipped rule migrations before final PB serve.");
+    await stopPocketBase();
+    resetSkippedRuleMigrations();
+    rerunRuleMigrations();
+    await restartPocketBase();
+    console.log("KEEP_RUNNING mode: PB left running on 8090 with seeded data and rules applied.");
   }
 }
 
