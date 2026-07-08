@@ -4,11 +4,10 @@ import { STORAGE_KEYS } from "../constants";
 type Theme = "light" | "dark";
 
 const getInitialTheme = (): Theme => {
-  // Dark/green redesign: dark is the default surface (matches the .dc.html).
-  // Honor an explicit stored choice; otherwise boot dark regardless of OS.
   if (typeof window === "undefined") return "dark";
   const stored = window.localStorage.getItem(STORAGE_KEYS.THEME);
   if (stored === "light" || stored === "dark") return stored;
+
   return "dark";
 };
 

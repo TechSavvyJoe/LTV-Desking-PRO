@@ -14,6 +14,13 @@ import {
   LENDER_ENRICH_SYSTEM_PROMPT,
   LENDER_EXTRACTION_SYSTEM_PROMPT,
 } from "./prompts.js";
+import type {
+  CalculatedVehicle,
+  DealData,
+  FilterData,
+  LenderProfile,
+  Vehicle,
+} from "../../../types.js";
 import { callAiJson, callGroundedAiJson } from "./providerClients.js";
 import { getConfiguredProviders, resolveAiModel } from "./modelSelection.js";
 import { resolveProviderKeys, updateProviderKeyTestStatus } from "./keyResolver.js";
@@ -26,11 +33,26 @@ import {
   parseLenderExtractResponse,
 } from "./schemas.js";
 import { getDefaultModelForTask } from "../../../lib/aiModelRegistry.js";
+import { createLogger } from "../../../lib/logger.js";
 
-// Upload caps. base64 inflates binary by ~33%, so ~8 MB of base64 ≈ 6 MB PDF —
+// Safe logger creation for serverless (node) context where import.meta may be absent.
+const aiProxyLogger = (() => {
+  try {
+    return createLogger("ai-proxy");
+  } catch {
+    return {
+      error: (msg: string, err?: unknown) => console.error(`[ai-proxy] ${msg}`, err),
+      warn: (msg: string, ctx?: unknown) => console.warn(`[ai-proxy] ${msg}`, ctx),
+      debug: () => {},
+      info: () => {},
+    };
+  }
+})();
+
+// Upload caps. base64 inflates binary by ~33%, so ~4 MB of base64 ≈ 3 MB PDF —
 // comfortably under Vercel's ~4.5 MB request cap once the JSON envelope is
 // accounted for, and the body reader enforces the hard ceiling regardless. [B4]
-const MAX_BASE64_LENGTH = 8 * 1024 * 1024;
+const MAX_BASE64_LENGTH = 4 * 1024 * 1024;
 
 const FilePayloadSchema = z.object({
   name: z.string().min(1).max(255),
@@ -165,7 +187,7 @@ const sendError = (
   // to the server log. Specific text is preserved only for validated 4xx. [B9]
   const message =
     statusCode >= 500
-      ? "AI request failed. Please try again."
+      ? "AI request failed. Please try again or contact support if the problem persists."
       : error instanceof Error
         ? error.message
         : String(error);
@@ -368,11 +390,14 @@ const handleDealAnalysis = async (
     systemPrompt:
       "You are an expert automotive finance manager. Return only valid JSON and do not include markdown.",
     userPrompt: buildDealAnalysisPrompt(
-      body.vehicle as never,
-      body.dealData as never,
-      body.filters as never,
-      body.lenderProfiles as never,
-      body.inventory as never
+      // Casts are safe here: Zod schema accepts loose records from wire (for flexibility with
+      // varying client payloads and AI roundtrips); callers of buildDealAnalysisPrompt require
+      // the domain shapes. Unknown-as guards against accidental any leakage.
+      body.vehicle as unknown as CalculatedVehicle,
+      body.dealData as unknown as DealData,
+      body.filters as unknown as FilterData,
+      body.lenderProfiles as unknown as LenderProfile[],
+      body.inventory as unknown as Vehicle[]
     ),
     jsonSchema: dealSuggestionJsonSchema,
     maxTokens: 4000,
@@ -468,7 +493,7 @@ export const handleAiRequest = async (
     // Unexpected 5xx: log the real error with a correlation id server-side, but
     // return only the generic masked message + id to the client. [B9]
     const correlationId = randomUUID();
-    console.error(`[ai-proxy] error ${correlationId}:`, error);
+    aiProxyLogger.error(`error ${correlationId}`, error);
     sendError(response, 500, error, undefined, correlationId);
   }
 };

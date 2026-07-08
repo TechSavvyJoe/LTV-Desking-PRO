@@ -61,7 +61,7 @@ export const requireAuth = async (request: IncomingMessage): Promise<AuthContext
   pb.authStore.save(token, null);
   try {
     const auth = await pb.collection("users").authRefresh();
-    const record = auth.record as unknown as {
+    const record = (auth.record ?? {}) as {
       id: string;
       role?: string;
       dealer?: string;

@@ -56,9 +56,12 @@ export const escapeFilterString = (value: string): string => {
 /**
  * Checks if a value is a valid Vehicle object.
  */
+const asObj = <T extends Record<string, unknown>>(o: unknown): T | null =>
+  o && typeof o === "object" ? (o as T) : null;
+
 export const isValidVehicle = (v: unknown): v is Vehicle => {
-  if (!v || typeof v !== "object") return false;
-  const vehicle = v as Record<string, unknown>;
+  const vehicle = asObj<Record<string, unknown>>(v);
+  if (!vehicle) return false;
 
   return (
     typeof vehicle.vehicle === "string" &&
@@ -88,8 +91,8 @@ export const isValidVinFormat = (vin: unknown): vin is string => {
  * Checks if a value is valid DealData.
  */
 export const isValidDealData = (d: unknown): d is DealData => {
-  if (!d || typeof d !== "object") return false;
-  const deal = d as Record<string, unknown>;
+  const deal = asObj<Record<string, unknown>>(d);
+  if (!deal) return false;
 
   return (
     typeof deal.downPayment === "number" &&
@@ -97,7 +100,7 @@ export const isValidDealData = (d: unknown): d is DealData => {
     typeof deal.tradeInPayoff === "number" &&
     typeof deal.backendProducts === "number" &&
     typeof deal.loanTerm === "number" &&
-    typeof deal.interestRate === "number" &&
+    (typeof deal.interestRate === "number" || deal.interestRate === "") &&
     typeof deal.stateFees === "number"
   );
 };
@@ -106,8 +109,8 @@ export const isValidDealData = (d: unknown): d is DealData => {
  * Checks if a value is a valid SavedDeal.
  */
 export const isValidSavedDeal = (d: unknown): d is SavedDeal => {
-  if (!d || typeof d !== "object") return false;
-  const deal = d as Record<string, unknown>;
+  const deal = asObj<Record<string, unknown>>(d);
+  if (!deal) return false;
 
   return (
     typeof deal.id === "string" &&
@@ -127,8 +130,8 @@ export const isValidSavedDeal = (d: unknown): d is SavedDeal => {
  * Checks if a value is a valid LenderTier.
  */
 export const isValidLenderTier = (t: unknown): t is LenderTier => {
-  if (!t || typeof t !== "object") return false;
-  const tier = t as Record<string, unknown>;
+  const tier = asObj<Record<string, unknown>>(t);
+  if (!tier) return false;
 
   return (
     typeof tier.name === "string" &&
@@ -143,8 +146,8 @@ export const isValidLenderTier = (t: unknown): t is LenderTier => {
  * Checks if a value is a valid LenderProfile.
  */
 export const isValidLenderProfile = (lp: unknown): lp is LenderProfile => {
-  if (!lp || typeof lp !== "object") return false;
-  const profile = lp as Record<string, unknown>;
+  const profile = asObj<Record<string, unknown>>(lp);
+  if (!profile) return false;
 
   return (
     typeof profile.id === "string" &&

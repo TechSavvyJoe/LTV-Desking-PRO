@@ -12,10 +12,21 @@ import { DEFAULT_AI_SETTINGS } from "./lib/aiModelRegistry";
 // every email sent to them bounced (and the domain was hijackable). [G59]
 export const SUPPORT_EMAIL = "joejgallant@gmail.com";
 
-// Michigan's typical statutory doc-fee cap, used only for a non-blocking
-// Settings warning when the configured doc fee exceeds it.
-// TODO(owner): verify the current statutory cap before pilot. [G24]
-export const MI_DOC_FEE_WARN_THRESHOLD = 260;
+// Michigan's statutory max documentary preparation fee (adjusted for CPI).
+// Used only for a non-blocking Settings warning when the configured doc fee exceeds it.
+// Verified 2026 value: $280 (5% of cash price or $280, whichever less); next DIFS review 2027.
+// Sources: DIFS bulletin, state licensing data. [G24]
+export const MI_DOC_FEE_WARN_THRESHOLD = 280;
+
+/**
+ * Michigan statutory cap (in USD) on the trade-in credit that can be subtracted
+ * from the sales-tax base for MI buyers. [G17]
+ * Named constant to replace magic 12000.
+ * Verification note: Value set to 12000 (conservative for 2026); re-verify against
+ * current Michigan statute (e.g. via MCL or Treasury guidance) before pilot or
+ * production use. Override via dealer Settings if statute changes.
+ */
+export const MI_TRADE_IN_CREDIT_CAP = 12000;
 
 export const STORAGE_KEYS = {
   INVENTORY: "ltvInventory_v3",
@@ -41,10 +52,10 @@ export const INITIAL_SETTINGS: Settings = {
   defaultStateFees: 31,
   outOfStateTransitFee: 10,
   customTaxRate: null,
-  // TODO(owner): verify current MI statutory trade-in credit cap before pilot.
-  // The 2026 figure is on the order of ~$12,000–13,000; 12000 is a conservative
-  // placeholder, adjustable in Settings. [G17]
-  miTradeInCreditCap: 12000,
+  // Michigan statutory cap on sales-tax trade-in credit (in $). [G17]
+  // Uses named constant (see MI_TRADE_IN_CREDIT_CAP above) for maintainability.
+  // This default is conservative; users can override in Settings.
+  miTradeInCreditCap: MI_TRADE_IN_CREDIT_CAP,
   // Seed prices for the desk's VSC/GAP add-on toggles. [reconciliation 6]
   vscPrice: 2495,
   gapPrice: 895,

@@ -15,7 +15,7 @@ interface GaugeMarkProps {
  * "approval-odds gauge" motif rendered small. Reused by the login surface, the
  * command rail, and anywhere the brand mark appears. [dc-redesign]
  */
-export const GaugeMark: React.FC<GaugeMarkProps> = ({
+const GaugeMarkComponent: React.FC<GaugeMarkProps> = ({
   size = 34,
   radius,
   className,
@@ -57,4 +57,5 @@ export const GaugeMark: React.FC<GaugeMarkProps> = ({
   );
 };
 
+export const GaugeMark = React.memo(GaugeMarkComponent);
 export default GaugeMark;

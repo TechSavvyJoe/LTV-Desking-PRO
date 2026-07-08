@@ -28,9 +28,7 @@ export interface ResolvedAiModel {
  * and only falls back to env when PB isn't reachable. Production must never
  * rely on this path.
  */
-export const getProviderKeysFromEnv = (
-  env: NodeJS.ProcessEnv = process.env
-): ProviderKeys => ({
+export const getProviderKeysFromEnv = (env: NodeJS.ProcessEnv = process.env): ProviderKeys => ({
   openai: env.OPENAI_API_KEY,
   anthropic: env.ANTHROPIC_API_KEY,
   gemini: env.GEMINI_API_KEY ?? env.GOOGLE_API_KEY,

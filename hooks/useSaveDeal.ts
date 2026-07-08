@@ -7,6 +7,7 @@ import { calculateFinancials } from "../services/calculator";
 import { lenderFitForVehicle } from "../services/lenderFit";
 import { scoreApprovalOdds } from "../services/approvalScorer";
 import { mapPocketBaseSavedDeal } from "../lib/dealMappers";
+import { currentDealerQueryKeys, queryClient, queryKeys } from "../lib/queryClient";
 import type { CalculatedVehicle, SavedDeal } from "../types";
 import type { SavedDeal as PocketBaseSavedDeal } from "../lib/pocketbase";
 
@@ -106,8 +107,8 @@ export function useSaveDeal() {
         customerName,
         salespersonName,
         vehicle: vehicleToSave.id, // Assuming calculated vehicle has ID matching inventory
-        vehicleData: vehicleSnapshot as unknown as Record<string, unknown>, // Serialized to JSON in PocketBase
-        dealData: { ...dealData } as unknown as Record<string, unknown>,
+        vehicleData: { ...vehicleSnapshot } as Record<string, unknown>, // Serialized to JSON in PocketBase
+        dealData: { ...dealData } as Record<string, unknown>,
         customerFilters: {
           creditScore: filters.creditScore,
           monthlyIncome: filters.monthlyIncome,
@@ -130,13 +131,27 @@ export function useSaveDeal() {
           otdLtv: vehicleSnapshot.otdLtv,
           amountToFinance: vehicleSnapshot.amountToFinance,
           approvalScore: vehicleSnapshot.approvalScore,
-        } as unknown as Record<string, unknown>,
+        } as Record<string, unknown>,
       };
 
       saveDeal(newDealData).then((saved) => {
         if (saved) {
           const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
+          // Optimistic prepend. RACE NOTE: realtime sub (see subscribeToSavedDeals
+          // + DealContext useEffect) will soon fire a debounced full refetch and
+          // replace the array entirely. Prepend + replace is usually harmless
+          // (new deal will be present); worst case short dup until sub lands.
+          // Progress: load now via fetchQuery; cache also set here.
+          // Future: full RQ useMutation + invalidation.
           setSavedDeals((prev) => [mappedSaved, ...prev]);
+          // Keep RQ cache roughly in sync on the optimistic path too.
+          queryClient.setQueryData(
+            currentDealerQueryKeys().savedDeals,
+            (old: SavedDeal[] | undefined) => (old ? [mappedSaved, ...old] : [mappedSaved])
+          );
+          // More RQ integration: schedule authoritative refetch into cache.
+          // Does not clobber optimistic state/setSavedDeals; sub will align UI later.
+          queryClient.invalidateQueries({ queryKey: queryKeys.savedDeals });
           setMessage({ type: "success", text: "Deal saved successfully." });
           // The structure is persisted — stop the beforeunload "unsaved deal"
           // warning from firing on the very next navigation. [dc-redesign]

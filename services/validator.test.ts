@@ -159,4 +159,42 @@ describe("validateInput", () => {
       expect(validateInput("randomInput", -500)).toBeNull();
     });
   });
+
+  // --- coverage gaps: NaN inputs to validator, float loanTerm, blank everything ---
+
+  describe("NaN / Infinity inputs (top-level finite guard)", () => {
+    const fields = ["downPayment", "loanTerm", "interestRate", "tradeInValue", "maxMiles"];
+    fields.forEach((f) => {
+      it(`${f}: rejects NaN`, () => {
+        expect(validateInput(f, NaN)).toBe("Value must be a valid finite number.");
+      });
+      it(`${f}: rejects Infinity`, () => {
+        expect(validateInput(f, Infinity)).toBe("Value must be a valid finite number.");
+        expect(validateInput(f, -Infinity)).toBe("Value must be a valid finite number.");
+      });
+    });
+  });
+
+  describe("float loanTerm edge (rejects non-int)", () => {
+    it("rejects fractional loanTerm like 60.1", () => {
+      expect(validateInput("loanTerm", 60.1)).toBe("Term must be a positive whole number.");
+    });
+    it("accepts whole-number float literals like 60.0 (isInteger true)", () => {
+      expect(validateInput("loanTerm", 60.0)).toBeNull();
+    });
+  });
+
+  describe("blank/edge everything (nulls, 0s, extremes per spec)", () => {
+    it("null clears for positive-only and loanTerm fields", () => {
+      expect(validateInput("downPayment", null)).toBeNull();
+      expect(validateInput("loanTerm", null)).toBeNull();
+      expect(validateInput("interestRate", null)).toBeNull();
+    });
+
+    it("zero allowed where makes sense, rejected for term/rate semantics", () => {
+      expect(validateInput("downPayment", 0)).toBeNull();
+      expect(validateInput("loanTerm", 0)).toBe("Term must be a positive whole number.");
+      expect(validateInput("interestRate", 0)).toBeNull(); // 0% allowed
+    });
+  });
 });

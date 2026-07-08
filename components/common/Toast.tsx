@@ -116,7 +116,7 @@ export const Toast: React.FC = () => {
         <button
           onClick={() => setIsVisible(false)}
           aria-label="Dismiss notification"
-          className="lift-btn"
+          className="transition-colors"
           style={{
             background: "transparent",
             border: "none",

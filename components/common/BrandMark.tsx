@@ -61,12 +61,12 @@ export const BrandWordmark: React.FC<{
       <BrandMark className={dims} variant="default" />
       <div className="leading-tight">
         <p
-          className={`${titleSize} font-bold tracking-tight text-white`}
+          className={`${titleSize} font-bold tracking-tight text-[var(--color-text)]`}
           style={{ letterSpacing: "-0.02em" }}
         >
-          LTV Desking <span className="text-blue-400">PRO</span>
+          LTV Desking <span style={{ color: "var(--color-primary)" }}>PRO</span>
         </p>
-        {tagline && <p className="text-xs text-slate-400 mt-0.5">{tagline}</p>}
+        {tagline && <p className="text-xs text-[var(--color-text-subtle)] mt-0.5">{tagline}</p>}
       </div>
     </div>
   );

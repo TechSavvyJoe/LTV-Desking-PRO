@@ -126,7 +126,10 @@ const ltvTier = (
 };
 
 const NaCell = () => (
-  <span className="financial-cell font-medium text-sm" style={{ color: "var(--color-text-subtle)" }}>
+  <span
+    className="financial-cell font-medium text-sm"
+    style={{ color: "var(--color-text-subtle)" }}
+  >
     --
   </span>
 );
@@ -134,7 +137,7 @@ const NaCell = () => (
 interface LtvCellProps {
   value: number | "Error" | "N/A";
 }
-export const LtvCell: React.FC<LtvCellProps> = ({ value }) => {
+const LtvCellComponent: React.FC<LtvCellProps> = ({ value }) => {
   const [settings] = useSettings();
   const thresholds = settings.ltvThresholds || DEFAULT_LTV_THRESHOLDS;
   if (typeof value !== "number") return <NaCell />;
@@ -151,7 +154,9 @@ export const LtvCell: React.FC<LtvCellProps> = ({ value }) => {
   );
 };
 
-export const OtdLtvCell: React.FC<LtvCellProps> = ({ value }) => {
+export const LtvCell = React.memo(LtvCellComponent);
+
+const OtdLtvCellComponent: React.FC<LtvCellProps> = ({ value }) => {
   const [settings] = useSettings();
   const thresholds = settings.ltvThresholds || DEFAULT_LTV_THRESHOLDS;
   if (typeof value !== "number") return <NaCell />;
@@ -170,10 +175,12 @@ export const OtdLtvCell: React.FC<LtvCellProps> = ({ value }) => {
   );
 };
 
+export const OtdLtvCell = React.memo(OtdLtvCellComponent);
+
 interface GrossCellProps {
   value: number | "Error" | "N/A";
 }
-export const GrossCell: React.FC<GrossCellProps> = ({ value }) => {
+const GrossCellComponent: React.FC<GrossCellProps> = ({ value }) => {
   if (typeof value !== "number") return <NaCell />;
   const isNegative = value < 0;
   const color = isNegative ? "var(--color-danger)" : "var(--color-success)";
@@ -191,6 +198,8 @@ export const GrossCell: React.FC<GrossCellProps> = ({ value }) => {
     </CopyToClipboard>
   );
 };
+
+export const GrossCell = React.memo(GrossCellComponent);
 
 interface PaymentCellProps {
   value: number | "Error" | "N/A";

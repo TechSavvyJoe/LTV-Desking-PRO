@@ -7,12 +7,7 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
-import {
-  isAuthenticated,
-  onAuthStateChange,
-  getCurrentUser,
-  refreshSession,
-} from "./lib/auth";
+import { isAuthenticated, onAuthStateChange, getCurrentUser, refreshSession } from "./lib/auth";
 import { setSuperadminDealerOverride, getSuperadminDealerOverride } from "./lib/pocketbase";
 import { identify } from "./lib/analytics";
 import { OwnerLogin } from "./components/auth/OwnerLogin";
@@ -27,10 +22,14 @@ import { DataLoading } from "./components/common/states";
 import { toast } from "./lib/toast";
 import AppShell from "./components/shell/AppShell";
 import DeskScreen from "./components/desk/DeskScreen";
-import InventoryScreen from "./components/screens/InventoryScreen";
-import PipelineScreen from "./components/screens/PipelineScreen";
-import LendersScreen from "./components/screens/LendersScreen";
-import ReportsScreen from "./components/screens/ReportsScreen";
+// Lazy load secondary screens to shrink the initial JS payload for the default
+// /desk route (sales users). These will code-split into their own chunks.
+// Desk stays eager as it is the primary surface.
+const InventoryScreen = lazy(() => import("./components/screens/InventoryScreen"));
+const PipelineScreen = lazy(() => import("./components/screens/PipelineScreen"));
+const LendersScreen = lazy(() => import("./components/screens/LendersScreen"));
+const ReportsScreen = lazy(() => import("./components/screens/ReportsScreen"));
+
 // Code-split the heavy, conditionally-rendered surfaces so a salesperson on the
 // default route never downloads the admin dashboards (~3,200 lines), the legal
 // pages, or recharts (via FinanceTools) on first paint. [perf]
@@ -62,8 +61,7 @@ const ToolsRoute: React.FC = () => {
   // activeVehicle is a snapshot frozen at focus time; resolve the LIVE
   // computed vehicle so the tools' charts reprice with the deal. [review/P2]
   const liveVehicle =
-    (activeVehicle && processedInventory.find((v) => v.vin === activeVehicle.vin)) ||
-    activeVehicle;
+    (activeVehicle && processedInventory.find((v) => v.vin === activeVehicle.vin)) || activeVehicle;
   return (
     <Suspense fallback={<DataLoading label="Loading tools…" />}>
       <FinanceTools
@@ -280,10 +278,38 @@ const App: React.FC = () => {
         {/* Authed dealer app — AppShell hosts the routed screens */}
         <Route element={dealerShellElement}>
           <Route path="/desk" element={<DeskRoute />} />
-          <Route path="/pipeline" element={<PipelineScreen />} />
-          <Route path="/inventory" element={<InventoryScreen />} />
-          <Route path="/lenders" element={<LendersScreen />} />
-          <Route path="/reports" element={<ReportsScreen />} />
+          <Route
+            path="/pipeline"
+            element={
+              <Suspense fallback={PageFallback}>
+                <PipelineScreen />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/inventory"
+            element={
+              <Suspense fallback={PageFallback}>
+                <InventoryScreen />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/lenders"
+            element={
+              <Suspense fallback={PageFallback}>
+                <LendersScreen />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <Suspense fallback={PageFallback}>
+                <ReportsScreen />
+              </Suspense>
+            }
+          />
           <Route path="/tools" element={<ToolsRoute />} />
           <Route path="/" element={<LegacyTabRedirect />} />
           <Route path="*" element={<Navigate to="/desk" replace />} />

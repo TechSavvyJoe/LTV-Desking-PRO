@@ -7,6 +7,10 @@ import { generateFavoritesPdf } from "../services/pdfGenerator";
 import { checkBankEligibility } from "../services/lenderMatcher";
 import { syncInventory, logDealEvent } from "../lib/api";
 import { capture } from "../lib/analytics";
+import { createLogger } from "../lib/logger";
+import { queryClient, queryKeys } from "../lib/queryClient";
+
+const inventoryImportLogger = createLogger("inventory-import");
 
 /**
  * Inventory import / VIN decode / favorites-PDF handlers, extracted verbatim
@@ -127,6 +131,8 @@ export function useInventoryImport() {
 
       // Only update local state after successful sync
       setInventory(data);
+      // Integrate RQ: ensure cache reflects the import (sub will also update via realtime).
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory });
       setPagination((prev) => ({ ...prev, currentPage: 1 }));
 
       const failedNote =
@@ -142,8 +148,13 @@ export function useInventoryImport() {
         skipped,
         failed: syncResult.failed,
       });
+      capture("inventory_uploaded", {
+        vehicles: data.length,
+        skipped,
+        failed: syncResult.failed,
+      });
     } catch (err) {
-      console.error(err);
+      inventoryImportLogger.error("Inventory import failed", err);
       // The parser writes user-safe, actionable messages (missing columns,
       // skipped-row reasons) — show them instead of a generic toast. [C-regression]
       setMessage({
@@ -249,12 +260,11 @@ export function useInventoryImport() {
           },
         ])
           .then(() => {
-            if (import.meta.env.DEV) {
-              console.log("VIN lookup vehicle synced to PocketBase");
-            }
+            inventoryImportLogger.debug("VIN lookup vehicle synced to PocketBase");
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventory });
           })
           .catch((err: unknown) => {
-            console.error("Failed to sync VIN lookup to PocketBase:", err);
+            inventoryImportLogger.error("Failed to sync VIN lookup to PocketBase", err);
             // Surface the silent persistence failure (e.g. no dealership selected)
             // instead of leaving the user believing the vehicle was saved.
             setMessage({
@@ -344,7 +354,7 @@ export function useInventoryImport() {
       });
       capture("pdf_generated", { type: "favorites", vehicles: pdfData.length });
     } catch (err) {
-      console.error("PDF generation failed", err);
+      inventoryImportLogger.error("PDF generation failed", err);
       setMessage({
         type: "error",
         text: "Unable to generate PDF. Please check your data.",

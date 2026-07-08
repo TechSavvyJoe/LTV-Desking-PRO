@@ -44,4 +44,49 @@ describe("AI response schema validation", () => {
       })
     ).toThrow("invalid deal analysis");
   });
+
+  it("accepts richer deal suggestion fields without allowing free-text notes", () => {
+    const parsed = parseDealSuggestionResponse({
+      analysis: "Move back-end into editable line items and apply rebate.",
+      suggestions: [
+        {
+          title: "Lower advance",
+          reasoning: "More rebate and less GAP lowers OTD LTV.",
+          proposedChanges: {
+            backendProducts: 2995,
+            vscAmount: 2495,
+            gapAmount: 500,
+            buyerState: "IL",
+            rebate: 750,
+            notes: "This must not survive schema parsing.",
+          },
+        },
+      ],
+    });
+
+    expect(parsed.suggestions[0]?.proposedChanges).toEqual({
+      backendProducts: 2995,
+      vscAmount: 2495,
+      gapAmount: 500,
+      buyerState: "IL",
+      rebate: 750,
+    });
+  });
+
+  describe("more schema error paths", () => {
+    it("handles null/undefined input gracefully for extract", () => {
+      expect(() => parseLenderExtractResponse(null as any)).toThrow();
+      expect(() => parseLenderExtractResponse(undefined as any)).toThrow();
+    });
+
+    it("parseDealSuggestionResponse tolerates extra meta but strips unsafe", () => {
+      const res = parseDealSuggestionResponse({
+        analysis: "ok",
+        suggestions: [],
+        modelWarning: "fast model",
+        extra: "drop",
+      } as any);
+      expect(res.analysis).toBe("ok");
+    });
+  });
 });

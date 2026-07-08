@@ -49,4 +49,4 @@ The top process should be `pocketbase`. Anything else taking >100 MB is suspicio
 
 - Already on 1 GB (bumped from 512 MB)
 - Bundle splitting (deferred PDF/OCR loading) reduces memory pressure on the AI proxy path
-- Sentry alert on a 5xx burst (TODO once on-call wired)
+- Sentry error tracking wired (lib/sentry.ts + DSN in deploy); configure 5xx burst alert + on-call in Sentry dashboard separately (no code change needed)

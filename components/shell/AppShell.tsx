@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useDealContext } from "../../context/DealContext";
 import { useTheme } from "../../hooks/useTheme";
 import { GaugeMark } from "../common/GaugeMark";
 import { AnnouncementBanner } from "../common/AnnouncementBanner";
 import SkipNavLink from "../common/SkipNavLink";
-import SettingsModal from "../SettingsModal";
-import AiLenderManagerModal from "../AiLenderManagerModal";
+// Lazy load modals (Settings ~750 LOC + AI manager) to keep shell + desk initial
+// bundle smaller. Only fetched on explicit open.
+const SettingsModal = lazy(() => import("../SettingsModal"));
+const AiLenderManagerModal = lazy(() => import("../AiLenderManagerModal"));
 import BackgroundUploadIndicator from "../BackgroundUploadIndicator";
 import { DataLoading, DataError } from "../common/states";
 import {
@@ -15,6 +17,7 @@ import {
   setSuperadminDealerOverride,
   clearSuperadminDealerOverride,
   collections,
+  asRecord,
 } from "../../lib/pocketbase";
 import type { Dealer } from "../../lib/pocketbase";
 import { getAllDealers } from "../../lib/api";
@@ -32,39 +35,80 @@ const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 /* Inline SVGs copied verbatim from LTV Desking PRO.dc.html (header + renderVals). */
 const SparkleIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 8.5 13 11l2.5 1L13 13l-1 2.5L11 13l-2.5-1L11 11z" fill="currentColor" stroke="none" />
+    <path
+      d="M12 8.5 13 11l2.5 1L13 13l-1 2.5L11 13l-2.5-1L11 11z"
+      fill="currentColor"
+      stroke="none"
+    />
     <path d="M5 4v3M19 17v3M4 18h2M18 5h2" />
   </svg>
 );
 
 const SunIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+  >
     <circle cx="12" cy="12" r="5" />
     <path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
   </svg>
 );
 
 const MoonIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+  >
     <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
   </svg>
 );
 
 const GearIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+  <svg
+    width="17"
+    height="17"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+  >
     <circle cx="12" cy="12" r="3" />
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 );
 
 const WrenchIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
   </svg>
 );
 
 const ShieldIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+  >
     <path d="M12 3l8 3.5v5c0 4.5-3.2 7.4-8 9-4.8-1.6-8-4.5-8-9v-5z" />
   </svg>
 );
@@ -211,7 +255,7 @@ export const AppShell: React.FC = () => {
     collections.dealers
       .getOne(dealerId)
       .then((record) => {
-        if (!cancelled) setDealerName((record as unknown as Dealer).name);
+        if (!cancelled) setDealerName(asRecord<Dealer>(record)?.name ?? "");
       })
       .catch(() => {
         /* keep placeholder */
@@ -241,7 +285,11 @@ export const AppShell: React.FC = () => {
   // --- AI Lender Upload modal state (moved from legacy MainLayout) ----------
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isAiMinimized, setIsAiMinimized] = useState(false);
-  const [aiUploadProgress] = useState({ progress: 0, stage: "" });
+  // Real progress state (was dead `const [aiUploadProgress] = useState({0,""})`).
+  // Now wired to modal's onProgress so the minimized BackgroundUploadIndicator
+  // can show actual %/stage instead of always 0. This is the first step toward
+  // integrating (or removing) the dead stores/backgroundUploadStore.
+  const [aiUploadProgress, setAiUploadProgress] = useState({ progress: 0, stage: "" });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const openAiUpload = () => {
@@ -332,7 +380,10 @@ export const AppShell: React.FC = () => {
           borderBottom: "1px solid var(--color-border)",
         }}
       >
-        <div style={{ height: 54, display: "flex", alignItems: "center", gap: 12, padding: "0 20px" }}>
+        <div
+          className="app-shell-topbar"
+          style={{ height: 54, display: "flex", alignItems: "center", gap: 12, padding: "0 20px" }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <GaugeMark size={30} radius={9} />
             <span
@@ -392,7 +443,7 @@ export const AppShell: React.FC = () => {
             </span>
           )}
 
-          <div style={{ flex: 1 }} />
+          <div className="app-shell-spacer" style={{ flex: 1 }} />
 
           {isSuperAdmin && overrideId && (
             <div
@@ -428,7 +479,6 @@ export const AppShell: React.FC = () => {
               </span>
               <button
                 onClick={handleExitImpersonation}
-                className="lift-btn"
                 style={{
                   background: "transparent",
                   border: "none",
@@ -438,6 +488,7 @@ export const AppShell: React.FC = () => {
                   cursor: "pointer",
                   fontFamily: "inherit",
                   padding: "0 0 0 2px",
+                  transition: "opacity 120ms",
                 }}
               >
                 Exit
@@ -447,10 +498,11 @@ export const AppShell: React.FC = () => {
 
           <button
             onClick={openAiUpload}
-            className="lift-btn btn-primary"
             style={{
+              background: "var(--color-primary)",
+              color: "var(--on-primary, white)",
               border: "1px solid transparent",
-              borderRadius: 8,
+              borderRadius: 6,
               padding: "7px 12px",
               fontSize: 13.5,
               fontWeight: 600,
@@ -460,7 +512,12 @@ export const AppShell: React.FC = () => {
               alignItems: "center",
               gap: 7,
               whiteSpace: "nowrap",
+              transition: "background-color var(--duration-fast)",
             }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "var(--color-primary-hover)")
+            }
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
           >
             <SparkleIcon />
             AI Lender Upload
@@ -559,7 +616,16 @@ export const AppShell: React.FC = () => {
                     logout();
                   }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <path d="M16 17l5-5-5-5M21 12H9" />
                   </svg>
@@ -572,6 +638,7 @@ export const AppShell: React.FC = () => {
 
         <nav
           aria-label="Primary"
+          className="app-shell-nav"
           style={{ display: "flex", alignItems: "center", gap: 2, padding: "0 14px" }}
         >
           <NavLink to="/desk" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
@@ -592,7 +659,7 @@ export const AppShell: React.FC = () => {
           <NavLink to="/reports" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Reports
           </NavLink>
-          <div style={{ flex: 1 }} />
+          <div className="app-shell-spacer" style={{ flex: 1 }} />
           {(isSuperAdmin || isDealerAdmin) && (
             <NavLink to="/admin" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
               <ShieldIcon />
@@ -603,14 +670,14 @@ export const AppShell: React.FC = () => {
       </header>
 
       {/* MAIN — routed screens */}
-      <main
-        id="main-content"
-        tabIndex={-1}
-        style={{ flex: 1, minWidth: 0, outline: "none" }}
-      >
+      <main id="main-content" tabIndex={-1} style={{ flex: 1, minWidth: 0, outline: "none" }}>
         {dataError ? (
           <div style={{ padding: "20px 24px" }}>
-            <DataError title="Couldn't load your data" description={dataError} onRetry={refetchData} />
+            <DataError
+              title="Couldn't load your data"
+              description={dataError}
+              onRetry={refetchData}
+            />
           </div>
         ) : dataLoading ? (
           <DataLoading label="Loading your dealership data…" />
@@ -619,25 +686,35 @@ export const AppShell: React.FC = () => {
         )}
       </main>
 
-      {/* Modals (moved from legacy MainLayout) */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSave={setSettings}
-      />
+      {/* Modals (moved from legacy MainLayout) — wrapped for lazy */}
+      <Suspense fallback={null}>
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          settings={settings}
+          onSave={setSettings}
+        />
+      </Suspense>
 
-      <AiLenderManagerModal
-        isOpen={isAiModalOpen && !isAiMinimized}
-        onClose={() => setIsAiModalOpen(false)}
-        currentProfiles={lenderProfiles}
-        onUpdateProfiles={setLenderProfiles}
-        onMinimize={() => setIsAiMinimized(true)}
-        isMinimized={isAiMinimized}
-        settings={settings}
-      />
+      <Suspense fallback={null}>
+        <AiLenderManagerModal
+          isOpen={isAiModalOpen && !isAiMinimized}
+          onClose={() => setIsAiModalOpen(false)}
+          currentProfiles={lenderProfiles}
+          onUpdateProfiles={setLenderProfiles}
+          onMinimize={() => setIsAiMinimized(true)}
+          isMinimized={isAiMinimized}
+          settings={settings}
+          // Wire progress so indicator reflects real AI processing (was dead/0 before).
+          // BackgroundUploadStore remains unused; this is direct state bridge.
+          onProgress={(progress, stage) => setAiUploadProgress({ progress, stage })}
+        />
+      </Suspense>
 
       <BackgroundUploadIndicator
+        // isProcessing uses isAiModalOpen (crude proxy). When the modal is doing
+        // work it calls onProgress above; progress now flows. BackgroundUploadStore
+        // kept for future true background AI uploads (currently direct state bridge).
         isProcessing={isAiModalOpen}
         isMinimized={isAiMinimized}
         overallProgress={aiUploadProgress.progress}

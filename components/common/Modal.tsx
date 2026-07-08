@@ -83,7 +83,7 @@ const Modal: React.FC<ModalProps> = ({
       {/* Backdrop */}
       <div
         className={`
-          fixed inset-0 bg-slate-950/60
+          fixed inset-0 bg-black/60
           transition-opacity duration-200 ease-out
           ${isAnimating ? "opacity-100" : "opacity-0"}
         `}
@@ -110,24 +110,24 @@ const Modal: React.FC<ModalProps> = ({
         aria-labelledby="modal-title"
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800/50 flex-shrink-0">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-[var(--color-border)] flex-shrink-0">
           <div>
             <h3
               id="modal-title"
-              className="text-lg font-semibold text-slate-900 dark:text-white leading-6"
+              className="text-lg font-semibold text-[var(--color-text)] leading-6"
             >
               {title}
             </h3>
             {description && (
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
+              <p className="mt-1 text-sm text-[var(--color-text-muted)]">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
             className="
               -mr-2 p-2
-              text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300
-              hover:bg-slate-100 dark:hover:bg-slate-800
+              text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]
+              hover:bg-[var(--color-bg-muted)]
               rounded transition-colors
             "
             aria-label="Close modal"
@@ -137,11 +137,11 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content - Scrollable */}
-        <div className="px-6 py-6 overflow-y-auto custom-scrollbar flex-1">{children}</div>
+        <div className="px-6 py-5 overflow-y-auto custom-scrollbar flex-1">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-lg flex-shrink-0">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)] rounded-b-lg flex-shrink-0">
             {footer}
           </div>
         )}

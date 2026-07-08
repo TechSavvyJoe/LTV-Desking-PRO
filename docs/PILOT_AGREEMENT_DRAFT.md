@@ -3,10 +3,10 @@
 > **Status: working draft prepared for counsel review. Not executed, not legal advice.** Target:
 > a 2–4 page agreement + the Safeguards addendum (docs/SAFEGUARDS_ADDENDUM_DRAFT.md) as Exhibit A.
 
-**Parties:** LTV Desking PRO ("Provider") and **********\_\_********** ("Dealer").
+**Parties:** LTV Desking PRO ("Provider") and \***\*\*\*\*\***\_\_\***\*\*\*\*\*** ("Dealer").
 
 1. **Pilot term & scope.** 30-day pilot (renewable once by email) of the LTV Desking PRO software
-   for Dealer's rooftop at ******\_\_******. Up to \_\_\_ named users. Companion tooling only: the
+   for Dealer's rooftop at **\*\***\_\_**\*\***. Up to \_\_\_ named users. Companion tooling only: the
    software produces estimates and preliminary lender screens; it does not produce contracts,
    disclosures, or credit decisions.
 

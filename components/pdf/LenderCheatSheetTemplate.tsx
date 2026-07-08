@@ -3,7 +3,7 @@ import type { LenderProfile, LenderTier } from "../../types";
 
 const el = React.createElement;
 const logoSvg = encodeURIComponent(
-  `<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="18" fill="url(#g)"/><path d="M26 49c0-10.5 8.5-19 19-19h6c10.5 0 19 8.5 19 19s-8.5 19-19 19h-6c-10.5 0-19-8.5-19-19Z" stroke="white" stroke-width="6"/><path d="M32 49c0-7.2 5.8-13 13-13h6c7.2 0 13 5.8 13 13s-5.8 13-13 13h-6c-7.2 0-13-5.8-13-13Z" stroke="white" stroke-width="6" opacity="0.6"/><defs><linearGradient id="g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs></svg>`
+  `<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="18" fill="url(#g)"/><path d="M26 49c0-10.5 8.5-19 19-19h6c10.5 0 19 8.5 19 19s-8.5 19-19 19h-6c-10.5 0-19-8.5-19-19Z" stroke="white" stroke-width="6"/><path d="M32 49c0-7.2 5.8-13 13-13h6c7.2 0 13 5.8 13 13s-5.8 13-13 13h-6c-7.2 0-13-5.8-13-13Z" stroke="white" stroke-width="6" opacity="0.6"/><defs><linearGradient id="g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="#1e40af"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient></defs></svg>`
 );
 
 const styles = `
@@ -33,7 +33,7 @@ const styles = `
         justify-content: space-between;
         align-items: center;
         padding-bottom: 4mm;
-        border-bottom: 2px solid #3b82f6;
+        border-bottom: 2px solid #34d399;
         margin-bottom: 3mm;
     }
     .brand {
@@ -46,7 +46,7 @@ const styles = `
         font-size: 14pt;
         font-weight: 700;
         margin: 0;
-        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        background: #1e40af;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
@@ -63,11 +63,11 @@ const styles = `
     }
     th {
         padding: 4px 3px;
-        background: linear-gradient(135deg, #1e40af 0%, #4338ca 100%);
+        background: #1e3a8a;
         color: white;
         font-weight: 600;
         font-size: 5.5pt;
-        text-transform: uppercase;
+        text-transform: none;
         letter-spacing: 0.02em;
         white-space: nowrap;
         text-align: center;

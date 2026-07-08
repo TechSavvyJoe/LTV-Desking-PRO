@@ -18,19 +18,19 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const baseClasses = `
       w-full
       appearance-none
-      bg-white dark:bg-slate-800/80
-      border-[1.5px] rounded-xl
-      text-slate-900 dark:text-slate-100
-      transition-all duration-200 ease-out
+      bg-white dark:bg-[var(--color-bg-subtle)]
+      border rounded
+      text-[var(--color-text)]
+      transition-colors duration-[var(--duration-fast)]
       focus:outline-none
       cursor-pointer
-      disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800
+      disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-[var(--color-bg-subtle)]
       pr-10
     `;
 
     const stateClasses = error
-      ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
-      : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
+      ? "border-[var(--color-danger)] focus:border-[var(--color-danger)] focus:ring-2 focus:ring-[var(--color-danger-subtle)]"
+      : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)]";
 
     return (
       <div className="relative">
@@ -49,7 +49,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         </select>
 
         {/* Custom Arrow */}
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-slate-500">
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-text-subtle)]">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
@@ -61,4 +61,4 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
 Select.displayName = "Select";
 
-export default Select;
+export default React.memo(Select);

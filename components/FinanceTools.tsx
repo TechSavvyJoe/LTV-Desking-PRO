@@ -1,10 +1,72 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, lazy, Suspense } from "react";
 import { calculateMonthlyPayment, calculateLoanAmount } from "../services/calculator";
 import { formatCurrency } from "./common/TableCell";
 import * as Icons from "./common/Icons";
-import { PaymentBreakdownChart, LenderComparisonChart } from "./DealCharts";
 import { DealData, CalculatedVehicle, LenderProfile, FilterData } from "../types";
 import { DocumentScanner } from "./DocumentScanner";
+
+// Lazy load heavy chart components (recharts) so the library is only fetched
+// when the Analytics tab is opened inside the already-lazy FinanceTools.
+// This further splits recharts out of the FinanceTools chunk for better perf.
+const PaymentBreakdownChart = lazy(() =>
+  import("./DealCharts").then((m) => ({ default: m.PaymentBreakdownChart }))
+);
+const LenderComparisonChart = lazy(() =>
+  import("./DealCharts").then((m) => ({ default: m.LenderComparisonChart }))
+);
+
+// Hoisted + memoized presentational components (were defined inside FinanceTools
+// causing fresh function identities on every render of the tools panel).
+const InputGroup: React.FC<{
+  label: string;
+  children: React.ReactNode;
+  htmlFor?: string;
+}> = React.memo(({ label, children, htmlFor }) => (
+  <div className="flex flex-col">
+    <label htmlFor={htmlFor} className="mb-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+      {label}
+    </label>
+    {children}
+  </div>
+));
+
+const StyledInput = React.memo((props: React.InputHTMLAttributes<HTMLInputElement>) => (
+  <input
+    {...props}
+    className="w-full px-3 py-2 text-sm bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded focus:outline-none placeholder-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)] transition-colors duration-[var(--duration-fast)] text-[var(--color-text)] disabled:opacity-50"
+  />
+));
+
+const StyledSelect = React.memo((props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
+  <select
+    {...props}
+    className="w-full px-3 py-2 text-sm bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded focus:outline-none text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)] transition-colors duration-[var(--duration-fast)]"
+  />
+));
+
+const ResultDisplay = React.memo(
+  ({
+    label,
+    value,
+    valueColorClass = "text-[var(--color-primary)]",
+    subLabel,
+  }: {
+    label: string;
+    value: string | React.ReactNode;
+    valueColorClass?: string;
+    subLabel?: string;
+  }) => (
+    <div className="flex justify-between items-center p-4 bg-[var(--color-bg)] rounded-md border border-[var(--color-border)]">
+      <div className="flex flex-col">
+        <span className="font-medium text-[var(--color-text)] text-sm">{label}</span>
+        {subLabel && (
+          <span className="text-xs text-[var(--color-text-muted)] mt-0.5">{subLabel}</span>
+        )}
+      </div>
+      <span className={`font-semibold text-xl tabular-nums ${valueColorClass}`}>{value}</span>
+    </div>
+  )
+);
 
 type ToolTab =
   | "reserve"
@@ -65,57 +127,6 @@ const NAV_ITEMS: { id: ToolTab; label: string; icon: React.ReactNode }[] = [
     icon: <Icons.PencilIcon className="w-5 h-5" />,
   },
 ];
-const InputGroup: React.FC<{
-  label: string;
-  children: React.ReactNode;
-  htmlFor?: string;
-}> = ({ label, children, htmlFor }) => (
-  <div className="flex flex-col">
-    <label
-      htmlFor={htmlFor}
-      className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
-    >
-      {label}
-    </label>
-    {children}
-  </div>
-);
-
-const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-  <input
-    {...props}
-    className="w-full px-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
-  />
-);
-
-const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select
-    {...props}
-    className="w-full px-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all duration-200 ease-in-out text-slate-900 dark:text-slate-100 shadow-sm"
-  />
-);
-
-const ResultDisplay = ({
-  label,
-  value,
-  valueColorClass = "text-blue-600 dark:text-blue-400",
-  subLabel,
-}: {
-  label: string;
-  value: string | React.ReactNode;
-  valueColorClass?: string;
-  subLabel?: string;
-}) => (
-  <div className="flex justify-between items-center p-4 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border)]">
-    <div className="flex flex-col">
-      <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{label}</span>
-      {subLabel && (
-        <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subLabel}</span>
-      )}
-    </div>
-    <span className={`font-bold text-xl ${valueColorClass}`}>{value}</span>
-  </div>
-);
 
 interface FinanceToolsProps {
   scratchPadNotes: string;
@@ -324,18 +335,20 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
       {/* Sidebar */}
       <div className="w-64 bg-[var(--color-bg-subtle)] border-r border-[var(--color-border)] flex flex-col">
         <div className="p-4 border-b border-[var(--color-border)]">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Finance Tools</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Calculators & Utilities</p>
+          <h3 className="text-lg font-semibold text-[var(--color-text)]">Finance tools</h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">Calculators & utilities</p>
         </div>
-        <nav className="flex-1 p-2 space-y-1">
+        <nav className="flex-1 p-2 space-y-1" aria-label="Finance tools">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              role="tab"
+              aria-selected={activeTab === item.id}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-[var(--duration-fast)] ${
                 activeTab === item.id
-                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200"
+                  ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
+                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)]"
               }`}
             >
               {item.icon}
@@ -347,10 +360,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
           <div className="p-4 border-t border-[var(--color-border)]">
             <button
               onClick={handleSyncToDeal}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50/80 dark:hover:bg-slate-700/80 transition-colors shadow-sm"
+              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)] transition-colors duration-[var(--duration-fast)]"
             >
               <Icons.ArrowPathIcon className="w-3.5 h-3.5" />
-              Reset to Active Deal
+              Reset to active deal
             </button>
           </div>
         )}
@@ -361,15 +374,15 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
         <div className="flex-1 p-6">
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+              <h2 className="text-2xl font-semibold text-[var(--color-text)]">
                 {navItems.find((n) => n.id === activeTab)?.label}
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-[var(--color-text-muted)]">
                 {activeTab === "reserve" && "Calculate dealer reserve and splits."}
                 {activeTab === "payment" && "Estimate monthly payments."}
                 {activeTab === "budget" && "Find max loan from monthly budget."}
                 {activeTab === "compare" && "Compare terms side-by-side."}
-                {activeTab === "qualify" && "Check Payment-to-Income ratio."}
+                {activeTab === "qualify" && "Check payment-to-income ratio."}
                 {activeTab === "max" && "Calculate max approval amount."}
                 {activeTab === "warranty" && "Analyze warranty value."}
                 {activeTab === "notes" && "Deal specific notes."}
@@ -378,25 +391,39 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             </div>
             {activeTab === "analytics" && dealData && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="p-4 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border)]">
-                  <h4 className="font-semibold text-slate-900 dark:text-white mb-4">
-                    Payment Breakdown
-                  </h4>
-                  <PaymentBreakdownChart
-                    dealData={dealData}
-                    activeVehicle={activeVehicle || null}
-                  />
+                <div className="p-4 bg-[var(--color-bg-subtle)] rounded-md border border-[var(--color-border)]">
+                  <h4 className="font-semibold text-[var(--color-text)] mb-4">Payment breakdown</h4>
+                  <Suspense
+                    fallback={
+                      <div className="h-64 flex items-center justify-center text-[var(--color-text-muted)] text-sm">
+                        Loading chart…
+                      </div>
+                    }
+                  >
+                    <PaymentBreakdownChart
+                      dealData={dealData}
+                      activeVehicle={activeVehicle || null}
+                    />
+                  </Suspense>
                 </div>
-                <div className="p-4 bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border)]">
-                  <h4 className="font-semibold text-slate-900 dark:text-white mb-4">
-                    Matched Lender Payments (est.)
+                <div className="p-4 bg-[var(--color-bg-subtle)] rounded-md border border-[var(--color-border)]">
+                  <h4 className="font-semibold text-[var(--color-text)] mb-4">
+                    Matched lender payments (est.)
                   </h4>
-                  <LenderComparisonChart
-                    dealData={dealData}
-                    activeVehicle={activeVehicle || null}
-                    lenderProfiles={lenderProfiles}
-                    customerFilters={customerFilters}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="h-64 flex items-center justify-center text-[var(--color-text-muted)] text-sm">
+                        Loading chart…
+                      </div>
+                    }
+                  >
+                    <LenderComparisonChart
+                      dealData={dealData}
+                      activeVehicle={activeVehicle || null}
+                      lenderProfiles={lenderProfiles}
+                      customerFilters={customerFilters}
+                    />
+                  </Suspense>
                 </div>
               </div>
             )}
@@ -477,11 +504,11 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   </InputGroup>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="space-y-3 pt-4 border-t border-[var(--color-border)]">
                   <ResultDisplay
-                    label="Total Reserve"
+                    label="Total reserve"
                     value={formatCurrency(reserveStats.totalReserve)}
-                    valueColorClass="text-slate-900 dark:text-white"
+                    valueColorClass="text-[var(--color-text)]"
                   />
                   {reserveStats.sellBelowBuy && (
                     <p role="alert" className="text-xs font-medium text-[var(--color-warning)]">
@@ -491,40 +518,40 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   )}
                   <div className="grid grid-cols-2 gap-4">
                     <div
-                      className={`p-4 rounded-xl border transition-colors ${
+                      className={`p-4 rounded-md border transition-colors ${
                         reserveStats.dealerSplit >= reserveStats.flatFee
-                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                          : "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
+                          ? "bg-[var(--color-success-subtle)] border-[var(--color-success)]/30"
+                          : "bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                       }`}
                     >
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
                         Split ({splitPercent}%)
                       </p>
                       <p
-                        className={`text-2xl font-bold ${
+                        className={`text-2xl font-semibold tabular-nums ${
                           reserveStats.dealerSplit >= reserveStats.flatFee
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-slate-700 dark:text-slate-300"
+                            ? "text-[var(--color-success)]"
+                            : "text-[var(--color-text)]"
                         }`}
                       >
                         {formatCurrency(reserveStats.dealerSplit)}
                       </p>
                     </div>
                     <div
-                      className={`p-4 rounded-xl border transition-colors ${
+                      className={`p-4 rounded-md border transition-colors ${
                         reserveStats.flatFee > reserveStats.dealerSplit
-                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                          : "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
+                          ? "bg-[var(--color-success-subtle)] border-[var(--color-success)]/30"
+                          : "bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                       }`}
                     >
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
                         Flat ({flatPercent}%)
                       </p>
                       <p
-                        className={`text-2xl font-bold ${
+                        className={`text-2xl font-semibold tabular-nums ${
                           reserveStats.flatFee > reserveStats.dealerSplit
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-slate-700 dark:text-slate-300"
+                            ? "text-[var(--color-success)]"
+                            : "text-[var(--color-text)]"
                         }`}
                       >
                         {formatCurrency(reserveStats.flatFee)}
@@ -577,11 +604,11 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     </InputGroup>
                   </div>
                 </div>
-                <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                <div className="pt-6 border-t border-[var(--color-border)]">
                   <ResultDisplay
-                    label="Monthly Payment"
+                    label="Monthly payment"
                     value={formatCurrency(paymentResult)}
-                    valueColorClass="text-green-600 dark:text-green-400 text-3xl"
+                    valueColorClass="text-[var(--color-success)] text-3xl"
                   />
                 </div>
               </div>
@@ -638,17 +665,17 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     }
                   />
                 </InputGroup>
-                <div className="space-y-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+                <div className="space-y-3 pt-6 border-t border-[var(--color-border)]">
                   <ResultDisplay
-                    label="Max Loan Amount"
+                    label="Max loan amount"
                     value={formatCurrency(budgetResult.maxLoan)}
-                    valueColorClass="text-blue-600 dark:text-blue-400"
+                    valueColorClass="text-[var(--color-primary)]"
                   />
                   <ResultDisplay
-                    label="Max OTD Price"
-                    subLabel="(Loan + Down)"
+                    label="Max OTD price"
+                    subLabel="(Loan + down)"
                     value={formatCurrency(budgetResult.maxPrice)}
-                    valueColorClass="text-green-600 dark:text-green-400"
+                    valueColorClass="text-[var(--color-success)]"
                   />
                 </div>
               </div>
@@ -684,12 +711,12 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   {compareResults.map((res) => (
                     <div
                       key={res.term}
-                      className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-center"
+                      className="p-3 bg-[var(--color-bg-subtle)] rounded-md border border-[var(--color-border)] text-center"
                     >
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                        {res.term} Months
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
+                        {res.term} months
                       </p>
-                      <p className="text-lg font-bold text-slate-900 dark:text-white">
+                      <p className="text-lg font-semibold tabular-nums text-[var(--color-text)]">
                         {formatCurrency(res.payment)}
                       </p>
                     </div>
@@ -723,8 +750,8 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     />
                     <button
                       onClick={() => setIsScannerOpen(true)}
-                      className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                      title="Scan Pay Stub"
+                      className="p-2 bg-[var(--color-bg-subtle)] text-[var(--color-primary)] rounded border border-[var(--color-border)] hover:bg-[var(--color-primary-subtle)] transition-colors duration-[var(--duration-fast)]"
+                      title="Scan pay stub"
                       aria-label="Scan pay stub"
                     >
                       <Icons.CameraIcon className="w-5 h-5" />
@@ -751,14 +778,14 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     }
                   />
                 </InputGroup>
-                <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                <div className="pt-6 border-t border-[var(--color-border)]">
                   <ResultDisplay
-                    label="PTI Ratio"
+                    label="PTI ratio"
                     value={`${qualifyResult.ratio.toFixed(1)}%`}
                     valueColorClass={
                       qualifyResult.status === "Qualified"
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-red-600 dark:text-red-400"
+                        ? "text-[var(--color-success)]"
+                        : "text-[var(--color-danger)]"
                     }
                     subLabel={qualifyResult.status}
                   />
@@ -827,12 +854,12 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     />
                   </InputGroup>
                 </div>
-                <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                <div className="pt-6 border-t border-[var(--color-border)]">
                   <ResultDisplay
-                    label="Max Vehicle Price"
+                    label="Max vehicle price"
                     value={formatCurrency(maxApprovalResult)}
-                    valueColorClass="text-green-600 dark:text-green-400"
-                    subLabel="Before Tax & Fees"
+                    valueColorClass="text-[var(--color-success)]"
+                    subLabel="Before tax & fees"
                   />
                 </div>
               </div>
@@ -879,19 +906,17 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   />
                 </InputGroup>
 
-                <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                <div className="pt-6 border-t border-[var(--color-border)] space-y-4">
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Total Warranty Cost
-                      </span>
-                      <span className="text-slate-900 dark:text-white">
+                      <span className="text-[var(--color-text-muted)]">Total warranty cost</span>
+                      <span className="text-[var(--color-text)]">
                         {formatCurrency(warrantyAnalysis.totalWarrantyCost)}
                       </span>
                     </div>
-                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 bg-[var(--color-bg-muted)] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-blue-500 rounded-full"
+                        className="h-full bg-[var(--color-primary)] rounded-full"
                         style={{
                           width: `${Math.min(
                             100,
@@ -906,14 +931,14 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
 
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium">
-                      <span className="text-slate-600 dark:text-slate-400">Est. Repair Risk</span>
-                      <span className="text-slate-900 dark:text-white">
+                      <span className="text-[var(--color-text-muted)]">Est. repair risk</span>
+                      <span className="text-[var(--color-text)]">
                         {formatCurrency(Number(warrRepairCost))}
                       </span>
                     </div>
-                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 bg-[var(--color-bg-muted)] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-red-500 rounded-full"
+                        className="h-full bg-[var(--color-danger)] rounded-full"
                         style={{
                           width: `${Math.min(
                             100,
@@ -927,25 +952,25 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   </div>
 
                   <div
-                    className={`p-4 rounded-xl border ${
+                    className={`p-4 rounded-md border ${
                       warrantyAnalysis.isPositive
-                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                        : "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+                        ? "bg-[var(--color-success-subtle)] border-[var(--color-success)]/30"
+                        : "bg-[var(--color-warning-subtle)] border-[var(--color-warning)]/30"
                     }`}
                   >
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                      Potential Savings
+                    <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
+                      Potential savings
                     </p>
                     <p
-                      className={`text-2xl font-bold ${
+                      className={`text-2xl font-semibold tabular-nums ${
                         warrantyAnalysis.isPositive
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-orange-600 dark:text-orange-400"
+                          ? "text-[var(--color-success)]"
+                          : "text-[var(--color-warning)]"
                       }`}
                     >
                       {formatCurrency(warrantyAnalysis.potentialSavings)}
                     </p>
-                    <p className="text-xs mt-1 opacity-80">
+                    <p className="text-xs mt-1 opacity-80 text-[var(--color-text-muted)]">
                       {warrantyAnalysis.isPositive
                         ? "It's cheaper to protect the vehicle."
                         : "Warranty cost exceeds estimated repairs."}
@@ -959,13 +984,13 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 <textarea
                   id="finance-tools-notes"
                   aria-label="Finance tools notes"
-                  className="flex-1 w-full p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none font-mono text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 min-h-[400px]"
+                  className="flex-1 w-full p-3 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)] resize-none font-mono text-sm text-[var(--color-text)] placeholder-[var(--color-text-subtle)] min-h-[400px] transition-colors duration-[var(--duration-fast)]"
                   placeholder="Type your notes here..."
                   value={scratchPadNotes}
                   onChange={(e) => setScratchPadNotes(e.target.value)}
                 />
-                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <Icons.CheckCircleIcon className="w-3 h-3 text-green-500" />
+                <p className="mt-3 text-xs text-[var(--color-text-muted)] flex items-center gap-1">
+                  <Icons.CheckCircleIcon className="w-3 h-3 text-[var(--color-success)]" />
                   Notes are automatically saved with the deal.
                 </p>
               </div>

@@ -28,9 +28,6 @@ export const config = {
   maxDuration: 300,
 };
 
-export default async function handler(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
   await handleAiRequest(req, res);
 }

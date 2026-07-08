@@ -15,6 +15,8 @@ import {
 import { DealData, CalculatedVehicle, LenderProfile, FilterData } from "../types";
 import { calculateMonthlyPayment } from "../services/calculator";
 import { checkBankEligibility } from "../services/lenderMatcher";
+import { EmptyState } from "./common/states";
+import * as Icons from "./common/Icons";
 
 interface DealChartsProps {
   dealData: DealData;
@@ -28,7 +30,7 @@ interface LenderComparisonChartProps extends DealChartsProps {
 
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
 
-export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({ dealData, activeVehicle }) => {
+const PaymentBreakdownChartBase: React.FC<DealChartsProps> = ({ dealData, activeVehicle }) => {
   const data = useMemo(() => {
     if (!activeVehicle) return [];
 
@@ -62,7 +64,7 @@ export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({ dealData, act
 
   if (!activeVehicle)
     return (
-      <div className="flex items-center justify-center h-64 text-slate-400">
+      <div className="flex items-center justify-center h-64 text-[var(--color-text-subtle)]">
         No vehicle selected
       </div>
     );
@@ -106,6 +108,9 @@ export const PaymentBreakdownChart: React.FC<DealChartsProps> = ({ dealData, act
   );
 };
 
+export const PaymentBreakdownChart = React.memo(PaymentBreakdownChartBase);
+PaymentBreakdownChart.displayName = "PaymentBreakdownChart";
+
 // Stable fallbacks so default props don't churn the useMemo below.
 const NO_PROFILES: LenderProfile[] = [];
 
@@ -122,7 +127,7 @@ const EMPTY_FILTERS: FilterData = {
 
 const MAX_CHARTED_LENDERS = 6;
 
-export const LenderComparisonChart: React.FC<LenderComparisonChartProps> = ({
+const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
   dealData,
   activeVehicle,
   lenderProfiles = NO_PROFILES,
@@ -168,8 +173,12 @@ export const LenderComparisonChart: React.FC<LenderComparisonChartProps> = ({
         Based on dealer-entered programs — verify with lender.
       </p>
       {data.length === 0 ? (
-        <div className="flex items-center justify-center h-64 text-slate-400">
-          No fitting lender programs for this deal yet
+        <div className="h-64">
+          <EmptyState
+            icon={<Icons.BuildingLibraryIcon className="w-full h-full" />}
+            title="No fitting lender programs"
+            description="No lender programs match this deal's structure yet."
+          />
         </div>
       ) : (
         <div className="h-64 w-full">
@@ -209,3 +218,6 @@ export const LenderComparisonChart: React.FC<LenderComparisonChartProps> = ({
     </div>
   );
 };
+
+export const LenderComparisonChart = React.memo(LenderComparisonChartBase);
+LenderComparisonChart.displayName = "LenderComparisonChart";

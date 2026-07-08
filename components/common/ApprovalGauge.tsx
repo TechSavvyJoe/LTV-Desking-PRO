@@ -22,7 +22,7 @@ const ARC_LEN = Math.PI * 80; // ≈ 251.33
  * upstream (see approvalScorer), and surfaces always carry the "estimate, not a
  * credit decision" disclaimer. [WS-C / dc-redesign]
  */
-export const ApprovalGauge: React.FC<ApprovalGaugeProps> = ({
+const ApprovalGaugeComponent: React.FC<ApprovalGaugeProps> = ({
   score,
   colorVar,
   label = "",
@@ -81,4 +81,5 @@ export const ApprovalGauge: React.FC<ApprovalGaugeProps> = ({
   );
 };
 
+export const ApprovalGauge = React.memo(ApprovalGaugeComponent);
 export default ApprovalGauge;

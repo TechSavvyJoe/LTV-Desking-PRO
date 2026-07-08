@@ -33,9 +33,8 @@ export const DealDataSchema = z
       .max(96, "Loan term cannot exceed 96 months"),
 
     interestRate: z
-      .number()
-      .min(0, "Interest rate cannot be negative")
-      .max(50, "Interest rate seems unrealistically high"),
+      .union([z.number().min(0).max(50), z.literal("")])
+      .describe("Interest rate percent or empty string for unset"),
 
     stateFees: z
       .number()

@@ -69,5 +69,5 @@ User should change it on first login.
 ## Prevention
 
 - `dealer_guard.pb.js` hook (already shipped) prevents writing wrong dealer on subsequent updates
-- Dealer-delete should be soft-delete or block when users still reference it (TODO — not yet enforced)
+- Dealer-delete: follow order in `dealer-offboarding.md` (delete users/children first); direct PB admin delete of dealer will fail if children reference it (enforced at app layer in offboarding flow, not a DB FK yet)
 - Onboarding flow validation — require dealer code at signup

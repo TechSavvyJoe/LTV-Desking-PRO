@@ -91,7 +91,7 @@ export const formatPercentageSafe = (
  * @param wait - Wait time in milliseconds
  * @returns Debounced function
  */
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
@@ -109,7 +109,7 @@ export const debounce = <T extends (...args: any[]) => any>(
  * @param limit - Limit time in milliseconds
  * @returns Throttled function
  */
-export const throttle = <T extends (...args: any[]) => any>(
+export const throttle = <T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): ((...args: Parameters<T>) => void) => {
@@ -139,6 +139,10 @@ export const isLocalStorageAvailable = (): boolean => {
   }
 };
 
+import { createLogger } from "../lib/logger";
+
+const helpersLogger = createLogger("helpers");
+
 /**
  * Safe localStorage wrapper with quota handling
  */
@@ -147,7 +151,7 @@ export const safeLocalStorage = {
     try {
       return window.localStorage.getItem(key);
     } catch (error) {
-      console.warn(`Failed to get localStorage key "${key}":`, error);
+      helpersLogger.warn(`Failed to get localStorage key "${key}"`, { error });
       return null;
     }
   },
@@ -158,10 +162,10 @@ export const safeLocalStorage = {
       return true;
     } catch (error) {
       if (error instanceof Error && error.name === "QuotaExceededError") {
-        console.error("localStorage quota exceeded. Clearing old data...");
+        helpersLogger.error("localStorage quota exceeded. Clearing old data...");
         // Optionally clear old data or notify user
       }
-      console.warn(`Failed to set localStorage key "${key}":`, error);
+      helpersLogger.warn(`Failed to set localStorage key "${key}"`, { error });
       return false;
     }
   },
@@ -170,7 +174,7 @@ export const safeLocalStorage = {
     try {
       window.localStorage.removeItem(key);
     } catch (error) {
-      console.warn(`Failed to remove localStorage key "${key}":`, error);
+      helpersLogger.warn(`Failed to remove localStorage key "${key}"`, { error });
     }
   },
 };

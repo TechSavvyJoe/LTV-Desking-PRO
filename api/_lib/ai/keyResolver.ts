@@ -1,5 +1,30 @@
 import PocketBase from "pocketbase";
 import type { ProviderKeys } from "./modelSelection.js";
+import { createLogger } from "../../../lib/logger.js";
+
+// Safe creation: keyResolver runs in serverless (node) contexts where
+// import.meta.env may not be defined (unlike client Vite bundles).
+const keyResolverLogger = (() => {
+  try {
+    return createLogger("key-resolver");
+  } catch {
+    // Fallback preserves original console.warn behavior + error details.
+    interface FallbackLogger {
+      warn: (message: string, context?: unknown) => void;
+      error: (message: string, error?: unknown) => void;
+      debug: () => void;
+      info: () => void;
+    }
+    return {
+      warn: (message: string, context?: unknown) =>
+        console.warn(`[key-resolver] ${message}`, context),
+      error: (message: string, error?: unknown) =>
+        console.error(`[key-resolver] ${message}`, error),
+      debug: () => {},
+      info: () => {},
+    } as FallbackLogger;
+  }
+})();
 
 /**
  * Resolves AI provider keys at request time.
@@ -36,9 +61,7 @@ const getPbConfig = (env: NodeJS.ProcessEnv) => ({
   password: env.PB_SERVICE_PASSWORD,
 });
 
-const fetchKeysFromPocketBase = async (
-  env: NodeJS.ProcessEnv
-): Promise<ProviderKeys | null> => {
+const fetchKeysFromPocketBase = async (env: NodeJS.ProcessEnv): Promise<ProviderKeys | null> => {
   const { url, email, password } = getPbConfig(env);
   if (!url || !email || !password) return null;
 
@@ -46,7 +69,7 @@ const fetchKeysFromPocketBase = async (
   try {
     await pb.collection("_superusers").authWithPassword(email, password);
   } catch (error) {
-    console.warn("[ai] PB service auth failed:", (error as Error).message);
+    keyResolverLogger.warn("PB service auth failed", { error: (error as Error).message });
     return null;
   }
 
@@ -54,7 +77,7 @@ const fetchKeysFromPocketBase = async (
     const list = await pb.collection("ai_provider_keys").getFullList({ sort: "created" });
     const first = list[0];
     if (!first) return null;
-    const record = first as unknown as {
+    const record = (first ?? {}) as {
       openaiApiKey?: string;
       anthropicApiKey?: string;
       geminiApiKey?: string;
@@ -65,7 +88,7 @@ const fetchKeysFromPocketBase = async (
       gemini: record.geminiApiKey || undefined,
     };
   } catch (error) {
-    console.warn("[ai] Failed to read ai_provider_keys:", (error as Error).message);
+    keyResolverLogger.warn("Failed to read ai_provider_keys", { error: (error as Error).message });
     return null;
   }
 };
@@ -106,8 +129,8 @@ export const updateProviderKeyTestStatus = async (
     await pb.collection("_superusers").authWithPassword(email, password);
     const list = await pb.collection("ai_provider_keys").getFullList({ sort: "created" });
     const existing = list[0];
-    const lastTested = (existing as unknown as { lastTested?: Record<string, unknown> })
-      ?.lastTested ?? {};
+    const lastTested =
+      ((existing ?? {}) as { lastTested?: Record<string, unknown> }).lastTested ?? {};
     const patch = {
       lastTested: {
         ...lastTested,
@@ -118,6 +141,6 @@ export const updateProviderKeyTestStatus = async (
       await pb.collection("ai_provider_keys").update(existing.id, patch);
     }
   } catch (error) {
-    console.warn("[ai] failed to record test status:", (error as Error).message);
+    keyResolverLogger.warn("Failed to record test status", { error: (error as Error).message });
   }
 };

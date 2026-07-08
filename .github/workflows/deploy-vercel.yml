@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
@@ -43,6 +43,10 @@ jobs:
           # deterministic. Not a secret; override via repo variable if
           # the backend ever moves.
           VITE_POCKETBASE_URL: ${{ vars.VITE_POCKETBASE_URL || 'https://ltv-desking-pro-api.fly.dev' }}
+          # PostHog client key for product analytics (lib/analytics.ts).
+          # Placeholder/empty comment: set VITE_POSTHOG_KEY secret in Vercel
+          # (or repo secret) for prod; leave unset for previews to no-op.
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY || '' }}
 
       - name: Deploy to Vercel
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}

@@ -50,10 +50,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
             style={{
               fontSize: 14,
               ...mono,
-              letterSpacing: "0.34em",
               color: "var(--color-text-subtle)",
               marginTop: 18,
-              textTransform: "uppercase",
             }}
           >
             LTV Desking
@@ -80,8 +78,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
               lineHeight: 1.5,
             }}
           >
-            Structure every deal against real lender rules and see approval odds the instant a number
-            changes.
+            Structure every deal against real lender rules and see approval odds the instant a
+            number changes.
           </div>
         </div>
 
@@ -99,14 +97,14 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
             color: "var(--color-text-subtle)",
           }}
         >
-          <span>US DEALERSHIPS</span>
+          <span>US dealerships</span>
           <span style={{ opacity: 0.4 }}>/</span>
           <a href="/privacy" style={{ color: "inherit", textDecoration: "none" }}>
-            PRIVACY
+            Privacy
           </a>
           <span style={{ opacity: 0.4 }}>/</span>
           <a href="/terms" style={{ color: "inherit", textDecoration: "none" }}>
-            TERMS
+            Terms
           </a>
         </div>
       </div>

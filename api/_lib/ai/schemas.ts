@@ -132,9 +132,13 @@ export const dealSuggestionJsonSchema = {
               tradeInValue: { type: "number" },
               tradeInPayoff: { type: "number" },
               backendProducts: { type: "number" },
+              vscAmount: { type: "number" },
+              gapAmount: { type: "number" },
               loanTerm: { type: "number" },
               interestRate: { type: "number" },
               stateFees: { type: "number" },
+              buyerState: { type: "string", enum: ["MI", "OH", "IN", "IL", "FL"] },
+              rebate: { type: "number" },
               // `notes` intentionally omitted: AI free text must not flow into
               // the deal (it prints on customer paper). Structural enforcement
               // of the prompt rule + the applySuggestion drop. [G32]
@@ -256,9 +260,13 @@ export const AiDealSuggestionSchema = z.object({
           tradeInValue: optionalNumber,
           tradeInPayoff: optionalNumber,
           backendProducts: optionalNumber,
+          vscAmount: optionalNumber,
+          gapAmount: optionalNumber,
           loanTerm: optionalNumber,
           interestRate: optionalNumber,
           stateFees: optionalNumber,
+          buyerState: z.enum(["MI", "OH", "IN", "IL", "FL"]).optional(),
+          rebate: optionalNumber,
           // `notes` intentionally omitted — see jsonSchema above. [G32]
         })
         .partial()

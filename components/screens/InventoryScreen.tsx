@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useDealContext } from "../../context/DealContext";
@@ -6,7 +6,7 @@ import { useInventoryImport } from "../../hooks/useInventoryImport";
 import { activeLenderCount } from "../../services/lenderFit";
 import { BAND_META } from "../../services/approvalScorer";
 import { ScoreRing } from "../common/ScoreRing";
-import { EmptyState } from "../common/states";
+import { EmptyState, DataLoading } from "../common/states";
 import * as Icons from "../common/Icons";
 import { fmt, fmtN } from "../../utils/format";
 import type { CalculatedVehicle } from "../../types";
@@ -36,21 +36,21 @@ const COLUMNS: {
   right: boolean;
   title?: string;
 }[] = [
-  { key: "vehicle", label: "VEHICLE", defaultDir: "asc", right: false },
-  { key: "price", label: "PRICE", defaultDir: "desc", right: true },
+  { key: "vehicle", label: "Vehicle", defaultDir: "asc", right: false },
+  { key: "price", label: "Price", defaultDir: "desc", right: true },
   {
     key: "jdPower",
-    label: "BOOK·T",
+    label: "Book (trade)",
     defaultDir: "desc",
     right: true,
     title: "J.D. Power Trade — retail used per lender where configured",
   },
-  { key: "frontEndLtv", label: "FRONT LTV", defaultDir: "desc", right: true },
-  { key: "amountToFinance", label: "FINANCED", defaultDir: "desc", right: true },
+  { key: "frontEndLtv", label: "Front LTV", defaultDir: "desc", right: true },
+  { key: "amountToFinance", label: "Financed", defaultDir: "desc", right: true },
   { key: "otdLtv", label: "OTD LTV", defaultDir: "desc", right: true },
-  { key: "monthlyPayment", label: "PAYMENT", defaultDir: "desc", right: true },
-  { key: "fitCount", label: "LENDERS", defaultDir: "desc", right: true },
-  { key: "approvalScore", label: "APPROVAL", defaultDir: "desc", right: true },
+  { key: "monthlyPayment", label: "Payment", defaultDir: "desc", right: true },
+  { key: "fitCount", label: "Lenders", defaultDir: "desc", right: true },
+  { key: "approvalScore", label: "Approval", defaultDir: "desc", right: true },
 ];
 
 const ghostBtnStyle: React.CSSProperties = {
@@ -73,7 +73,7 @@ const ghostBtnStyle: React.CSSProperties = {
  * (features preserved per reconciliation 11). Row click focuses the unit on
  * the desk. [Phase 6]
  */
-export const InventoryScreen: React.FC = () => {
+const InventoryScreenBase: React.FC = () => {
   const {
     settings,
     inventory,
@@ -104,7 +104,7 @@ export const InventoryScreen: React.FC = () => {
 
   const navigate = useNavigate();
   const totalLenders = activeLenderCount(safeLenderProfiles);
-  const { warn, danger } = settings.ltvThresholds;
+  const { warn, danger } = useMemo(() => settings.ltvThresholds, [settings.ltvThresholds]);
 
   // OTD LTV colors come from settings.ltvThresholds — never hardcoded 115/125.
   const otdColor = (v: number | "Error" | "N/A"): string => {
@@ -158,22 +158,28 @@ export const InventoryScreen: React.FC = () => {
     };
   }, [vinOpen]);
 
-  const handleSort = (key: keyof CalculatedVehicle, defaultDir: "asc" | "desc") => {
-    setInventorySort((prev) =>
-      prev.key === key
-        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
-        : { key, direction: defaultDir }
-    );
-  };
+  const handleSort = useCallback(
+    (key: keyof CalculatedVehicle, defaultDir: "asc" | "desc") => {
+      setInventorySort((prev) =>
+        prev.key === key
+          ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
+          : { key, direction: defaultDir }
+      );
+    },
+    [setInventorySort]
+  );
 
   const sortArrow = (key: keyof CalculatedVehicle): string =>
     inventorySort.key === key ? (inventorySort.direction === "asc" ? " ↑" : " ↓") : "";
 
-  const openOnDesk = (v: CalculatedVehicle) => {
-    setFocusVin(v.vin);
-    setActiveVehicle(v);
-    navigate("/desk");
-  };
+  const openOnDesk = useCallback(
+    (v: CalculatedVehicle) => {
+      setFocusVin(v.vin);
+      setActiveVehicle(v);
+      navigate("/desk");
+    },
+    [setFocusVin, setActiveVehicle, navigate]
+  );
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -223,11 +229,10 @@ export const InventoryScreen: React.FC = () => {
             style={{
               fontSize: 11,
               fontFamily: mono,
-              letterSpacing: "0.18em",
               color: "var(--color-text-subtle)",
             }}
           >
-            INVENTORY
+            Inventory
           </span>
           <div style={{ height: 20, width: 1, background: "var(--color-border)" }} />
           <span style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -258,7 +263,7 @@ export const InventoryScreen: React.FC = () => {
             tabIndex={-1}
           />
           <button
-            className="lift-btn"
+            className="transition-colors"
             style={{ ...ghostBtnStyle, opacity: isUploadingInventory ? 0.6 : 1 }}
             disabled={isUploadingInventory}
             onClick={() => fileInputRef.current?.click()}
@@ -266,14 +271,14 @@ export const InventoryScreen: React.FC = () => {
             {isUploadingInventory ? "Importing…" : "Import CSV/XLSX"}
           </button>
 
-          <button className="lift-btn" style={ghostBtnStyle} onClick={downloadSampleCsv}>
+          <button className="transition-colors" style={ghostBtnStyle} onClick={downloadSampleCsv}>
             Sample CSV
           </button>
 
           {/* VIN decode popover */}
           <div ref={vinRef} style={{ position: "relative" }}>
             <button
-              className="lift-btn"
+              className="transition-colors"
               style={ghostBtnStyle}
               aria-haspopup="dialog"
               aria-expanded={vinOpen}
@@ -335,7 +340,7 @@ export const InventoryScreen: React.FC = () => {
                     }}
                   />
                   <button
-                    className="lift-btn btn-primary"
+                    className="transition-colors btn-primary"
                     style={{
                       border: "1px solid transparent",
                       borderRadius: 8,
@@ -349,7 +354,7 @@ export const InventoryScreen: React.FC = () => {
                     disabled={isVinLoading}
                     onClick={() => void handleVinLookup()}
                   >
-                    {isVinLoading ? "…" : "Decode"}
+                    {isVinLoading ? <DataLoading label="…" variant="inline" /> : "Decode"}
                   </button>
                 </div>
                 {vinLookupResult && (
@@ -372,7 +377,7 @@ export const InventoryScreen: React.FC = () => {
           </div>
 
           <button
-            className="lift-btn"
+            className="transition-colors"
             style={ghostBtnStyle}
             title="Export the compared (pinned) vehicles as a PDF"
             onClick={() => void handleDownloadFavorites()}
@@ -420,6 +425,8 @@ export const InventoryScreen: React.FC = () => {
 
       <div style={{ padding: "20px 24px" }}>
         <div
+          role="table"
+          aria-label="Inventory priced against live deal"
           style={{
             background: "var(--color-bg)",
             border: "1px solid var(--color-border)",
@@ -430,6 +437,7 @@ export const InventoryScreen: React.FC = () => {
         >
           {/* Column headers — sortable with per-key default directions */}
           <div
+            role="row"
             style={{
               display: "grid",
               gridTemplateColumns: GRID,
@@ -441,22 +449,23 @@ export const InventoryScreen: React.FC = () => {
             }}
           >
             {COLUMNS.map((col) => (
-              <span
+              <button
                 key={col.key as string}
+                type="button"
                 onClick={() => handleSort(col.key, col.defaultDir)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleSort(col.key, col.defaultDir);
-                  }
-                }}
                 title={col.title}
-                role="button"
-                tabIndex={0}
+                role="columnheader"
                 aria-label={
                   inventorySort.key === col.key
                     ? `Sort by ${col.label}, sorted ${inventorySort.direction === "asc" ? "ascending" : "descending"}`
                     : `Sort by ${col.label}`
+                }
+                aria-sort={
+                  inventorySort.key === col.key
+                    ? inventorySort.direction === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
                 }
                 style={{
                   fontSize: 11,
@@ -468,11 +477,15 @@ export const InventoryScreen: React.FC = () => {
                   cursor: "pointer",
                   userSelect: "none",
                   whiteSpace: "nowrap",
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  margin: 0,
                 }}
               >
                 {col.label}
                 {sortArrow(col.key)}
-              </span>
+              </button>
             ))}
           </div>
 
@@ -492,36 +505,11 @@ export const InventoryScreen: React.FC = () => {
 
           {/* No matches — mockup lines 530-535 */}
           {noResults && (
-            <div
-              style={{
-                padding: "44px 20px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 13.5, color: "var(--color-text-muted)" }}>
-                No vehicles match the current filters or search.
-              </span>
-              <button
-                onClick={clearFilters}
-                className="lift-btn"
-                style={{
-                  background: "transparent",
-                  border: "1px solid var(--color-border-strong)",
-                  color: "var(--color-text)",
-                  borderRadius: 8,
-                  padding: "7px 14px",
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Clear filters
-              </button>
-            </div>
+            <EmptyState
+              title="No vehicles match"
+              description="No vehicles match the current filters or search."
+              primaryAction={{ label: "Clear filters", onClick: clearFilters }}
+            />
           )}
 
           {/* Rows — window-virtualized (no pager, per the mockup) */}
@@ -563,7 +551,7 @@ export const InventoryScreen: React.FC = () => {
                             openOnDesk(v);
                           }
                         }}
-                        role="button"
+                        role="row"
                         tabIndex={0}
                         aria-label={`Structure ${v.vehicle} on the desk`}
                         style={{
@@ -601,8 +589,8 @@ export const InventoryScreen: React.FC = () => {
                               marginTop: 3,
                             }}
                           >
-                            STK {v.stock} ·{" "}
-                            {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi
+                            STK {v.stock} · {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"}{" "}
+                            mi
                           </div>
                         </div>
                         <span
@@ -725,4 +713,6 @@ export const InventoryScreen: React.FC = () => {
   );
 };
 
+const InventoryScreen = React.memo(InventoryScreenBase);
+InventoryScreen.displayName = "InventoryScreen";
 export default InventoryScreen;

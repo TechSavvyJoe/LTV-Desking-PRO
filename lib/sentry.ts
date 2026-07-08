@@ -51,5 +51,8 @@ export const captureException = async (
     // An error fired before init completed — bring Sentry up so it isn't lost.
     await initSentry();
   }
-  Sentry.captureException(error, context as Parameters<SentryModule["captureException"]>[1]);
+  Sentry.captureException(
+    error,
+    (context ?? undefined) as Parameters<SentryModule["captureException"]>[1]
+  );
 };

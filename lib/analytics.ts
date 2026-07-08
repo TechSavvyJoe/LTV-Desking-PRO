@@ -3,8 +3,9 @@
  *
  * No-ops entirely (never downloads the SDK) unless VITE_POSTHOG_KEY is set, so
  * dev/preview builds and key-less deploys send nothing. Events are the five
- * pilot-success metrics from the report (§D11): did real deals get desked,
- * matched, printed, imported, and saved — adoption, not vanity pageviews.
+ * pilot-success metrics (deal_saved, lender_matched, pdf_generated,
+ * inventory_uploaded, sample_loaded) plus supporting (deal_desked etc).
+ * See PRODUCTION_READINESS_PLAN §2.1. Adoption signals, never vanity.
  *
  * PRIVACY: never pass customer names, incomes, or credit scores in event
  * properties. Dealer/user ids and deal *shape* (term, LTV band) only.
@@ -35,7 +36,7 @@ const ensureInit = async (): Promise<PosthogModule | null> => {
     client = mod.default;
     return client;
   } catch (error) {
-    console.warn("[analytics] PostHog failed to load:", error);
+    // PostHog optional; failures non-fatal in prod.
     return null;
   }
 };
@@ -43,9 +44,12 @@ const ensureInit = async (): Promise<PosthogModule | null> => {
 export type AnalyticsEvent =
   | "deal_desked"
   | "lender_match_viewed"
+  | "lender_matched"
   | "pdf_generated"
   | "pdf_failed"
   | "import_completed"
+  | "inventory_uploaded"
+  | "sample_loaded"
   | "deal_saved";
 
 export const capture = (event: AnalyticsEvent, props?: Record<string, unknown>): void => {

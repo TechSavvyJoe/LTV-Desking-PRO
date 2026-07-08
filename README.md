@@ -112,19 +112,35 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 │   ├── Dockerfile           # PocketBase server container
 │   ├── fly.toml             # Fly.io backend deployment
 │   └── pb_migrations/       # Database schema migrations
+├── playwright.config.ts     # Playwright e2e config (webServer + chromium)
+├── tests/
+│   └── e2e/                 # Minimal e2e skeleton (auth.spec.ts)
 └── vite.config.ts           # Vite build config with chunking strategy
 ```
 
 ## Scripts
 
-| Command                | Description              |
-| ---------------------- | ------------------------ |
-| `npm run dev`          | Start development server |
-| `npm run build`        | Production build         |
-| `npm run lint`         | ESLint baseline          |
-| `npm run format:check` | Prettier format check    |
-| `npm run type-check`   | TypeScript strict check  |
-| `npm test -- --run`    | Run test suite           |
+| Command                 | Description                         |
+| ----------------------- | ----------------------------------- |
+| `npm run dev`           | Start development server            |
+| `npm run build`         | Production build                    |
+| `npm run preview`       | Preview production build locally    |
+| `npm run lint`          | ESLint baseline                     |
+| `npm run format:check`  | Prettier format check               |
+| `npm run type-check`    | TypeScript strict check             |
+| `npm test -- --run`     | Run unit test suite (vitest)        |
+| `npm run test:coverage` | Run tests + coverage report         |
+| `npm run test:e2e`      | Run Playwright E2E tests (skeleton) |
+| `npm run audit`         | Run npm audit (moderate severity)   |
+
+## Testing & Ops Hygiene
+
+- Unit tests: `services/*.test.ts`, `lib/*.test.ts`, security/edge suites.
+- E2E: `tests/e2e/auth.spec.ts` (desk, auth, inventory import, AI lender, deal save, lender match, PDF); `playwright.config.ts` with webServer. Runs in CI.
+- Coverage: `npm run test:coverage` (v8 + thresholds configured; artifact in CI).
+- Audit: `npm run audit` + dedicated CI step. Current status (see docs/runbooks/secrets-rotation.md): safe `npm audit fix` applied; `npm audit --audit-level=moderate` reports 0 vulnerabilities. CI includes a dry-run audit-fix report.
+- CI (`.github/workflows/check.yml`): type/lint/test/coverage (v8 + thresholds + artifact)/audit + e2e (Playwright + report artifact) on every PR. Enhanced coverage + e2e hygiene.
+- Runbooks: see `docs/runbooks/README.md` (expanded index: breach response, dealer offboarding, plus quarterly dep audit notes). PostHog (deal_saved / lender_matched / pdf_generated / inventory_uploaded / sample_loaded + identify) + Sentry wired and gated.
 
 ## Deployment
 

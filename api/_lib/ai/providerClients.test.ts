@@ -124,4 +124,124 @@ describe("AI provider clients", () => {
     await expectation;
     vi.useRealTimers();
   });
+
+  it("propagates fetch network errors for OpenAI", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("ECONNRESET"));
+    await expect(
+      callAiJson({ ...requestBase, provider: "openai", model: "gpt-5.5" })
+    ).rejects.toThrow("ECONNRESET");
+  });
+
+  it("throws on non-ok HTTP from OpenAI using error body message", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: "quota exceeded" } }), { status: 429 })
+    );
+    await expect(
+      callAiJson({ ...requestBase, provider: "openai", model: "gpt-5.5" })
+    ).rejects.toThrow("quota exceeded");
+  });
+
+  it("throws on non-ok from Anthropic", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: "rate limit" } }), { status: 429 })
+    );
+    await expect(
+      callAiJson({ ...requestBase, provider: "anthropic", model: "claude-opus-4-7" })
+    ).rejects.toThrow("rate limit");
+  });
+
+  it("handles Gemini generateContent throwing", async () => {
+    mockGenerateContent.mockRejectedValue(new Error("Gemini internal"));
+    await expect(
+      callAiJson({
+        ...requestBase,
+        provider: "gemini",
+        model: "gemini-3.1-flash-lite",
+        apiKey: "g-key",
+      })
+    ).rejects.toThrow("Gemini internal");
+  });
+
+  it("extracts JSON from fenced blocks and object matches on bad direct parse", async () => {
+    // Force path through extract by simulating a provider response with fenced json
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ output_text: '```json\n{"analysis":"fenced ok"}\n```' }), {
+        status: 200,
+      })
+    );
+    const res = await callAiJson({ ...requestBase, provider: "openai", model: "gpt-5.5" });
+    expect(res).toEqual({ analysis: "fenced ok" });
+  });
+
+  it("rejects empty response text from provider", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ output_text: "" }), { status: 200 })
+    );
+    await expect(
+      callAiJson({ ...requestBase, provider: "openai", model: "gpt-5.5" })
+    ).rejects.toThrow("empty response");
+  });
+
+  it("rejects non-matching text with no recoverable JSON object", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ output_text: "plain text no json here at all" }), {
+        status: 200,
+      })
+    );
+    await expect(
+      callAiJson({ ...requestBase, provider: "openai", model: "gpt-5.5" })
+    ).rejects.toThrow("valid JSON");
+  });
+
+  it("callGroundedAiJson can be exercised (gemini grounded path)", async () => {
+    vi.restoreAllMocks();
+    mockGenerateContent.mockReset();
+    // Re-mock generate to return grounded structure for this case
+    mockGenerateContent.mockResolvedValue({
+      text: '{"ok":true}',
+      candidates: [
+        {
+          groundingMetadata: {
+            groundingChunks: [{ web: { uri: "https://example.com", title: "Ex" } }],
+          },
+        },
+      ],
+    });
+    const { callGroundedAiJson } = await import("./providerClients");
+    const res = await callGroundedAiJson({
+      apiKey: "g",
+      model: "gemini-3.1-pro-preview",
+      systemPrompt: "sys",
+      userPrompt: "user",
+    });
+    expect(res.json).toEqual({ ok: true });
+    expect(res.sources.length).toBeGreaterThan(0);
+  });
+
+  it("recovers JSON via object regex extraction on malformed provider text [AI-error-recovery]", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ output_text: 'prefix junk { "recovered": true, "note": "ok" } suffix' }),
+        { status: 200 }
+      )
+    );
+    const res = await callAiJson({ ...requestBase, provider: "openai", model: "gpt-5.5" });
+    expect(res).toEqual({ recovered: true, note: "ok" });
+  });
+
+  it("propagates network errors for Anthropic call (error recovery path) [AI-error-recovery]", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("ENOTFOUND anthropic"));
+    await expect(
+      callAiJson({ ...requestBase, provider: "anthropic", model: "claude-opus-4-7" })
+    ).rejects.toThrow("ENOTFOUND anthropic");
+  });
+
+  it("rejects when provider returns ok but body parse yields no usable text for extract [AI-error-recovery]", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ output_text: "   " }), { status: 200 })
+    );
+    await expect(
+      callAiJson({ ...requestBase, provider: "openai", model: "gpt-5.5" })
+    ).rejects.toThrow("empty response");
+  });
 });

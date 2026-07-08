@@ -59,7 +59,7 @@ vi.mock("../../lib/toast", () => ({
 }));
 
 import { PdfGenerationError } from "../../services/pdfGenerator";
-import { DealSheetModal } from "./DealSheetModal";
+import DealSheetModal from "./DealSheetModal";
 
 const settings: Settings = {
   defaultTerm: 72,
@@ -198,5 +198,72 @@ describe("DealSheetModal PDF states", () => {
       "pdf_failed",
       expect.objectContaining({ pdfType: "deal_sheet", code: "blank_canvas" })
     );
+  });
+
+  it("renders without crashing when some context fields are missing (component edge)", () => {
+    mocks.context = { settings, dealData: { ...dealData, interestRate: "" }, filters: {} };
+    const { container } = renderModal();
+    expect(container).toBeTruthy();
+    expect(screen.getByText(/deal sheet/i)).toBeTruthy();
+  });
+
+  it("toasts error on unexpected PDF failure (not typed PdfGenerationError)", async () => {
+    mocks.generateDealPdf.mockRejectedValue(new Error("random crash"));
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalled();
+    });
+  });
+
+  it("displays render_failed PDF error code and does not expose fallback [PDF-failures-component]", async () => {
+    mocks.generateDealPdf.mockRejectedValue(
+      new PdfGenerationError("render_failed", "html2canvas crashed")
+    );
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("PDF error · render_failed")).toBeTruthy();
+    });
+    expect(screen.queryByRole("link", { name: /open pdf fallback/i })).toBeNull();
+    expect(mocks.capture).toHaveBeenCalledWith(
+      "pdf_failed",
+      expect.objectContaining({ code: "render_failed" })
+    );
+  });
+
+  it("handles dependency_load_failed from PDF gen without leaking internals [PDF-failures-component]", async () => {
+    mocks.generateDealPdf.mockRejectedValue(
+      new PdfGenerationError("dependency_load_failed", "jspdf import fail")
+    );
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/PDF error · dependency_load_failed/)).toBeTruthy();
+      expect(mocks.toastError).toHaveBeenCalled();
+    });
+  });
+
+  it("component edge: PDF generation skipped when busy prevents double call [PDF-failures-component]", async () => {
+    let resolvePdf: (b: Blob) => void;
+    const pendingPdf = new Promise<Blob>((r) => {
+      resolvePdf = r;
+    });
+    mocks.generateDealPdf.mockReturnValue(pendingPdf as any);
+
+    renderModal();
+    const btn = screen.getByRole("button", { name: /download pdf/i });
+    fireEvent.click(btn);
+    // Wait for generating state to be reflected in UI (avoids stale closure on sync clicks)
+    await waitFor(() => expect(screen.getByText("Generating PDF...")).toBeTruthy());
+    // second click while generating should be ignored by guard
+    fireEvent.click(btn);
+
+    // resolve to clean
+    resolvePdf!(new Blob([new Uint8Array(600)], { type: "application/pdf" }));
+    await waitFor(() => {
+      expect(mocks.generateDealPdf).toHaveBeenCalledTimes(1);
+    });
   });
 });

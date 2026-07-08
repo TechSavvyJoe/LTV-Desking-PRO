@@ -20,7 +20,13 @@ import { logDealEvent } from "../../lib/api";
 import { capture } from "../../lib/analytics";
 import { toast } from "../../lib/toast";
 import { INITIAL_DEAL_DATA, INITIAL_FILTER_DATA } from "../../constants";
-import { DealSheetModal } from "./DealSheetModal";
+import { EmptyState } from "../common/states";
+import * as Icons from "../common/Icons";
+// Lazy load DealSheetModal (contains PDF generation deps) so it is only loaded
+// when user opens the deal sheet — shrinks initial desk payload.
+const DealSheetModal = lazy(() =>
+  import("./DealSheetModal").then((m) => ({ default: m.default || m.DealSheetModal }))
+);
 import type {
   AppState,
   ApprovalBand,
@@ -63,7 +69,7 @@ const DocumentScanner = lazy(() =>
  * it. The AppShell owns the global header — this renders content only.
  * [dc-redesign / Phase 5]
  */
-export const DeskScreen: React.FC = () => {
+const DeskScreenBase: React.FC = () => {
   const {
     settings,
     dealData,
@@ -84,11 +90,12 @@ export const DeskScreen: React.FC = () => {
     setFocusVin,
     searchQuery,
     setSearchQuery,
+    loadSampleData,
   } = useDealContext();
 
   const { handleSaveDeal } = useSaveDeal();
   const totalLenders = activeLenderCount(safeLenderProfiles);
-  const thresholds = settings.ltvThresholds;
+  const thresholds = useMemo(() => settings.ltvThresholds, [settings.ltvThresholds]);
 
   const [dealSheetOpen, setDealSheetOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -110,13 +117,16 @@ export const DeskScreen: React.FC = () => {
   const sortKey: SortKey = isSortKey(inventorySort.key) ? inventorySort.key : "approvalScore";
   const sortDir: "asc" | "desc" = isSortKey(inventorySort.key) ? inventorySort.direction : "desc";
 
-  const handleSort = (key: SortKey) => {
-    if (key === sortKey) {
-      setInventorySort({ key, direction: sortDir === "asc" ? "desc" : "asc" });
-    } else {
-      setInventorySort({ key, direction: DEFAULT_DIR[key] });
-    }
-  };
+  const handleSort = useCallback(
+    (key: SortKey) => {
+      if (key === sortKey) {
+        setInventorySort({ key, direction: sortDir === "asc" ? "desc" : "asc" });
+      } else {
+        setInventorySort({ key, direction: DEFAULT_DIR[key] });
+      }
+    },
+    [sortKey, sortDir, setInventorySort]
+  );
   const sortArrow = (key: SortKey) => (key === sortKey ? (sortDir === "asc" ? " ↑" : " ↓") : "");
 
   // Context filteredInventory already applies search + minScore + the desk
@@ -169,16 +179,31 @@ export const DeskScreen: React.FC = () => {
       score: focused.approvalScore ?? null,
       fitCount: focused.fitCount ?? 0,
     });
+    if ((focused.fitCount ?? 0) > 0) {
+      capture("lender_matched", {
+        fitCount: focused.fitCount,
+        vin: focused.vin,
+      });
+    }
   }, [focused, setActiveVehicle, dealData.loanTerm]);
 
   /* ---------- input plumbing ---------- */
 
-  const setDeal = (patch: Partial<DealData>) => setDealData((d) => ({ ...d, ...patch }));
-  const setFilter = (patch: Partial<FilterData>) => setFilters((f) => ({ ...f, ...patch }));
-  const numOnChange = (fn: (n: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const x = parseFloat(e.target.value.replace(/[^0-9.]/g, ""));
-    fn(Number.isFinite(x) ? x : 0);
-  };
+  const setDeal = useCallback(
+    (patch: Partial<DealData>) => setDealData((d) => ({ ...d, ...patch })),
+    [setDealData]
+  );
+  const setFilter = useCallback(
+    (patch: Partial<FilterData>) => setFilters((f) => ({ ...f, ...patch })),
+    [setFilters]
+  );
+  const numOnChange = useCallback(
+    (fn: (n: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const x = parseFloat(e.target.value.replace(/[^0-9.]/g, ""));
+      fn(Number.isFinite(x) ? x : 0);
+    },
+    []
+  );
 
   /* ---------- per-focused-vehicle lender detail (matched tiers, buy rate) ---------- */
 
@@ -217,7 +242,7 @@ export const DeskScreen: React.FC = () => {
     return null;
   }, [focusedEntries]);
 
-  const applyBuyRate = () => {
+  const applyBuyRate = useCallback(() => {
     if (!buyRate || !focused) return;
     setDeal({ interestRate: buyRate.rate });
     toast.success(`APR set to ${buyRate.rate}% (${buyRate.lender})`);
@@ -225,7 +250,7 @@ export const DeskScreen: React.FC = () => {
       vin: focused.vin,
       snapshot: { apr: buyRate.rate, lender: buyRate.lender },
     });
-  };
+  }, [buyRate, focused, setDeal]);
 
   // APR keeps its own text so "8." survives typing and a cleared field stays
   // blank (= unset APR, no payment) rather than snapping to an interest-free
@@ -242,11 +267,14 @@ export const DeskScreen: React.FC = () => {
     if ((Number.isNaN(cur) && Number.isNaN(target)) || cur === target) return;
     setAprText(Number.isNaN(target) ? "" : String(target));
   }, [dealData.interestRate]);
-  const onAprChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^0-9.]/g, "");
-    setAprText(raw);
-    setDeal({ interestRate: (raw === "" ? "" : parseFloat(raw)) as unknown as number });
-  };
+  const onAprChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value.replace(/[^0-9.]/g, "");
+      setAprText(raw);
+      setDeal({ interestRate: (raw === "" ? "" : parseFloat(raw)) as number });
+    },
+    [setDeal]
+  );
 
   /* ---------- back-end add-ons (VSC / GAP / other; backendProducts = sum) ---------- */
 
@@ -255,28 +283,41 @@ export const DeskScreen: React.FC = () => {
   const gapAmt = backendSplit.gapAmount;
   const otherBackend = backendSplit.otherBackend;
 
-  const toggleVsc = () =>
-    setDealData((d) => {
-      const split = getBackendProductSplit(d);
-      const next = split.vscAmount > 0 ? 0 : settings.vscPrice;
-      return { ...d, ...applyBackendProductPatch(d, { vscAmount: next }) };
-    });
-  const toggleGap = () =>
-    setDealData((d) => {
-      const split = getBackendProductSplit(d);
-      const next = split.gapAmount > 0 ? 0 : settings.gapPrice;
-      return { ...d, ...applyBackendProductPatch(d, { gapAmount: next }) };
-    });
-  const setVscAmount = (n: number) =>
-    setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { vscAmount: n }) }));
-  const setGapAmount = (n: number) =>
-    setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { gapAmount: n }) }));
-  const setOtherBackend = (n: number) =>
-    setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { otherBackend: n }) }));
+  const toggleVsc = useCallback(
+    () =>
+      setDealData((d) => {
+        const split = getBackendProductSplit(d);
+        const next = split.vscAmount > 0 ? 0 : settings.vscPrice;
+        return { ...d, ...applyBackendProductPatch(d, { vscAmount: next }) };
+      }),
+    [setDealData, settings.vscPrice]
+  );
+  const toggleGap = useCallback(
+    () =>
+      setDealData((d) => {
+        const split = getBackendProductSplit(d);
+        const next = split.gapAmount > 0 ? 0 : settings.gapPrice;
+        return { ...d, ...applyBackendProductPatch(d, { gapAmount: next }) };
+      }),
+    [setDealData, settings.gapPrice]
+  );
+  const setVscAmount = useCallback(
+    (n: number) => setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { vscAmount: n }) })),
+    [setDealData]
+  );
+  const setGapAmount = useCallback(
+    (n: number) => setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { gapAmount: n }) })),
+    [setDealData]
+  );
+  const setOtherBackend = useCallback(
+    (n: number) =>
+      setDealData((d) => ({ ...d, ...applyBackendProductPatch(d, { otherBackend: n }) })),
+    [setDealData]
+  );
 
   /* ---------- reset / clear ---------- */
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setDealData({
       ...INITIAL_DEAL_DATA,
       loanTerm: settings.defaultTerm,
@@ -287,9 +328,9 @@ export const DeskScreen: React.FC = () => {
     setFilters(INITIAL_FILTER_DATA);
     setSearchQuery("");
     setCustomerName("");
-  };
+  }, [setDealData, setFilters, setSearchQuery, setCustomerName, settings]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters((f) => ({
       ...f,
       vehicle: "",
@@ -301,7 +342,7 @@ export const DeskScreen: React.FC = () => {
       minScore: null,
     }));
     setSearchQuery("");
-  };
+  }, [setFilters, setSearchQuery]);
 
   /* ---------- compare strip ---------- */
 
@@ -322,10 +363,25 @@ export const DeskScreen: React.FC = () => {
 
   // Close the modal BEFORE the save toast fires — toasts (z-80) sit below
   // modal backdrops.
-  const saveFromDealSheet = () => {
+  const saveFromDealSheet = useCallback(() => {
     setDealSheetOpen(false);
     saveFocusedDeal();
-  };
+  }, [saveFocusedDeal]);
+
+  const toggleAdvancedTerms = useCallback(() => {
+    setAdvancedTermsOpen((open) => !open);
+  }, []);
+
+  const openScanner = useCallback(() => setScannerOpen(true), []);
+  const openDealSheet = useCallback(() => setDealSheetOpen(true), []);
+  const closeInspector = useCallback(() => setInspectorOpen(false), []);
+  const setFocusedTermDown = useCallback(
+    (term: number, down: number) => setDeal({ loanTerm: term, downPayment: down }),
+    [setDeal]
+  );
+  const toggleFocusedFavorite = useCallback(() => {
+    if (focused) toggleFavorite(focused.vin);
+  }, [focused, toggleFavorite]);
 
   const focusInventoryVin = useCallback(
     (vin: string) => {
@@ -371,468 +427,159 @@ export const DeskScreen: React.FC = () => {
   return (
     <div data-screen-label="Dealer desk">
       <div className="desk-body">
-        {/* ---------- 01 · DEAL TERMS ---------- */}
-        <DeskTermsRail
-          customerName={customerName}
-          setCustomerName={setCustomerName}
-          filters={filters}
-          setFilter={setFilter}
-          dealData={dealData}
-          setDeal={setDeal}
-          buyerState={buyerState}
-          aprText={aprText}
-          onAprChange={onAprChange}
-          buyRate={buyRate}
-          applyBuyRate={applyBuyRate}
-          advancedOpen={advancedTermsOpen}
-          onToggleAdvanced={() => setAdvancedTermsOpen((open) => !open)}
-          onReset={handleReset}
-          onClearFilters={clearFilters}
-          onScanIncome={() => setScannerOpen(true)}
-        />
-
-        {/* ---------- COMPARE STRIP ---------- */}
-        {/* Gate on resolvable cards, not raw favorites — pins left over from
-            another dealer's inventory rendered an empty "0 pinned" shell. */}
-        {compareCards.length > 0 && (
-          <div style={cardStyle}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 16px",
-                borderBottom: "1px solid var(--color-border)",
-              }}
-            >
-              <span style={{ fontSize: 12, color: "var(--color-primary)" }}>★</span>
-              <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>
-                Compare
-              </span>
-              <span style={{ fontSize: 12.5, color: "var(--color-text-subtle)" }}>
-                {compareCards.length} pinned · reprices live as you change the deal
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: 12, overflowX: "auto", padding: "14px 16px" }}>
-              {compareCards.map((v) => {
-                const isF = focused && v.vin === focused.vin;
-                const pay = numVal(v.monthlyPayment);
-                return (
-                  <div
-                    key={v.vin}
-                    onClick={() => focusInventoryVin(v.vin)}
-                    className="lift-btn"
-                    style={{
-                      flex: "0 0 196px",
-                      border: `1px solid ${isF ? "var(--color-primary)" : "var(--color-border)"}`,
-                      borderRadius: 12,
-                      padding: 13,
-                      cursor: "pointer",
-                      background: isF ? "var(--color-primary-subtle)" : "var(--color-bg-subtle)",
-                      position: "relative",
-                    }}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(v.vin);
-                      }}
-                      aria-label={`Remove ${nameShort(v)} from compare`}
-                      style={{
-                        position: "absolute",
-                        top: 7,
-                        right: 8,
-                        background: "transparent",
-                        border: "none",
-                        color: "var(--color-text-subtle)",
-                        cursor: "pointer",
-                        fontSize: 16,
-                        lineHeight: 1,
-                        padding: 2,
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      ×
-                    </button>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        paddingRight: 16,
-                      }}
-                    >
-                      {nameShort(v)}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11.5,
-                        color: "var(--color-text-subtle)",
-                        fontFamily: mono,
-                        marginTop: 2,
-                      }}
-                    >
-                      {v.modelYear} · STK {v.stock}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 3, marginTop: 11 }}>
-                      <span
-                        style={{
-                          fontSize: 23,
-                          fontWeight: 700,
-                          fontFamily: mono,
-                          letterSpacing: "-0.02em",
-                        }}
-                      >
-                        {pay === null ? "—" : fmt(pay)}
-                      </span>
-                      <span style={{ fontSize: 12, color: "var(--color-text-subtle)" }}>/mo</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontFamily: mono,
-                          fontWeight: 700,
-                          color: bandColor(v),
-                        }}
-                      >
-                        {v.approvalScore ?? "—"}
-                      </span>
-                      <span style={{ fontSize: 11, color: "var(--color-text-subtle)" }}>odds</span>
-                      <span
-                        className="desk-compare-odds-pill"
-                        style={{
-                          color: otdColorFor(v.otdLtv, thresholds),
-                          background: otdBgFor(v.otdLtv, thresholds),
-                        }}
-                      >
-                        {pct(v.otdLtv)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* ---------- 02 · INVENTORY + 03 · FOCUSED ---------- */}
         <div className="desk-workspace">
-          <div style={{ flex: 1, minWidth: 0, ...cardStyle, overflow: "hidden" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "13px 18px",
-                borderBottom: "1px solid var(--color-border)",
-                gap: 12,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontFamily: mono, color: "var(--color-text-subtle)" }}>
-                  02
-                </span>
-                <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>
-                  Inventory
-                </span>
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    color: "var(--color-text-subtle)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {rows.length} of {processedInventory.length} · ranked by odds
-                </span>
-              </div>
-              <div className="desk-inventory-tools">
-                <div className="desk-compare-search-wrapper">
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--color-text-subtle)"
-                    strokeWidth="2"
-                    className="desk-compare-search-icon"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                  <input
-                    id="desk-search"
-                    className="dc-input desk-compare-search-input"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search inventory · press /"
-                  />
-                </div>
-                {focused && (
-                  <button
-                    type="button"
-                    className="desk-mobile-inspector-btn lift-btn"
-                    onClick={() => setInspectorOpen(true)}
-                  >
-                    View deal
-                  </button>
-                )}
-              </div>
-            </div>
+          <div className="desk-main-column">
+            {/* ---------- 01 · DEAL TERMS ---------- */}
+            <DeskTermsRail
+              customerName={customerName}
+              setCustomerName={setCustomerName}
+              filters={filters}
+              setFilter={setFilter}
+              dealData={dealData}
+              setDeal={setDeal}
+              buyerState={buyerState}
+              aprText={aprText}
+              onAprChange={onAprChange}
+              buyRate={buyRate}
+              applyBuyRate={applyBuyRate}
+              advancedOpen={advancedTermsOpen}
+              onToggleAdvanced={toggleAdvancedTerms}
+              onReset={handleReset}
+              onClearFilters={clearFilters}
+              onScanIncome={openScanner}
+            />
 
-            {/* column headers */}
-            <div
-              className="desk-inventory-columns"
-              style={{
-                display: "grid",
-                gridTemplateColumns: GRID,
-                columnGap: 11,
-                alignItems: "center",
-                padding: "10px 18px",
-                background: "var(--color-bg-subtle)",
-                borderBottom: "1px solid var(--color-border)",
-              }}
-            >
-              {SORT_COLUMNS.map((col, i) => (
-                <span
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleSort(col.key);
-                    }
-                  }}
-                  title={col.title}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={
-                    col.key === sortKey
-                      ? `${col.title}, sorted ${sortDir === "asc" ? "ascending" : "descending"}`
-                      : col.title
-                  }
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: "0.08em",
-                    fontFamily: mono,
-                    color: "var(--color-text-subtle)",
-                    textAlign: i === 0 ? "left" : "right",
-                    cursor: "pointer",
-                    userSelect: "none",
-                  }}
-                >
-                  {col.label}
-                  {sortArrow(col.key)}
-                </span>
-              ))}
-            </div>
-
-            {rows.length === 0 ? (
-              <div
-                style={{
-                  padding: "44px 20px",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <span style={{ fontSize: 13.5, color: "var(--color-text-muted)" }}>
-                  {processedInventory.length === 0
-                    ? "No inventory yet — import vehicles from the Inventory tab."
-                    : "No vehicles match the current filters."}
-                </span>
-                {processedInventory.length > 0 && (
-                  <button
-                    onClick={clearFilters}
-                    className="lift-btn"
-                    style={{
-                      background: "transparent",
-                      border: "1px solid var(--color-border-strong)",
-                      color: "var(--color-text)",
-                      borderRadius: 8,
-                      padding: "7px 14px",
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div
-                ref={scrollRef}
-                // Fill the viewport below the deal-terms card instead of a
-                // fixed 560px box — the mockup's table runs the page.
-                style={{ maxHeight: "max(560px, calc(100vh - 340px))", overflowY: "auto" }}
-              >
+            {/* ---------- COMPARE STRIP ---------- */}
+            {/* Gate on resolvable cards, not raw favorites — pins left over from
+                another dealer's inventory rendered an empty "0 pinned" shell. */}
+            {compareCards.length > 0 && (
+              <div style={cardStyle}>
                 <div
                   style={{
-                    height: virtualizer.getTotalSize(),
-                    width: "100%",
-                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 16px",
+                    borderBottom: "1px solid var(--color-border)",
                   }}
                 >
-                  {virtualizer.getVirtualItems().map((vr) => {
-                    const v = rows[vr.index];
-                    if (!v) return null;
+                  <span style={{ fontSize: 12, color: "var(--color-primary)" }}>★</span>
+                  <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                    Compare
+                  </span>
+                  <span style={{ fontSize: 12.5, color: "var(--color-text-subtle)" }}>
+                    {compareCards.length} pinned · reprices live as you change the deal
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 12, overflowX: "auto", padding: "14px 16px" }}>
+                  {compareCards.map((v) => {
                     const isF = focused && v.vin === focused.vin;
-                    const score = v.approvalScore ?? 0;
-                    const ring = bandColor(v);
+                    const pay = numVal(v.monthlyPayment);
                     return (
                       <div
                         key={v.vin}
-                        data-index={vr.index}
-                        ref={virtualizer.measureElement}
+                        onClick={() => focusInventoryVin(v.vin)}
+                        className="transition-colors"
                         style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          transform: `translateY(${vr.start}px)`,
+                          flex: "0 0 196px",
+                          border: `1px solid ${
+                            isF ? "var(--color-primary)" : "var(--color-border)"
+                          }`,
+                          borderRadius: 12,
+                          padding: 13,
+                          cursor: "pointer",
+                          background: isF
+                            ? "var(--color-primary-subtle)"
+                            : "var(--color-bg-subtle)",
+                          position: "relative",
                         }}
                       >
-                        <div
-                          className="inv-row"
-                          onClick={() => focusInventoryVin(v.vin)}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(v.vin);
+                          }}
+                          aria-label={`Remove ${nameShort(v)} from compare`}
                           style={{
-                            display: "grid",
-                            gridTemplateColumns: GRID,
-                            columnGap: 11,
-                            alignItems: "center",
-                            padding: "11px 18px",
-                            borderBottom: "1px solid var(--color-border)",
+                            position: "absolute",
+                            top: 7,
+                            right: 8,
+                            background: "transparent",
+                            border: "none",
+                            color: "var(--color-text-subtle)",
                             cursor: "pointer",
-                            borderLeft: `3px solid ${isF ? "var(--color-primary)" : "transparent"}`,
-                            background: isF ? "var(--color-primary-subtle)" : "transparent",
+                            fontSize: 16,
+                            lineHeight: 1,
+                            padding: 2,
+                            fontFamily: "inherit",
                           }}
                         >
-                          <div style={{ minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontSize: 14,
-                                fontWeight: 600,
-                                letterSpacing: "-0.01em",
-                                lineHeight: 1.25,
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
-                              }}
-                            >
-                              {nameShort(v)}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 11.5,
-                                color: "var(--color-text-subtle)",
-                                fontFamily: mono,
-                                marginTop: 2,
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                              }}
-                            >
-                              {v.modelYear} ·{" "}
-                              {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi · STK{" "}
-                              {v.stock}
-                            </div>
-                          </div>
+                          ×
+                        </button>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            paddingRight: 16,
+                          }}
+                        >
+                          {nameShort(v)}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            color: "var(--color-text-subtle)",
+                            fontFamily: mono,
+                            marginTop: 2,
+                          }}
+                        >
+                          {v.modelYear} · STK {v.stock}
+                        </div>
+                        <div
+                          style={{ display: "flex", alignItems: "baseline", gap: 3, marginTop: 11 }}
+                        >
                           <span
-                            data-label="Price"
                             style={{
-                              fontSize: 13.5,
-                              textAlign: "right",
+                              fontSize: 23,
+                              fontWeight: 700,
                               fontFamily: mono,
-                              fontVariantNumeric: "tabular-nums",
+                              letterSpacing: "-0.02em",
                             }}
                           >
-                            {numVal(v.price) === null ? "—" : fmt(v.price as number)}
+                            {pay === null ? "—" : fmt(pay)}
                           </span>
+                          <span style={{ fontSize: 12, color: "var(--color-text-subtle)" }}>
+                            /mo
+                          </span>
+                        </div>
+                        <div
+                          style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}
+                        >
                           <span
-                            data-label="F-LTV"
                             style={{
-                              fontSize: 13.5,
-                              textAlign: "right",
+                              fontSize: 13,
                               fontFamily: mono,
-                              fontVariantNumeric: "tabular-nums",
-                              color: "var(--color-text-muted)",
+                              fontWeight: 700,
+                              color: bandColor(v),
                             }}
                           >
-                            {pct(v.frontEndLtv)}
+                            {v.approvalScore ?? "—"}
+                          </span>
+                          <span style={{ fontSize: 11, color: "var(--color-text-subtle)" }}>
+                            odds
                           </span>
                           <span
-                            data-label="Financed"
+                            className="desk-compare-odds-pill"
                             style={{
-                              fontSize: 14,
-                              textAlign: "right",
-                              fontFamily: mono,
-                              fontVariantNumeric: "tabular-nums",
-                              fontWeight: 600,
+                              color: otdColorFor(v.otdLtv, thresholds),
+                              background: otdBgFor(v.otdLtv, thresholds),
                             }}
                           >
-                            {numVal(v.amountToFinance) === null
-                              ? "—"
-                              : fmt(v.amountToFinance as number)}
-                          </span>
-                          <span data-label="OTD LTV" style={{ textAlign: "right" }}>
-                            <span
-                              style={{
-                                fontSize: 12.5,
-                                fontFamily: mono,
-                                fontVariantNumeric: "tabular-nums",
-                                fontWeight: 600,
-                                color: otdColorFor(v.otdLtv, thresholds),
-                                background: otdBgFor(v.otdLtv, thresholds),
-                                padding: "3px 7px",
-                                borderRadius: 6,
-                              }}
-                            >
-                              {pct(v.otdLtv)}
-                            </span>
-                          </span>
-                          <span
-                            data-label="Payment"
-                            style={{
-                              fontSize: 13.5,
-                              textAlign: "right",
-                              fontFamily: mono,
-                              fontVariantNumeric: "tabular-nums",
-                              color: "var(--color-text-muted)",
-                            }}
-                          >
-                            {numVal(v.monthlyPayment) === null
-                              ? "—"
-                              : `${fmt(v.monthlyPayment as number)}/mo`}
-                          </span>
-                          <span
-                            data-label="Odds"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "flex-end",
-                              gap: 7,
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: 14,
-                                fontWeight: 700,
-                                fontFamily: mono,
-                                color: ring,
-                                minWidth: 18,
-                                textAlign: "right",
-                              }}
-                            >
-                              {score}
-                            </span>
-                            <ScoreRing score={score} size={20} colorVar={ring} />
+                            {pct(v.otdLtv)}
                           </span>
                         </div>
                       </div>
@@ -841,6 +588,336 @@ export const DeskScreen: React.FC = () => {
                 </div>
               </div>
             )}
+
+            <div
+              role="table"
+              aria-label="Ranked inventory table"
+              className="desk-inventory-card"
+              style={cardStyle}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "13px 18px",
+                  borderBottom: "1px solid var(--color-border)",
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                  <span
+                    style={{ fontSize: 11, fontFamily: mono, color: "var(--color-text-subtle)" }}
+                  >
+                    02
+                  </span>
+                  <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                    Inventory
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12.5,
+                      color: "var(--color-text-subtle)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {rows.length} of {processedInventory.length} · ranked by odds
+                  </span>
+                </div>
+                <div className="desk-inventory-tools">
+                  <div className="desk-compare-search-wrapper">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--color-text-subtle)"
+                      strokeWidth="2"
+                      className="desk-compare-search-icon"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <input
+                      id="desk-search"
+                      className="dc-input desk-compare-search-input"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search inventory · press /"
+                    />
+                  </div>
+                  {focused && (
+                    <button
+                      type="button"
+                      className="desk-mobile-inspector-btn transition-colors"
+                      onClick={() => setInspectorOpen(true)}
+                    >
+                      View deal
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* column headers */}
+              <div
+                role="row"
+                aria-label="Column headers"
+                className="desk-inventory-columns"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: GRID,
+                  columnGap: 11,
+                  alignItems: "center",
+                  padding: "10px 18px",
+                  background: "var(--color-bg-subtle)",
+                  borderBottom: "1px solid var(--color-border)",
+                }}
+              >
+                {SORT_COLUMNS.map((col, i) => (
+                  <button
+                    key={col.key}
+                    type="button"
+                    onClick={() => handleSort(col.key)}
+                    title={col.title}
+                    role="columnheader"
+                    aria-sort={
+                      col.key === sortKey
+                        ? sortDir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                    aria-label={
+                      col.key === sortKey
+                        ? `${col.title}, sorted ${sortDir === "asc" ? "ascending" : "descending"}`
+                        : col.title
+                    }
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.08em",
+                      fontFamily: mono,
+                      color: "var(--color-text-subtle)",
+                      textAlign: i === 0 ? "left" : "right",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      background: "transparent",
+                      border: "none",
+                      padding: 0,
+                      margin: 0,
+                    }}
+                  >
+                    {col.label}
+                    {sortArrow(col.key)}
+                  </button>
+                ))}
+              </div>
+
+              {rows.length === 0 ? (
+                <EmptyState
+                  icon={
+                    processedInventory.length === 0 ? (
+                      <Icons.CarIcon className="w-full h-full" />
+                    ) : undefined
+                  }
+                  title={processedInventory.length === 0 ? "No inventory yet" : "No vehicles match"}
+                  description={
+                    processedInventory.length === 0
+                      ? "Import vehicles from the Inventory tab or load sample data."
+                      : "No vehicles match the current filters or search."
+                  }
+                  primaryAction={
+                    processedInventory.length === 0
+                      ? { label: "Load sample data", onClick: loadSampleData }
+                      : { label: "Clear filters", onClick: clearFilters }
+                  }
+                />
+              ) : (
+                <div
+                  ref={scrollRef}
+                  // Fill the viewport below the deal-terms card instead of a
+                  // fixed 560px box — the mockup's table runs the page.
+                  style={{ maxHeight: "max(560px, calc(100vh - 340px))", overflowY: "auto" }}
+                >
+                  <div
+                    style={{
+                      height: virtualizer.getTotalSize(),
+                      width: "100%",
+                      position: "relative",
+                    }}
+                  >
+                    {virtualizer.getVirtualItems().map((vr) => {
+                      const v = rows[vr.index];
+                      if (!v) return null;
+                      const isF = focused && v.vin === focused.vin;
+                      const score = v.approvalScore ?? 0;
+                      const ring = bandColor(v);
+                      return (
+                        <div
+                          key={v.vin}
+                          data-index={vr.index}
+                          ref={virtualizer.measureElement}
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            transform: `translateY(${vr.start}px)`,
+                          }}
+                        >
+                          <div
+                            role="row"
+                            className="inv-row"
+                            tabIndex={0}
+                            onClick={() => focusInventoryVin(v.vin)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                focusInventoryVin(v.vin);
+                              }
+                            }}
+                            aria-label={`Focus ${v.vehicle} on desk`}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: GRID,
+                              columnGap: 11,
+                              alignItems: "center",
+                              padding: "11px 18px",
+                              borderBottom: "1px solid var(--color-border)",
+                              cursor: "pointer",
+                              borderLeft: `3px solid ${isF ? "var(--color-primary)" : "transparent"}`,
+                              background: isF ? "var(--color-primary-subtle)" : "transparent",
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 600,
+                                  letterSpacing: "-0.01em",
+                                  lineHeight: 1.25,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {nameShort(v)}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 11.5,
+                                  color: "var(--color-text-subtle)",
+                                  fontFamily: mono,
+                                  marginTop: 2,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {v.modelYear} ·{" "}
+                                {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi · STK{" "}
+                                {v.stock}
+                              </div>
+                            </div>
+                            <span
+                              data-label="Price"
+                              style={{
+                                fontSize: 13.5,
+                                textAlign: "right",
+                                fontFamily: mono,
+                                fontVariantNumeric: "tabular-nums",
+                              }}
+                            >
+                              {numVal(v.price) === null ? "—" : fmt(v.price as number)}
+                            </span>
+                            <span
+                              data-label="F-LTV"
+                              style={{
+                                fontSize: 13.5,
+                                textAlign: "right",
+                                fontFamily: mono,
+                                fontVariantNumeric: "tabular-nums",
+                                color: "var(--color-text-muted)",
+                              }}
+                            >
+                              {pct(v.frontEndLtv)}
+                            </span>
+                            <span
+                              data-label="Financed"
+                              style={{
+                                fontSize: 14,
+                                textAlign: "right",
+                                fontFamily: mono,
+                                fontVariantNumeric: "tabular-nums",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {numVal(v.amountToFinance) === null
+                                ? "—"
+                                : fmt(v.amountToFinance as number)}
+                            </span>
+                            <span data-label="OTD LTV" style={{ textAlign: "right" }}>
+                              <span
+                                style={{
+                                  fontSize: 12.5,
+                                  fontFamily: mono,
+                                  fontVariantNumeric: "tabular-nums",
+                                  fontWeight: 600,
+                                  color: otdColorFor(v.otdLtv, thresholds),
+                                  background: otdBgFor(v.otdLtv, thresholds),
+                                  padding: "3px 7px",
+                                  borderRadius: 6,
+                                }}
+                              >
+                                {pct(v.otdLtv)}
+                              </span>
+                            </span>
+                            <span
+                              data-label="Payment"
+                              style={{
+                                fontSize: 13.5,
+                                textAlign: "right",
+                                fontFamily: mono,
+                                fontVariantNumeric: "tabular-nums",
+                                color: "var(--color-text-muted)",
+                              }}
+                            >
+                              {numVal(v.monthlyPayment) === null
+                                ? "—"
+                                : `${fmt(v.monthlyPayment as number)}/mo`}
+                            </span>
+                            <span
+                              data-label="Odds"
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "flex-end",
+                                gap: 7,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  fontFamily: mono,
+                                  color: ring,
+                                  minWidth: 18,
+                                  textAlign: "right",
+                                }}
+                              >
+                                {score}
+                              </span>
+                              <ScoreRing score={score} size={20} colorVar={ring} />
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* FOCUSED PANEL */}
@@ -861,10 +938,10 @@ export const DeskScreen: React.FC = () => {
               dealData={dealData}
               settings={settings}
               pinned={isPinned}
-              onPin={() => toggleFavorite(focused.vin)}
-              onSetTermDown={(term, down) => setDeal({ loanTerm: term, downPayment: down })}
+              onPin={toggleFocusedFavorite}
+              onSetTermDown={setFocusedTermDown}
               compactMode={compactInspector}
-              onCloseCompact={() => setInspectorOpen(false)}
+              onCloseCompact={closeInspector}
               compactOpen={inspectorOpen}
               vscAmount={vscAmt}
               gapAmount={gapAmt}
@@ -874,7 +951,7 @@ export const DeskScreen: React.FC = () => {
               onVscAmountChange={setVscAmount}
               onGapAmountChange={setGapAmount}
               onOtherBackendChange={setOtherBackend}
-              onDealSheet={() => setDealSheetOpen(true)}
+              onDealSheet={openDealSheet}
               onSaveDeal={saveFocusedDeal}
             />
           )}
@@ -882,11 +959,13 @@ export const DeskScreen: React.FC = () => {
       </div>
 
       {dealSheetOpen && focused && (
-        <DealSheetModal
-          vehicle={focused}
-          onClose={() => setDealSheetOpen(false)}
-          onSaveToPipeline={saveFromDealSheet}
-        />
+        <Suspense fallback={null}>
+          <DealSheetModal
+            vehicle={focused}
+            onClose={() => setDealSheetOpen(false)}
+            onSaveToPipeline={saveFromDealSheet}
+          />
+        </Suspense>
       )}
 
       {scannerOpen && (
@@ -904,4 +983,6 @@ export const DeskScreen: React.FC = () => {
   );
 };
 
+const DeskScreen = React.memo(DeskScreenBase) as React.FC;
+DeskScreen.displayName = "DeskScreen";
 export default DeskScreen;

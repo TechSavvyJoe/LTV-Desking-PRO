@@ -47,7 +47,8 @@ export interface DealData {
   tradeInPayoff: number;
   backendProducts: number;
   loanTerm: number;
-  interestRate: number;
+  /** Can be "" sentinel at runtime for "unset" (no explicit rate entered). Calculator and PDF treat it as N/A. */
+  interestRate: number | "";
   stateFees: number;
   notes: string;
   /**
@@ -224,7 +225,7 @@ export interface Settings {
   customTaxRate: number | null;
   /**
    * Michigan statutory cap on the sales-tax trade-in credit, in dollars. [G17]
-   * TODO(owner): verify current MI statutory trade-in credit cap before pilot.
+   * See MI_TRADE_IN_CREDIT_CAP in constants.ts (with verification note).
    */
   miTradeInCreditCap: number;
   /** Default VSC (service contract) price for the desk's add-on toggle. [reconciliation 6] */

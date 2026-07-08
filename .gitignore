@@ -25,3 +25,53 @@ dist-ssr
 .vercel
 .env*.local
 .playwright-mcp/
+
+# AI/agent tooling artifacts (genkit, local memory stores, etc.)
+.genkit/
+.remember/
+.agents/
+ORIGINAL_REQUEST.md
+plan.md
+
+# Test artifacts & coverage
+coverage/
+.nyc_output/
+.mypy_cache/
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Vite / TS build cache
+.vite/
+*.tsbuildinfo
+
+# Env files (keep committed examples visible)
+.env
+.env.*.local
+
+# Backend local data (SQLite DBs, hooks runtime state — never commit)
+backend/pb_data/
+backend/pb_data/**/*
+backend/pocketbase
+
+# Misc junk / temp
+*.bak
+*.tmp
+*.swp
+*.orig
+.DS_Store
+Thumbs.db
+
+# npm audit / dependency tooling outputs (local reports)
+npm-audit*.json
+npm-audit*.txt
+audit-report*.json
+
+# Tarballs / packs from npm pack (rare but useful to ignore)
+*.tgz
+
+# Historical prototype / one-off mock (not part of app; clean junk)
+customer-match-desk-prototype.html
+
+# Unused metadata (leftover junk; PWA manifest is in public/)
+metadata.json

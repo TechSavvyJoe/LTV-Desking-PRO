@@ -4,6 +4,11 @@ export const validateInput = (id: string, value: number | null): string | null =
     return null;
   }
 
+  // Properly reject NaN/Infinity with isFinite checks for numeric fields.
+  if (!Number.isFinite(value)) {
+    return "Value must be a valid finite number.";
+  }
+
   switch (id) {
     case "downPayment":
     case "backendProducts":

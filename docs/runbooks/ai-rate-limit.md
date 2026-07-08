@@ -55,7 +55,7 @@ You've hit a real traffic spike. Options:
 
 1. Buy capacity from the provider with the fastest pay-to-upgrade path (typically OpenAI or Anthropic)
 2. Temporarily disable AI features by setting all three `*ApiKey` fields to empty in Owner Console — routes that need keys will 4xx with a clear "no provider configured" message instead of timing out
-3. Communicate via your status page (TODO once configured)
+3. Communicate via your status page (if/when configured; use owner email + dealer channel for now)
 
 ## Root cause
 
@@ -66,5 +66,5 @@ You've hit a real traffic spike. Options:
 
 - Multi-provider configuration in `ai_provider_keys` collection (already supported)
 - Per-task model selection (already supported in `aiDefaults`)
-- Sentry alert on /api/ai/\* error rate > 5% over 5 min (TODO)
-- Rate-limit per dealer on the proxy itself (TODO — currently relies on PB auth + provider limits)
+- Sentry error tracking wired; configure /api/ai/\* error rate alert in Sentry dashboard (rate limit impl in `api/_lib/ai/rateLimit.ts`: per-user 20/min + per-dealer 80/min fixed window, in-memory per instance)
+- For durable/global rate limit, consider Upstash or PB-backed counter (not yet)

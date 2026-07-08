@@ -13,11 +13,11 @@ const TermsOfService: React.FC = () => {
     <main
       id="main-content"
       tabIndex={-1}
-      className="max-w-3xl mx-auto px-6 py-12 prose prose-slate dark:prose-invert focus:outline-none"
+      className="max-w-3xl mx-auto px-6 py-12 prose dark:prose-invert focus:outline-none text-[var(--color-text)]"
     >
       <h1>Terms of Service</h1>
-      <p className="text-sm text-slate-500">Last updated: June 11, 2026</p>
-      <p className="text-xs text-amber-600 dark:text-amber-400">
+      <p className="text-sm text-[var(--color-text-subtle)]">Last updated: June 11, 2026</p>
+      <p className="text-xs text-[var(--color-warning)] dark:text-[var(--color-warning)]">
         ⚠️ This is a placeholder pending lawyer review. Not legal advice.
       </p>
 

@@ -27,7 +27,7 @@ export const confirmAction = (options: ConfirmOptions): Promise<boolean> =>
     };
 
     if (!listener) {
-      console.warn("Confirmation requested before dialog listener mounted.");
+      // No UI listener mounted (e.g. early call); fail closed.
       resolve(false);
       return;
     }

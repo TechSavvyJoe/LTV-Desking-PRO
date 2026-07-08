@@ -330,6 +330,50 @@ describe("Calculator Service", () => {
       // Negative principal => no payment owed, must not be "Error".
       expect(result.monthlyPayment).toBe(0);
     });
+
+    it("applies out-of-state transit fee when buyerState is OOS and defaultState is MI under custom rate [B5-edge]", () => {
+      const settings: Settings = {
+        ...mockSettings,
+        defaultState: "MI",
+        outOfStateTransitFee: 15,
+        customTaxRate: 5.0,
+      };
+      const deal = { ...mockDealData, buyerState: "OH" as const, stateFees: 0 };
+      const result = calculateFinancials(mockVehicle, deal, settings);
+      // OTD should include $15 transit fee because buyerState is OH (non-MI)
+      expect(result.baseOutTheDoorPrice).toBeCloseTo(30000 + 250 + 25 + 1513.75 + 15, 2); // 30275 * 0.05 = 1513.75 tax
+    });
+
+    it("treats null, undefined, and NaN interest rates as unset (N/A payment) [B6-edge]", () => {
+      for (const val of [null, undefined, NaN]) {
+        const deal = { ...mockDealData, interestRate: val as any };
+        const result = calculateFinancials(mockVehicle, deal, mockSettings);
+        expect(result.monthlyPayment).toBe("N/A");
+      }
+    });
+
+    it("rounds sales tax and OTD to exact cents when values contain fractional cents [B7-edge]", () => {
+      // Price with cents and custom tax rate (e.g. 5.875% -> 0.05875)
+      const oddVehicle = { ...mockVehicle, price: 30000.55 };
+      const settings: Settings = { ...mockSettings, customTaxRate: 5.875 }; // 5.875% custom tax
+      const result = calculateFinancials(oddVehicle, { ...mockDealData, stateFees: 0 }, settings);
+      // Taxable amount = 30000.55 + 250 (doc) + 25 (cvr) = 30275.55
+      // Raw tax = 30275.55 * 0.05875 = 1778.6885625 -> rounds to 1778.69
+      expect(result.salesTax).toBe(1778.69);
+      // OTD = 30000.55 + 250 + 25 + 0 + 1778.69 = 32054.24
+      expect(result.baseOutTheDoorPrice).toBe(32054.24);
+
+      // Price with cents under standard MI 6% tax rate
+      const resultMI = calculateFinancials(
+        oddVehicle,
+        { ...mockDealData, stateFees: 0 },
+        mockSettings
+      );
+      // Taxable amount = 30275.55
+      // Raw tax = 30275.55 * 0.06 = 1816.533 -> rounds to 1816.53
+      expect(resultMI.salesTax).toBe(1816.53);
+      expect(resultMI.baseOutTheDoorPrice).toBe(32092.08);
+    });
   });
 
   describe("error-contract parity [B8]", () => {
@@ -340,6 +384,281 @@ describe("Calculator Service", () => {
 
     it("calculateLoanAmount returns 0 only for a genuine zero payment", () => {
       expect(calculateLoanAmount(0, 5, 60)).toBe(0);
+    });
+
+    it("returns 'Error' for non-finite inputs in loan amount and monthly payment [B8-edge]", () => {
+      expect(calculateMonthlyPayment(30000, NaN, 60)).toBe("Error");
+      expect(calculateMonthlyPayment(30000, Infinity, 60)).toBe("Error");
+      expect(calculateLoanAmount(500, NaN, 60)).toBe("Error");
+      expect(calculateLoanAmount(500, Infinity, 60)).toBe("Error");
+    });
+
+    // --- additional coverage gaps from deep review (negative prices, blanks, float term, unsupported state) ---
+    it("treats negative price as invalid (N/A results) [negative prices now rejected]", () => {
+      const negVehicle: Vehicle = {
+        vehicle: "Test",
+        stock: "S1",
+        vin: "TESTVIN123",
+        modelYear: 2020,
+        mileage: 10000,
+        price: -5000,
+        jdPower: 12000,
+        jdPowerRetail: 15000,
+        unitCost: 10000,
+        baseOutTheDoorPrice: "N/A",
+      };
+      const simpleDeal: DealData = {
+        downPayment: 0,
+        tradeInValue: 0,
+        tradeInPayoff: 0,
+        interestRate: 5,
+        loanTerm: 60,
+        backendProducts: 0,
+        stateFees: 0,
+        notes: "",
+        buyerState: "MI",
+      };
+      const simpleSettings: Settings = {
+        defaultTerm: 72,
+        defaultApr: 8.9,
+        defaultState: "MI",
+        docFee: 0,
+        cvrFee: 0,
+        defaultStateFees: 0,
+        outOfStateTransitFee: 0,
+        customTaxRate: null,
+        miTradeInCreditCap: 12000,
+        vscPrice: 0,
+        gapPrice: 0,
+        ltvThresholds: { warn: 100, danger: 110, critical: 120 },
+        ai: { provider: "openai", lenderExtractModel: "", dealAnalysisModel: "", quickModel: "" },
+      };
+      const result = calculateFinancials(negVehicle, simpleDeal, simpleSettings);
+      expect(result.baseOutTheDoorPrice).toBe("N/A");
+      expect(result.salesTax).toBe("N/A");
+      expect(result.amountToFinance).toBe("N/A");
+      expect(result.monthlyPayment).toBe("N/A");
+      expect(result.frontEndLtv).toBe("N/A");
+    });
+
+    it("handles blank/empty deal data and vehicle gracefully (N/A or zeroed)", () => {
+      const blankVehicle: Vehicle = {
+        vehicle: "",
+        stock: "",
+        vin: "",
+        modelYear: "N/A",
+        mileage: "N/A",
+        price: "N/A",
+        jdPower: "N/A",
+        jdPowerRetail: "N/A",
+        unitCost: "N/A",
+        baseOutTheDoorPrice: "N/A",
+      };
+      const blankDeal: DealData = {
+        downPayment: 0 as any,
+        tradeInValue: 0 as any,
+        tradeInPayoff: 0 as any,
+        interestRate: "" as any,
+        loanTerm: 0 as any,
+        backendProducts: 0 as any,
+        stateFees: 0 as any,
+        notes: "",
+      };
+      const simpleSettings: Settings = {
+        defaultTerm: 72,
+        defaultApr: 8.9,
+        defaultState: "MI",
+        docFee: 0,
+        cvrFee: 0,
+        defaultStateFees: 0,
+        outOfStateTransitFee: 0,
+        customTaxRate: null,
+        miTradeInCreditCap: 12000,
+        vscPrice: 0,
+        gapPrice: 0,
+        ltvThresholds: { warn: 100, danger: 110, critical: 120 },
+        ai: { provider: "openai", lenderExtractModel: "", dealAnalysisModel: "", quickModel: "" },
+      };
+      const result = calculateFinancials(blankVehicle, blankDeal, simpleSettings);
+      expect(result.baseOutTheDoorPrice).toBe("N/A");
+      expect(result.monthlyPayment).toBe("N/A");
+    });
+
+    it("accepts float loanTerm (coerces via toNumber; validator elsewhere enforces int)", () => {
+      const simpleVehicle: Vehicle = {
+        vehicle: "Test",
+        stock: "S1",
+        vin: "TESTVIN123",
+        modelYear: 2020,
+        mileage: 10000,
+        price: 30000,
+        jdPower: 12000,
+        jdPowerRetail: 15000,
+        unitCost: 10000,
+        baseOutTheDoorPrice: "N/A",
+      };
+      const simpleDeal: DealData = {
+        downPayment: 0,
+        tradeInValue: 0,
+        tradeInPayoff: 0,
+        interestRate: 5,
+        loanTerm: 60.7,
+        backendProducts: 0,
+        stateFees: 0,
+        notes: "",
+        buyerState: "MI",
+      };
+      const simpleSettings: Settings = {
+        defaultTerm: 72,
+        defaultApr: 8.9,
+        defaultState: "MI",
+        docFee: 0,
+        cvrFee: 0,
+        defaultStateFees: 0,
+        outOfStateTransitFee: 0,
+        customTaxRate: null,
+        miTradeInCreditCap: 12000,
+        vscPrice: 0,
+        gapPrice: 0,
+        ltvThresholds: { warn: 100, danger: 110, critical: 120 },
+        ai: { provider: "openai", lenderExtractModel: "", dealAnalysisModel: "", quickModel: "" },
+      };
+      const result = calculateFinancials(simpleVehicle, simpleDeal, simpleSettings);
+      expect(result.monthlyPayment).not.toBe("Error");
+      expect(result.monthlyPayment).not.toBe("N/A");
+      if (typeof result.monthlyPayment === "number") {
+        expect(result.monthlyPayment).toBeGreaterThan(0);
+      }
+    });
+
+    it("still throws on unsupported state even with other blanks", () => {
+      const simpleVehicle: Vehicle = {
+        vehicle: "Test",
+        stock: "S1",
+        vin: "TESTVIN123",
+        modelYear: 2020,
+        mileage: 10000,
+        price: 30000,
+        jdPower: 12000,
+        jdPowerRetail: 15000,
+        unitCost: 10000,
+        baseOutTheDoorPrice: "N/A",
+      };
+      const dealBadState: DealData = {
+        downPayment: 0,
+        tradeInValue: 0,
+        tradeInPayoff: 0,
+        interestRate: 5,
+        loanTerm: 60,
+        backendProducts: 0,
+        stateFees: 0,
+        notes: "",
+        buyerState: "XX" as any,
+      };
+      const simpleSettings: Settings = {
+        defaultTerm: 72,
+        defaultApr: 8.9,
+        defaultState: "MI",
+        docFee: 0,
+        cvrFee: 0,
+        defaultStateFees: 0,
+        outOfStateTransitFee: 0,
+        customTaxRate: null,
+        miTradeInCreditCap: 12000,
+        vscPrice: 0,
+        gapPrice: 0,
+        ltvThresholds: { warn: 100, danger: 110, critical: 120 },
+        ai: { provider: "openai", lenderExtractModel: "", dealAnalysisModel: "", quickModel: "" },
+      };
+      expect(() => calculateFinancials(simpleVehicle, dealBadState, simpleSettings)).toThrow(
+        /Unsupported tax state/
+      );
+    });
+  });
+
+  describe("more calculator financial edge paths", () => {
+    it("handles zero everything producing N/A payments without crash", () => {
+      const zVeh: Vehicle = {
+        vehicle: "Z",
+        stock: "0",
+        vin: "0",
+        modelYear: 2024,
+        mileage: 0,
+        price: 0,
+        jdPower: 0,
+        jdPowerRetail: 0,
+        unitCost: 0,
+        baseOutTheDoorPrice: "N/A",
+      };
+      const zDeal: DealData = {
+        downPayment: 0,
+        tradeInValue: 0,
+        tradeInPayoff: 0,
+        interestRate: 0,
+        loanTerm: 0,
+        backendProducts: 0,
+        stateFees: 0,
+        notes: "",
+      };
+      const zSet: Settings = {
+        defaultTerm: 60,
+        defaultApr: 0,
+        defaultState: "MI",
+        docFee: 0,
+        cvrFee: 0,
+        defaultStateFees: 0,
+        outOfStateTransitFee: 0,
+        customTaxRate: null,
+        miTradeInCreditCap: 0,
+        vscPrice: 0,
+        gapPrice: 0,
+        ltvThresholds: { warn: 100, danger: 100, critical: 100 },
+        ai: { provider: "openai", lenderExtractModel: "", dealAnalysisModel: "", quickModel: "" },
+      };
+      const r = calculateFinancials(zVeh, zDeal, zSet);
+      expect(r.amountToFinance).toBe("N/A");
+    });
+
+    it("calculateFinancials clamps extreme negative inputs safely", () => {
+      const v = {
+        vehicle: "Neg",
+        stock: "N",
+        vin: "N",
+        modelYear: 2020,
+        mileage: 0,
+        price: 10000,
+        jdPower: 0,
+        jdPowerRetail: 0,
+        unitCost: 0,
+        baseOutTheDoorPrice: "N/A",
+      } as Vehicle;
+      const d: DealData = {
+        downPayment: -999,
+        tradeInValue: -100,
+        tradeInPayoff: 0,
+        interestRate: -1,
+        loanTerm: 12,
+        backendProducts: -10,
+        stateFees: 0,
+        notes: "",
+      };
+      const s: Settings = {
+        defaultTerm: 60,
+        defaultApr: 5,
+        defaultState: "MI",
+        docFee: 0,
+        cvrFee: 0,
+        defaultStateFees: 0,
+        outOfStateTransitFee: 0,
+        customTaxRate: null,
+        miTradeInCreditCap: 0,
+        vscPrice: 0,
+        gapPrice: 0,
+        ltvThresholds: { warn: 200, danger: 300, critical: 400 },
+        ai: { provider: "openai", lenderExtractModel: "", dealAnalysisModel: "", quickModel: "" },
+      };
+      const r = calculateFinancials(v, d, s);
+      expect(typeof r.salesTax).toBe("number");
     });
   });
 });

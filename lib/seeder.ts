@@ -37,9 +37,21 @@ export const seedDatabase = async (): Promise<void> => {
       const { id: _id, ...vehicleData } = vehicle;
       void _id;
       attempted++;
-      const created = await addInventoryItem(
-        vehicleData as Omit<InventoryItem, "id" | "dealer" | "created" | "updated">
-      );
+      const seedItem: Omit<InventoryItem, "id" | "dealer" | "created" | "updated"> = {
+        ...vehicleData,
+        make: vehicle.make || "Unknown",
+        model: vehicle.model || "Unknown",
+        status: "available" as const,
+        year: typeof vehicle.modelYear === "number" ? vehicle.modelYear : 2020,
+        price: typeof vehicle.price === "number" ? vehicle.price : 0,
+        modelYear: typeof vehicle.modelYear === "number" ? vehicle.modelYear : undefined,
+        mileage: typeof vehicle.mileage === "number" ? vehicle.mileage : 0,
+        unitCost: typeof vehicle.unitCost === "number" ? vehicle.unitCost : 0,
+        jdPower: typeof vehicle.jdPower === "number" ? vehicle.jdPower : 0,
+        jdPowerRetail: typeof vehicle.jdPowerRetail === "number" ? vehicle.jdPowerRetail : 0,
+        baseOutTheDoorPrice: undefined,
+      };
+      const created = await addInventoryItem(seedItem);
       if (created !== null) {
         inventoryOk++;
         succeeded++;

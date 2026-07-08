@@ -16,7 +16,7 @@ export enum LogLevel {
 }
 
 interface LogContext {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 class Logger {
@@ -24,7 +24,10 @@ class Logger {
   private isProduction: boolean;
 
   constructor() {
-    this.isProduction = import.meta.env.PROD || import.meta.env.MODE === "production";
+    // Robust for test runners / non-Vite envs where import.meta.env may be partial or undefined.
+    const meta = import.meta as { env?: unknown };
+    const env = (meta.env ?? {}) as { PROD?: boolean; MODE?: string };
+    this.isProduction = !!(env.PROD || env.MODE === "production");
     this.minLevel = this.isProduction ? LogLevel.INFO : LogLevel.DEBUG;
   }
 
@@ -80,7 +83,7 @@ class Logger {
     const formatted = this.format("WARN", message, context);
     console.warn(formatted);
 
-    // TODO: Send to external logging service
+    // Sentry (via lib/sentry captureException) handles critical errors; extend here for warn telemetry if volume justifies.
     this.sendToExternalService("warn", message, context);
   }
 
@@ -105,7 +108,7 @@ class Logger {
     const formatted = this.format("ERROR", message, errorContext);
     console.error(formatted);
 
-    // TODO: Send to external logging service (Sentry, etc.)
+    // Sentry integration active (lib/sentry.ts + ErrorBoundary); logger forwards via placeholder for future unified path.
     this.sendToExternalService("error", message, errorContext, error);
   }
 
@@ -119,15 +122,9 @@ class Logger {
     context?: LogContext,
     error?: Error | unknown
   ) {
-    // TODO: Implement when error monitoring is added (Phase 5.5)
-    // Example:
-    // if (this.isProduction && window.Sentry) {
-    //   if (level === "error" && error instanceof Error) {
-    //     Sentry.captureException(error, { contexts: { custom: context } });
-    //   } else {
-    //     Sentry.captureMessage(message, { level, contexts: { custom: context } });
-    //   }
-    // }
+    // Sentry capture lives in lib/sentry.ts (lazy, DSN-gated). Hook logger here only if non-exception telemetry needed.
+    // Example (not active to avoid double-init):
+    // if (this.isProduction && window.Sentry) { ... }
   }
 
   /**

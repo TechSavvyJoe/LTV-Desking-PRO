@@ -22,7 +22,7 @@ interface DeskTermsRailProps {
   onScanIncome: () => void;
 }
 
-export const DeskTermsRail: React.FC<DeskTermsRailProps> = ({
+const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
   customerName,
   setCustomerName,
   filters,
@@ -58,10 +58,14 @@ export const DeskTermsRail: React.FC<DeskTermsRailProps> = ({
         </div>
         <div className="desk-terms-actions">
           <span>Every edit reprices inventory and lender fit.</span>
-          <button type="button" className="desk-ghost-btn lift-btn" onClick={onToggleAdvanced}>
+          <button
+            type="button"
+            className="desk-ghost-btn transition-colors"
+            onClick={onToggleAdvanced}
+          >
             {advancedOpen ? "Hide filters" : "More filters"}
           </button>
-          <button type="button" className="desk-ghost-btn lift-btn" onClick={onReset}>
+          <button type="button" className="desk-ghost-btn transition-colors" onClick={onReset}>
             Reset
           </button>
         </div>
@@ -131,13 +135,18 @@ export const DeskTermsRail: React.FC<DeskTermsRailProps> = ({
           />
         </div>
         <div className="desk-field term">
-          <label>Term</label>
-          <div className="desk-term-buttons" role="group" aria-label="Loan term">
+          <label id="desk-term-label">Term</label>
+          <div
+            className="desk-term-buttons"
+            role="group"
+            aria-labelledby="desk-term-label"
+            aria-label="Loan term"
+          >
             {DESK_TERMS.map((term) => (
               <button
                 type="button"
                 key={term}
-                className="lift-btn"
+                className="transition-colors"
                 data-active={dealData.loanTerm === term}
                 onClick={() => setDeal({ loanTerm: term })}
               >
@@ -254,7 +263,11 @@ export const DeskTermsRail: React.FC<DeskTermsRailProps> = ({
               placeholder="Any"
             />
           </div>
-          <button type="button" className="desk-clear-btn lift-btn" onClick={onClearFilters}>
+          <button
+            type="button"
+            className="desk-clear-btn transition-colors"
+            onClick={onClearFilters}
+          >
             Clear filters
           </button>
         </div>
@@ -262,3 +275,7 @@ export const DeskTermsRail: React.FC<DeskTermsRailProps> = ({
     </section>
   );
 };
+
+DeskTermsRailComponent.displayName = "DeskTermsRail";
+
+export const DeskTermsRail = React.memo(DeskTermsRailComponent);

@@ -1,10 +1,4 @@
-import type {
-  CalculatedVehicle,
-  DealData,
-  FilterData,
-  LenderProfile,
-  LenderTier,
-} from "../types";
+import type { CalculatedVehicle, DealData, FilterData, LenderProfile, LenderTier } from "../types";
 import { checkBankEligibility } from "./lenderMatcher";
 
 /**
