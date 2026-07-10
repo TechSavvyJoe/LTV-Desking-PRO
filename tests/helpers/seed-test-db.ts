@@ -348,7 +348,8 @@ async function main() {
       '1747800001_role_gated_writes_and_active_flag.js',
       '1747800003_assert_deal_events_rules.js',
       '1747810004_reassert_deal_events_rules.js',
-      '1747810006_reassert_dealer_scoped_rules.js'
+      '1747810006_reassert_dealer_scoped_rules.js',
+      '1747810007_seed_empty_dealer_samples.js'
     );`;
     try {
       execSync(`sqlite3 "${DB_PATH}" "${resetQuery}"`, { stdio: "inherit" });
@@ -460,10 +461,10 @@ async function main() {
     console.log("Stopping PocketBase temporary server...");
     await stopPocketBase();
 
-    // 12. Reset migrations that skipped rules validation due to fresh DB schema cache quirk
+    // 12. Reset migrations that need records present before their rule/bootstrap assertions.
     resetSkippedRuleMigrations();
 
-    // 13. Re-run migrations so the security rules compile and apply with dealers/users seeded
+    // 13. Re-run migrations so security rules and safe bootstrap checks see seeded dealer data.
     rerunRuleMigrations();
 
     console.log("All E2E database seeding and rule assertions finished successfully.");

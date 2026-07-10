@@ -85,6 +85,8 @@
       },
       { "name": "minIncome", "type": "number" },
       { "name": "maxPti", "type": "number" },
+      { "name": "minAmountFinanced", "type": "number" },
+      { "name": "maxAmountFinanced", "type": "number" },
       { "name": "notes", "type": "text" },
       { "name": "contactName", "type": "text" },
       { "name": "contactPhone", "type": "text" },

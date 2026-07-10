@@ -105,7 +105,7 @@ export const withPbRetry = async <T>(
       lastError = error;
       if (attempt >= retries || !isTransientPocketBaseError(error)) throw error;
       const wait = delaysMs[attempt] ?? delaysMs[delaysMs.length - 1] ?? 0;
-      if (import.meta.env.DEV) {
+      if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
         pbLogger.warn(`Retrying ${label} after transient failure`, { error });
       }
       if (wait > 0) await delay(wait);

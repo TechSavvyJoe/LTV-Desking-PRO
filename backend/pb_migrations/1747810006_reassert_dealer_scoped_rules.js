@@ -149,6 +149,14 @@ migrate(
         },
         { name: "minIncome", field: new NumberField({ name: "minIncome", required: false, min: 0 }) },
         { name: "maxPti", field: new NumberField({ name: "maxPti", required: false, min: 0 }) },
+        {
+          name: "minAmountFinanced",
+          field: new NumberField({ name: "minAmountFinanced", required: false, min: 0 }),
+        },
+        {
+          name: "maxAmountFinanced",
+          field: new NumberField({ name: "maxAmountFinanced", required: false, min: 0 }),
+        },
         { name: "notes", field: new TextField({ name: "notes", required: false, max: 5000 }) },
         { name: "contactName", field: new TextField({ name: "contactName", required: false, max: 200 }) },
         { name: "contactPhone", field: new TextField({ name: "contactPhone", required: false, max: 30 }) },

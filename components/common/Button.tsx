@@ -87,9 +87,7 @@ const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {isLoading && <SpinnerIcon className="w-4 h-4 animate-spin absolute" />}
-      <span className={isLoading ? "opacity-0" : "inline-flex items-center gap-inherit"}>
-        {children}
-      </span>
+      <span className={isLoading ? "opacity-0" : "inline-flex items-center gap-2"}>{children}</span>
     </button>
   );
 };

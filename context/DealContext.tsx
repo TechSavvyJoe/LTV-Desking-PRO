@@ -432,10 +432,14 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const raw = await getInventory({ throwOnError: true });
             return raw.map(mapInventoryItem);
           },
+          // `loadData` is an explicit refresh. Do not return a still-fresh
+          // cache entry when the user has asked us to reload dealer data.
+          staleTime: 0,
         }),
         queryClient.fetchQuery({
           queryKey: dealerKeys.lenderProfiles,
           queryFn: () => getLenderProfiles({ throwOnError: true }),
+          staleTime: 0,
         }),
         queryClient.fetchQuery({
           queryKey: dealerKeys.savedDeals,
@@ -443,10 +447,12 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const raw = await getSavedDeals({ throwOnError: true });
             return raw.map(mapPocketBaseSavedDeal);
           },
+          staleTime: 0,
         }),
         queryClient.fetchQuery({
           queryKey: dealerKeys.dealerSettings,
           queryFn: () => getDealerSettings({ throwOnError: true }),
+          staleTime: 0,
         }),
       ]);
 
