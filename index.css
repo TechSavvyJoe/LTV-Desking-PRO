@@ -2393,6 +2393,18 @@ select.dc-input:focus {
   pointer-events: none;
 }
 
+.auth-title {
+  width: 100%;
+  margin-top: 4px;
+  color: var(--color-text);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
 /* Live "LIVE" pulse dot */
 .live-dot {
   animation: pulseDot 1.6s ease-in-out infinite;

@@ -56,16 +56,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
           >
             LTV Desking
           </div>
-          <div
-            style={{
-              fontSize: 30,
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              marginTop: 4,
-              whiteSpace: "nowrap",
-              color: "var(--color-text)",
-            }}
-          >
+          <div className="auth-title">
             Precision desking, <span style={{ color: "var(--color-primary)" }}>repriced live</span>
           </div>
           <div
