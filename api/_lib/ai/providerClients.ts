@@ -90,7 +90,7 @@ const readAnthropicText = (responseBody: unknown): string => {
 };
 
 const assertFetchOk = async (response: Response, provider: AiProvider): Promise<unknown> => {
-  const body = (await response.json().catch(() => null)) as unknown;
+  const body: unknown = await response.json().catch(() => null);
   if (response.ok) return body;
 
   const error = asRecord(asRecord(body).error);
@@ -242,7 +242,7 @@ const callGeminiGroundedJson = async (
   const json = extractJsonFromText(text);
 
   const sources: GroundedSource[] = [];
-  const candidates = (response as unknown as { candidates?: unknown }).candidates;
+  const candidates = asRecord(response).candidates;
   if (Array.isArray(candidates)) {
     for (const candidate of candidates) {
       const meta = asRecord(asRecord(candidate).groundingMetadata);

@@ -23,8 +23,8 @@ interface Action {
 const ActionButton: React.FC<Action> = ({ label, onClick, variant = "primary" }) => {
   const classes =
     variant === "primary"
-      ? "px-4 py-2 rounded bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm font-medium transition-colors"
-      : "px-4 py-2 rounded bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] text-sm font-medium transition-colors";
+      ? "px-4 py-2 rounded bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
+      : "px-4 py-2 rounded bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]";
   return (
     <button type="button" onClick={onClick} className={classes}>
       {label}
@@ -50,7 +50,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
   if (variant === "inline") {
     return (
       <div
-        className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400"
+        className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]"
         role="status"
         aria-live="polite"
       >
@@ -66,7 +66,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
       aria-live="polite"
     >
       <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
-      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="text-sm text-[var(--color-text-muted)]">{label}</p>
     </div>
   );
 };
@@ -133,7 +133,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   primaryAction,
   secondaryAction,
 }) => (
-  <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3 max-w-md mx-auto">
+  <div
+    className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3 max-w-md mx-auto"
+    role="status"
+    aria-live="polite"
+    aria-label={title}
+  >
     {icon && (
       <div className="w-12 h-12 text-[var(--color-text-subtle)] mb-2" aria-hidden="true">
         {icon}

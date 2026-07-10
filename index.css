@@ -22,174 +22,123 @@
    1. DESIGN TOKENS - CSS Custom Properties
    ============================================================================ */
 :root {
-  /* === DEALER TRUST design language ===
-     Navy primary, one muted steel-blue accent, status-only color.
-     No gradients on functional elements, no colored glows, no glassmorphism.
-     "What Tekion would build if they hired a Stripe designer." */
-
-  /* === LTV DESKING PRO — dark/green design language (LIGHT variant) ===
-     Warm cream surfaces, mint-green primary, status-only color. The dark
-     variant (the design default) lives in `.dark`; useTheme boots dark. */
-
   /* Surfaces */
-  --color-bg: #ffffff; /* cards / elevated surfaces */
-  --color-bg-subtle: #f6f5f1; /* warm cream — page background */
-  --color-bg-muted: #edece6; /* hover / nested */
-  --color-border: rgba(20, 22, 28, 0.1);
-  --color-border-strong: rgba(20, 22, 28, 0.18);
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f8fafc; /* slate-50  — cards, panels */
+  --color-bg-muted: #f1f5f9; /* slate-100 — hover / nested */
+  --color-border: #e2e8f0; /* slate-200 */
+  --color-border-strong: #cbd5e1; /* slate-300 */
 
   /* Text */
-  --color-text: #15140f;
-  --color-text-muted: #5c5a53;
-  --color-text-subtle: #8a877d;
+  --color-text: #0f172a; /* slate-900 */
+  --color-text-muted: #475569; /* slate-600 */
+  --color-text-subtle: #94a3b8; /* slate-400 */
 
-  /* Brand — mint green */
-  --color-primary: #0c8f5d;
-  --color-primary-hover: #0a7d51;
-  --color-primary-subtle: #dcf3e9; /* selected row / focus tint */
-  --on-primary: #ffffff; /* text/icon on a primary fill */
+  /* Brand — black/emerald F&I desk palette */
+  --color-primary: #059669; /* emerald-600 — actions, links, focus */
+  --color-primary-hover: #047857; /* emerald-700 */
+  --color-primary-subtle: #d1fae5; /* emerald-100 — selected row bg, focus tint */
 
-  /* Accent — neutral, maps onto the green family */
-  --color-accent: #5c5a53;
-  --color-accent-hover: #15140f;
-  --color-accent-subtle: #edece6;
+  /* Accent — muted steel for secondary actions */
+  --color-accent: #475569; /* slate-600 */
+  --color-accent-hover: #334155; /* slate-700 */
+  --color-accent-subtle: #e2e8f0; /* slate-200 */
 
-  /* Status — success doubles as the brand green */
-  --color-success: #0c8f5d;
-  --color-success-subtle: #dcf3e9;
-  --color-warning: #b06d12;
-  --color-warning-subtle: #f8ebd4;
-  --color-danger: #d4452f;
-  --color-danger-subtle: #fbe3df;
+  /* Status — used SPARINGLY, only where state must be communicated */
+  --color-success: #15803d; /* green-700 */
+  --color-success-subtle: #dcfce7; /* green-100 */
+  --color-warning: #b45309; /* amber-700 */
+  --color-warning-subtle: #fef3c7; /* amber-100 */
+  --color-danger: #b91c1c; /* red-700 */
+  --color-danger-subtle: #fee2e2; /* red-100 */
 
-  /* Design effects (grain / glow / gauge) */
-  --glow: rgba(12, 143, 93, 0.06);
-  --grain-op: 0.3;
-  --grain-blend: multiply;
-  --card-grad: none;
-  --pay-glow: radial-gradient(130% 150% at 0% 0%, rgba(12, 143, 93, 0.07), transparent 60%);
+  /* Geometry — tighter corners */
+  --radius-sm: 4px; /* badges, pills */
+  --radius: 6px; /* inputs, buttons */
+  --radius-md: 8px; /* cards, KPI tiles */
+  --radius-lg: 10px; /* modals */
+  --radius-full: 9999px;
+
+  /* Shadows — neutral, no colored glows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08);
+
+  /* Motion — short, color-only transitions */
+  --duration-fast: 120ms;
+  --duration: 180ms;
 
   /* Typography */
   --font-sans: "Geist Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
 
-  /* Legacy primary scale — retained so older references still resolve. */
-  --color-primary-50: #ecfdf5;
-  --color-primary-100: #d1fae5;
-  --color-primary-200: #a7f3d0;
-  --color-primary-300: #6ee7b7;
-  --color-primary-400: #34d399;
-  --color-primary-500: #10b981;
-  --color-primary-600: #0c8f5d;
-  --color-primary-700: #0a7d51;
-  --color-primary-800: #096b46;
-  --color-primary-900: #064e3a;
-
-  /* Legacy "gradient" tokens neutralized to SOLID navy/status colors.
-     Rule: if a token resolves to a linear-gradient, it's the wrong token. */
-  --gradient-primary: var(--color-primary);
-  --gradient-primary-hover: var(--color-primary-hover);
-  --gradient-success: var(--color-success);
-  --gradient-warning: var(--color-warning);
-  --gradient-danger: var(--color-danger);
-  --gradient-surface: var(--color-bg-subtle);
-
-  /* Legacy glass tokens neutralized to OPAQUE surfaces (no backdrop blur). */
-  --glass-bg: #ffffff;
-  --glass-bg-elevated: #ffffff;
-  --glass-border: #e2e8f0;
-  --glass-border-subtle: #e2e8f0;
-  --glass-blur: 0px;
-
-  /* Shadows — neutral slate alpha only, no colored glows. */
-  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow: 0 2px 6px -1px rgba(16, 24, 40, 0.08), 0 1px 2px -1px rgba(16, 24, 40, 0.05);
-  --shadow-md: 0 22px 48px -16px rgba(16, 24, 40, 0.2), 0 6px 14px -6px rgba(16, 24, 40, 0.1);
-  --shadow-lg: 0 8px 16px -4px rgba(15, 23, 42, 0.1);
-  --shadow-xl: 0 16px 28px -8px rgba(15, 23, 42, 0.12);
-  --shadow-2xl: 0 24px 48px -12px rgba(15, 23, 42, 0.16);
-  --shadow-inner: inset 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-glow-primary: var(--shadow-md);
-  --shadow-glow-success: var(--shadow-md);
-
-  /* Transitions — short, color-only. No bounce/spring on functional UI. */
-  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-bounce: 180ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --duration-fast: 120ms;
-  --duration: 180ms;
-
-  /* Border radius — tighter, institutional (4–14px, not 16–24px). */
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 14px;
-  --radius-full: 9999px;
-
   /* Z-Index Scale */
   --z-dropdown: 50;
   --z-modal: 100;
   --z-toast: 200;
+
+  /* On-primary — text/icon color when placed on a primary-fill background */
+  --on-primary: #ffffff;
+
+  /* Extended shadow scale — referenced by modals, toasts, hover-lift, inputs */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 8px 24px -4px rgba(15, 23, 42, 0.12);
+  --shadow-xl: 0 20px 40px -8px rgba(15, 23, 42, 0.15);
+  --shadow-2xl: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+
+  /* Extended radii — referenced by cards and modals */
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  /* Transition timing — referenced by inputs, cards, modals, tables, toasts */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Decorative — film-grain overlay */
+  --grain-op: 0.03;
+  --grain-blend: overlay;
+  --card-grad: none;
+
+  --pay-glow: none;
+  --glow: rgba(5, 150, 105, 0.06);
 }
 
-/* Dark Mode Tokens — same restraint, darker surfaces. */
 .dark {
-  /* === LTV DESKING PRO — dark/green design language (DARK = default) === */
-  --color-bg: #14171c; /* cards / elevated surfaces */
-  --color-bg-subtle: #0a0c0f; /* near-black — page background */
-  --color-bg-muted: #1c2027; /* hover / nested */
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.15);
+  --color-bg: #05080b;
+  --color-bg-subtle: #0b0f12;
+  --color-bg-muted: #11161c;
+  --color-border: #202830;
+  --color-border-strong: #2d3843;
 
-  --color-text: #f1f0e9; /* warm off-white */
-  --color-text-muted: #a7afbc;
-  --color-text-subtle: #7b8390;
+  --color-text: #f5f7f8;
+  --color-text-muted: #a4afbd;
+  --color-text-subtle: #6e7987;
 
-  --color-primary: #2fdd96; /* mint green */
-  --color-primary-hover: #54e7ac;
-  --color-primary-subtle: rgba(47, 221, 150, 0.13);
-  --on-primary: #04130c; /* near-black text on a green fill */
+  /* Brand — darker green scheme requested for the desk. */
+  --color-primary: #34d399;
+  --color-primary-hover: #6ee7b7;
+  --color-primary-subtle: #123a2f;
 
-  --color-accent: #a7afbc;
-  --color-accent-hover: #f1f0e9;
-  --color-accent-subtle: #1c2027;
+  --color-accent: #94a3b8;
+  --color-accent-hover: #cbd5e1;
+  --color-accent-subtle: #1f2933;
 
-  --color-success: #2fdd96;
-  --color-success-subtle: rgba(47, 221, 150, 0.13);
-  --color-warning: #f5b13d;
-  --color-warning-subtle: rgba(245, 177, 61, 0.15);
-  --color-danger: #ff6b5c;
-  --color-danger-subtle: rgba(255, 107, 92, 0.15);
+  --color-success: #34d399;
+  --color-success-subtle: #123a2f;
+  --color-warning: #fbbf24; /* amber-400 */
+  --color-warning-subtle: #78350f; /* amber-900 */
+  --color-danger: #f87171; /* red-400 */
+  --color-danger-subtle: #7f1d1d; /* red-900 */
 
-  /* Design effects */
-  --glow: rgba(47, 221, 150, 0.08);
-  --grain-op: 0.4;
-  --grain-blend: overlay;
-  --card-grad: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0));
-  --pay-glow: radial-gradient(130% 150% at 0% 0%, rgba(47, 221, 150, 0.16), transparent 60%);
-
-  --gradient-surface: var(--color-bg-subtle);
-  --glass-bg: #14171c;
-  --glass-bg-elevated: #14171c;
-  --glass-border: rgba(255, 255, 255, 0.07);
-  --glass-border-subtle: rgba(255, 255, 255, 0.07);
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 14px rgba(0, 0, 0, 0.5);
-  --shadow-md:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 30px 60px -18px rgba(0, 0, 0, 0.78),
-    0 10px 22px -10px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 8px 16px -4px rgba(0, 0, 0, 0.55);
-  --shadow-xl: 0 16px 28px -8px rgba(0, 0, 0, 0.6);
-  --shadow-2xl: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
-  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-glow-primary: var(--shadow-md);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow: 0 18px 50px -34px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --shadow-md: 0 24px 70px -40px rgba(0, 0, 0, 0.95);
+  --shadow-lg: 0 28px 90px -42px rgba(0, 0, 0, 0.95);
+  --card-grad: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0));
+  --pay-glow: radial-gradient(circle at 18% 42%, rgba(52, 211, 153, 0.12), transparent 34%);
+  --glow: rgba(52, 211, 153, 0.07);
 }
 
 /* ============================================================================
@@ -245,6 +194,44 @@ main {
   z-index: 1;
 }
 
+.app-shell-topbar,
+.app-shell-nav {
+  scrollbar-width: thin;
+}
+
+.app-shell-topbar > *,
+.app-shell-nav > * {
+  flex-shrink: 0;
+}
+
+.app-shell-topbar .app-shell-spacer,
+.app-shell-nav .app-shell-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+@media (max-width: 760px) {
+  .app-shell-topbar,
+  .app-shell-nav {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-shell-topbar {
+    padding-inline: 12px !important;
+  }
+
+  .app-shell-nav {
+    padding-inline: 10px !important;
+  }
+
+  .app-shell-topbar .app-shell-spacer,
+  .app-shell-nav .app-shell-spacer {
+    flex: 0 0 8px;
+  }
+}
+
 .dark body {
   background:
     radial-gradient(125% 75% at 50% -12%, var(--glow), transparent 55%), var(--color-bg-subtle);
@@ -252,92 +239,11 @@ main {
 
 /* Selection Color — primary-tinted, both themes. [review/P2] */
 ::selection {
-  background: rgba(12, 143, 93, 0.22);
+  background: rgba(5, 150, 105, 0.22);
 }
 
 .dark ::selection {
-  background: rgba(47, 221, 150, 0.3);
-}
-
-/* ============================================================================
-   3. GLASSMORPHISM COMPONENTS
-   ============================================================================ */
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-lg);
-}
-
-.glass-panel-elevated {
-  background: var(--glass-bg-elevated);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-xl);
-}
-
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border-subtle);
-  box-shadow: var(--shadow-md);
-  border-radius: var(--radius-xl);
-  transition:
-    transform var(--transition-base),
-    box-shadow var(--transition-base);
-}
-
-.glass-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-/* ============================================================================
-   4. PREMIUM BUTTON STYLES
-   ============================================================================ */
-.btn-premium {
-  position: relative;
-  background: var(--gradient-primary);
-  color: white;
-  font-weight: 600;
-  padding: 0.625rem 1.25rem;
-  border-radius: var(--radius-lg);
-  border: none;
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transition: all var(--transition-base);
-  overflow: hidden;
-}
-
-.btn-premium::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
-  opacity: 1;
-  transition: opacity var(--transition-fast);
-}
-
-.btn-premium:hover {
-  background: var(--gradient-primary-hover);
-  box-shadow: var(--shadow-lg), var(--shadow-glow-primary);
-  transform: translateY(-1px);
-}
-
-.btn-premium:active {
-  transform: translateY(0) scale(0.98);
-  box-shadow: var(--shadow-sm);
-}
-
-.btn-premium:focus-visible {
-  outline: none;
-  box-shadow:
-    var(--shadow-md),
-    0 0 0 3px rgba(59, 130, 246, 0.4);
+  background: rgba(52, 211, 153, 0.24);
 }
 
 /* ============================================================================
@@ -369,11 +275,11 @@ main {
 
 .input-premium:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-primary);
   box-shadow:
     var(--shadow-sm),
-    0 0 0 3px rgba(59, 130, 246, 0.15),
-    0 0 20px rgba(59, 130, 246, 0.1);
+    0 0 0 3px rgba(5, 150, 105, 0.15),
+    0 0 20px rgba(5, 150, 105, 0.1);
   animation: focusPulse 1.5s ease-in-out infinite;
 }
 
@@ -382,23 +288,23 @@ main {
   100% {
     box-shadow:
       var(--shadow-sm),
-      0 0 0 3px rgba(59, 130, 246, 0.15),
-      0 0 15px rgba(59, 130, 246, 0.08);
+      0 0 0 3px rgba(5, 150, 105, 0.15),
+      0 0 15px rgba(5, 150, 105, 0.08);
   }
   50% {
     box-shadow:
       var(--shadow-sm),
-      0 0 0 4px rgba(59, 130, 246, 0.2),
-      0 0 25px rgba(59, 130, 246, 0.15);
+      0 0 0 4px rgba(5, 150, 105, 0.2),
+      0 0 25px rgba(5, 150, 105, 0.15);
   }
 }
 
 .dark .input-premium:focus {
-  border-color: #60a5fa;
+  border-color: var(--color-primary);
   box-shadow:
     var(--shadow-sm),
-    0 0 0 3px rgba(96, 165, 250, 0.2),
-    0 0 20px rgba(96, 165, 250, 0.15);
+    0 0 0 3px rgba(52, 211, 153, 0.2),
+    0 0 20px rgba(52, 211, 153, 0.15);
   animation: focusPulseDark 1.5s ease-in-out infinite;
 }
 
@@ -407,14 +313,14 @@ main {
   100% {
     box-shadow:
       var(--shadow-sm),
-      0 0 0 3px rgba(96, 165, 250, 0.2),
-      0 0 15px rgba(96, 165, 250, 0.1);
+      0 0 0 3px rgba(52, 211, 153, 0.2),
+      0 0 15px rgba(52, 211, 153, 0.1);
   }
   50% {
     box-shadow:
       var(--shadow-sm),
-      0 0 0 4px rgba(96, 165, 250, 0.25),
-      0 0 25px rgba(96, 165, 250, 0.2);
+      0 0 0 4px rgba(52, 211, 153, 0.25),
+      0 0 25px rgba(52, 211, 153, 0.2);
   }
 }
 
@@ -438,7 +344,7 @@ main {
 }
 
 .input-with-icon:focus-within .input-icon {
-  color: #3b82f6;
+  color: var(--color-primary);
 }
 
 /* Input Error State */
@@ -520,16 +426,13 @@ main {
   padding: 0.875rem 1rem;
   font-weight: 600;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b;
+  color: var(--color-text-muted);
   text-align: left;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .dark .table-premium th {
-  color: #94a3b8;
-  border-bottom-color: rgba(51, 65, 85, 0.5);
+  border-bottom-color: var(--color-border);
 }
 
 .table-premium td {
@@ -761,26 +664,7 @@ main {
   animation: shake 0.5s ease-in-out;
 }
 
-/* Hover Lift Effect */
-.hover-lift {
-  transition:
-    transform var(--transition-base),
-    box-shadow var(--transition-base);
-}
-
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-/* Scale on Press */
-.press-scale {
-  transition: transform var(--transition-fast);
-}
-
-.press-scale:active {
-  transform: scale(0.97);
-}
+/* (Removed hover-lift and press-scale per dark F&I desk redesign — no transforms on hover/active) */
 
 /* ============================================================================
    11. SKELETON LOADING
@@ -888,13 +772,13 @@ main {
   outline: none;
   box-shadow:
     0 0 0 2px white,
-    0 0 0 4px #3b82f6;
+    0 0 0 4px var(--color-primary);
 }
 
 .dark .focus-ring:focus-visible {
   box-shadow:
-    0 0 0 2px #0f172a,
-    0 0 0 4px #60a5fa;
+    0 0 0 2px var(--color-bg),
+    0 0 0 4px var(--color-primary);
 }
 
 /* Skip Link for Screen Readers */
@@ -904,10 +788,10 @@ main {
   left: 50%;
   transform: translateX(-50%);
   padding: 0.75rem 1.5rem;
-  background: var(--gradient-primary);
+  background: var(--color-primary);
   color: white;
   font-weight: 600;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   z-index: 9999;
   transition: top var(--transition-fast);
 }
@@ -931,13 +815,13 @@ main {
 }
 
 .badge-primary {
-  background: rgba(59, 130, 246, 0.15);
-  color: #2563eb;
+  background: rgba(5, 150, 105, 0.15);
+  color: #047857;
 }
 
 .dark .badge-primary {
-  background: rgba(96, 165, 250, 0.2);
-  color: #93c5fd;
+  background: rgba(52, 211, 153, 0.2);
+  color: #6ee7b7;
 }
 
 .badge-success {
@@ -973,12 +857,9 @@ main {
 /* ============================================================================
    15. UTILITY CLASSES
    ============================================================================ */
-/* Text Gradient */
+/* Text Color primary instead of gradient */
 .text-gradient-primary {
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--color-primary);
 }
 
 /* Backdrop Blur Utilities */
@@ -1006,11 +887,11 @@ main {
 /* Divider */
 .divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.3), transparent);
+  background: var(--color-border);
 }
 
 .dark .divider {
-  background: linear-gradient(90deg, transparent, rgba(100, 116, 139, 0.3), transparent);
+  background: var(--color-border);
 }
 
 /* Section Header */
@@ -1027,22 +908,18 @@ main {
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  background: var(--gradient-primary);
+  background: var(--color-primary);
   color: white;
   font-size: 0.875rem;
   font-weight: 700;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
 }
 
 .section-header-title {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #1e293b;
-}
-
-.dark .section-header-title {
-  color: #f1f5f9;
+  color: var(--color-text);
 }
 
 /* Loading Spinner */
@@ -1168,10 +1045,10 @@ main {
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 20px rgba(5, 150, 105, 0.3);
   }
   50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 30px rgba(5, 150, 105, 0.5);
   }
 }
 
@@ -1258,37 +1135,7 @@ main {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-/* Animated Gradient Background */
-.gradient-animated {
-  background: linear-gradient(
-    -45deg,
-    #3b82f6 0%,
-    #6366f1 25%,
-    #8b5cf6 50%,
-    #6366f1 75%,
-    #3b82f6 100%
-  );
-  background-size: 400% 400%;
-  animation: gradient-shift 8s ease infinite;
-}
-
-/* Hover Lift Effect */
-.hover-lift {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.hover-lift:hover {
-  transform: translateY(-2px);
-}
-
-/* Hover Magnify */
-.hover-magnify {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.hover-magnify:hover {
-  transform: scale(1.02);
-}
+/* (Removed legacy gradient-animated, hover-lift, hover-magnify per dark F&I desk redesign: no gradients, no lift/scale transforms) */
 
 /* Ripple Effect */
 .ripple {
@@ -1436,8 +1283,8 @@ html {
 :root:not(.dark) input:focus,
 :root:not(.dark) select:focus,
 :root:not(.dark) textarea:focus {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15) !important;
 }
 
 /* Light mode table fixes */
@@ -1539,8 +1386,8 @@ html {
 
 :root:not(.dark) [role="tab"][aria-selected="true"],
 :root:not(.dark) [role="tab"].active {
-  color: #1e40af !important;
-  border-color: #3b82f6 !important;
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
 }
 
 /* Light mode badges */
@@ -1559,7 +1406,7 @@ html {
 
 /* Light mode icons */
 :root:not(.dark) svg:not([class*="text-"]) {
-  color: #475569; /* slate-600 */
+  color: inherit;
 }
 
 /* Light mode empty states */
@@ -1579,12 +1426,17 @@ html {
 /* Light mode stat cards */
 :root:not(.dark) [class*="stat"],
 :root:not(.dark) [class*="metric"] {
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 :root:not(.dark) [class*="stat"] span,
 :root:not(.dark) [class*="metric"] span {
-  color: inherit;
+  color: var(--color-text-muted);
+}
+
+:root:not(.dark) [class*="stat"] strong,
+:root:not(.dark) [class*="metric"] strong {
+  color: var(--color-text);
 }
 
 /* ============================================================================
@@ -1617,20 +1469,14 @@ select.dc-input:focus {
   outline: none;
 }
 
-/* Primary button — subtle top-gloss + green halo (design parity) */
+/* Primary button — solid, no gradient or glow per dark F&I desk spec */
 .btn-primary {
   background-color: var(--color-primary);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
   color: var(--on-primary);
-  box-shadow:
-    0 2px 10px -2px var(--color-primary-subtle),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border: 1px solid transparent;
 }
 .btn-primary:hover {
   background-color: var(--color-primary-hover);
-  box-shadow:
-    0 6px 18px -4px var(--color-primary-subtle),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 /* Cards — subtle interior gradient (no-op in light). Apply with .dc-card. */
@@ -1638,39 +1484,13 @@ select.dc-input:focus {
   background-image: var(--card-grad);
 }
 
-/* Inventory / data rows — hover tint + sliding left accent bar */
+/* Inventory / data rows — hover tint */
 .inv-row {
   position: relative;
-  transition: background 120ms;
+  transition: background-color var(--duration-fast);
 }
 .inv-row:hover {
-  background: var(--color-bg-muted) !important;
-}
-.inv-row::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  background: var(--color-primary);
-  transition: width 0.16s ease;
-}
-.inv-row:hover::after {
-  width: 2px;
-}
-
-/* Lift button — press feedback */
-.lift-btn {
-  transition:
-    border-color 140ms,
-    color 140ms,
-    box-shadow 140ms,
-    transform 140ms,
-    background 140ms;
-}
-.lift-btn:active {
-  transform: scale(0.972);
+  background-color: var(--color-primary-subtle) !important;
 }
 
 /* Command-rail button */
@@ -1768,7 +1588,6 @@ select.dc-input:focus {
   color: var(--color-primary);
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
 }
 
 .desk-terms-actions {
@@ -1908,6 +1727,18 @@ select.dc-input:focus {
   align-items: start;
 }
 
+.desk-main-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.desk-inventory-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .desk-inventory-tools {
   justify-content: flex-end;
   gap: 9px;
@@ -1926,10 +1757,12 @@ select.dc-input:focus {
   border: 1px solid var(--color-border-strong);
   border-radius: 14px;
   box-shadow: var(--shadow);
-  max-height: calc(100vh - 96px);
+  height: calc(100vh - 132px);
+  max-height: calc(100vh - 132px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .desk-inspector-head {
@@ -1941,8 +1774,6 @@ select.dc-input:focus {
   display: flex;
   gap: 10px;
   margin-bottom: 7px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
 }
 
 .desk-inspector-title-row {
@@ -1974,9 +1805,9 @@ select.dc-input:focus {
 
 .desk-inspector-summary {
   display: grid;
-  grid-template-columns: 144px minmax(0, 1fr);
-  gap: 14px;
-  padding: 15px 18px;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 9px 14px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -1988,8 +1819,8 @@ select.dc-input:focus {
 }
 
 .desk-score-label {
-  margin-top: 4px;
-  font-size: 13px;
+  margin-top: 2px;
+  font-size: 12.5px;
   font-weight: 800;
 }
 
@@ -1999,13 +1830,16 @@ select.dc-input:focus {
   font-size: 12px;
 }
 
+.desk-payment-cell {
+  align-self: center;
+  min-width: 0;
+}
+
 .desk-payment-label {
   color: var(--color-text-subtle);
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .desk-payment-value {
@@ -2015,7 +1849,7 @@ select.dc-input:focus {
   margin-top: 4px;
   color: var(--color-text);
   font-family: var(--mono);
-  font-size: clamp(38px, 4vw, 52px);
+  font-size: clamp(36px, 3.6vw, 48px);
   font-weight: 800;
   line-height: 0.95;
   letter-spacing: 0;
@@ -2027,16 +1861,19 @@ select.dc-input:focus {
 
 .desk-summary-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 1px;
+  padding-top: 9px;
+  border-top: 1px solid var(--color-border);
 }
 
 .desk-summary-metrics div {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg-subtle);
-  padding: 7px 8px;
+  padding: 7px 9px;
   min-width: 0;
 }
 
@@ -2047,23 +1884,44 @@ select.dc-input:focus {
 
 .desk-summary-metrics span {
   color: var(--color-text-subtle);
-  font-size: 10.5px;
+  font-size: 9.8px;
   font-weight: 700;
 }
 
 .desk-summary-metrics strong {
-  margin-top: 2px;
+  margin-top: 3px;
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 13px;
+  line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
 .desk-inspector-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   padding: 10px 18px;
   border-bottom: 1px solid var(--color-border);
+}
+
+.desk-inspector-lender-snapshot {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+}
+
+.desk-inspector-lender-snapshot .desk-panel-heading {
+  margin-bottom: 8px;
+}
+
+.desk-inspector-lender-snapshot .desk-lender-list {
+  gap: 6px;
+  max-height: 88px;
+  overflow: hidden;
+}
+
+.desk-inspector-lender-snapshot .desk-lender-row {
+  min-height: 26px;
 }
 
 .desk-inspector-tabs button {
@@ -2084,6 +1942,8 @@ select.dc-input:focus {
 }
 
 .desk-inspector-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: 14px 18px;
   display: flex;
@@ -2103,8 +1963,6 @@ select.dc-input:focus {
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .desk-panel-heading strong {
@@ -2286,8 +2144,9 @@ select.dc-input:focus {
 }
 
 .desk-inspector-actions {
+  flex: 0 0 auto;
   gap: 10px;
-  padding: 14px 18px 16px;
+  padding: 12px 18px 14px;
   border-top: 1px solid var(--color-border);
   margin-top: auto;
 }
@@ -2371,6 +2230,7 @@ select.dc-input:focus {
     bottom: 12px;
     top: auto;
     z-index: 80;
+    height: auto;
     max-height: calc(100vh - 90px);
     transform: translateY(calc(100% + 24px));
     opacity: 0;
@@ -2445,8 +2305,6 @@ select.dc-input:focus {
     font-family: var(--font-sans);
     font-size: 10.5px;
     font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
   }
 
   .inv-row > span:nth-child(3) {
@@ -2474,6 +2332,7 @@ select.dc-input:focus {
 @media (max-width: 460px) {
   .desk-terms-card,
   .desk-inspector-head,
+  .desk-inspector-lender-snapshot,
   .desk-inspector-body,
   .desk-inspector-actions,
   .desk-inspector-summary,

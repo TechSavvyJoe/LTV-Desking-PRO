@@ -32,15 +32,12 @@ export const ConfirmDialog: React.FC = () => {
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
-        className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-white p-5 shadow-2xl dark:bg-slate-950"
+        className="w-full max-w-md rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-5 shadow-md"
       >
-        <h2 id="confirm-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+        <h2 id="confirm-title" className="text-lg font-semibold text-[var(--color-text)]">
           {request.title}
         </h2>
-        <p
-          id="confirm-message"
-          className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300"
-        >
+        <p id="confirm-message" className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
           {request.message}
         </p>
         <div className="mt-5 flex justify-end gap-3">

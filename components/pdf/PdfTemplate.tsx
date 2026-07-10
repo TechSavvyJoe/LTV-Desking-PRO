@@ -1,187 +1,308 @@
 import React from "react";
-import type { DealPdfData, Settings } from "../../types";
+import type { DealPdfData, LenderEligibilityStatus, Settings } from "../../types";
 import { formatCurrency, formatCurrencyExact, formatNumber } from "../common/TableCell";
 
-const el = React.createElement;
-const logoSvg = encodeURIComponent(
-  `<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="18" fill="url(#g)"/><path d="M26 49c0-10.5 8.5-19 19-19h6c10.5 0 19 8.5 19 19s-8.5 19-19 19h-6c-10.5 0-19-8.5-19-19Z" stroke="white" stroke-width="6"/><path d="M32 49c0-7.2 5.8-13 13-13h6c7.2 0 13 5.8 13 13s-5.8 13-13 13h-6c-7.2 0-13-5.8-13-13Z" stroke="white" stroke-width="6" opacity="0.6"/><defs><linearGradient id="g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs></svg>`
-);
+const money = (value: number | string | undefined): string => formatCurrencyExact(value);
+const wholeMoney = (value: number | string | undefined): string => formatCurrency(value);
+
+const pct = (value: number | string | undefined, digits = 0): string => {
+  if (value === undefined || value === null || value === "N/A" || value === "Error") return "N/A";
+  const n = typeof value === "string" ? Number(value) : value;
+  return Number.isFinite(n) ? `${n.toFixed(digits)}%` : "N/A";
+};
+
+const n = (value: unknown): number =>
+  typeof value === "number" && Number.isFinite(value) ? value : 0;
+
+const firstReason = (lender: LenderEligibilityStatus): string =>
+  lender.reasons?.find(Boolean) || "Program rules need lender confirmation.";
 
 const styles = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body {
-        font-family: 'Inter', sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #fff;
-        color: #1f2937;
-        -webkit-print-color-adjust: exact;
-        font-size: 9pt;
-    }
-    .page {
-        width: 210mm;
-        height: 297mm;
-        padding: 1cm;
-        box-sizing: border-box;
-        background-color: white;
-        display: flex;
-        flex-direction: column;
-        position: relative;
-    }
-    .watermark {
-        position: absolute;
-        inset: 1cm;
-        opacity: 0.04;
-        font-size: 72pt;
-        font-weight: 800;
-        color: #0ea5e9;
-        letter-spacing: 4px;
-        transform: rotate(-18deg);
-        pointer-events: none;
-        user-select: none;
-    }
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding-bottom: 0.5cm;
-        border-bottom: 2px solid #374151;
-    }
-    .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .logo {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #0ea5e9, #6366f1);
-        color: white;
-        font-weight: 800;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        letter-spacing: -0.5px;
-        box-shadow: 0 6px 14px rgba(14,165,233,0.25);
-    }
-    .header h1 {
-        font-size: 18pt;
-        font-weight: 700;
-        margin: 0;
-        color: #111827;
-    }
-    .header p {
-        font-size: 9pt;
-        color: #4b5563;
-        margin: 0;
-        text-align: right;
-    }
-    .content {
-        flex-grow: 1;
-        padding: 0.75cm 0;
-    }
-    .grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75cm;
-        margin-bottom: 0.75cm;
-    }
-    .section-title {
-        font-size: 11pt;
-        font-weight: 600;
-        margin: 0 0 0.4cm 0;
-        padding-bottom: 0.2cm;
-        border-bottom: 1px solid #e5e7eb;
-        color: #111827;
-    }
-    .info-list { margin: 0; padding: 0; list-style: none; }
-    .info-list li {
-        display: flex;
-        justify-content: space-between;
-        padding: 4px 0;
-        font-size: 9pt;
-    }
-    .info-list .label { color: #6b7280; }
-    .info-list .value { font-weight: 500; color: #1f2937; }
-    
-    .financials-table { width: 100%; border-collapse: collapse; }
-    .financials-table td { padding: 5px 0; font-size: 9pt; }
-    .financials-table .label { color: #6b7280; }
-    .financials-table .value { text-align: right; font-weight: 500; }
-    .financials-table .separator-row td { border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 4px; }
-    .financials-table .total-row td { font-weight: 700; border-top: 2px solid #4b5563; padding-top: 8px; font-size: 10pt; }
-    
-    .lender-section { margin-top: 0.75cm; }
-    .lender-list {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.5cm;
-    }
-    .lender-item {
-        background-color: #f9fafb;
-        border: 1px solid #e5e7eb;
-        border-left: 4px solid #10b981;
-        border-radius: 4px;
-        padding: 0.4cm;
-        page-break-inside: avoid;
-    }
-    .lender-item .name { font-weight: 600; font-size: 9pt; }
-    .lender-item .tier { font-size: 8pt; color: #6b7280; }
-    
-    .payment-summary {
-        margin: 0.75cm 0;
-        padding: 0.5cm;
-        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-        border-radius: 10px;
-        text-align: center;
-        box-shadow: 0 6px 12px rgba(59,130,246,0.18);
-    }
-    .payment-summary .label { font-size: 10pt; color: #1e40af; }
-    .payment-summary .value { font-size: 20pt; font-weight: 700; color: #1e3a8a; }
-    
-    .footer {
-        margin-top: auto;
-        padding-top: 0.5cm;
-        border-top: 1px solid #e5e7eb;
-        font-size: 8pt;
-        color: #6b7280;
-    }
-    .signature-lines {
-        margin-top: 1.5cm;
-        display: flex;
-        justify-content: space-between;
-        gap: 2cm;
-        page-break-inside: avoid;
-    }
-    .signature-box {
-        flex-grow: 1;
-        border-top: 1px solid #374151;
-        padding-top: 5px;
-        font-size: 9pt;
-        font-weight: 500;
-    }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #111827;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 8.4pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 215.9mm;
+    height: 279.4mm;
+    padding: 8mm;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 5mm;
+  }
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8mm;
+    align-items: start;
+    border-bottom: 2px solid #111827;
+    padding-bottom: 4mm;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+  }
+  .mark {
+    width: 10mm;
+    height: 10mm;
+    border-radius: 2.6mm;
+    background: #34d399;
+    color: #07120e;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    letter-spacing: -0.8pt;
+  }
+  h1, h2, h3, p { margin: 0; }
+  h1 {
+    font-size: 16pt;
+    line-height: 1.05;
+    letter-spacing: -0.35pt;
+  }
+  .subtitle {
+    color: #4b5563;
+    font-size: 8.2pt;
+    margin-top: 1mm;
+  }
+  .meta {
+    color: #4b5563;
+    font-size: 8pt;
+    line-height: 1.45;
+    text-align: right;
+  }
+  .hero {
+    display: grid;
+    grid-template-columns: 1.08fr 1fr;
+    gap: 4mm;
+  }
+  .summary-card {
+    border: 1px solid #d1d5db;
+    border-radius: 3mm;
+    padding: 4mm;
+    background: #f8fafc;
+  }
+  .payment-label {
+    color: #047857;
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.7pt;
+    text-transform: none;
+  }
+  .payment {
+    color: #064e3b;
+    font-size: 28pt;
+    font-weight: 900;
+    line-height: 1;
+    margin-top: 1mm;
+  }
+  .payment small {
+    font-size: 13pt;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2mm;
+    margin-top: 3mm;
+  }
+  .metric {
+    border: 1px solid #d1d5db;
+    border-radius: 2mm;
+    padding: 2.3mm;
+    min-height: 13mm;
+    background: #ffffff;
+  }
+  .metric span {
+    display: block;
+    color: #6b7280;
+    font-size: 6.5pt;
+    font-weight: 800;
+    letter-spacing: 0.45pt;
+    text-transform: none;
+  }
+  .metric strong {
+    display: block;
+    color: #111827;
+    font-size: 10pt;
+    font-weight: 800;
+    margin-top: 1mm;
+  }
+  .section {
+    border: 1px solid #e5e7eb;
+    border-radius: 2.4mm;
+    overflow: hidden;
+    background: #ffffff;
+  }
+  .section h2 {
+    background: #f3f4f6;
+    border-bottom: 1px solid #e5e7eb;
+    color: #111827;
+    font-size: 8.6pt;
+    font-weight: 900;
+    letter-spacing: 0.55pt;
+    padding: 2.5mm 3mm;
+    text-transform: none;
+  }
+  .section-body {
+    padding: 2.5mm 3mm;
+  }
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: minmax(26mm, 0.9fr) minmax(0, 1.1fr);
+    gap: 2mm;
+    padding: 1.05mm 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .kv:last-child { border-bottom: 0; }
+  .kv span {
+    color: #6b7280;
+  }
+  .kv strong {
+    color: #111827;
+    font-weight: 750;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .financial-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 4mm;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  td {
+    padding: 1.25mm 0;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: top;
+  }
+  td:first-child {
+    color: #6b7280;
+  }
+  td:last-child {
+    text-align: right;
+    font-weight: 750;
+    color: #111827;
+  }
+  tr.total td {
+    border-top: 1.5px solid #111827;
+    border-bottom: 0;
+    padding-top: 2mm;
+    font-weight: 900;
+  }
+  tr.subtotal td {
+    border-top: 1px solid #d1d5db;
+    font-weight: 850;
+  }
+  .lender-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+  }
+  .lender-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5mm;
+  }
+  .lender-row {
+    border: 1px solid #e5e7eb;
+    border-left: 3px solid #34d399;
+    border-radius: 1.8mm;
+    padding: 2mm;
+    background: #f9fafb;
+    min-height: 12mm;
+    max-height: 16mm;
+    overflow: hidden;
+  }
+  .lender-row.miss {
+    border-left-color: #f59e0b;
+  }
+  .lender-row strong {
+    display: block;
+    font-size: 8pt;
+  }
+  .lender-row span {
+    display: -webkit-box;
+    color: #6b7280;
+    font-size: 7.2pt;
+    margin-top: 0.7mm;
+    line-height: 1.25;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .notes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+  }
+  .callout {
+    border: 1px solid #d1fae5;
+    border-radius: 2.2mm;
+    padding: 2.5mm 3mm;
+    background: #ecfdf5;
+    color: #065f46;
+    line-height: 1.4;
+  }
+  .fineprint {
+    margin-top: auto;
+    border-top: 1px solid #d1d5db;
+    padding-top: 3mm;
+    color: #6b7280;
+    font-size: 7.1pt;
+    line-height: 1.38;
+  }
 `;
 
-const InfoListItem = (label: string, value: React.ReactNode) =>
-  el(
-    "li",
-    null,
-    el("span", { className: "label" }, label),
-    el("span", { className: "value" }, value)
-  );
+const Kv: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <div className="kv">
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </div>
+);
 
-const FinancialsRow = (label: string, value: string, isTotal = false, isSeparator = false) => {
-  let className = "";
-  if (isTotal) className = "total-row";
-  else if (isSeparator) className = "separator-row";
-  return el(
-    "tr",
-    { className },
-    el("td", { className: "label" }, label),
-    el("td", { className: "value" }, value)
-  );
-};
+const Metric: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <div className="metric">
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </div>
+);
+
+const Row: React.FC<{
+  label: string;
+  value: React.ReactNode;
+  total?: boolean;
+  subtotal?: boolean;
+}> = ({ label, value, total, subtotal }) => (
+  <tr className={total ? "total" : subtotal ? "subtotal" : undefined}>
+    <td>{label}</td>
+    <td>{value}</td>
+  </tr>
+);
+
+const LenderRow: React.FC<{ lender: LenderEligibilityStatus; miss?: boolean }> = ({
+  lender,
+  miss,
+}) => (
+  <div className={`lender-row${miss ? " miss" : ""}`}>
+    <strong>{lender.name}</strong>
+    <span>{miss ? firstReason(lender) : lender.matchedTier?.name || "Possible fit"}</span>
+  </div>
+);
 
 export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
   vehicle,
@@ -192,248 +313,198 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
   lenderEligibility,
   settings,
 }) => {
-  const netTradeIn = dealData.tradeInValue - dealData.tradeInPayoff;
-  const totalDown = dealData.downPayment + netTradeIn;
-
-  // Defensive check to prevent crash if lenderEligibility is undefined
   const safeEligibility = Array.isArray(lenderEligibility) ? lenderEligibility : [];
-  const eligibleLenders = safeEligibility.filter((l) => l && l.eligible);
+  const eligibleLenders = safeEligibility.filter((lender) => lender?.eligible);
+  const missedLenders = safeEligibility.filter((lender) => lender && !lender.eligible);
 
-  return el(
-    React.Fragment,
-    null,
-    el("style", null, styles),
-    el(
-      "div",
-      { className: "page" },
-      el("div", { className: "watermark" }, "ESTIMATE"),
-      el(
-        "header",
-        { className: "header" },
-        el(
-          "div",
-          { className: "brand" },
-          el("img", {
-            className: "logo",
-            src: `data:image/svg+xml,${logoSvg}`,
-            alt: "LTV Desking PRO",
-          }),
-          el(
-            "div",
-            null,
-            el("h1", null, "Deal Worksheet"),
-            el(
-              "p",
-              { style: { fontSize: "10pt", color: "#374151", margin: 0 } },
-              "Preliminary Estimate — Not an Offer of Credit"
-            )
-          )
-        ),
-        el(
-          "div",
-          { style: { textAlign: "right", fontSize: "9pt", color: "#4b5563" } },
-          el("p", null, `Date: ${new Date().toLocaleDateString()}`),
-          dealData.notes && el("p", { style: { marginTop: "4px" } }, `Notes: ${dealData.notes}`)
-        )
-      ),
-      el(
-        "div",
-        { className: "content" },
-        el(
-          "div",
-          { className: "grid" },
-          el(
-            "div",
-            { className: "vehicle-info" },
-            el("h2", { className: "section-title" }, "Vehicle Details"),
-            el(
-              "ul",
-              { className: "info-list" },
-              InfoListItem("Vehicle", el("strong", null, vehicle.vehicle)),
-              InfoListItem("Stock #", vehicle.stock),
-              InfoListItem("VIN", vehicle.vin),
-              InfoListItem("Mileage", formatNumber(vehicle.mileage)),
-              // Dealer-entered book values — never imply a live licensed feed
-              // on customer-facing paper. [G26/G80]
-              InfoListItem("Book Value (Trade)", formatCurrency(vehicle.jdPower)),
-              InfoListItem("Book Value (Retail)", formatCurrency(vehicle.jdPowerRetail))
-            )
-          ),
-          el(
-            "div",
-            { className: "customer-info" },
-            el("h2", { className: "section-title" }, "Customer & Deal Terms"),
-            el(
-              "ul",
-              { className: "info-list" },
-              InfoListItem("Customer", customerName || "N/A"),
-              InfoListItem("Salesperson", salespersonName || "N/A"),
-              // FCRA hygiene: this is a dealer/customer estimate, not a pull. [G29]
-              InfoListItem("Credit Score (est.)", customerFilters.creditScore || "N/A"),
-              InfoListItem("Loan Term", `${dealData.loanTerm} Months`),
-              // A cleared APR field arrives as "" at runtime — never call
-              // toFixed on it (crashed the whole PDF). [G5]
-              InfoListItem(
-                "Est. Interest Rate",
-                typeof dealData.interestRate === "number"
-                  ? `${dealData.interestRate.toFixed(2)}% APR`
-                  : "—"
-              )
-              // Front-End Gross deliberately removed: dealer-internal profit
-              // must never print on the sheet a shopper takes home. [G1]
-            )
-          )
-        ),
-        el(
-          "div",
-          { className: "financials" },
-          el("h2", { className: "section-title" }, "Financial Breakdown"),
-          el(
-            "table",
-            { className: "financials-table" },
-            el(
-              "tbody",
-              null,
-              FinancialsRow("Selling Price", formatCurrencyExact(vehicle.price)),
-              FinancialsRow("Doc Fee", `+ ${formatCurrencyExact(settings.docFee)}`),
-              FinancialsRow("CVR Fee", `+ ${formatCurrencyExact(settings.cvrFee)}`),
-              FinancialsRow("State/Title Fees", `+ ${formatCurrencyExact(dealData.stateFees)}`),
-              FinancialsRow("Sales Tax (est.)", `+ ${formatCurrencyExact(vehicle.salesTax)}`),
-              FinancialsRow(
-                "Total OTD Price (est.)",
-                formatCurrencyExact(vehicle.baseOutTheDoorPrice),
-                true,
-                false
-              ),
-              FinancialsRow(
-                "Cash Down",
-                `- ${formatCurrencyExact(dealData.downPayment)}`,
-                false,
-                true
-              ),
-              // An upside-down trade must read as an explicit rollover line,
-              // not the garbled "- -$3,000". [G21]
-              netTradeIn >= 0
-                ? FinancialsRow("Net Trade-In", `- ${formatCurrencyExact(netTradeIn)}`)
-                : FinancialsRow(
-                    "Negative Equity (added to amount financed)",
-                    `+ ${formatCurrencyExact(Math.abs(netTradeIn))}`
-                  ),
-              FinancialsRow(
-                "Sub-Total",
-                formatCurrencyExact(
-                  typeof vehicle.baseOutTheDoorPrice === "number"
-                    ? vehicle.baseOutTheDoorPrice - totalDown
-                    : "Error"
-                ),
-                true,
-                false
-              ),
-              FinancialsRow(
-                "Backend Products",
-                `+ ${formatCurrencyExact(dealData.backendProducts)}`,
-                false,
-                true
-              ),
-              FinancialsRow(
-                "Total Amount to Finance (est.)",
-                formatCurrencyExact(vehicle.amountToFinance),
-                true,
-                false
-              )
-            )
-          )
-        ),
-        el(
-          "div",
-          { className: "payment-summary" },
-          el("div", { className: "label" }, "Estimated Monthly Payment"),
-          el("div", { className: "value" }, formatCurrencyExact(vehicle.monthlyPayment)),
-          el(
-            "div",
-            { style: { fontSize: "8pt", color: "#1e40af", marginTop: "4px" } },
-            typeof dealData.interestRate === "number"
-              ? `Estimate at ${dealData.interestRate.toFixed(2)}% APR for ${dealData.loanTerm} months — not an offer of credit`
-              : "Estimate — enter a rate for payment terms; not an offer of credit"
-          )
-        ),
-        el(
-          "div",
-          { className: "lender-section" },
-          // "Eligible" overstated what the matcher checks — these are screens,
-          // not approvals. [G77]
-          el("h2", { className: "section-title" }, "Preliminary Lender Fits — verify with lender"),
-          el(
-            "div",
-            { className: "lender-list" },
-            eligibleLenders.length > 0
-              ? [
-                  ...eligibleLenders
-                    .slice(0, 9)
-                    .map((lender) =>
-                      el(
-                        "div",
-                        { key: lender.name, className: "lender-item" },
-                        el("p", { className: "name" }, lender.name),
-                        el("p", { className: "tier" }, lender.matchedTier?.name || "Possible fit")
-                      )
-                    ),
-                  eligibleLenders.length > 9 &&
-                    el(
-                      "div",
-                      {
-                        key: "more",
-                        className: "lender-item",
-                        style: {
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "#f3f4f6",
-                          borderStyle: "dashed",
-                        },
-                      },
-                      el(
-                        "p",
-                        {
-                          style: {
-                            fontSize: "9pt",
-                            color: "#6b7280",
-                            fontStyle: "italic",
-                          },
-                        },
-                        `+ ${eligibleLenders.length - 9} more possible fits`
-                      )
-                    ),
-                ]
-              : el(
-                  "p",
-                  { style: { color: "#6b7280" } },
-                  "No preliminary lender fits found with current customer info."
-                )
-          ),
-          el(
-            "p",
-            { style: { fontSize: "8pt", color: "#6b7280", marginTop: "0.3cm" } },
-            "Lender fits are a preliminary screen against dealer-entered program data; they are not " +
-              "credit decisions or approvals. Final approval, rate, and terms are determined solely by the lender."
-          )
-        )
-      ),
-      // Signature lines deliberately removed: a customer-signed itemized payment
-      // worksheet is the classic "signed four-square" payment-packing exhibit.
-      // This sheet is an estimate, and estimates aren't signed. [G2]
-      el(
-        "footer",
-        { className: "footer" },
-        el(
-          "p",
-          null,
-          "This worksheet is a preliminary estimate for discussion only. It is not a contract, not an " +
-            "offer or extension of credit, and not a Truth-in-Lending disclosure. All figures are " +
-            "estimates; final pricing, taxes, fees, APR, and payment are subject to lender credit " +
-            "approval and final contract documents. Book values are entered by the dealership."
-        )
-      )
-    )
+  const netTrade = n(dealData.tradeInValue) - n(dealData.tradeInPayoff);
+  const rebate = n(dealData.rebate);
+  const totalCredits = n(dealData.downPayment) + netTrade + rebate;
+  const vscAmount = n(dealData.vscAmount);
+  const gapAmount = n(dealData.gapAmount);
+  const otherBackend = Math.max(0, n(dealData.backendProducts) - vscAmount - gapAmount);
+  const taxAndFees =
+    n(vehicle.salesTax) + n(settings.docFee) + n(settings.cvrFee) + n(dealData.stateFees);
+
+  return (
+    <>
+      <style>{styles}</style>
+      <div className="page">
+        <header className="topbar">
+          <div className="brand">
+            <div className="mark">LTV</div>
+            <div>
+              <h1>Deal Sheet</h1>
+              <p className="subtitle">Preliminary customer worksheet, not a credit offer</p>
+            </div>
+          </div>
+          <div className="meta">
+            <div>{new Date().toLocaleDateString()}</div>
+            <div>{salespersonName || "Salesperson not set"}</div>
+            <div>{customerName || "Walk-in customer"}</div>
+          </div>
+        </header>
+
+        <section className="hero">
+          <div className="summary-card">
+            <div className="payment-label">Estimated monthly payment</div>
+            <div className="payment">{money(vehicle.monthlyPayment)}</div>
+            <p className="subtitle">
+              {typeof dealData.interestRate === "number"
+                ? `${dealData.loanTerm} months at ${dealData.interestRate.toFixed(2)}% APR estimate`
+                : `${dealData.loanTerm} months; enter APR for payment estimate`}
+            </p>
+            <div className="hero-grid">
+              <Metric label="Amount financed" value={money(vehicle.amountToFinance)} />
+              <Metric label="OTD LTV" value={pct(vehicle.otdLtv)} />
+              <Metric label="PTI" value={pct(vehicle.ptiRatio, 1)} />
+            </div>
+          </div>
+
+          <div className="section">
+            <h2>Vehicle</h2>
+            <div className="section-body">
+              <Kv label="Unit" value={vehicle.vehicle} />
+              <Kv label="Stock / VIN" value={`${vehicle.stock} / ${vehicle.vin}`} />
+              <Kv label="Mileage" value={`${formatNumber(vehicle.mileage)} mi`} />
+              <Kv label="Selling price" value={money(vehicle.price)} />
+              <Kv label="Trade book" value={wholeMoney(vehicle.jdPower)} />
+              <Kv label="Retail book" value={wholeMoney(vehicle.jdPowerRetail)} />
+            </div>
+          </div>
+        </section>
+
+        <section className="columns">
+          <div className="section">
+            <h2>Customer Inputs</h2>
+            <div className="section-body">
+              <Kv label="Customer" value={customerName || "N/A"} />
+              <Kv label="FICO estimate" value={customerFilters.creditScore ?? "N/A"} />
+              <Kv
+                label="Gross income"
+                value={
+                  customerFilters.monthlyIncome
+                    ? `${money(customerFilters.monthlyIncome)} / mo`
+                    : "N/A"
+                }
+              />
+              <Kv label="Buyer state" value={dealData.buyerState || settings.defaultState} />
+              <Kv label="Term" value={`${dealData.loanTerm} months`} />
+              <Kv
+                label="APR estimate"
+                value={
+                  typeof dealData.interestRate === "number"
+                    ? `${dealData.interestRate.toFixed(2)}%`
+                    : "N/A"
+                }
+              />
+            </div>
+          </div>
+
+          <div className="section">
+            <h2>Structure Snapshot</h2>
+            <div className="section-body">
+              <Kv label="Front-end LTV" value={pct(vehicle.frontEndLtv)} />
+              <Kv label="Out-the-door LTV" value={pct(vehicle.otdLtv)} />
+              <Kv label="Payment-to-income" value={pct(vehicle.ptiRatio, 1)} />
+              <Kv
+                label="Lender fits"
+                value={`${eligibleLenders.length}/${safeEligibility.length || 0}`}
+              />
+              <Kv label="Backend total" value={money(dealData.backendProducts)} />
+              <Kv label="Total credits" value={money(totalCredits)} />
+            </div>
+          </div>
+        </section>
+
+        <section className="section">
+          <h2>Deal Structure</h2>
+          <div className="section-body financial-grid">
+            <table>
+              <tbody>
+                <Row label="Selling price" value={money(vehicle.price)} />
+                <Row label="Doc fee" value={`+ ${money(settings.docFee)}`} />
+                <Row label="CVR fee" value={`+ ${money(settings.cvrFee)}`} />
+                <Row label="State/title fees" value={`+ ${money(dealData.stateFees)}`} />
+                <Row label="Sales tax estimate" value={`+ ${money(vehicle.salesTax)}`} />
+                <Row label="Tax + fees subtotal" value={money(taxAndFees)} subtotal />
+                <Row label="Out-the-door price" value={money(vehicle.baseOutTheDoorPrice)} total />
+              </tbody>
+            </table>
+            <table>
+              <tbody>
+                <Row label="Cash down" value={`- ${money(dealData.downPayment)}`} />
+                <Row
+                  label={netTrade >= 0 ? "Net trade credit" : "Negative equity"}
+                  value={`${netTrade >= 0 ? "-" : "+"} ${money(Math.abs(netTrade))}`}
+                />
+                <Row label="Rebate" value={`- ${money(rebate)}`} />
+                <Row label="Service contract" value={`+ ${money(vscAmount)}`} />
+                <Row label="GAP coverage" value={`+ ${money(gapAmount)}`} />
+                <Row label="Other backend" value={`+ ${money(otherBackend)}`} />
+                <Row label="Amount financed" value={money(vehicle.amountToFinance)} total />
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="section">
+          <h2>Lender Screen</h2>
+          <div className="section-body lender-grid">
+            <div>
+              <div className="subtitle" style={{ marginBottom: "2mm", fontWeight: 800 }}>
+                Top preliminary fits
+              </div>
+              <div className="lender-list">
+                {eligibleLenders.length > 0 ? (
+                  eligibleLenders
+                    .slice(0, 5)
+                    .map((lender) => <LenderRow key={lender.name} lender={lender} />)
+                ) : (
+                  <div className="lender-row miss">
+                    <strong>No fits at current structure</strong>
+                    <span>Adjust down payment, term, backend, or customer inputs.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div>
+              <div className="subtitle" style={{ marginBottom: "2mm", fontWeight: 800 }}>
+                Watch items
+              </div>
+              <div className="lender-list">
+                {missedLenders.slice(0, 4).map((lender) => (
+                  <LenderRow key={lender.name} lender={lender} miss />
+                ))}
+                {missedLenders.length === 0 && (
+                  <div className="lender-row">
+                    <strong>No watch items returned</strong>
+                    <span>All checked lenders fit the current screen.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="notes">
+          <div className="callout">
+            <strong>Backend products:</strong> Service contract, GAP, and other backend are editable
+            per deal. The amount financed uses the total backend amount shown above.
+          </div>
+          <div className="callout">
+            <strong>Lender fit:</strong> This is a program screen against dealer-entered data. Final
+            approval, rate, advance, stipulations, and funding are lender decisions.
+          </div>
+        </section>
+
+        <footer className="fineprint">
+          Estimate only. This is not a retail installment contract, Truth-in-Lending disclosure,
+          credit approval, or offer of credit. Taxes, state fees, lender rules, book values, APR,
+          term, payment, and product pricing must be verified before contracting. Dealer-internal
+          cost, gross, and reserve data are intentionally excluded from this customer worksheet.
+        </footer>
+      </div>
+    </>
   );
 };

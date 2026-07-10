@@ -43,7 +43,7 @@ const BackendAddons: React.FC<BackendAddonsProps> = ({
         <div className="desk-backend-row">
           <button
             type="button"
-            className="desk-backend-toggle lift-btn"
+            className="desk-backend-toggle transition-colors"
             data-active={vscAmount > 0}
             onClick={onToggleVsc}
           >
@@ -62,7 +62,7 @@ const BackendAddons: React.FC<BackendAddonsProps> = ({
         <div className="desk-backend-row">
           <button
             type="button"
-            className="desk-backend-toggle lift-btn"
+            className="desk-backend-toggle transition-colors"
             data-active={gapAmount > 0}
             onClick={onToggleGap}
           >

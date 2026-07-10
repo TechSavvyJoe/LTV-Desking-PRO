@@ -15,6 +15,9 @@ import { toast } from "../lib/toast";
 import { confirmAction } from "../lib/confirm";
 import { MI_DOC_FEE_WARN_THRESHOLD, INITIAL_SETTINGS, STORAGE_KEYS } from "../constants";
 import { getCurrentUser } from "../lib/pocketbase";
+import { createLogger } from "../lib/logger";
+
+const settingsModalLogger = createLogger("settings-modal");
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -28,7 +31,6 @@ const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 const sectionH: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
-  letterSpacing: "0.1em",
   ...mono,
   color: "var(--color-text-subtle)",
   margin: "0 0 13px",
@@ -56,7 +58,9 @@ const inputBase: React.CSSProperties = {
 const numInput: React.CSSProperties = { ...inputBase, ...mono };
 const selectInput: React.CSSProperties = { ...inputBase, padding: 8, fontFamily: "inherit" };
 
-const hr = <hr style={{ border: "none", borderTop: "1px solid var(--color-border)", margin: "22px 0" }} />;
+const hr = (
+  <hr style={{ border: "none", borderTop: "1px solid var(--color-border)", margin: "22px 0" }} />
+);
 
 const TERM_OPTIONS = [48, 54, 60, 66, 72, 78, 84, 90, 96];
 
@@ -94,8 +98,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     if (!isOpen) return;
     let active = true;
     fetch("/api/ai/models")
-      .then((response) => response.json() as Promise<AiModelRegistryResponse>)
-      .then((data) => {
+      .then((response) => response.json())
+      .then((data: AiModelRegistryResponse) => {
         if (active) setModelRegistry(data);
       })
       .catch(() => {
@@ -130,14 +134,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     setLocalSettings((prev) => ({ ...prev, [name]: Math.max(0, numeric) }) as Settings);
   };
 
-  const setThreshold = (key: "warn" | "danger" | "critical") => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const numeric = Number(e.target.value);
-    if (Number.isNaN(numeric)) return;
-    setLocalSettings((prev) => ({
-      ...prev,
-      ltvThresholds: { ...prev.ltvThresholds, [key]: numeric },
-    }));
-  };
+  const setThreshold =
+    (key: "warn" | "danger" | "critical") => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const numeric = Number(e.target.value);
+      if (Number.isNaN(numeric)) return;
+      setLocalSettings((prev) => ({
+        ...prev,
+        ltvThresholds: { ...prev.ltvThresholds, [key]: numeric },
+      }));
+    };
 
   const handleSave = () => {
     if (!canEdit) return;
@@ -198,7 +203,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
       );
       window.location.reload();
     } catch (err) {
-      console.error("Failed to reset local preferences", err);
+      settingsModalLogger.error("Failed to reset local preferences", err);
       toast.error("Could not reset preferences. Please clear site data manually in your browser.");
     }
   };
@@ -223,7 +228,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(4,7,10,.6)",
+        background: "rgba(0,0,0,0.6)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -241,7 +246,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         style={{
           background: "var(--color-bg)",
           border: "1px solid var(--color-border)",
-          borderRadius: 16,
+          borderRadius: 8,
           boxShadow: "var(--shadow-md)",
           width: "100%",
           maxWidth: 580,
@@ -263,7 +268,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         >
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-              <span style={{ fontSize: 11, ...mono, color: "var(--color-text-subtle)" }} aria-hidden>
+              <span
+                style={{ fontSize: 11, ...mono, color: "var(--color-text-subtle)" }}
+                aria-hidden
+              >
                 ⚙
               </span>
               <div style={{ fontSize: 16, fontWeight: 600 }}>System settings</div>
@@ -273,14 +281,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                     fontSize: 10,
                     fontWeight: 600,
                     ...mono,
-                    letterSpacing: "0.06em",
                     background: "var(--color-bg-muted)",
                     color: "var(--color-text-muted)",
                     padding: "2px 7px",
                     borderRadius: 5,
                   }}
                 >
-                  READ-ONLY
+                  Read only
                 </span>
               )}
             </div>
@@ -290,7 +297,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
           </div>
           <button
             onClick={onClose}
-            className="lift-btn"
+            className="transition-colors"
             aria-label="Close"
             style={{
               background: "transparent",
@@ -305,7 +312,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               justifyContent: "center",
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           </button>
@@ -315,7 +329,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         <div style={{ padding: 22, overflowY: "auto" }}>
           {/* DEAL DEFAULTS */}
           <section>
-            <h3 style={sectionH}>DEAL DEFAULTS</h3>
+            <h3 style={sectionH}>Deal defaults</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <div>
                 <label style={fieldLabel} htmlFor="settings-default-term">
@@ -363,7 +377,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   disabled={!canEdit}
                   value={localSettings.defaultState}
                   onChange={(e) =>
-                    setLocalSettings((prev) => ({ ...prev, defaultState: e.target.value as AppState }))
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      defaultState: e.target.value as AppState,
+                    }))
                   }
                   style={selectInput}
                 >
@@ -381,7 +398,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
           {/* FEES */}
           <section>
-            <h3 style={sectionH}>FEES</h3>
+            <h3 style={sectionH}>Fees</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <div>
                 <label style={fieldLabel} htmlFor="settings-doc-fee">
@@ -482,13 +499,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
           {/* LTV THRESHOLDS */}
           <section>
-            <h3 style={{ ...sectionH, margin: "0 0 5px" }}>LTV THRESHOLDS</h3>
+            <h3 style={{ ...sectionH, margin: "0 0 5px" }}>LTV thresholds</h3>
             <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "0 0 13px" }}>
               Color bands applied to the OTD LTV column.
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <div>
-                <label style={{ ...fieldLabel, fontWeight: 600, color: "var(--color-warning)" }} htmlFor="settings-ltv-warn">
+                <label
+                  style={{ ...fieldLabel, fontWeight: 600, color: "var(--color-warning)" }}
+                  htmlFor="settings-ltv-warn"
+                >
                   Warn (%)
                 </label>
                 <input
@@ -502,7 +522,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 />
               </div>
               <div>
-                <label style={{ ...fieldLabel, fontWeight: 600, color: "var(--color-danger)" }} htmlFor="settings-ltv-danger">
+                <label
+                  style={{ ...fieldLabel, fontWeight: 600, color: "var(--color-danger)" }}
+                  htmlFor="settings-ltv-danger"
+                >
                   Danger (%)
                 </label>
                 <input
@@ -542,7 +565,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               {modelRegistry?.verifiedDate ?? AI_MODEL_DOCS_VERIFIED_DATE}.
             </p>
             {modelRegistry?.warnings.map((warning) => (
-              <p key={warning} style={{ fontSize: 12, color: "var(--color-warning)", margin: "0 0 6px" }}>
+              <p
+                key={warning}
+                style={{ fontSize: 12, color: "var(--color-warning)", margin: "0 0 6px" }}
+              >
                 {warning}
               </p>
             ))}
@@ -566,7 +592,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   style={selectInput}
                 >
                   {AI_PROVIDER_ORDER.map((provider) => {
-                    const providerState = modelRegistry?.providers.find((item) => item.id === provider);
+                    const providerState = modelRegistry?.providers.find(
+                      (item) => item.id === provider
+                    );
                     return (
                       <option key={provider} value={provider}>
                         {getAiProviderLabel(provider)}
@@ -657,7 +685,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         >
           <button
             onClick={handleResetLocalPrefs}
-            className="lift-btn settings-reset-link"
+            className="transition-colors settings-reset-link"
             title="Clears this browser's desk focus/sort, filters and theme — never server data"
             style={{
               marginRight: "auto",
@@ -691,12 +719,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                     toast.success("Database seeded! Reloading application...");
                     setTimeout(() => window.location.reload(), 1500);
                   } catch (e) {
-                    console.error(e);
+                    settingsModalLogger.error("Failed to seed database", e);
                     toast.error(e instanceof Error ? e.message : "Failed to seed database.");
                   }
                 }
               }}
-              className="lift-btn"
+              className="transition-colors"
               style={{
                 background: "transparent",
                 border: "1px solid var(--color-border-strong)",
@@ -714,7 +742,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
           )}
           <button
             onClick={onClose}
-            className="lift-btn"
+            className="transition-colors"
             style={{
               background: "transparent",
               border: "1px solid var(--color-border-strong)",
@@ -732,7 +760,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
           {canEdit && (
             <button
               onClick={handleSave}
-              className="lift-btn btn-primary"
+              className="btn-primary"
               style={{
                 border: "1px solid transparent",
                 borderRadius: 8,

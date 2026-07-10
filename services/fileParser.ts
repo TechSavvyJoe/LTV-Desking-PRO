@@ -164,22 +164,25 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
   const headerLine = lines[0] ?? "";
   const delimiter = isExcel ? "," : detectDelimiter(headerLine);
   const headers = parseCsvRow(headerLine, delimiter).map((h) => h.trim());
+  const headersLower = headers.map((h) => h.toLowerCase());
 
   const idx = {
-    vehicle: headers.indexOf("Vehicle"),
-    make: headers.indexOf("Make"),
-    model: headers.indexOf("Model"),
-    trim: headers.indexOf("Trim"),
-    stock: headers.indexOf("Stock #"),
-    vin: headers.indexOf("VIN"),
-    price: headers.indexOf("Price"),
-    jdPower: headers.findIndex((h) => h.includes("J.D. Power") && h.includes("Trade In")),
-    jdPowerRetail: headers.findIndex((h) => h.includes("J.D. Power") && h.includes("Retail")),
-    unitCost: headers.indexOf("Unit Cost"),
-    modelYear: headers.findIndex((h) => h === "Model Year" || h === "Year"),
-    mileage: headers.findIndex(
-      (h) => h.toLowerCase() === "odometer" || h.toLowerCase() === "mileage"
+    vehicle: headersLower.indexOf("vehicle"),
+    make: headersLower.indexOf("make"),
+    model: headersLower.indexOf("model"),
+    trim: headersLower.indexOf("trim"),
+    stock: headersLower.indexOf("stock #"),
+    vin: headersLower.indexOf("vin"),
+    price: headersLower.indexOf("price"),
+    jdPower: headers.findIndex(
+      (h) => h.toLowerCase().includes("j.d. power") && h.toLowerCase().includes("trade in")
     ),
+    jdPowerRetail: headers.findIndex(
+      (h) => h.toLowerCase().includes("j.d. power") && h.toLowerCase().includes("retail")
+    ),
+    unitCost: headersLower.indexOf("unit cost"),
+    modelYear: headersLower.findIndex((h) => h === "model year" || h === "year"),
+    mileage: headersLower.findIndex((h) => h === "odometer" || h === "mileage"),
   };
 
   const requiredColumnsMap = {
@@ -244,12 +247,19 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
       if (yearMatch) modelYear = parseInt(yearMatch[0], 10);
     }
 
-    const mileage = parseNumber(vals[idx.mileage] ?? "");
-    const price = parseNumber(vals[idx.price] ?? "");
-    if (price === "N/A" || mileage === "N/A") {
+    const mileageRaw = parseNumber(vals[idx.mileage] ?? "");
+    const priceRaw = parseNumber(vals[idx.price] ?? "");
+    if (priceRaw === "N/A" || mileageRaw === "N/A") {
       skippedMissingData++; // surfaced to the user, not silent. [B1]
       continue;
     }
+    if (priceRaw < 0 || mileageRaw < 0) {
+      skippedMissingData++; // negative prices/mileage rejected for data quality. [robustness from deep review]
+      continue;
+    }
+
+    const clampedPrice = Math.max(0, priceRaw);
+    const clampedMileage = Math.max(0, mileageRaw);
 
     const stock = vals[idx.stock] ?? "N/A";
     const rawVin = idx.vin !== -1 ? (vals[idx.vin] ?? "").trim() : "";
@@ -271,7 +281,7 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
         model ?? "",
         String(modelYear),
         trim ?? "",
-        String(mileage)
+        String(clampedMileage)
       );
       const occurrence = (syntheticCounts.get(base) ?? 0) + 1;
       syntheticCounts.set(base, occurrence);
@@ -289,8 +299,8 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
       stock,
       vin,
       modelYear,
-      mileage,
-      price,
+      mileage: clampedMileage,
+      price: clampedPrice,
       jdPower: parseNumber(vals[idx.jdPower] ?? ""),
       jdPowerRetail: idx.jdPowerRetail !== -1 ? parseNumber(vals[idx.jdPowerRetail] ?? "") : "N/A",
       unitCost: idx.unitCost !== -1 ? parseNumber(vals[idx.unitCost] ?? "") : "N/A",
@@ -301,7 +311,7 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
   const reasons: string[] = [];
   if (skippedMissingData > 0) {
     reasons.push(
-      `${skippedMissingData} row${skippedMissingData === 1 ? "" : "s"} skipped (missing or non-numeric Price/Mileage)`
+      `${skippedMissingData} row${skippedMissingData === 1 ? "" : "s"} skipped (missing, non-numeric, or negative Price/Mileage)`
     );
   }
   if (duplicateVins > 0) {
@@ -318,17 +328,18 @@ export const parseFile = (file: File): Promise<ParseResult> => {
     reader.onload = async (e) => {
       try {
         const data = e.target?.result;
+        const buf = data instanceof ArrayBuffer ? data : new ArrayBuffer(0);
         let csvContent: string;
         const isExcel = file.name.toLowerCase().endsWith(".xlsx");
 
         if (isExcel) {
           // Loaded only on the XLSX path to keep it out of the main bundle. [perf]
           const { default: readXlsxFile } = await import("read-excel-file/browser");
-          const sheets = await readXlsxFile(data as ArrayBuffer);
+          const sheets = await readXlsxFile(buf);
           const rows = sheets[0]?.data ?? [];
           csvContent = rows.map((row) => row.map(toCsvCell).join(",")).join("\n");
         } else {
-          csvContent = new TextDecoder("utf-8").decode(new Uint8Array(data as ArrayBuffer));
+          csvContent = new TextDecoder("utf-8").decode(new Uint8Array(buf));
         }
 
         const result = parseInventoryCsv(csvContent, isExcel);

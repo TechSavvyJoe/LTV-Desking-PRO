@@ -122,13 +122,13 @@ export type SortKey =
   | "approvalScore";
 
 export const SORT_COLUMNS: { key: SortKey; label: string; title: string }[] = [
-  { key: "vehicle", label: "VEHICLE", title: "Sort by vehicle" },
-  { key: "price", label: "PRICE", title: "Sort by price" },
-  { key: "frontEndLtv", label: "F·LTV", title: "Front-end LTV" },
-  { key: "amountToFinance", label: "FIN", title: "Amount financed" },
-  { key: "otdLtv", label: "OTD", title: "Out-the-door LTV" },
-  { key: "monthlyPayment", label: "PMT", title: "Monthly payment" },
-  { key: "approvalScore", label: "ODDS", title: "Approval odds" },
+  { key: "vehicle", label: "Vehicle", title: "Sort by vehicle" },
+  { key: "price", label: "Price", title: "Sort by price" },
+  { key: "frontEndLtv", label: "Front LTV", title: "Front-end LTV" },
+  { key: "amountToFinance", label: "Financed", title: "Amount financed" },
+  { key: "otdLtv", label: "OTD LTV", title: "Out-the-door LTV" },
+  { key: "monthlyPayment", label: "Payment", title: "Monthly payment" },
+  { key: "approvalScore", label: "Approval", title: "Approval odds" },
 ];
 
 /** Mockup per-key first-click directions: name ascends, every metric descends. */

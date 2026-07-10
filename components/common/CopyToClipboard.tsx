@@ -37,7 +37,7 @@ const CopyToClipboard: React.FC<CopyToClipboardProps> = ({
 
     // Gracefully skip if Clipboard API is unavailable (prevents crashes in unsupported browsers/iframes).
     if (!navigator?.clipboard?.writeText) {
-      console.warn("Clipboard API unavailable in this environment.");
+      // Clipboard API unavailable (non-secure context or old browser); silent fail ok for UX.
       return;
     }
 
@@ -48,7 +48,7 @@ const CopyToClipboard: React.FC<CopyToClipboardProps> = ({
         setTimeout(() => setCopied(false), 1500);
       })
       .catch((err) => {
-        console.error("Failed to copy text: ", err);
+        // Swallow; caller can surface toast if desired.
       });
   };
 
@@ -62,9 +62,9 @@ const CopyToClipboard: React.FC<CopyToClipboardProps> = ({
     >
       {children}
       {copied && (
-        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg z-50 whitespace-nowrap pointer-events-none">
+        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-text)] text-[var(--color-bg)] text-xs font-medium px-2 py-1 rounded shadow-md z-50 whitespace-nowrap pointer-events-none">
           Copied!
-          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></span>
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-text)]"></span>
         </span>
       )}
     </div>

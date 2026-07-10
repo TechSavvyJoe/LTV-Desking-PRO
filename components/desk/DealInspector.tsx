@@ -45,7 +45,7 @@ interface DealInspectorProps {
 
 type InspectorTab = "summary" | "lenders" | "addons" | "matrix";
 
-export const DealInspector: React.FC<DealInspectorProps> = ({
+const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   vehicle: v,
   entries,
   profilesById,
@@ -193,12 +193,12 @@ export const DealInspector: React.FC<DealInspectorProps> = ({
         <div className="desk-inspector-title-row">
           <h2>{v.vehicle}</h2>
           <div className="desk-inspector-head-actions">
-            <button type="button" className="desk-ghost-btn lift-btn" onClick={onPin}>
+            <button type="button" className="desk-ghost-btn transition-colors" onClick={onPin}>
               {pinned ? "Comparing" : "Compare"}
             </button>
             <button
               type="button"
-              className="desk-inspector-close lift-btn"
+              className="desk-inspector-close transition-colors"
               onClick={onCloseCompact}
               aria-label="Close deal inspector"
             >
@@ -224,6 +224,17 @@ export const DealInspector: React.FC<DealInspectorProps> = ({
         thresholds={thresholds}
       />
 
+      <div className="desk-inspector-lender-snapshot">
+        <LenderLadder
+          entries={entries}
+          fitNames={fitNames}
+          profilesById={profilesById}
+          fitCount={fitCount}
+          totalLenders={totalLenders}
+          limit={3}
+        />
+      </div>
+
       <div className="desk-inspector-tabs" role="tablist" aria-label="Deal inspector sections">
         {[
           ["summary", "Summary"],
@@ -237,7 +248,7 @@ export const DealInspector: React.FC<DealInspectorProps> = ({
             role="tab"
             aria-selected={tab === key}
             data-active={tab === key}
-            className="lift-btn"
+            className="transition-colors"
             onClick={() => setTab(key as InspectorTab)}
           >
             {label}
@@ -264,7 +275,6 @@ export const DealInspector: React.FC<DealInspectorProps> = ({
             profilesById={profilesById}
             fitCount={fitCount}
             totalLenders={totalLenders}
-            limit={3}
           />
         )}
         {tab === "addons" && (
@@ -292,7 +302,11 @@ export const DealInspector: React.FC<DealInspectorProps> = ({
       </div>
 
       <div className="desk-inspector-actions">
-        <button type="button" onClick={onDealSheet} className="desk-secondary-action lift-btn">
+        <button
+          type="button"
+          onClick={onDealSheet}
+          className="desk-secondary-action transition-colors"
+        >
           <svg
             width="14"
             height="14"
@@ -306,7 +320,11 @@ export const DealInspector: React.FC<DealInspectorProps> = ({
           </svg>
           Deal sheet
         </button>
-        <button type="button" onClick={onSaveDeal} className="desk-primary-action lift-btn">
+        <button
+          type="button"
+          onClick={onSaveDeal}
+          className="desk-primary-action transition-colors"
+        >
           <svg
             width="14"
             height="14"
@@ -324,3 +342,7 @@ export const DealInspector: React.FC<DealInspectorProps> = ({
     </aside>
   );
 };
+
+DealInspectorComponent.displayName = "DealInspector";
+
+export const DealInspector = React.memo(DealInspectorComponent);

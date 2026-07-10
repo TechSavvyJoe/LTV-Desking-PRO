@@ -2,7 +2,10 @@ import React, { useState, useCallback, useRef } from "react";
 import type { LenderProfile, Settings } from "../types";
 import { processLenderSheet, type ProcessingProgress } from "../services/aiProcessor";
 import { saveLenderProfile, updateLenderProfile } from "../lib/api";
+import { createLogger } from "../lib/logger";
 import Button from "./common/Button";
+
+const modalLogger = createLogger("AiLenderManagerModal");
 
 interface AiLenderManagerModalProps {
   isOpen: boolean;
@@ -60,7 +63,7 @@ const MinimizeIcon = () => (
 const UploadIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    className="h-10 w-10 text-slate-400"
+    className="h-10 w-10 text-[var(--color-text-subtle)]"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -96,17 +99,17 @@ const getStageIcon = (stage: ProcessingProgress["stage"]) => {
 const getStageColor = (stage: ProcessingProgress["stage"]) => {
   switch (stage) {
     case "uploading":
-      return "text-blue-400";
+      return "text-[var(--color-primary)]";
     case "extracting":
-      return "text-yellow-400";
+      return "text-[var(--color-warning)]";
     case "validating":
       return "text-[var(--color-primary)]";
     case "enhancing":
       return "text-[var(--color-primary)]";
     case "complete":
-      return "text-green-400";
+      return "text-[var(--color-success)]";
     case "error":
-      return "text-red-400";
+      return "text-[var(--color-danger)]";
     default:
       return "text-[var(--color-text-muted)]";
   }
@@ -173,16 +176,18 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
                   stage === "error"
-                    ? "bg-red-500"
+                    ? "bg-[var(--color-danger)]"
                     : stage === "complete"
-                      ? "bg-green-500"
+                      ? "bg-[var(--color-success)]"
                       : "bg-[var(--color-primary)]"
                 }`}
                 style={{ width: `${stageProgress}%` }}
               />
             </div>
             {progress?.message && (
-              <p className="text-xs text-[var(--color-text-muted)] mt-1 truncate">{progress.message}</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1 truncate">
+                {progress.message}
+              </p>
             )}
           </div>
         );
@@ -410,9 +415,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           if (updatedProfile) {
             // Update local state
             onUpdateProfiles((prev) =>
-              prev.map((p) =>
-                p.id === existingProfile.id ? (updatedProfile as unknown as LenderProfile) : p
-              )
+              prev.map((p) => (p.id === existingProfile.id ? updatedProfile : p))
             );
             updatedCount++;
           } else {
@@ -420,24 +423,24 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           }
         } else {
           // Create new profile in PocketBase
-          const { id, ...createData } = newProfileData as any;
+          const { id: _ignored, ...createData } = newProfileData;
           const savedProfile = await saveLenderProfile({
             ...createData,
-            name: newProfileData.name,
+            name: newProfileData.name!,
             active: true,
             tiers: newProfileData.tiers || [],
-          } as any);
+          } satisfies Parameters<typeof saveLenderProfile>[0]);
 
           if (savedProfile) {
             // Add to local state
-            onUpdateProfiles((prev) => [...prev, savedProfile as unknown as LenderProfile]);
+            onUpdateProfiles((prev) => [...prev, savedProfile]);
             savedCount++;
           } else {
             errorCount++;
           }
         }
       } catch (error) {
-        console.error("Error saving lender:", newProfileData.name, error);
+        modalLogger.error("Error saving lender", error as Error, { name: newProfileData.name });
         errorCount++;
       }
     }
@@ -491,13 +494,13 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-slate-950/60 flex justify-center items-center z-50 p-4"
+      className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4"
       // While a batch is running, an accidental backdrop tap must not kill it —
       // cancelling requires an explicit Cancel click.
       onClick={isLoading ? undefined : handleClose}
     >
       <div
-        className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl shadow-[var(--shadow-md)] w-full max-w-3xl max-h-[90vh] flex flex-col"
+        className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-md w-full max-w-3xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -509,7 +512,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             {isLoading && onMinimize && (
               <button
                 onClick={onMinimize}
-                className="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-blue-400 transition-colors"
+                className="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-primary)] transition-colors"
                 title="Minimize - Processing will continue in background"
                 aria-label="Minimize"
               >
@@ -554,8 +557,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                 />
                 <UploadIcon />
                 <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                  <span className="font-semibold text-[var(--color-primary)]">Click to upload</span> or drag and
-                  drop PDF rate sheets.
+                  <span className="font-semibold text-[var(--color-primary)]">Click to upload</span>{" "}
+                  or drag and drop PDF rate sheets.
                 </p>
               </div>
               {files.length > 0 && (
@@ -575,7 +578,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                   type="checkbox"
                   checked={enrichWithWebSearch}
                   onChange={(e) => setEnrichWithWebSearch(e.target.checked)}
-                  className="mt-1 w-4 h-4 accent-blue-500"
+                  className="mt-1 w-4 h-4 accent-[var(--color-primary)]"
                 />
                 <label htmlFor="enrich-toggle" className="text-sm cursor-pointer">
                   <span className="font-medium text-[var(--color-text)]">
@@ -591,15 +594,17 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             </>
           ) : (
             <div>
-              <h3 className="text-lg font-semibold text-[var(--color-text)] mb-3">Analysis Results</h3>
+              <h3 className="text-lg font-semibold text-[var(--color-text)] mb-3">
+                Analysis Results
+              </h3>
               <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {results.map((res, i) => (
                   <div
                     key={i}
                     className={`p-4 rounded-lg border ${
                       res.status === "success"
-                        ? "bg-green-900/20 border-green-500/30"
-                        : "bg-red-900/20 border-red-500/30"
+                        ? "bg-[var(--color-success-subtle)] border-[var(--color-success)]/30"
+                        : "bg-[var(--color-danger-subtle)] border-[var(--color-danger)]/30"
                     }`}
                   >
                     <p className="font-semibold text-sm text-[var(--color-text)] mb-2">
@@ -607,7 +612,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                     </p>
                     {res.status === "success" && res.lenders ? (
                       <div className="space-y-3">
-                        <p className="text-xs text-green-300">
+                        <p className="text-xs text-[var(--color-success)]">
                           ✓ Successfully extracted{" "}
                           <strong className="font-bold">{res.lenders.length}</strong> lender(s)
                         </p>
@@ -632,7 +637,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                     type="checkbox"
                                     checked={isIncluded}
                                     onChange={() => toggleLenderIncluded(lenderKey)}
-                                    className="w-4 h-4 accent-blue-500"
+                                    className="w-4 h-4 accent-[var(--color-primary)]"
                                     aria-label={`Include ${lender.name || "this lender"} in the update`}
                                   />
                                   <span className="font-semibold text-[var(--color-text)] text-sm">
@@ -640,7 +645,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                   </span>
                                 </label>
                                 {matchedExisting && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                  <span className="px-2 py-0.5 rounded-sm text-[10px] font-medium bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border border-[var(--color-warning)]/40">
                                     {`Will update existing '${matchedExisting}'`}
                                   </span>
                                 )}
@@ -682,7 +687,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                         href={lender.website}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="text-blue-400 hover:underline"
+                                        className="text-[var(--color-primary)] hover:underline"
                                       >
                                         {lender.website}
                                       </a>
@@ -695,7 +700,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                         href={lender.portalUrl}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="text-blue-400 hover:underline"
+                                        className="text-[var(--color-primary)] hover:underline"
                                       >
                                         {lender.portalUrl}
                                       </a>
@@ -710,7 +715,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                               )}
                               {lender.enrichmentSources && lender.enrichmentSources.length > 0 && (
                                 <div className="mb-3 flex flex-wrap gap-1.5 items-center text-[10px]">
-                                  <span className="text-[var(--color-text-muted)]">🔎 Sources:</span>
+                                  <span className="text-[var(--color-text-muted)]">
+                                    🔎 Sources:
+                                  </span>
                                   {lender.enrichmentSources.slice(0, 5).map((src, idx) => (
                                     <a
                                       key={idx}
@@ -775,12 +782,12 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                               {tier.tierName || tier.name || `Tier ${k + 1}`}
                                             </span>
                                             <span
-                                              className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                              className={`px-2 py-0.5 rounded-sm text-[10px] font-medium ${
                                                 completeness >= 80
-                                                  ? "bg-green-500/20 text-green-300"
+                                                  ? "bg-[var(--color-success-subtle)] text-[var(--color-success)]"
                                                   : completeness >= 50
-                                                    ? "bg-yellow-500/20 text-yellow-300"
-                                                    : "bg-red-500/20 text-red-300"
+                                                    ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)]"
+                                                    : "bg-[var(--color-danger-subtle)] text-[var(--color-danger)]"
                                               }`}
                                             >
                                               {completeness}% complete
@@ -820,7 +827,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-xs text-yellow-300">
+                                <p className="text-xs text-[var(--color-warning)]">
                                   ⚠️ No credit tiers extracted
                                 </p>
                               )}
@@ -829,7 +836,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                         })}
                       </div>
                     ) : (
-                      <p className="text-xs text-red-300">❌ Error: {res.error}</p>
+                      <p className="text-xs text-[var(--color-danger)]">❌ Error: {res.error}</p>
                     )}
                   </div>
                 ))}

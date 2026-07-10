@@ -32,7 +32,7 @@ const TierField = ({
   className?: string;
 }) => (
   <div className={className}>
-    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1">
+    <label className="block text-[10px] font-medium text-[var(--color-text-subtle)] mb-1">
       {label}
     </label>
     {children}
@@ -66,7 +66,7 @@ const RangeInputPair = ({
       placeholder={minPlaceholder}
       className="!px-2 text-center text-xs"
     />
-    <span className="text-slate-400 text-xs font-bold">–</span>
+    <span className="text-[var(--color-text-subtle)] text-xs">–</span>
     <Input
       type="number"
       name={maxName}
@@ -193,13 +193,15 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* General Settings - Premium Card */}
-        <div className="bg-[var(--color-bg)] rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+        <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] overflow-hidden shadow-sm">
           <div className="px-5 py-4 bg-[var(--color-primary)]">
             <h4 className="flex items-center gap-2 text-sm font-bold text-white">
               <Icons.BuildingLibraryIcon className="w-5 h-5" />
               Lender Settings
             </h4>
-            <p className="text-blue-100 text-xs mt-0.5">Required fields and global parameters</p>
+            <p className="text-[var(--on-primary)]/80 text-xs mt-0.5">
+              Required fields and global parameters
+            </p>
           </div>
           <div className="p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -258,11 +260,11 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h4 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
+              <h4 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text)]">
                 <Icons.ListIcon className="w-5 h-5 text-[var(--color-primary)]" />
                 Credit Tiers
               </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 Define credit tiers with specific LTV, term, and eligibility requirements
               </p>
             </div>
@@ -277,15 +279,15 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
             {(formData.tiers || []).map((tier, index) => (
               <div
                 key={index}
-                className={`group relative bg-white dark:bg-slate-800 rounded-xl border-2 overflow-hidden transition-all duration-200 shadow-sm hover:shadow-lg ${
+                className={`group relative bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)] rounded-lg border-2 overflow-hidden transition-colors duration-[var(--duration-fast)] ${
                   activeTierIndex === index
-                    ? "border-blue-500 ring-2 ring-blue-500/20"
-                    : "border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600"
+                    ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary-subtle)]"
+                    : "border-[var(--color-border)] hover:border-[var(--color-primary)]"
                 }`}
               >
                 {/* Tier Header */}
                 <div
-                  className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700 cursor-pointer"
+                  className="flex items-center justify-between px-4 py-3 bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)] cursor-pointer"
                   onClick={() => setActiveTierIndex(activeTierIndex === index ? null : index)}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -308,23 +310,25 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         value={tier.name}
                         onChange={(e) => handleTierChange(index, e)}
                         name="name"
-                        className="w-full font-semibold text-slate-900 dark:text-white bg-transparent border-none p-0 focus:ring-0 focus:outline-none truncate"
+                        className="w-full font-semibold text-[var(--color-text)] bg-transparent border-none p-0 focus:ring-0 focus:outline-none truncate"
                         onClick={(e) => e.stopPropagation()}
                       />
                       <div className="flex items-center gap-2 mt-0.5">
                         {tier.minFico && (
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-[10px] text-[var(--color-text-subtle)]">
                             FICO {tier.minFico}
                             {tier.maxFico ? `-${tier.maxFico}` : "+"}
                           </span>
                         )}
                         {tier.maxLtv && (
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          <span className="text-[10px] text-[var(--color-success)] font-medium">
                             {tier.maxLtv}% LTV
                           </span>
                         )}
                         {tier.maxTerm && (
-                          <span className="text-[10px] text-slate-500">{tier.maxTerm}mo</span>
+                          <span className="text-[10px] text-[var(--color-text-subtle)]">
+                            {tier.maxTerm}mo
+                          </span>
                         )}
                       </div>
                     </div>
@@ -336,7 +340,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         e.stopPropagation();
                         duplicateTier(index);
                       }}
-                      className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      className="p-1.5 text-[var(--color-text-subtle)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] rounded transition-colors"
                       title="Duplicate Tier"
                     >
                       <Icons.DocumentDuplicateIcon className="w-4 h-4" />
@@ -348,13 +352,13 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         removeTier(index);
                       }}
                       disabled={(formData.tiers?.length || 0) <= 1}
-                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-30"
+                      className="p-1.5 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors disabled:opacity-30"
                       title="Remove Tier"
                     >
                       <Icons.TrashIcon className="w-4 h-4" />
                     </button>
                     <Icons.ChevronDownIcon
-                      className={`w-4 h-4 text-slate-400 transition-transform ${
+                      className={`w-4 h-4 text-[var(--color-text-subtle)] transition-transform ${
                         activeTierIndex === index ? "rotate-180" : ""
                       }`}
                     />
@@ -363,7 +367,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
                 {/* Expanded Tier Details */}
                 {activeTierIndex === index && (
-                  <div className="p-4 space-y-4 bg-white dark:bg-slate-900/50">
+                  <div className="p-4 space-y-4 bg-[var(--color-bg-subtle)]">
                     {/* Credit & LTV Row */}
                     <div className="grid grid-cols-3 gap-3">
                       <TierField label="FICO Range">
@@ -437,8 +441,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                     </div>
 
                     {/* Advanced Options Row */}
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                      <p className="text-[10px] font-bold text-slate-400 mb-2">Advanced Options</p>
+                    <div className="pt-3 border-t border-[var(--color-border)]">
+                      <p className="text-[10px] font-medium text-[var(--color-text-subtle)] mb-2">
+                        Advanced Options
+                      </p>
                       <div className="grid grid-cols-4 gap-3">
                         <TierField label="Buy Rate %">
                           <Input
@@ -477,7 +483,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                             name="vehicleType"
                             value={tier.vehicleType || ""}
                             onChange={(e) => handleTierChange(index, e)}
-                            className="w-full h-9 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full h-9 px-2 text-xs bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                           >
                             <option value="">Any</option>
                             <option value="new">New</option>
@@ -495,10 +501,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
           {/* Empty State */}
           {(formData.tiers?.length || 0) === 0 && (
-            <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-              <Icons.DocumentTextIcon className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-              <p className="text-slate-500 dark:text-slate-400 font-medium">No tiers defined</p>
-              <p className="text-slate-400 dark:text-slate-500 text-sm mb-4">
+            <div className="text-center py-12 border-2 border-dashed border-[var(--color-border)] rounded-lg">
+              <Icons.DocumentTextIcon className="w-10 h-10 mx-auto text-[var(--color-text-subtle)] mb-3" />
+              <p className="text-[var(--color-text-muted)] font-medium">No tiers defined</p>
+              <p className="text-[var(--color-text-subtle)] text-sm mb-4">
                 Add at least one credit tier
               </p>
               <Button type="button" variant="primary" size="sm" onClick={addTier}>

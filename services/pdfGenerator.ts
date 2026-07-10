@@ -34,11 +34,13 @@ export class PdfGenerationError extends Error {
  * the payment is already "N/A" for an unset rate. [G5/C-services]
  */
 const normalizePdfData = (data: DealPdfData): DealPdfData => {
-  const raw = data.dealData as unknown as Record<string, unknown>;
+  const raw: Record<string, unknown> = data.dealData ? { ...data.dealData } : {};
   const mapped = mapDealData(raw);
-  const rawRate = raw?.interestRate;
-  const interestRate =
-    typeof rawRate === "number" && Number.isFinite(rawRate) ? rawRate : ("" as unknown as number); // sentinel the templates explicitly guard for
+  const rawRate = raw.interestRate as unknown;
+  // Sentinel "" for unset rate (templates guard for it and render "—"; N/A payment).
+  // Avoids polluting with default APR. Use the union type declared in DealData.
+  const interestRate: number | "" =
+    typeof rawRate === "number" && Number.isFinite(rawRate) ? rawRate : "";
   return { ...data, dealData: { ...mapped, interestRate } };
 };
 
@@ -109,7 +111,8 @@ export const assertGeneratedPdfBlob = (blob: Blob): void => {
 
 const renderComponentAsPdfBlob = async (
   component: React.ReactElement,
-  orientation: "portrait" | "landscape" = "portrait"
+  orientation: "portrait" | "landscape" = "portrait",
+  pageMode: "paginate" | "single-page" = "paginate"
 ): Promise<Blob> => {
   if (typeof document === "undefined") {
     throw new PdfGenerationError(
@@ -154,7 +157,9 @@ const renderComponentAsPdfBlob = async (
     // Guard against silently-blank output: iOS Safari caps canvas area and
     // returns an empty canvas / "data:," past the limit. Fail with a clear
     // message instead of handing the user an empty PDF. [C-services]
-    const imgData = canvas.toDataURL("image/png");
+    const imageFormat = pageMode === "single-page" ? "JPEG" : "PNG";
+    const imgData =
+      imageFormat === "JPEG" ? canvas.toDataURL("image/jpeg", 0.92) : canvas.toDataURL("image/png");
     assertRenderedCanvas(canvas, imgData);
 
     const pdf = new jsPDF({
@@ -171,18 +176,30 @@ const renderComponentAsPdfBlob = async (
     // Calculate the height of the image in PDF units, maintaining aspect ratio relative to page width
     const imgHeightInPdf = (imgProps.height * pdfWidth) / imgProps.width;
 
+    if (pageMode === "single-page") {
+      const scale = Math.min(1, pdfHeight / imgHeightInPdf);
+      const renderWidth = pdfWidth * scale;
+      const renderHeight = imgHeightInPdf * scale;
+      const x = (pdfWidth - renderWidth) / 2;
+      const y = (pdfHeight - renderHeight) / 2;
+      pdf.addImage(imgData, imageFormat, x, y, renderWidth, renderHeight);
+      const blob = pdf.output("blob");
+      assertGeneratedPdfBlob(blob);
+      return blob;
+    }
+
     let heightLeft = imgHeightInPdf;
     let position = 0;
 
     // First page
-    pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeightInPdf);
+    pdf.addImage(imgData, imageFormat, 0, position, pdfWidth, imgHeightInPdf);
     heightLeft -= pdfHeight;
 
     // Subsequent pages
     while (heightLeft > 0) {
       position -= pdfHeight; // Move the image up for the next page
       pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeightInPdf);
+      pdf.addImage(imgData, imageFormat, 0, position, pdfWidth, imgHeightInPdf);
       heightLeft -= pdfHeight;
     }
 
@@ -207,7 +224,11 @@ const renderComponentAsPdfBlob = async (
 
 export const generateDealPdf = async (data: DealPdfData, settings: Settings): Promise<Blob> => {
   const props = { ...normalizePdfData(data), settings };
-  return renderComponentAsPdfBlob(React.createElement(PdfTemplate, props), "portrait");
+  return renderComponentAsPdfBlob(
+    React.createElement(PdfTemplate, props),
+    "portrait",
+    "single-page"
+  );
 };
 
 export const generateFavoritesPdf = async (

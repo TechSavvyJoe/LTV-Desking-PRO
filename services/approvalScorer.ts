@@ -74,9 +74,7 @@ export const scoreApprovalOdds = (
   if (fico !== null && fico < 600) reasons.push("Credit score in subprime range");
 
   const ltvComp =
-    otdLtv === null
-      ? 50
-      : clamp(C.ltv.base - (otdLtv - C.ltv.pivot) * C.ltv.slope, 0, C.ltv.max);
+    otdLtv === null ? 50 : clamp(C.ltv.base - (otdLtv - C.ltv.pivot) * C.ltv.slope, 0, C.ltv.max);
   if (otdLtv !== null && otdLtv > 125) reasons.push(`OTD LTV high (${Math.round(otdLtv)}%)`);
 
   let ptiRatio: number | undefined;
@@ -87,8 +85,7 @@ export const scoreApprovalOdds = (
     if (ptiRatio > 18) reasons.push(`Payment-to-income high (${ptiRatio.toFixed(1)}%)`);
   }
 
-  let score =
-    C.weights.credit * creditComp + C.weights.ltv * ltvComp + C.weights.pti * ptiComp;
+  let score = C.weights.credit * creditComp + C.weights.ltv * ltvComp + C.weights.pti * ptiComp;
 
   // Affordability veto.
   if (ptiRatio !== undefined && ptiRatio >= C.ptiHardCap.threshold)

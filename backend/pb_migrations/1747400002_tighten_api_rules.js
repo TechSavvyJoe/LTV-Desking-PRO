@@ -14,14 +14,15 @@ const AUTHED = '@request.auth.id != ""';
 const SUPER = '@request.auth.role = "superadmin"';
 const ADMIN_OR_SUPER = '(@request.auth.role = "superadmin" || @request.auth.role = "admin")';
 
-// Use the `?=` "any of" operator for relation comparisons (PB's recommended
-// syntax for relation-vs-relation and relation-vs-id checks), and dot-access
-// the related record's `id` so PB's rule parser doesn't need to special-case
-// the relation field type.
-const SAME_DEALER = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= dealer.id)`;
-const SAME_DEALER_ADMIN = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.auth.dealer.id ?= dealer.id))`;
-const ON_OWN_DEALER = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= id)`;
-const ON_OWN_DEALER_ADMIN_UPDATE = `${AUTHED} && (${SUPER} || (@request.auth.role = "admin" && @request.auth.dealer.id ?= id))`;
+// Single-relation fields are stored as record ids, so compare the relation
+// field directly to @request.auth.dealer. The previous `dealer.id` form fails
+// PB v0.26's rule parser on fresh databases.
+const SAME_DEALER = `${AUTHED} && (${SUPER} || dealer = @request.auth.dealer)`;
+const SAME_DEALER_CREATE = `${AUTHED} && (${SUPER} || @request.body.dealer = @request.auth.dealer)`;
+const SAME_DEALER_ADMIN = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && dealer = @request.auth.dealer))`;
+const SAME_DEALER_ADMIN_CREATE = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.body.dealer = @request.auth.dealer))`;
+const ON_OWN_DEALER = `${AUTHED} && (${SUPER} || id = @request.auth.dealer)`;
+const ON_OWN_DEALER_ADMIN_UPDATE = `${AUTHED} && (${SUPER} || (@request.auth.role = "admin" && id = @request.auth.dealer))`;
 
 const setRules = (collection, rules) => {
   collection.listRule = rules.list ?? null;
@@ -87,7 +88,7 @@ migrate(
     const sameDealerAll = {
       list: SAME_DEALER,
       view: SAME_DEALER,
-      create: SAME_DEALER,
+      create: SAME_DEALER_CREATE,
       update: SAME_DEALER,
       delete: SAME_DEALER,
     };
@@ -98,7 +99,7 @@ migrate(
     applyTo(app, "dealer_settings", {
       list: SAME_DEALER,
       view: SAME_DEALER,
-      create: SAME_DEALER_ADMIN,
+      create: SAME_DEALER_ADMIN_CREATE,
       update: SAME_DEALER_ADMIN,
       delete: SAME_DEALER_ADMIN,
     });
@@ -121,12 +122,12 @@ migrate(
       console.log("[skip] users collection has no 'dealer' field — likely fresh DB");
       return;
     }
-    const sameDealerOrSelf = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= dealer.id || id = @request.auth.id)`;
+    const sameDealerOrSelf = `${AUTHED} && (${SUPER} || dealer = @request.auth.dealer || id = @request.auth.id)`;
     users.listRule = sameDealerOrSelf;
     users.viewRule = sameDealerOrSelf;
     users.createRule = `${AUTHED} && ${ADMIN_OR_SUPER}`;
-    users.updateRule = `${AUTHED} && (${SUPER} || id = @request.auth.id || (@request.auth.role = "admin" && @request.auth.dealer.id ?= dealer.id))`;
-    users.deleteRule = `${AUTHED} && (${SUPER} || (@request.auth.role = "admin" && @request.auth.dealer.id ?= dealer.id))`;
+    users.updateRule = `${AUTHED} && (${SUPER} || id = @request.auth.id || (@request.auth.role = "admin" && dealer = @request.auth.dealer))`;
+    users.deleteRule = `${AUTHED} && (${SUPER} || (@request.auth.role = "admin" && dealer = @request.auth.dealer))`;
     app.save(users);
   },
   (app) => {

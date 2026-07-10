@@ -19,9 +19,21 @@ const CIRCUMFERENCE = 56.55;
  * mockup's r=9 row rings. Decorative: the score is rendered as text beside
  * it, so the SVG is aria-hidden. [dc-redesign]
  */
-export const ScoreRing: React.FC<ScoreRingProps> = ({ score, size = 20, colorVar, className }) => (
+const ScoreRingComponent: React.FC<ScoreRingProps> = ({
+  score,
+  size = 20,
+  colorVar,
+  className,
+}) => (
   <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
-    <circle cx="12" cy="12" r="9" fill="none" stroke="var(--color-border-strong)" strokeWidth="2.5" />
+    <circle
+      cx="12"
+      cy="12"
+      r="9"
+      fill="none"
+      stroke="var(--color-border-strong)"
+      strokeWidth="2.5"
+    />
     <circle
       className="ring-anim"
       cx="12"
@@ -38,4 +50,5 @@ export const ScoreRing: React.FC<ScoreRingProps> = ({ score, size = 20, colorVar
   </svg>
 );
 
+export const ScoreRing = React.memo(ScoreRingComponent);
 export default ScoreRing;

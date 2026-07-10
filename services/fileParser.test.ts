@@ -9,6 +9,10 @@ describe("fileParser", () => {
       expect(detectDelimiter("a\tb\tc\td")).toBe("\t");
       expect(detectDelimiter("a|b|c|d")).toBe("|");
     });
+
+    it("defaults to comma when header line contains no delimiters [B10-edge]", () => {
+      expect(detectDelimiter("VehicleHeaderOnly")).toBe(",");
+    });
   });
 
   describe("parseNumber", () => {
@@ -131,6 +135,74 @@ describe("fileParser", () => {
       const { vehicles } = parseInventoryCsv(tabCsv, false);
       expect(vehicles).toHaveLength(1);
       expect(vehicles[0]?.price).toBe(25000);
+    });
+
+    it("parses semicolon-delimited files [B10-edge]", () => {
+      const semicolonCsv = [
+        header.replace(/,/g, ";"),
+        "2020 Toyota Camry;VIN1;S1;25000;30000;20000",
+      ].join("\n");
+      const { vehicles } = parseInventoryCsv(semicolonCsv, false);
+      expect(vehicles).toHaveLength(1);
+      expect(vehicles[0]?.price).toBe(25000);
+    });
+
+    it("successfully generates synthetic VINs even when stock and trim are absent [B11-edge]", () => {
+      const trimHeader = "Vehicle,Price,Mileage"; // no Stock or Trim column
+      const csv = [trimHeader, "Toyota Camry,25000,30000", "Honda Accord,22000,15000"].join("\n");
+      const { vehicles } = parseInventoryCsv(csv, false);
+      expect(vehicles).toHaveLength(2);
+      expect(vehicles[0]?.vin).toMatch(/^SYN-/);
+      expect(vehicles[1]?.vin).toMatch(/^SYN-/);
+      expect(vehicles[0]?.vin).not.toBe(vehicles[1]?.vin);
+    });
+
+    it("successfully generates synthetic VINs and does not collide when stock and trim columns are present but blank [B11-edge]", () => {
+      const csv = [
+        "Vehicle,Stock #,Trim,Price,Mileage",
+        "Toyota Camry,,,25000,30000",
+        "Honda Accord,,,22000,15000",
+      ].join("\n");
+      const { vehicles } = parseInventoryCsv(csv, false);
+      expect(vehicles).toHaveLength(2);
+      expect(vehicles[0]?.vin).toMatch(/^SYN-/);
+      expect(vehicles[1]?.vin).toMatch(/^SYN-/);
+      expect(vehicles[0]?.vin).not.toBe(vehicles[1]?.vin);
+    });
+
+    // --- new parser negative skip behavior + pre-1980 + blank coverage ---
+
+    it("skips negative price or mileage rows and reports the skip reason", () => {
+      const csv = [
+        header,
+        "2020 Toyota Camry,VIN1,S1,-2500,30000,20000", // negative price -> skip
+        "2021 Honda Civic,VIN2,S2,22000,-1500,21000", // negative mileage -> skip
+        "2022 Ford Focus,VIN3,S3,18000,12000,15000", // valid
+      ].join("\n");
+      const result = parseInventoryCsv(csv, false);
+      expect(result.vehicles).toHaveLength(1);
+      expect(result.skipped).toBe(2);
+      expect(result.reasons.join(" ")).toMatch(/negative Price\/Mileage/i);
+    });
+
+    it("parses pre-1980 model years supplied in dedicated column (description regex skips pre-1980)", () => {
+      const yearHeader = "Vehicle,Stock #,Price,Mileage,Model Year";
+      const csv = [yearHeader, "1975 Chevy Impala,S1,4500,80000,1975"].join("\n");
+      const { vehicles } = parseInventoryCsv(csv, false);
+      expect(vehicles).toHaveLength(1);
+      expect(vehicles[0]?.modelYear).toBe(1975);
+      expect(vehicles[0]?.vehicle).toContain("1975");
+    });
+
+    it("handles completely blank optional cells without throwing (price/mileage still required)", () => {
+      const csv = [
+        "Vehicle,Stock #,Price,Mileage,Trim",
+        "Toyota Camry,S1,25000,30000,", // blank trim ok
+        "Honda,,22000,15000,EX", // missing stock ok
+      ].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+      expect(vehicles).toHaveLength(2);
+      expect(skipped).toBe(0);
     });
   });
 });

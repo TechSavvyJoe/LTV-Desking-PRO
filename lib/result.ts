@@ -1,24 +1,12 @@
 /**
- * Result type for consistent error handling across the application
+ * Result type for consistent error handling across the application.
  *
- * Usage:
- * ```typescript
- * function fetchData(): Result<Data, Error> {
- *   try {
- *     const data = await api.fetch();
- *     return { success: true, data };
- *   } catch (error) {
- *     return { success: false, error: new ApiError("Failed to fetch", error) };
- *   }
- * }
+ * NOTE: Currently unused (no imports in the codebase). Retained for potential
+ * future adoption of Result<T,E> patterns (see PRODUCTION_READINESS and error
+ * handling roadmap). Safe to remove if a full refactor to never-throw API
+ * surfaces is done.
  *
- * const result = fetchData();
- * if (result.success) {
- *   console.log(result.data);
- * } else {
- *   console.error(result.error.message);
- * }
- * ```
+ * Usage example in JSDoc above was aspirational.
  */
 export type Result<T, E = Error> = { success: true; data: T } | { success: false; error: E };
 

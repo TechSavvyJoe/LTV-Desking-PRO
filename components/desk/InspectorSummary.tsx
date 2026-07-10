@@ -38,7 +38,7 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
 }) => (
   <section className="desk-inspector-summary pay-glow">
     <div className="desk-score-cell">
-      <ApprovalGauge score={score} colorVar={gaugeColor} label={bandLabel} width={150} />
+      <ApprovalGauge score={score} colorVar={gaugeColor} label={bandLabel} width={116} />
       <div className="desk-score-label" style={{ color: gaugeColor }}>
         {bandLabel}
       </div>
@@ -58,16 +58,24 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
       <div className="desk-payment-meta">
         {loanTerm} mo · {apr} APR · estimate
       </div>
-      <div className="desk-summary-metrics">
-        <Metric label="Financed" value={financed === null ? "—" : fmt(financed)} tone="primary" />
-        <Metric label="Back-end" value={fmt(backendProducts)} color="var(--color-text)" />
-        <Metric label="OTD LTV" value={pct(otdLtv)} color={otdColorFor(otdLtv, thresholds)} />
-        <Metric
-          label="PTI"
-          value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
-          color={ptiColorFor(pti)}
-        />
-      </div>
+    </div>
+    <div className="desk-summary-metrics" aria-label="Deal structure metrics">
+      <Metric
+        label="Amount financed"
+        value={financed === null ? "—" : fmt(financed)}
+        tone="primary"
+      />
+      <Metric label="Back-end products" value={fmt(backendProducts)} color="var(--color-text)" />
+      <Metric
+        label="Out-the-door LTV"
+        value={pct(otdLtv)}
+        color={otdColorFor(otdLtv, thresholds)}
+      />
+      <Metric
+        label="Payment-to-income"
+        value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
+        color={ptiColorFor(pti)}
+      />
     </div>
   </section>
 );

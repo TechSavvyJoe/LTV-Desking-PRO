@@ -38,10 +38,25 @@ onRecordUpdateRequest((e) => {
   // active blocks self-reactivation games. [minor]
   const PRIVILEGED_FIELDS = ["role", "dealer", "active"];
   const auth = e.auth;
-  const actorRole = auth ? auth.get("role") : "";
+  const actorRole = auth && typeof auth.get === "function" ? auth.get("role") : "";
+  let authCollectionName = "";
+  try {
+    const authCollection =
+      auth && typeof auth.collection === "function"
+        ? auth.collection()
+        : auth && typeof auth.collection === "object"
+          ? auth.collection
+          : null;
+    authCollectionName = authCollection ? String(authCollection.name || "") : "";
+  } catch (err) {
+    authCollectionName = "";
+  }
+
+  // Detect platform superuser (from _superusers) or app superadmin.
+  const isSuperuser = authCollectionName === "_superusers" || actorRole === "superadmin";
 
   // Superadmins may legitimately change roles / move users between dealerships.
-  if (actorRole === "superadmin") return e.next();
+  if (isSuperuser) return e.next();
 
   // The persisted (pre-update) state of the record being modified.
   const original = e.record.original();
@@ -84,7 +99,22 @@ onRecordUpdateRequest((e) => {
 
 onRecordCreateRequest((e) => {
   const auth = e.auth;
-  const actorRole = auth ? auth.get("role") : "";
+  const actorRole = auth && typeof auth.get === "function" ? auth.get("role") : "";
+  let authCollectionName = "";
+  try {
+    const authCollection =
+      auth && typeof auth.collection === "function"
+        ? auth.collection()
+        : auth && typeof auth.collection === "object"
+          ? auth.collection
+          : null;
+    authCollectionName = authCollection ? String(authCollection.name || "") : "";
+  } catch (err) {
+    authCollectionName = "";
+  }
+
+  // Detect platform superuser (from _superusers) or app superadmin.
+  const isSuperuser = authCollectionName === "_superusers" || actorRole === "superadmin";
 
   // CRITICAL: PocketBase BoolField is non-nullable and defaults to the zero
   // value `false` when omitted on create — and NO create path (register,
@@ -95,14 +125,14 @@ onRecordCreateRequest((e) => {
   if (e.record.get("active") !== false) e.record.set("active", true);
 
   // Only a superadmin may create a user with an arbitrary role / dealership.
-  if (actorRole === "superadmin") return e.next();
+  if (isSuperuser) return e.next();
 
   if (actorRole === "admin") {
     // A dealership admin may create users within their OWN dealership and must
     // never mint a superadmin. Apply the same clamps the update path uses, so
     // create isn't an escalation/tenant-hop bypass of the update guard.
     if (e.record.get("role") === "superadmin") e.record.set("role", "sales");
-    const actorDealer = auth.get("dealer");
+    const actorDealer = auth && typeof auth.get === "function" ? auth.get("dealer") : "";
     if (actorDealer) e.record.set("dealer", actorDealer);
     return e.next();
   }
@@ -169,8 +199,21 @@ onRecordCreateRequest((e) => {
 // update path: tenant admins could remove a dealer-assigned platform owner). [C15]
 onRecordDeleteRequest((e) => {
   const auth = e.auth;
-  const actorRole = auth ? auth.get("role") : "";
-  if (actorRole !== "superadmin" && e.record.get("role") === "superadmin") {
+  const actorRole = auth && typeof auth.get === "function" ? auth.get("role") : "";
+  let authCollectionName = "";
+  try {
+    const authCollection =
+      auth && typeof auth.collection === "function"
+        ? auth.collection()
+        : auth && typeof auth.collection === "object"
+          ? auth.collection
+          : null;
+    authCollectionName = authCollection ? String(authCollection.name || "") : "";
+  } catch (err) {
+    authCollectionName = "";
+  }
+  const isSuperuser = authCollectionName === "_superusers" || actorRole === "superadmin";
+  if (!isSuperuser && e.record.get("role") === "superadmin") {
     throw new ForbiddenError("Only the platform owner can delete a superadmin account.");
   }
   return e.next();

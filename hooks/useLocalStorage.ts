@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { createLogger } from "../lib/logger";
+
+const localStorageLogger = createLogger("localStorage");
 
 export function useLocalStorage<T>(
   key: string,
@@ -11,11 +14,13 @@ export function useLocalStorage<T>(
       }
       const item = window.localStorage.getItem(key);
       if (item) {
-        let parsed: any;
+        let parsed: unknown;
         try {
           parsed = JSON.parse(item);
         } catch (e) {
-          console.warn(`Error parsing localStorage key "${key}". Resetting to initial value.`);
+          localStorageLogger.warn(
+            `Error parsing localStorage key "${key}". Resetting to initial value.`
+          );
           return initialValue;
         }
 
@@ -26,7 +31,7 @@ export function useLocalStorage<T>(
 
         // Type Mismatch Guard: If initialValue is an array but parsed is not, return initial.
         if (Array.isArray(initialValue) && !Array.isArray(parsed)) {
-          console.warn(
+          localStorageLogger.warn(
             `LocalStorage key "${key}" expected array but got ${typeof parsed}. Resetting.`
           );
           return initialValue;
@@ -39,7 +44,7 @@ export function useLocalStorage<T>(
           !Array.isArray(initialValue)
         ) {
           if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-            console.warn(
+            localStorageLogger.warn(
               `LocalStorage key "${key}" expected object but got ${typeof parsed}. Resetting.`
             );
             return initialValue;
@@ -50,7 +55,7 @@ export function useLocalStorage<T>(
       }
       return initialValue;
     } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
+      localStorageLogger.warn(`Error reading localStorage key "${key}"`, { error });
       return initialValue;
     }
   });
@@ -67,7 +72,7 @@ export function useLocalStorage<T>(
         }
       }
     } catch (error) {
-      console.warn(`Error writing to localStorage key "${key}":`, error);
+      localStorageLogger.warn(`Error writing to localStorage key "${key}"`, { error });
     }
   }, [key, storedValue]);
 

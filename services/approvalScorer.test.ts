@@ -170,4 +170,23 @@ describe("approvalScorer (mockup formula + retained hardening)", () => {
       });
     });
   });
+
+  describe("additional scorer edges for coverage", () => {
+    it("handles very high LTV and low income producing low score and reasons", () => {
+      const r = scoreApprovalOdds(mkVehicle(200, 900), { creditScore: 500, monthlyIncome: 800 }, 1);
+      expect(r.internalScore).toBeLessThan(50);
+      expect(r.reasons.length).toBeGreaterThan(0);
+    });
+
+    it("handles Error payment string in vehicle", () => {
+      const v = mkVehicle(105, "Error");
+      const r = scoreApprovalOdds(v, { creditScore: 700, monthlyIncome: 3000 }, 3);
+      expect(r.band).toBeDefined();
+    });
+
+    it("APPROVAL_CONFIG and BAND_META are exported and stable", () => {
+      expect(APPROVAL_CONFIG).toHaveProperty("weights");
+      expect(BAND_META.strong.label).toMatch(/Strong/);
+    });
+  });
 });

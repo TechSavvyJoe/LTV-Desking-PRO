@@ -11,6 +11,7 @@ import {
 } from "../../lib/api";
 import Button from "../common/Button";
 import * as Icons from "../common/Icons";
+import { EmptyState } from "../common/states";
 import { confirmAction } from "../../lib/confirm";
 import { toast } from "../../lib/toast";
 import { ConsoleHeader, ConsoleTab } from "./panels/OwnerPanels";
@@ -29,14 +30,22 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
-  const [userFormData, setUserFormData] = useState({
+  const [userFormData, setUserFormData] = useState<{
+    email: string;
+    password: string;
+    passwordConfirm: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    role: User["role"];
+  }>({
     email: "",
     password: "",
     passwordConfirm: "",
     firstName: "",
     lastName: "",
     phone: "",
-    role: "sales" as User["role"],
+    role: "sales",
   });
 
   // Dealer form state
@@ -103,7 +112,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           lastName: userFormData.lastName,
           email: userFormData.email,
           phone: userFormData.phone,
-          role: userFormData.role,
+          role: userFormData.role as "admin" | "sales" | "manager",
         });
         toast.success("User updated successfully");
       } else {
@@ -115,13 +124,17 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           setUserError("Password must be at least 8 characters");
           return;
         }
-        await createDealerUser(userFormData);
+        await createDealerUser({
+          ...userFormData,
+          role: userFormData.role as "admin" | "sales" | "manager",
+        });
         toast.success("User created successfully");
       }
       resetUserForm();
       loadData();
-    } catch (err: any) {
-      setUserError(err?.message || "Failed to save user");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save user";
+      setUserError(message);
     }
   };
 
@@ -161,7 +174,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
 
   const handleRoleChange = async (userId: string, newRole: User["role"]) => {
     try {
-      await updateDealerUser(userId, { role: newRole });
+      await updateDealerUser(userId, { role: newRole as "admin" | "sales" | "manager" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update role");
       loadData(); // resync the role select after a rejected change
@@ -173,7 +186,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
   // Deactivation is the preferred offboarding path — it revokes access while
   // preserving the user's deal history and attribution. [G40]
   const handleToggleUserActive = async (u: User) => {
-    const isActive = (u as User & { active?: boolean }).active ?? true;
+    const isActive = u.active ?? true;
     try {
       await setUserActive(u.id, !isActive);
     } catch (err) {
@@ -230,7 +243,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
     >
       {/* 58px console header — owner-console idiom scoped to one dealership */}
       <ConsoleHeader
-        label="ADMIN CONSOLE"
+        label="Admin console"
         title={dealer ? `${dealer.name} (${dealer.code})` : "—"}
         sub={
           `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim() ||
@@ -351,7 +364,14 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     <select
                       value={userFormData.role}
                       onChange={(e) =>
-                        setUserFormData({ ...userFormData, role: e.target.value as User["role"] })
+                        setUserFormData({
+                          ...userFormData,
+                          role: (["sales", "manager", "admin"] as const).includes(
+                            e.target.value as Exclude<User["role"], "superadmin">
+                          )
+                            ? (e.target.value as Exclude<User["role"], "superadmin">)
+                            : "sales",
+                        })
                       }
                       className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     >
@@ -413,22 +433,37 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
             )}
 
             <div className="bg-[var(--color-bg)] rounded-xl border border-[var(--color-border)] overflow-hidden shadow-sm">
-              <table className="w-full text-left">
+              <table className="w-full text-left" aria-label="Team users list">
                 <thead className="bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
                   <tr>
-                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
+                    >
                       User
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
+                    >
                       Email
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center">
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                    >
                       Role
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center">
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                    >
                       Joined
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center">
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                    >
                       Actions
                     </th>
                   </tr>
@@ -436,7 +471,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                 <tbody className="divide-y divide-[var(--color-border)]">
                   {users.map((u) => {
                     const isSelf = u.id === currentUser?.id;
-                    const isActive = (u as User & { active?: boolean }).active ?? true;
+                    const isActive = u.active ?? true;
                     return (
                       <tr
                         key={u.id}
@@ -469,7 +504,15 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                         <td className="px-4 py-4 text-center">
                           <select
                             value={u.role}
-                            onChange={(e) => handleRoleChange(u.id, e.target.value as User["role"])}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const role = (["sales", "manager", "admin"] as const).includes(
+                                val as Exclude<User["role"], "superadmin">
+                              )
+                                ? (val as Exclude<User["role"], "superadmin">)
+                                : "sales";
+                              handleRoleChange(u.id, role);
+                            }}
                             disabled={isSelf}
                             className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer outline-none ${getRoleBadgeColor(
                               u.role
@@ -528,8 +571,12 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   })}
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center text-[var(--color-text-subtle)]">
-                        No team members found.
+                      <td colSpan={5}>
+                        <EmptyState
+                          icon={<Icons.UserIcon className="w-8 h-8" />}
+                          title="No team members yet"
+                          description="Invite users from the Owner Console or add team members to this dealership."
+                        />
                       </td>
                     </tr>
                   )}
@@ -542,9 +589,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         {activeTab === "dealership" && dealer && (
           <div className="space-y-6 animate-fadeIn max-w-3xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--color-text)]">
-                Dealership Information
-              </h2>
+              <h2 className="text-lg font-bold text-[var(--color-text)]">Dealership Information</h2>
               {!isEditingDealer && (
                 <Button
                   onClick={() => setIsEditingDealer(true)}
@@ -583,7 +628,9 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   <p className="text-[var(--color-text-muted)] font-mono bg-[var(--color-bg-subtle)] px-3 py-2 rounded-lg border border-[var(--color-border)] inline-block">
                     {dealer.code}
                   </p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Code cannot be changed.</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                    Code cannot be changed.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
@@ -599,9 +646,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-[var(--color-text)]">
-                      {dealer.email || "Not provided"}
-                    </p>
+                    <p className="text-[var(--color-text)]">{dealer.email || "Not provided"}</p>
                   )}
                 </div>
                 <div>
@@ -618,9 +663,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-[var(--color-text)]">
-                      {dealer.phone || "Not provided"}
-                    </p>
+                    <p className="text-[var(--color-text)]">{dealer.phone || "Not provided"}</p>
                   )}
                 </div>
                 <div className="md:col-span-2">
@@ -637,9 +680,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-[var(--color-text)]">
-                      {dealer.address || "Not provided"}
-                    </p>
+                    <p className="text-[var(--color-text)]">{dealer.address || "Not provided"}</p>
                   )}
                 </div>
                 <div>
@@ -656,9 +697,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
                     />
                   ) : (
-                    <p className="text-[var(--color-text)]">
-                      {dealer.city || "Not provided"}
-                    </p>
+                    <p className="text-[var(--color-text)]">{dealer.city || "Not provided"}</p>
                   )}
                 </div>
                 <div>
@@ -679,9 +718,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] uppercase"
                     />
                   ) : (
-                    <p className="text-[var(--color-text)] uppercase">
-                      {dealer.state || "--"}
-                    </p>
+                    <p className="text-[var(--color-text)] uppercase">{dealer.state || "--"}</p>
                   )}
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDealContext } from "../../context/DealContext";
 import { updateDeal, logDealEvent } from "../../lib/api";
@@ -78,10 +78,8 @@ const KpiCard: React.FC<{ label: string; value: number; color?: string }> = ({
       style={{
         fontSize: 12,
         fontWeight: 600,
-        letterSpacing: "0.06em",
         fontFamily: mono,
         color: "var(--color-text-muted)",
-        textTransform: "uppercase",
       }}
     >
       {label}
@@ -110,7 +108,7 @@ const KpiCard: React.FC<{ label: string; value: number; color?: string }> = ({
  * through updateDeal + a deal_status_changed event; "Open in desk" restores
  * the saved structure (legacy SavedDeals.onLoad semantics). [Phase 6]
  */
-export const PipelineScreen: React.FC = () => {
+const PipelineScreenBase: React.FC = () => {
   const {
     settings,
     savedDeals,
@@ -166,8 +164,7 @@ export const PipelineScreen: React.FC = () => {
       const calc = calculateFinancials(deal.vehicle, deal.dealData, settings);
       payment = payment ?? numVal(calc.monthlyPayment) ?? numVal(deal.vehicle.monthlyPayment);
       otdLtv = otdLtv ?? numVal(calc.otdLtv) ?? numVal(deal.vehicle.otdLtv);
-      financed =
-        financed ?? numVal(calc.amountToFinance) ?? numVal(deal.vehicle.amountToFinance);
+      financed = financed ?? numVal(calc.amountToFinance) ?? numVal(deal.vehicle.amountToFinance);
     }
     const approvalScore = persisted.approvalScore ?? deal.vehicle.approvalScore ?? null;
     return { payment, otdLtv, financed, approvalScore };
@@ -220,35 +217,49 @@ export const PipelineScreen: React.FC = () => {
       });
   };
 
-  const handleOpenInDesk = (deal: PipelineSavedDeal) => {
-    // Restore the saved structure — legacy SavedDeals.onLoad semantics.
-    setCustomerName(deal.customerName);
-    setSalespersonName(deal.salespersonName || "");
-    setDealData(deal.dealData);
-    setFilters((prev) => ({
-      ...prev,
-      creditScore: deal.customerFilters?.creditScore ?? null,
-      monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
-    }));
-    setScratchPadNotes(deal.notes || "");
+  const handleOpenInDesk = useCallback(
+    (deal: PipelineSavedDeal) => {
+      // Restore the saved structure — legacy SavedDeals.onLoad semantics.
+      setCustomerName(deal.customerName);
+      setSalespersonName(deal.salespersonName || "");
+      setDealData(deal.dealData);
+      setFilters((prev) => ({
+        ...prev,
+        creditScore: deal.customerFilters?.creditScore ?? null,
+        monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
+      }));
+      setScratchPadNotes(deal.notes || "");
 
-    // Focus the saved vehicle only if it still exists in live inventory.
-    const vin = deal.vehicle?.vin;
-    const live = vin ? processedInventory.find((v) => v.vin === vin) : undefined;
-    if (live) {
-      setFocusVin(live.vin);
-      setActiveVehicle(live);
-      setMessage({ type: "success", text: "Deal loaded successfully." });
-    } else {
-      setFocusVin(null);
-      setActiveVehicle(null);
-      setMessage({
-        type: "warning",
-        text: "Vehicle no longer in inventory; deal terms restored",
-      });
-    }
-    navigate("/desk");
-  };
+      // Focus the saved vehicle only if it still exists in live inventory.
+      const vin = deal.vehicle?.vin;
+      const live = vin ? processedInventory.find((v) => v.vin === vin) : undefined;
+      if (live) {
+        setFocusVin(live.vin);
+        setActiveVehicle(live);
+        setMessage({ type: "success", text: "Deal loaded successfully." });
+      } else {
+        setFocusVin(null);
+        setActiveVehicle(null);
+        setMessage({
+          type: "warning",
+          text: "Vehicle no longer in inventory; deal terms restored",
+        });
+      }
+      navigate("/desk");
+    },
+    [
+      setCustomerName,
+      setSalespersonName,
+      setDealData,
+      setFilters,
+      setScratchPadNotes,
+      setActiveVehicle,
+      setFocusVin,
+      processedInventory,
+      setMessage,
+      navigate,
+    ]
+  );
 
   return (
     <div data-screen-label="Pipeline">
@@ -280,7 +291,9 @@ export const PipelineScreen: React.FC = () => {
         </div>
         <button
           onClick={handleNewDeal}
-          className="lift-btn btn-primary"
+          className="transition-colors btn-primary"
+          aria-label="Start new deal"
+          title="Start a new deal on the desk"
           style={{
             border: "1px solid transparent",
             borderRadius: 8,
@@ -330,6 +343,8 @@ export const PipelineScreen: React.FC = () => {
 
         {/* Deal table */}
         <div
+          role="table"
+          aria-label="Deal pipeline"
           style={{
             background: "var(--color-bg)",
             border: "1px solid var(--color-border)",
@@ -339,6 +354,7 @@ export const PipelineScreen: React.FC = () => {
           }}
         >
           <div
+            role="row"
             style={{
               display: "grid",
               gridTemplateColumns: GRID,
@@ -349,13 +365,27 @@ export const PipelineScreen: React.FC = () => {
               borderBottom: "1px solid var(--color-border)",
             }}
           >
-            <span style={headerCell}>CUSTOMER</span>
-            <span style={headerCell}>VEHICLE</span>
-            <span style={{ ...headerCell, textAlign: "right" }}>TERM</span>
-            <span style={{ ...headerCell, textAlign: "right" }}>PAYMENT</span>
-            <span style={{ ...headerCell, textAlign: "right" }}>APPROVAL</span>
-            <span style={headerCell}>LENDER</span>
-            <span style={{ ...headerCell, textAlign: "right" }}>STATUS</span>
+            <span role="columnheader" style={headerCell}>
+              Customer
+            </span>
+            <span role="columnheader" style={headerCell}>
+              Vehicle
+            </span>
+            <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
+              Term
+            </span>
+            <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
+              Payment
+            </span>
+            <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
+              Approval
+            </span>
+            <span role="columnheader" style={headerCell}>
+              Lender
+            </span>
+            <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
+              Status
+            </span>
           </div>
 
           {deals.length === 0 && (
@@ -383,16 +413,10 @@ export const PipelineScreen: React.FC = () => {
                 <div
                   className="inv-row"
                   onClick={() => setExpandedId((cur) => (cur === deal.id ? null : deal.id))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setExpandedId((cur) => (cur === deal.id ? null : deal.id));
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
+                  role="row"
                   aria-expanded={expanded}
                   aria-label={`Deal for ${deal.customerName}`}
+                  aria-controls={`pipeline-panel-${deal.id}`}
                   style={{
                     display: "grid",
                     gridTemplateColumns: GRID,
@@ -403,17 +427,44 @@ export const PipelineScreen: React.FC = () => {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: "var(--color-text-subtle)",
-                        width: 8,
-                        flexShrink: 0,
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedId((cur) => (cur === deal.id ? null : deal.id));
                       }}
-                      aria-hidden="true"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setExpandedId((cur) => (cur === deal.id ? null : deal.id));
+                        }
+                      }}
+                      aria-expanded={expanded}
+                      aria-controls={`pipeline-panel-${deal.id}`}
+                      aria-label={`${expanded ? "Collapse" : "Expand"} deal for ${deal.customerName}`}
+                      tabIndex={0}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        padding: 0,
+                        margin: 0,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
                     >
-                      {expanded ? "▾" : "▸"}
-                    </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "var(--color-text-subtle)",
+                          width: 8,
+                          flexShrink: 0,
+                        }}
+                        aria-hidden="true"
+                      >
+                        {expanded ? "▾" : "▸"}
+                      </span>
+                    </button>
                     <div
                       style={{
                         width: 30,
@@ -527,7 +578,10 @@ export const PipelineScreen: React.FC = () => {
 
                 {/* Drawer — mockup lines 582-598 */}
                 {expanded && (
-                  <div style={{ padding: "4px 20px 18px 37px", background: "var(--color-bg-subtle)" }}>
+                  <div
+                    id={`pipeline-panel-${deal.id}`}
+                    style={{ padding: "4px 20px 18px 37px", background: "var(--color-bg-subtle)" }}
+                  >
                     <div
                       style={{
                         display: "grid",
@@ -538,7 +592,7 @@ export const PipelineScreen: React.FC = () => {
                       }}
                     >
                       <div>
-                        <div style={metricLabel}>DOWN</div>
+                        <div style={metricLabel}>Down</div>
                         <div style={metricValue}>{fmt(deal.dealData.downPayment || 0)}</div>
                       </div>
                       <div>
@@ -546,7 +600,7 @@ export const PipelineScreen: React.FC = () => {
                         <div style={metricValue}>{deal.dealData.interestRate}%</div>
                       </div>
                       <div>
-                        <div style={metricLabel}>FINANCED</div>
+                        <div style={metricLabel}>Financed</div>
                         <div style={metricValue}>
                           {metrics.financed === null ? "—" : fmt(metrics.financed)}
                         </div>
@@ -558,7 +612,7 @@ export const PipelineScreen: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <div style={metricLabel}>SAVED</div>
+                        <div style={metricLabel}>Saved</div>
                         <div style={metricValue}>{savedFmt}</div>
                       </div>
                     </div>
@@ -596,7 +650,7 @@ export const PipelineScreen: React.FC = () => {
                       </select>
                       <button
                         onClick={() => handleOpenInDesk(deal)}
-                        className="lift-btn btn-primary"
+                        className="transition-colors btn-primary"
                         style={{
                           marginLeft: "auto",
                           border: "1px solid transparent",
@@ -622,4 +676,6 @@ export const PipelineScreen: React.FC = () => {
   );
 };
 
+const PipelineScreen: React.FC = React.memo(PipelineScreenBase);
+PipelineScreen.displayName = "PipelineScreen";
 export default PipelineScreen;

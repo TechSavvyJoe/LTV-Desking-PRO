@@ -11,6 +11,7 @@ import {
   getCurrentUser,
   asRecord,
   asRecordArray,
+  withPbRetry,
 } from "./pocketbase";
 import type { RecordModel } from "pocketbase";
 import { sanitizeId } from "./typeGuards";
@@ -24,7 +25,11 @@ const apiLogger = createLogger("api");
 // reviewed helper in lib/pocketbase.ts. asType expects a non-null record;
 // asTypeArray expects an array. Either way the cast is funneled through
 // one location.
-const asType = <T>(record: RecordModel): T => asRecord<T>(record) as T;
+const asType = <T>(record: RecordModel): T => {
+  const typed = asRecord<T>(record);
+  if (typed === null) throw new Error("Unexpected null record from PocketBase");
+  return typed;
+};
 const asTypeArray = <T>(records: RecordModel[]): T[] => asRecordArray<T>(records);
 
 // ============================================
@@ -37,6 +42,9 @@ const asTypeArray = <T>(records: RecordModel[]): T[] => asRecordArray<T>(records
  * loadData so its error/retry UI is actually reachable (previously the catch
  * that sets dataError was dead code, and a network failure rendered as
  * "Inventory is empty"). [C10]
+ *
+ * RQ: These are now used as queryFn inside DealContext's fetchQuery calls
+ * (loadData). They remain the canonical fetch impls.
  */
 interface FetchOpts {
   throwOnError?: boolean;
@@ -47,13 +55,17 @@ export const getInventory = async (opts?: FetchOpts): Promise<InventoryItem[]> =
   if (!dealerId) return [];
 
   try {
-    const records = await collections.inventory.getFullList({
-      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
-      sort: "-created",
-    });
+    const records = await withPbRetry(
+      () =>
+        collections.inventory.getFullList({
+          filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
+          sort: "-created",
+        }),
+      { label: "getInventory" }
+    );
     return asTypeArray<InventoryItem>(records);
   } catch (error) {
-    console.error("Failed to fetch inventory:", error);
+    apiLogger.error("Failed to fetch inventory", error);
     if (opts?.throwOnError) throw error;
     return [];
   }
@@ -72,7 +84,7 @@ export const addInventoryItem = async (
     });
     return asType<InventoryItem>(record);
   } catch (error) {
-    console.error("Failed to add inventory item:", error);
+    apiLogger.error("Failed to add inventory item", error);
     return null;
   }
 };
@@ -85,7 +97,7 @@ export const updateInventoryItem = async (
     const record = await collections.inventory.update(id, data);
     return asType<InventoryItem>(record);
   } catch (error) {
-    console.error("Failed to update inventory item:", error);
+    apiLogger.error("Failed to update inventory item", error);
     return null;
   }
 };
@@ -95,7 +107,7 @@ export const deleteInventoryItem = async (id: string): Promise<boolean> => {
     await collections.inventory.delete(id);
     return true;
   } catch (error) {
-    console.error("Failed to delete inventory item:", error);
+    apiLogger.error("Failed to delete inventory item", error);
     return false;
   }
 };
@@ -129,9 +141,13 @@ export const syncInventory = async (
 
   try {
     // Get existing inventory for this dealer
-    const existingRecords = await collections.inventory.getFullList({
-      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
-    });
+    const existingRecords = await withPbRetry(
+      () =>
+        collections.inventory.getFullList({
+          filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
+        }),
+      { label: "syncInventory existing inventory" }
+    );
 
     const existingByVin = new Map<string, InventoryItem>();
     for (const record of existingRecords) {
@@ -225,7 +241,7 @@ export const syncInventory = async (
     };
   } catch (error) {
     // Re-throw so the caller surfaces an error toast instead of a false success.
-    console.error("Failed to sync inventory:", error);
+    apiLogger.error("Failed to sync inventory", error);
     throw error instanceof Error ? error : new Error("Failed to sync inventory.");
   }
 };
@@ -236,32 +252,28 @@ export const syncInventory = async (
 
 export const getLenderProfiles = async (opts?: FetchOpts): Promise<LenderProfile[]> => {
   const dealerId = getCurrentDealerId();
-  if (import.meta.env.DEV) {
-    console.log("[API] getLenderProfiles - dealerId:", dealerId);
-  }
+  apiLogger.debug("getLenderProfiles", { dealerId });
   if (!dealerId) {
-    if (import.meta.env.DEV) {
-      console.warn("[API] No dealer ID - cannot load lender profiles");
-    }
+    apiLogger.debug("getLenderProfiles: no dealer ID");
     return [];
   }
 
   try {
-    const records = await collections.lenderProfiles.getFullList({
-      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
-      sort: "name",
-    });
-    if (import.meta.env.DEV) {
-      console.log(
-        "[API] getLenderProfiles - loaded",
-        records.length,
-        "lenders for dealer",
-        dealerId
-      );
-    }
+    const records = await withPbRetry(
+      () =>
+        collections.lenderProfiles.getFullList({
+          filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
+          sort: "name",
+        }),
+      { label: "getLenderProfiles" }
+    );
+    apiLogger.debug("getLenderProfiles loaded", { count: records.length, dealerId });
     return asTypeArray<LenderProfile>(records);
   } catch (error) {
-    console.error("Failed to fetch lender profiles:", error);
+    apiLogger.error(
+      "Failed to fetch lender profiles",
+      error instanceof Error ? error : new Error(String(error))
+    );
     if (opts?.throwOnError) throw error;
     return [];
   }
@@ -271,13 +283,9 @@ export const saveLenderProfile = async (
   profile: Omit<LenderProfile, "id" | "dealer" | "created" | "updated">
 ): Promise<LenderProfile | null> => {
   const dealerId = getCurrentDealerId();
-  if (import.meta.env.DEV) {
-    console.log("[API] saveLenderProfile - dealerId:", dealerId, "lender:", profile.name);
-  }
+  apiLogger.debug("saveLenderProfile", { dealerId, lender: profile.name });
   if (!dealerId) {
-    if (import.meta.env.DEV) {
-      console.warn("[API] No dealer ID - cannot save lender profile");
-    }
+    apiLogger.debug("saveLenderProfile: no dealer ID");
     return null;
   }
 
@@ -287,31 +295,35 @@ export const saveLenderProfile = async (
     // case-insensitive name equality. The old substring semantics meant saving
     // "Chase" overwrote "Chase Auto Finance" and deleted other near-matches as
     // "duplicates" — wrong lender terms presented confidently. [C11]
-    const candidateRecords = await collections.lenderProfiles.getFullList({
-      filter: pb.filter("dealer = {:dealer} && name ~ {:name}", {
-        dealer: sanitizeId(dealerId),
-        name: profile.name,
-      }),
-      sort: "-updated", // Most recently updated first
-    });
+    const candidateRecords = await withPbRetry(
+      () =>
+        collections.lenderProfiles.getFullList({
+          filter: pb.filter("dealer = {:dealer} && name ~ {:name}", {
+            dealer: sanitizeId(dealerId),
+            name: profile.name,
+          }),
+          sort: "-updated", // Most recently updated first
+        }),
+      { label: "saveLenderProfile duplicate lookup" }
+    );
     const targetName = profile.name.trim().toLowerCase();
-    const existingRecords = candidateRecords.filter(
-      (r) =>
-        String((r as { name?: unknown }).name ?? "")
+    const existingRecords = candidateRecords.filter((r) => {
+      const rec = asRecord<{ name?: string }>(r);
+      return (
+        String(rec?.name ?? "")
           .trim()
           .toLowerCase() === targetName
-    );
+      );
+    });
 
-    if (import.meta.env.DEV) {
-      console.log("[API] Found", existingRecords.length, "existing records for", profile.name);
-    }
+    apiLogger.debug("lender profile lookup", { count: existingRecords.length, name: profile.name });
 
     if (existingRecords.length > 0) {
       // Update the most recent record
       const primaryId = existingRecords[0]?.id;
       if (primaryId) {
         if (import.meta.env.DEV) {
-          console.log(`[API] Updating lender profile: ${profile.name} (id: ${primaryId})`);
+          apiLogger.debug("updating lender profile", { name: profile.name, id: primaryId });
         }
         const record = await collections.lenderProfiles.update(primaryId, {
           ...profile,
@@ -325,12 +337,12 @@ export const saveLenderProfile = async (
           .filter(Boolean);
         if (duplicateIds.length > 0) {
           if (import.meta.env.DEV) {
-            console.log(`[API] Deleting ${duplicateIds.length} duplicate lender records`);
+            apiLogger.debug("deleting duplicate lender records", { count: duplicateIds.length });
           }
           await Promise.allSettled(
             duplicateIds.map((dupId) =>
               collections.lenderProfiles.delete(dupId).catch((delErr) => {
-                console.warn("[API] Failed to delete duplicate:", dupId, delErr);
+                apiLogger.warn("failed to delete duplicate lender", { dupId, error: delErr });
               })
             )
           );
@@ -342,7 +354,7 @@ export const saveLenderProfile = async (
 
     // Create new lender profile
     if (import.meta.env.DEV) {
-      console.log(`[API] Creating new lender profile: ${profile.name}`);
+      apiLogger.debug("creating new lender profile", { name: profile.name });
     }
     const record = await collections.lenderProfiles.create({
       ...profile,
@@ -350,7 +362,7 @@ export const saveLenderProfile = async (
     });
     return asType<LenderProfile>(record);
   } catch (error) {
-    console.error("Failed to save lender profile:", error);
+    apiLogger.error("Failed to save lender profile", error);
     return null;
   }
 };
@@ -363,7 +375,7 @@ export const updateLenderProfile = async (
     const record = await collections.lenderProfiles.update(id, data);
     return asType<LenderProfile>(record);
   } catch (error) {
-    console.error("Failed to update lender profile:", error);
+    apiLogger.error("Failed to update lender profile", error);
     return null;
   }
 };
@@ -373,7 +385,7 @@ export const deleteLenderProfile = async (id: string): Promise<boolean> => {
     await collections.lenderProfiles.delete(id);
     return true;
   } catch (error) {
-    console.error("Failed to delete lender profile:", error);
+    apiLogger.error("Failed to delete lender profile", error);
     return false;
   }
 };
@@ -386,20 +398,22 @@ export const deleteLenderProfile = async (id: string): Promise<boolean> => {
 export const cleanupDuplicateLenders = async (): Promise<number> => {
   const dealerId = getCurrentDealerId();
   if (!dealerId) {
-    console.warn("[API] No dealer ID - cannot cleanup lenders");
+    apiLogger.debug("cleanupDuplicateLenders: no dealer ID");
     return 0;
   }
 
   try {
     // Get all lender profiles for this dealer, sorted by name and then by updated date
-    const allRecords = await collections.lenderProfiles.getFullList({
-      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
-      sort: "name,-updated", // Group by name, newest first within each group
-    });
+    const allRecords = await withPbRetry(
+      () =>
+        collections.lenderProfiles.getFullList({
+          filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
+          sort: "name,-updated", // Group by name, newest first within each group
+        }),
+      { label: "cleanupDuplicateLenders list" }
+    );
 
-    if (import.meta.env.DEV) {
-      console.log("[API] cleanupDuplicateLenders - found", allRecords.length, "total records");
-    }
+    apiLogger.debug("cleanupDuplicateLenders found", { count: allRecords.length });
 
     // Group by normalized lender name (lowercase, trimmed)
     const lenderMap = new Map<string, typeof allRecords>();
@@ -418,7 +432,7 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
     for (const [name, records] of lenderMap.entries()) {
       if (records.length > 1) {
         if (import.meta.env.DEV) {
-          console.log(`[API] Found ${records.length} duplicates for "${name}" - keeping newest`);
+          apiLogger.debug("found duplicates for lender", { count: records.length, name });
         }
         // Skip the first (most recent), collect the rest for deletion
         const duplicateIds = records
@@ -432,12 +446,12 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
     // Delete all duplicates in parallel
     if (allDuplicateIds.length > 0) {
       if (import.meta.env.DEV) {
-        console.log(`[API] Deleting ${allDuplicateIds.length} total duplicates in parallel`);
+        apiLogger.debug("deleting duplicates in parallel", { count: allDuplicateIds.length });
       }
       const deleteResults = await Promise.allSettled(
         allDuplicateIds.map((dupId) =>
           collections.lenderProfiles.delete(dupId).catch((err) => {
-            console.warn("[API] Failed to delete duplicate:", dupId, err);
+            apiLogger.warn("failed to delete duplicate", { dupId, error: err });
             throw err; // Re-throw to track failures
           })
         )
@@ -445,19 +459,16 @@ export const cleanupDuplicateLenders = async (): Promise<number> => {
 
       // Count successful deletions
       deletedCount = deleteResults.filter((result) => result.status === "fulfilled").length;
-      if (import.meta.env.DEV) {
-        console.log(
-          `[API] Successfully deleted ${deletedCount} of ${allDuplicateIds.length} duplicates`
-        );
-      }
+      apiLogger.debug("successfully deleted duplicates", {
+        deletedCount,
+        total: allDuplicateIds.length,
+      });
     }
 
-    if (import.meta.env.DEV) {
-      console.log("[API] cleanupDuplicateLenders - removed", deletedCount, "duplicates");
-    }
+    apiLogger.debug("cleanupDuplicateLenders removed", { count: deletedCount });
     return deletedCount;
   } catch (error) {
-    console.error("Failed to cleanup duplicate lenders:", error);
+    apiLogger.error("Failed to cleanup duplicate lenders", error);
     return 0;
   }
 };
@@ -471,14 +482,18 @@ export const getSavedDeals = async (opts?: FetchOpts): Promise<SavedDeal[]> => {
   if (!dealerId) return [];
 
   try {
-    const records = await collections.savedDeals.getFullList({
-      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
-      sort: "-created",
-      expand: "user,vehicle",
-    });
+    const records = await withPbRetry(
+      () =>
+        collections.savedDeals.getFullList({
+          filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
+          sort: "-created",
+          expand: "user,vehicle",
+        }),
+      { label: "getSavedDeals" }
+    );
     return asTypeArray<SavedDeal>(records);
   } catch (error) {
-    console.error("Failed to fetch saved deals:", error);
+    apiLogger.error("Failed to fetch saved deals", error);
     if (opts?.throwOnError) throw error;
     return [];
   }
@@ -499,7 +514,7 @@ export const saveDeal = async (
     });
     return asType<SavedDeal>(record);
   } catch (error) {
-    console.error("Failed to save deal:", error);
+    apiLogger.error("Failed to save deal", error);
     return null;
   }
 };
@@ -512,7 +527,7 @@ export const updateDeal = async (
     const record = await collections.savedDeals.update(id, data);
     return asType<SavedDeal>(record);
   } catch (error) {
-    console.error("Failed to update deal:", error);
+    apiLogger.error("Failed to update deal", error);
     return null;
   }
 };
@@ -522,7 +537,7 @@ export const deleteDeal = async (id: string): Promise<boolean> => {
     await collections.savedDeals.delete(id);
     return true;
   } catch (error) {
-    console.error("Failed to delete deal:", error);
+    apiLogger.error("Failed to delete deal", error);
     return false;
   }
 };
@@ -580,10 +595,10 @@ export const logDealEvent = (
         snapshot: input.snapshot ?? {},
       })
       .catch((error) =>
-        console.warn("deal_events write failed (action still completed):", error)
+        apiLogger.warn("deal_events write failed (action still completed)", { error })
       );
   } catch (error) {
-    console.warn("deal_events write failed (action still completed):", error);
+    apiLogger.warn("deal_events write failed (action still completed)", { error });
   }
 };
 
@@ -596,12 +611,16 @@ export const getDealerSettings = async (opts?: FetchOpts): Promise<DealerSetting
   if (!dealerId) return null;
 
   try {
-    const records = await collections.dealerSettings.getList(1, 1, {
-      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
-    });
+    const records = await withPbRetry(
+      () =>
+        collections.dealerSettings.getList(1, 1, {
+          filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
+        }),
+      { label: "getDealerSettings" }
+    );
     return records.items[0] ? asType<DealerSettings>(records.items[0]) : null;
   } catch (error) {
-    console.error("Failed to fetch dealer settings:", error);
+    apiLogger.error("Failed to fetch dealer settings", error);
     if (opts?.throwOnError) throw error;
     return null;
   }
@@ -627,7 +646,7 @@ export const updateDealerSettings = async (
       return asType<DealerSettings>(record);
     }
   } catch (error) {
-    console.error("Failed to update dealer settings:", error);
+    apiLogger.error("Failed to update dealer settings", error);
     return null;
   }
 };
@@ -648,6 +667,12 @@ const SUBSCRIPTION_REFETCH_DEBOUNCE_MS = 300;
  * promise is awaited/caught so a failed connection can't become an unhandled
  * rejection. No initial fetch here — DealContext.loadData performs it, so we
  * don't double-fetch on mount. [frontend-state]
+ *
+ * RACE NOTE: The debounced refetch here + loadData's seq guard + direct set*
+ * callbacks create potential races with optimistic updates in context/hooks.
+ * See DealContext load/sub effect + handleInventoryUpdate. Progress: loadData
+ * now drives via fetchQuery; optimistic success uses server result.
+ * Future: subs can invalidateQueries + rely on useQuery data.
  */
 export const subscribeToInventory = (callback: (data: InventoryItem[]) => void): (() => void) => {
   const dealerId = getCurrentDealerId();
@@ -664,7 +689,7 @@ export const subscribeToInventory = (callback: (data: InventoryItem[]) => void):
         .then((data) => {
           if (!cancelled) callback(data);
         })
-        .catch((err) => console.error("Inventory refetch after realtime event failed:", err));
+        .catch((err) => apiLogger.error("Inventory refetch after realtime event failed", err));
     }, SUBSCRIPTION_REFETCH_DEBOUNCE_MS);
   };
 
@@ -674,7 +699,7 @@ export const subscribeToInventory = (callback: (data: InventoryItem[]) => void):
       if (cancelled) fn();
       else unsubscribe = fn;
     })
-    .catch((err) => console.error("Failed to subscribe to inventory updates:", err));
+    .catch((err) => apiLogger.error("Failed to subscribe to inventory updates", err));
 
   return () => {
     cancelled = true;
@@ -698,7 +723,7 @@ export const subscribeToSavedDeals = (callback: (data: SavedDeal[]) => void): ((
         .then((data) => {
           if (!cancelled) callback(data);
         })
-        .catch((err) => console.error("Saved-deals refetch after realtime event failed:", err));
+        .catch((err) => apiLogger.error("Saved-deals refetch after realtime event failed", err));
     }, SUBSCRIPTION_REFETCH_DEBOUNCE_MS);
   };
 
@@ -708,7 +733,7 @@ export const subscribeToSavedDeals = (callback: (data: SavedDeal[]) => void): ((
       if (cancelled) fn();
       else unsubscribe = fn;
     })
-    .catch((err) => console.error("Failed to subscribe to saved-deals updates:", err));
+    .catch((err) => apiLogger.error("Failed to subscribe to saved-deals updates", err));
 
   return () => {
     cancelled = true;
@@ -739,7 +764,7 @@ export const subscribeToLenderProfiles = (
         .then((data) => {
           if (!cancelled) callback(data);
         })
-        .catch((err) => console.error("Lender refetch after realtime event failed:", err));
+        .catch((err) => apiLogger.error("Lender refetch after realtime event failed", err));
     }, SUBSCRIPTION_REFETCH_DEBOUNCE_MS);
   };
 
@@ -749,7 +774,7 @@ export const subscribeToLenderProfiles = (
       if (cancelled) fn();
       else unsubscribe = fn;
     })
-    .catch((err) => console.error("Failed to subscribe to lender updates:", err));
+    .catch((err) => apiLogger.error("Failed to subscribe to lender updates", err));
 
   return () => {
     cancelled = true;
@@ -819,10 +844,14 @@ export const getSystemSettings = async (): Promise<SystemSettings> => {
     }
     return settings;
   } catch (error) {
-    console.warn("Failed to fetch system settings, using cache/defaults:", error);
+    apiLogger.warn("Failed to fetch system settings, using cache/defaults", { error });
     try {
       const cached = localStorage.getItem(SYSTEM_SETTINGS_CACHE_KEY);
-      if (cached) return JSON.parse(cached) as SystemSettings;
+      if (cached) {
+        const p: unknown = JSON.parse(cached);
+        const base: SystemSettings = { signupsEnabled: true };
+        return p && typeof p === "object" ? { ...base, ...(p as Partial<SystemSettings>) } : base;
+      }
     } catch {
       // Ignore parse errors
     }
@@ -833,7 +862,9 @@ export const getSystemSettings = async (): Promise<SystemSettings> => {
 export const getCachedSystemSettings = (): SystemSettings | null => {
   try {
     const cached = localStorage.getItem(SYSTEM_SETTINGS_CACHE_KEY);
-    return cached ? (JSON.parse(cached) as SystemSettings) : null;
+    if (!cached) return null;
+    const p: unknown = JSON.parse(cached);
+    return p && typeof p === "object" ? (p as Partial<SystemSettings>) : null;
   } catch {
     return null;
   }
@@ -900,7 +931,7 @@ export const listAuditLog = async (limit = 25): Promise<AuditLogEntry[]> => {
     sort: "-created",
     expand: "actor",
   });
-  return list.items as unknown as AuditLogEntry[];
+  return asTypeArray<AuditLogEntry>(list.items);
 };
 
 // ============================================
@@ -924,13 +955,13 @@ export const getMaskedAiProviderKeys = async (): Promise<MaskedAiProviderKeys> =
       lastTested: {},
     };
   }
-  const raw = first as unknown as {
+  const raw = asType<{
     id: string;
     openaiApiKey?: string;
     anthropicApiKey?: string;
     geminiApiKey?: string;
     lastTested?: Partial<Record<AiProviderId, AiProviderKeyTest>>;
-  };
+  }>(first);
   return {
     id: raw.id,
     openaiApiKey: maskKey(raw.openaiApiKey),
@@ -1015,11 +1046,12 @@ export const testAiProviderKey = async (provider: AiProviderId): Promise<AiProvi
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${pb.authStore.token}` },
     body: JSON.stringify({ provider }),
   });
-  const body = (await response.json().catch(() => ({}))) as {
-    ok?: boolean;
-    error?: string;
-    at?: string;
-  };
+  let body: { ok?: boolean; error?: string; at?: string } = {};
+  try {
+    body = await response.json();
+  } catch {
+    body = {};
+  }
   const result: AiProviderKeyTest = {
     at: body.at ?? new Date().toISOString(),
     ok: Boolean(body.ok),
@@ -1077,7 +1109,7 @@ export const getSystemStats = async (): Promise<SystemStats> => {
       totalInventory: inventory.totalItems,
     };
   } catch (error) {
-    console.error("Failed to fetch system stats:", error);
+    apiLogger.error("Failed to fetch system stats", error);
     return {
       totalDealers: 0,
       activeDealers: 0,
@@ -1102,7 +1134,7 @@ export const getAllDealers = async (): Promise<Dealer[]> => {
     });
     return asTypeArray<Dealer>(records);
   } catch (error) {
-    console.error("Failed to fetch dealers:", error);
+    apiLogger.error("Failed to fetch dealers", error);
     return [];
   }
 };
@@ -1117,7 +1149,7 @@ export const createDealer = async (
     const record = await collections.dealers.create(data);
     return asType<Dealer>(record);
   } catch (error) {
-    console.error("Failed to create dealer:", error);
+    apiLogger.error("Failed to create dealer", error);
     return null;
   }
 };
@@ -1166,7 +1198,7 @@ export const createDealerWithAdmin = async (input: {
     try {
       await collections.dealers.delete(newDealer.id);
     } catch (rollbackError) {
-      console.error("Failed to roll back dealer after user creation failure:", rollbackError);
+      apiLogger.error("Failed to roll back dealer after user creation failure", rollbackError);
     }
     throw error;
   }
@@ -1226,7 +1258,7 @@ export const createUser = async (data: {
 }): Promise<User | null> => {
   const user = getCurrentUser();
   if (user?.role !== "superadmin") {
-    console.error("[createUser] Access denied - not superadmin");
+    apiLogger.error("[createUser] Access denied - not superadmin");
     return null;
   }
 
@@ -1237,7 +1269,7 @@ export const createUser = async (data: {
 
   try {
     if (import.meta.env.DEV) {
-      console.log("[createUser] Creating user with data:", {
+      apiLogger.debug("[createUser] Creating user with data", {
         ...data,
         password: "[REDACTED]",
       });
@@ -1246,12 +1278,15 @@ export const createUser = async (data: {
     // Force it on so the email appears in user-list fetches by other admins.
     const record = await pb.collection("users").create({ ...data, emailVisibility: true });
     if (import.meta.env.DEV) {
-      console.log("[createUser] Successfully created user:", record.id);
+      apiLogger.debug("Successfully created user", { id: record.id });
     }
     return asType<User>(record);
-  } catch (error: any) {
-    console.error("[createUser] Failed to create user:", error);
-    console.error("[createUser] Error details:", error?.data);
+  } catch (error: unknown) {
+    apiLogger.error("[createUser] Failed to create user", error);
+    const errRec = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+    apiLogger.error("[createUser] Error details", undefined, {
+      data: errRec.data ?? (error instanceof Error ? error.message : String(error)),
+    });
     throw error; // Re-throw to show error to user
   }
 };
@@ -1259,12 +1294,12 @@ export const createUser = async (data: {
 export const getAllUsers = async (): Promise<User[]> => {
   const user = getCurrentUser();
   if (import.meta.env.DEV) {
-    console.log("[getAllUsers] Current user:", user?.email, "role:", user?.role);
+    apiLogger.debug("getAllUsers current user", { email: user?.email, role: user?.role });
   }
 
   if (user?.role !== "superadmin") {
     if (import.meta.env.DEV) {
-      console.warn("[getAllUsers] Access denied - not superadmin");
+      apiLogger.debug("getAllUsers access denied (not superadmin)");
     }
     return [];
   }
@@ -1275,14 +1310,16 @@ export const getAllUsers = async (): Promise<User[]> => {
       expand: "dealer",
     });
     if (import.meta.env.DEV) {
-      console.log("[getAllUsers] Fetched", records.length, "users");
+      apiLogger.debug("getAllUsers fetched", { count: records.length });
     }
     return asTypeArray<User>(records);
-  } catch (error: any) {
-    console.error("[getAllUsers] Failed to fetch users:", error?.message || error);
+  } catch (error: unknown) {
+    const errRec = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+    apiLogger.error("[getAllUsers] Failed to fetch users", error);
 
-    if (import.meta.env.DEV && (error?.status === 403 || error?.status === 401)) {
-      console.error(
+    const status = (errRec as { status?: number }).status;
+    if (import.meta.env.DEV && (status === 403 || status === 401)) {
+      apiLogger.error(
         "[getAllUsers] Permission error - check PocketBase API Rules for 'users' collection"
       );
     }
@@ -1352,7 +1389,7 @@ export const getDealerUsers = async (): Promise<User[]> => {
     });
     return asTypeArray<User>(records);
   } catch (error) {
-    console.error("Failed to fetch dealer users:", error);
+    apiLogger.error("Failed to fetch dealer users", error);
     return [];
   }
 };
@@ -1385,7 +1422,7 @@ export const createDealerUser = async (data: {
     });
     return asType<User>(record);
   } catch (error) {
-    console.error("Failed to create dealer user:", error);
+    apiLogger.error("Failed to create dealer user", error);
     throw error;
   }
 };
@@ -1433,7 +1470,7 @@ export const getCurrentDealerDetails = async (): Promise<Dealer | null> => {
     const record = await collections.dealers.getOne(sanitizeId(dealerId));
     return asType<Dealer>(record);
   } catch (error) {
-    console.error("Failed to fetch current dealer details:", error);
+    apiLogger.error("Failed to fetch current dealer details", error);
     return null;
   }
 };

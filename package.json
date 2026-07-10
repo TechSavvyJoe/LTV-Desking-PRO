@@ -8,6 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
+    "test:coverage": "vitest --run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "audit": "npm audit --audit-level=moderate",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -50,12 +55,14 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.61.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.7.0",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/coverage-v8": "^4.1.6",
     "baseline-browser-mapping": "^2.10.29",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
@@ -67,9 +74,10 @@
     "lint-staged": "^17.0.5",
     "playwright": "^1.60.0",
     "prettier": "^3.8.3",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.3",
-    "vite": "^7.3.3",
+    "vite": "^7.3.6",
     "vitest": "^4.1.6"
   }
 }

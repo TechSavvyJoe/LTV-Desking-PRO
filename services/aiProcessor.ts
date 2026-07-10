@@ -1,6 +1,9 @@
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Vehicle } from "../types";
 import { DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings } from "../lib/aiModelRegistry";
 import { pb } from "../lib/pocketbase";
+import { createLogger } from "../lib/logger";
+
+const aiLogger = createLogger("aiProcessor");
 
 const ENRICHABLE_FIELDS = [
   "contactName",
@@ -63,6 +66,11 @@ type AiRouteResponse<T> =
 
 const API_TIMEOUT_MS = 120_000;
 
+// Client-side cap to match server limits (server: 4MB base64 ≈ 3MB PDF).
+// Prevents wasting time/base64 memory and gives immediate feedback.
+// See api/_lib/ai/routes.ts MAX_BASE64_LENGTH and DEPLOYMENT.md.
+const MAX_AI_PDF_BYTES = 3 * 1024 * 1024;
+
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -80,8 +88,15 @@ const getStoredAiSettings = (): AiSettings => {
   try {
     const stored = window.localStorage.getItem("ltvSettings_v2");
     if (!stored) return DEFAULT_AI_SETTINGS;
-    const parsed = JSON.parse(stored) as { ai?: Partial<AiSettings> };
-    return normalizeAiSettings(parsed.ai);
+    const raw: unknown = JSON.parse(stored);
+    let parsedAi: Partial<AiSettings> | undefined;
+    if (raw && typeof raw === "object" && raw !== null) {
+      const r = raw as Record<string, unknown>;
+      if (r.ai && typeof r.ai === "object" && r.ai !== null) {
+        parsedAi = r.ai as Partial<AiSettings>;
+      }
+    }
+    return normalizeAiSettings(parsedAi);
   } catch {
     return DEFAULT_AI_SETTINGS;
   }
@@ -106,12 +121,23 @@ const postAiRoute = async <T>(
       signal: controller.signal,
     });
 
-    const body = (await response.json().catch(() => null)) as AiRouteResponse<T> | null;
+    let body: AiRouteResponse<T> | null = null;
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
 
     if (!response.ok) {
+      const serverMsg = body && !body.ok ? body.error : null;
+      const friendly =
+        serverMsg ||
+        (response.status >= 500
+          ? "AI request failed. Please try again or contact support if the problem persists."
+          : `Request failed (${response.status}). Please try again.`);
       return {
         ok: false,
-        error: body && !body.ok ? body.error : `AI request failed with HTTP ${response.status}.`,
+        error: friendly,
         meta: body?.meta,
       };
     }
@@ -124,21 +150,25 @@ const postAiRoute = async <T>(
   } catch (error) {
     const message =
       error instanceof DOMException && error.name === "AbortError"
-        ? "AI request timed out. Try a faster model or a smaller file."
-        : error instanceof Error
-          ? error.message
-          : "AI request failed.";
+        ? "AI request timed out. Try a faster model or a smaller file, or check your connection."
+        : error instanceof Error && /network|fetch|ECONN/i.test(error.message)
+          ? "Network error reaching AI service. Check your connection and try again."
+          : error instanceof Error
+            ? error.message
+            : "AI request failed. Please try again or contact support.";
     return { ok: false, error: message };
   } finally {
     window.clearTimeout(timeout);
   }
 };
 
-const findMissingEnrichableFields = (lender: Partial<LenderProfile>): EnrichableField[] =>
-  ENRICHABLE_FIELDS.filter((field) => {
-    const value = (lender as Record<string, unknown>)[field];
+const findMissingEnrichableFields = (lender: Partial<LenderProfile>): EnrichableField[] => {
+  const lenderObj: Record<string, unknown> = { ...lender };
+  return ENRICHABLE_FIELDS.filter((field) => {
+    const value = lenderObj[field];
     return value === undefined || value === null || value === "";
   });
+};
 
 export const enrichLenderProfile = async (
   lenderName: string,
@@ -152,7 +182,7 @@ export const enrichLenderProfile = async (
   });
 
   if (!response.ok) {
-    console.warn("[enrichLenderProfile] Enrichment failed:", response.error);
+    aiLogger.warn("Enrichment failed", { error: response.error });
     return null;
   }
 
@@ -163,20 +193,21 @@ const applyEnrichment = (
   lender: Partial<LenderProfile>,
   enrichment: LenderEnrichmentResult
 ): Partial<LenderProfile> => {
-  const merged: Partial<LenderProfile> = { ...lender };
+  const result: Partial<LenderProfile> = { ...lender };
   for (const field of ENRICHABLE_FIELDS) {
-    const current = (merged as Record<string, unknown>)[field];
+    const current = result[field];
     if (current !== undefined && current !== "" && current !== null) continue;
 
     const incoming = enrichment.enrichment[field];
     if (typeof incoming === "string" && incoming.trim()) {
-      (merged as Record<string, unknown>)[field] = incoming.trim();
+      // Safe mutation of partial via unknown-cast boundary for enrichment from AI wire shape.
+      (result as Record<string, unknown>)[field] = incoming.trim();
     }
   }
   if (enrichment.sources.length > 0) {
-    merged.enrichmentSources = enrichment.sources;
+    result.enrichmentSources = enrichment.sources;
   }
-  return merged;
+  return result;
 };
 
 export const processLenderSheet = async (
@@ -196,6 +227,13 @@ export const processLenderSheet = async (
 
   if (file.type && file.type !== "application/pdf") {
     throw new Error("AI lender upload only supports PDF rate sheets.");
+  }
+
+  if (file.size > MAX_AI_PDF_BYTES) {
+    const mb = (file.size / (1024 * 1024)).toFixed(1);
+    throw new Error(
+      `PDF is too large (${mb} MB). Maximum supported size is 3 MB for AI processing.`
+    );
   }
 
   const base64Data = await fileToBase64(file);
@@ -270,7 +308,7 @@ export const processLenderSheet = async (
         const result = await enrichLenderProfile(lender.name, missing);
         enriched.push(result ? applyEnrichment(lender, result) : lender);
       } catch (error) {
-        console.warn(`[processLenderSheet] Enrichment failed for ${lender.name}:`, error);
+        aiLogger.warn(`Enrichment failed for ${lender.name}`, { error });
         enriched.push(lender);
       }
     }

@@ -1,6 +1,9 @@
 import React, { useState, useRef } from "react";
 import Button from "./common/Button";
 import * as Icons from "./common/Icons";
+import { createLogger } from "../lib/logger";
+
+const documentScannerLogger = createLogger("document-scanner");
 
 // tesseract.js + its English language data add ~250 KB JS + ~5 MB WASM/data
 // to the bundle. Defer until the user actually picks a file to scan; loaded
@@ -57,7 +60,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
       const text = result.data.text;
       // Development-only logging
       if (import.meta.env.DEV) {
-        console.log("Scanned text:", text);
+        documentScannerLogger.debug("Scanned text", { text });
       }
 
       // Prefer specific labels first; require word boundaries on the bare
@@ -85,7 +88,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
         setError("Could not detect income automatically. Please enter manually.");
       }
     } catch (err) {
-      console.error("OCR Error:", err);
+      documentScannerLogger.error("OCR Error", err);
       setError("Failed to scan document. Please try again or enter manually.");
     } finally {
       setIsScanning(false);
@@ -94,15 +97,15 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-700">
+      <div className="bg-[var(--color-bg)] p-6 rounded-lg shadow-md max-w-md w-full border border-[var(--color-border)]">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Icons.DocumentTextIcon className="w-6 h-6 text-blue-500" />
+          <h3 className="text-lg font-bold text-[var(--color-text)] flex items-center gap-2">
+            <Icons.DocumentTextIcon className="w-6 h-6 text-[var(--color-primary)]" />
             Scan Pay Stub
           </h3>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-500"
+            className="text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
             title="Close scanner"
             aria-label="Close document scanner"
           >
@@ -112,7 +115,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
 
         <div className="space-y-4">
           <div
-            className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="border-2 border-dashed border-[var(--color-border)] rounded-lg p-8 text-center cursor-pointer hover:bg-[var(--color-bg-subtle)] transition-colors"
             onClick={() => !isScanning && fileInputRef.current?.click()}
             role="button"
             tabIndex={0}
@@ -135,14 +138,14 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
               aria-label="Upload pay stub image"
             />
             {isScanning ? (
-              <Icons.SpinnerIcon className="w-12 h-12 text-blue-500 mx-auto mb-2 animate-spin" />
+              <Icons.SpinnerIcon className="w-12 h-12 text-[var(--color-primary)] mx-auto mb-2 animate-spin" />
             ) : (
-              <Icons.CameraIcon className="w-12 h-12 text-slate-400 mx-auto mb-2" />
+              <Icons.CameraIcon className="w-12 h-12 text-[var(--color-text-subtle)] mx-auto mb-2" />
             )}
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-[var(--color-text-muted)]">
               {isScanning ? "Scanning document..." : "Click to upload or take a photo"}
             </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+            <p className="text-xs text-[var(--color-text-subtle)] mt-1">
               JPG or PNG, up to 10 MB. PDFs aren&apos;t supported.
             </p>
           </div>
@@ -178,18 +181,20 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
 
           {isScanning && (
             <div className="space-y-2">
-              <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-2 bg-[var(--color-bg-muted)] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 transition-all duration-300"
+                  className="h-full bg-[var(--color-primary)] transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-center text-slate-500">Processing... {progress}%</p>
+              <p className="text-xs text-center text-[var(--color-text-muted)]">
+                Processing... {progress}%
+              </p>
             </div>
           )}
 
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+            <div className="p-3 bg-[var(--color-danger-subtle)] text-[var(--color-danger)] text-sm rounded-lg flex items-center gap-2">
               <Icons.ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
               {error}
             </div>

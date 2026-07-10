@@ -109,25 +109,27 @@ You should see lines like `Applied X.js`. If a migration fails, PocketBase abort
 
 Current migrations in this repo:
 
-| File | What it does |
-|---|---|
-| `1746999000`-`1746999005` baselines | Idempotent baseline migrations for `dealers`, `users` (field additions), `inventory`, `lender_profiles` (pre-enrichment), `saved_deals`, `dealer_settings`. Skip if the target collection already exists (production case); create from scratch on a fresh DB (CI case). Lets CI reproduce production schema from zero. |
-| `1747400000_create_system_settings.js` | Creates the singleton `system_settings` collection used by the Owner Console Settings tab. Public read, superadmin write. Seeds one default row. |
-| `1747400001_lender_profiles_enrichment_fields.js` | Adds `website`, `portalUrl`, `generalNotes`, `enrichmentSources` fields to `lender_profiles` so the AI rate-sheet enrichment pipeline can persist its output. |
-| `1747400002_tighten_api_rules.js` | Locks every dealer-scoped collection (`dealers`, `inventory`, `lender_profiles`, `saved_deals`, `dealer_settings`, `users`) so users only see their own dealership's data. Superadmin sees everything. |
-| `1747500000_backfill_email_visibility.js` | Flips `emailVisibility=true` on every existing user record so the Owner Console can see emails. PB auth collections hide email by default. |
-| `1747600000_create_ai_provider_keys.js` | Creates the singleton `ai_provider_keys` collection (superadmin-only RBAC). Stores OpenAI / Anthropic / Gemini keys edited from the Owner Console. |
-| `1747600001_add_ai_defaults_to_system_settings.js` | Adds `aiDefaults` (default provider + per-task model) to `system_settings`. |
-| `1747600002_create_audit_log.js` | Creates append-only `audit_log` collection. Records every AI key update, removal, and test attempt (actor, action, target, details). Superadmin-only read. |
+| File                                               | What it does                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `1746999000`-`1746999005` baselines                | Idempotent baseline migrations for `dealers`, `users` (field additions), `inventory`, `lender_profiles` (pre-enrichment), `saved_deals`, `dealer_settings`. Skip if the target collection already exists (production case); create from scratch on a fresh DB (CI case). Lets CI reproduce production schema from zero. |
+| `1747400000_create_system_settings.js`             | Creates the singleton `system_settings` collection used by the Owner Console Settings tab. Public read, superadmin write. Seeds one default row.                                                                                                                                                                        |
+| `1747400001_lender_profiles_enrichment_fields.js`  | Adds `website`, `portalUrl`, `generalNotes`, `enrichmentSources` fields to `lender_profiles` so the AI rate-sheet enrichment pipeline can persist its output.                                                                                                                                                           |
+| `1747400002_tighten_api_rules.js`                  | Locks every dealer-scoped collection (`dealers`, `inventory`, `lender_profiles`, `saved_deals`, `dealer_settings`, `users`) so users only see their own dealership's data. Superadmin sees everything.                                                                                                                  |
+| `1747500000_backfill_email_visibility.js`          | Flips `emailVisibility=true` on every existing user record so the Owner Console can see emails. PB auth collections hide email by default.                                                                                                                                                                              |
+| `1747600000_create_ai_provider_keys.js`            | Creates the singleton `ai_provider_keys` collection (superadmin-only RBAC). Stores OpenAI / Anthropic / Gemini keys edited from the Owner Console.                                                                                                                                                                      |
+| `1747600001_add_ai_defaults_to_system_settings.js` | Adds `aiDefaults` (default provider + per-task model) to `system_settings`.                                                                                                                                                                                                                                             |
+| `1747600002_create_audit_log.js`                   | Creates append-only `audit_log` collection. Records every AI key update, removal, and test attempt (actor, action, target, details). Superadmin-only read.                                                                                                                                                              |
+| `1747810006_reassert_dealer_scoped_rules.js`       | Repairs missing dealer-scoped fields and reasserts PocketBase 0.26-compatible rules for dealer data, deals, and users.                                                                                                                                                                                                  |
+| `1747810007_seed_empty_dealer_samples.js`          | Initializes only empty dealer tenants with 35 sample vehicles, 13 illustrative lender profiles, and desk defaults. Existing inventory, lender programs, and settings are never modified.                                                                                                                                |
 
 ## AI server architecture
 
 The AI proxy serves `/api/ai/*` and exists in two places:
 
-| Environment | Where the proxy runs | How it gets keys |
-|---|---|---|
-| Local dev (`npm run dev`) | Vite middleware (`server/ai/vitePlugin.ts`) | `keyResolver.ts` → PB `ai_provider_keys` collection if PB creds are set, else local `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` env vars. |
-| Production | Vercel serverless function at `api/ai/[...path].ts` | Same `keyResolver.ts` → PB. Authenticates to PB using a `_superusers` account via `PB_SERVICE_EMAIL` / `PB_SERVICE_PASSWORD` env vars on Vercel. |
+| Environment               | Where the proxy runs                                | How it gets keys                                                                                                                                        |
+| ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local dev (`npm run dev`) | Vite middleware (`server/ai/vitePlugin.ts`)         | `keyResolver.ts` → PB `ai_provider_keys` collection if PB creds are set, else local `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` env vars. |
+| Production                | Vercel serverless function at `api/ai/[...path].ts` | Same `keyResolver.ts` → PB. Authenticates to PB using a `_superusers` account via `PB_SERVICE_EMAIL` / `PB_SERVICE_PASSWORD` env vars on Vercel.        |
 
 Both code paths share `server/ai/routes.ts` — the Vercel function is a thin wrapper. Keys live in PB at rest; the proxy reads them per-request (cached 60s).
 
@@ -165,8 +167,8 @@ Every `/api/ai/*` request except `GET /api/ai/models` requires a PocketBase bear
 
 JS hook files in `backend/pb_hooks/` are loaded by PocketBase on boot. Current hooks:
 
-| File | What it does |
-|---|---|
+| File                 | What it does                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dealer_guard.pb.js` | Defense-in-depth on writes. On every create/update of an `inventory`, `lender_profiles`, `saved_deals`, or `dealer_settings` record, the `dealer` field is overwritten with the auth user's `dealer`. Superadmins are exempt. Closes the gap where the read-side RBAC rules block cross-dealer reads but write rules trusted client-supplied `dealer` values. |
 
 ### Fresh-environment caveat for `1747400002_tighten_api_rules.js`

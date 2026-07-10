@@ -75,7 +75,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
         toast.error(result.error || "Invalid email or password");
       }
     } catch (error) {
-      console.error("Login error:", error);
+      // Login failure surfaced via UI toast; detailed in Sentry via boundary.
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
@@ -189,7 +189,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
               type="button"
               onClick={handleResetSubmit}
               disabled={resetLoading}
-              className="lift-btn"
+              className="transition-colors"
               style={{
                 background: "transparent",
                 border: "1px solid var(--color-border-strong)",
@@ -216,7 +216,10 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
             </p>
           )}
           {resetStatus === "error" && (
-            <p role="alert" style={{ fontSize: 12, color: "var(--color-danger)", margin: "8px 0 0" }}>
+            <p
+              role="alert"
+              style={{ fontSize: 12, color: "var(--color-danger)", margin: "8px 0 0" }}
+            >
               Could not send the reset email. Please try again, or contact your administrator.
             </p>
           )}
@@ -226,7 +229,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
       <button
         type="submit"
         disabled={loading}
-        className="lift-btn btn-primary"
+        className="transition-colors btn-primary"
         style={{
           width: "100%",
           border: "none",
@@ -242,11 +245,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
           opacity: loading ? 0.75 : 1,
         }}
       >
-        {loading ? (
-          <Icons.SpinnerIcon className="animate-spin h-5 w-5" />
-        ) : (
-          "Enter the desk"
-        )}
+        {loading ? <Icons.SpinnerIcon className="animate-spin h-5 w-5" /> : "Enter the desk"}
       </button>
 
       <div

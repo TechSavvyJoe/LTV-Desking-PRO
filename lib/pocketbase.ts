@@ -1,5 +1,8 @@
 import PocketBase, { type RecordModel } from "pocketbase";
 import type { LenderTier } from "../types";
+import { createLogger } from "./logger";
+
+const pbLogger = createLogger("pocketbase");
 
 // PocketBase client singleton.
 //
@@ -10,8 +13,8 @@ import type { LenderTier } from "../types";
 // loudly against localhost instead of touching prod. [G54]
 const POCKETBASE_URL = import.meta.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
 if (!import.meta.env.VITE_POCKETBASE_URL) {
-  console.error(
-    "[pocketbase] VITE_POCKETBASE_URL is not set — defaulting to http://127.0.0.1:8090. " +
+  pbLogger.warn(
+    "VITE_POCKETBASE_URL is not set — defaulting to http://127.0.0.1:8090. " +
       "This build will NOT reach production data. Set the env var explicitly for real backends."
   );
 }
@@ -44,11 +47,74 @@ pb.afterSend = (response, data) => {
 // the collection-rule level (RBAC) and at write-time via Zod schemas
 // where applicable. If the schema changes shape, type-check + integration
 // tests catch it before deploy.
+//
+// Final polish (2026-07-06): all call sites migrated; no raw `as any` remains
+// outside tests + this central helper. See PRODUCTION_READINESS_PLAN §4.2.
 
 export const asRecord = <T>(record: RecordModel | null | undefined): T | null =>
   record ? (record as unknown as T) : null;
 
 export const asRecordArray = <T>(records: RecordModel[]): T[] => records as unknown as T[];
+
+interface PbRetryOptions {
+  label?: string;
+  retries?: number;
+  delaysMs?: readonly number[];
+}
+
+const DEFAULT_PB_RETRY_DELAYS_MS = [150, 450] as const;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientPocketBaseError = (error: unknown): boolean => {
+  const err = error as {
+    isAbort?: boolean;
+    message?: string;
+    originalError?: unknown;
+    status?: number;
+  };
+  if (err?.isAbort) return false;
+
+  const status = typeof err?.status === "number" ? err.status : undefined;
+  if (status === 0 || status === 408 || status === 429) return true;
+  if (status !== undefined && status >= 500 && status < 600) return true;
+
+  const message = `${err?.message ?? ""} ${String(err?.originalError ?? "")}`;
+  return /failed to fetch|network|load failed|socket|econnreset|etimedout|eai_again/i.test(message);
+};
+
+/**
+ * Retry transient PocketBase read failures without retrying writes by default.
+ * Callers keep ownership of whether an operation is safe to repeat.
+ */
+export const withPbRetry = async <T>(
+  operation: () => Promise<T>,
+  {
+    label = "PocketBase request",
+    retries = 2,
+    delaysMs = DEFAULT_PB_RETRY_DELAYS_MS,
+  }: PbRetryOptions = {}
+): Promise<T> => {
+  let attempt = 0;
+  let lastError: unknown;
+
+  while (attempt <= retries) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= retries || !isTransientPocketBaseError(error)) throw error;
+      const wait = delaysMs[attempt] ?? delaysMs[delaysMs.length - 1] ?? 0;
+      if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
+        pbLogger.warn(`Retrying ${label} after transient failure`, { error });
+      }
+      if (wait > 0) await delay(wait);
+      attempt += 1;
+    }
+  }
+
+  throw lastError;
+};
 
 // Enable auto-cancellation of pending requests on new ones
 pb.autoCancellation(false);
@@ -78,16 +144,16 @@ export const setSuperadminDealerOverride = (dealerId: string | null): void => {
     if (dealerId) {
       sessionStorage.setItem(DEALER_OVERRIDE_KEY, dealerId);
       if (import.meta.env.DEV) {
-        console.log("[PocketBase] Saved dealer override to sessionStorage:", dealerId);
+        pbLogger.debug("Saved dealer override to sessionStorage", { dealerId });
       }
     } else {
       sessionStorage.removeItem(DEALER_OVERRIDE_KEY);
       if (import.meta.env.DEV) {
-        console.log("[PocketBase] Cleared dealer override from sessionStorage");
+        pbLogger.debug("Cleared dealer override from sessionStorage");
       }
     }
   } catch (e) {
-    console.warn("[PocketBase] Failed to persist dealer override:", e);
+    pbLogger.warn("Failed to persist dealer override", { error: e });
   }
 
   // Dispatch a custom event so components can react to dealer changes
@@ -143,6 +209,7 @@ export interface User {
   dealer: string;
   role: "sales" | "manager" | "admin" | "superadmin";
   avatar?: string;
+  active?: boolean;
   created: string;
   updated: string;
   expand?: {
@@ -259,16 +326,13 @@ export interface DealerSettings {
 
 // Helper to get current user
 export const getCurrentUser = (): User | null => {
-  const model = pb.authStore.model as User | null;
+  const model = asRecord<User>(pb.authStore.model as RecordModel | null | undefined);
   if (import.meta.env.DEV) {
-    console.log(
-      "[PocketBase] getCurrentUser:",
-      model?.email,
-      "dealer:",
-      model?.dealer,
-      "role:",
-      model?.role
-    );
+    pbLogger.debug("getCurrentUser", {
+      email: model?.email,
+      dealer: model?.dealer,
+      role: model?.role,
+    });
   }
   return model;
 };
@@ -281,14 +345,14 @@ export const getCurrentDealerId = (): string | null => {
   const override = getSuperadminDealerOverride();
   if (user?.role === "superadmin" && override) {
     if (import.meta.env.DEV) {
-      console.log("[PocketBase] Using superadmin override dealer:", override);
+      pbLogger.debug("Using superadmin override dealer", { override });
     }
     return override;
   }
 
   const dealerId = user?.dealer || null;
   if (import.meta.env.DEV) {
-    console.log("[PocketBase] getCurrentDealerId returning:", dealerId);
+    pbLogger.debug("getCurrentDealerId returning", { dealerId });
   }
   return dealerId;
 };

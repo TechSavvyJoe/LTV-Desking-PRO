@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { useDealContext } from "../../context/DealContext";
 import { APPROVAL_CONFIG } from "../../services/approvalScorer";
 import { activeLenderCount } from "../../services/lenderFit";
@@ -8,6 +8,8 @@ import {
   statusBucket,
 } from "../../lib/dealMappers";
 import { fmt } from "../../utils/format";
+import { EmptyState } from "../common/states";
+import * as Icons from "../common/Icons";
 import type { CalculatedVehicle } from "../../types";
 
 const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
@@ -22,16 +24,13 @@ const card: React.CSSProperties = {
 const kpiLabel: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
-  letterSpacing: "0.06em",
   ...mono,
   color: "var(--color-text-muted)",
-  textTransform: "uppercase",
 };
 
 const panelLabel: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
-  letterSpacing: "0.1em",
   ...mono,
   color: "var(--color-text-subtle)",
   marginBottom: 16,
@@ -58,19 +57,64 @@ interface BarRowProps {
   rightWidth: number;
 }
 
-const BarRow: React.FC<BarRowProps> = ({ label, labelWidth, pct, color, height = 9, right, rightWidth }) => (
+const BarRowComponent: React.FC<BarRowProps> = ({
+  label,
+  labelWidth,
+  pct,
+  color,
+  height = 9,
+  right,
+  rightWidth,
+}) => (
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-    <span style={{ fontSize: 13, width: labelWidth, color: "var(--color-text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0 }}>
+    <span
+      style={{
+        fontSize: 13,
+        width: labelWidth,
+        color: "var(--color-text-muted)",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        flexShrink: 0,
+      }}
+    >
       {label}
     </span>
-    <div style={{ flex: 1, height, borderRadius: 5, background: "var(--color-bg-muted)", overflow: "hidden" }}>
-      <div className="ring-anim" style={{ height: "100%", width: `${Math.max(0, Math.min(100, pct))}%`, background: color, borderRadius: 5 }} />
+    <div
+      style={{
+        flex: 1,
+        height,
+        borderRadius: 5,
+        background: "var(--color-bg-muted)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        className="ring-anim"
+        style={{
+          height: "100%",
+          width: `${Math.max(0, Math.min(100, pct))}%`,
+          background: color,
+          borderRadius: 5,
+        }}
+      />
     </div>
-    <span style={{ fontSize: 13, ...mono, fontWeight: 600, width: rightWidth, textAlign: "right", flexShrink: 0 }}>
+    <span
+      style={{
+        fontSize: 13,
+        ...mono,
+        fontWeight: 600,
+        width: rightWidth,
+        textAlign: "right",
+        flexShrink: 0,
+      }}
+    >
       {right}
     </span>
   </div>
 );
+
+const BarRow = React.memo(BarRowComponent);
 
 /**
  * Reports — pure client aggregation over the context's single scoring pass
@@ -79,14 +123,9 @@ const BarRow: React.FC<BarRowProps> = ({ label, labelWidth, pct, color, height =
  * LTV Desking PRO.dc.html (lines 678-758). No new fetches; everything is
  * derived from real scorer/calculator outputs. [P7]
  */
-export const ReportsScreen: React.FC = () => {
-  const {
-    settings,
-    processedInventory,
-    safeLenderProfiles,
-    savedDeals,
-    unitsPerLender,
-  } = useDealContext();
+const ReportsScreenBase: React.FC = () => {
+  const { settings, processedInventory, safeLenderProfiles, savedDeals, unitsPerLender } =
+    useDealContext();
 
   const totalLenders = activeLenderCount(safeLenderProfiles);
 
@@ -104,7 +143,9 @@ export const ReportsScreen: React.FC = () => {
     const avgPay = pays.length ? pays.reduce((a, b) => a + b, 0) / pays.length : null;
     const totalValue = prices.reduce((a, b) => a + b, 0);
 
-    const strong = rows.filter((v) => (v.approvalScore ?? 0) >= APPROVAL_CONFIG.bands.strong).length;
+    const strong = rows.filter(
+      (v) => (v.approvalScore ?? 0) >= APPROVAL_CONFIG.bands.strong
+    ).length;
     const moderate = rows.filter((v) => {
       const s = v.approvalScore ?? 0;
       return s >= APPROVAL_CONFIG.bands.moderate && s < APPROVAL_CONFIG.bands.strong;
@@ -174,18 +215,21 @@ export const ReportsScreen: React.FC = () => {
       financed,
       funded: buckets.funded,
       declined: buckets.declined,
-      approvalRate: total
-        ? Math.round(((buckets.approved + buckets.funded) / total) * 100)
-        : null,
+      approvalRate: total ? Math.round(((buckets.approved + buckets.funded) / total) * 100) : null,
     };
   }, [savedDeals]);
 
   // OTD LTV colors come from dealer settings, never hardcoded thresholds.
   const { warn, danger } = settings.ltvThresholds;
   const otdColor = (l: number): string =>
-    l >= danger ? "var(--color-danger)" : l >= warn ? "var(--color-warning)" : "var(--color-success)";
+    l >= danger
+      ? "var(--color-danger)"
+      : l >= warn
+        ? "var(--color-warning)"
+        : "var(--color-success)";
 
-  const pct = (count: number): string => (stats.n ? `${Math.round((count / stats.n) * 100)}%` : "0%");
+  const pct = (count: number): string =>
+    stats.n ? `${Math.round((count / stats.n) * 100)}%` : "0%";
 
   const bestName = stats.best
     ? stats.best.make && stats.best.model
@@ -210,7 +254,14 @@ export const ReportsScreen: React.FC = () => {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ fontSize: 11, ...mono, letterSpacing: "0.18em", color: "var(--color-text-subtle)" }}>
+          <span
+            style={{
+              fontSize: 11,
+              ...mono,
+              letterSpacing: "0.18em",
+              color: "var(--color-text-subtle)",
+            }}
+          >
             PERFORMANCE
           </span>
           <div style={{ height: 20, width: 1, background: "var(--color-border)" }} />
@@ -222,239 +273,441 @@ export const ReportsScreen: React.FC = () => {
       </header>
 
       <div style={{ padding: "22px 24px", maxWidth: 1100 }}>
-        {/* KPI row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 14 }}>
-          <div className="dc-card" style={{ ...card, padding: 18 }}>
-            <div style={kpiLabel}>Avg approval</div>
+        {stats.n === 0 ? (
+          <EmptyState
+            icon={<Icons.ChartIcon className="w-full h-full" />}
+            title="No inventory data"
+            description="Import inventory on the Inventory screen or load sample data to see performance reports, approval distribution, and lender reach."
+          />
+        ) : (
+          <>
+            {/* KPI row */}
             <div
               style={{
-                fontSize: 32,
-                fontWeight: 700,
-                marginTop: 8,
-                letterSpacing: "-0.02em",
-                color: stats.avgScore === null ? "var(--color-text-subtle)" : approvalColor(stats.avgScore),
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 14,
+                marginBottom: 14,
               }}
             >
-              {stats.avgScore ?? "—"}
-            </div>
-          </div>
-          <div className="dc-card" style={{ ...card, padding: 18 }}>
-            <div style={kpiLabel}>Avg OTD LTV</div>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 700,
-                marginTop: 8,
-                letterSpacing: "-0.02em",
-                color: stats.avgOtd === null ? "var(--color-text-subtle)" : otdColor(stats.avgOtd),
-              }}
-            >
-              {stats.avgOtd === null ? "—" : `${stats.avgOtd}%`}
-            </div>
-          </div>
-          <div className="dc-card" style={{ ...card, padding: 18 }}>
-            <div style={kpiLabel}>Avg payment</div>
-            <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: "-0.02em" }}>
-              {stats.avgPay === null ? "—" : `${fmt(stats.avgPay)}/mo`}
-            </div>
-          </div>
-          <div className="dc-card" style={{ ...card, padding: 18 }}>
-            <div style={kpiLabel}>Inventory value</div>
-            <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: "-0.02em" }}>
-              {fmt(stats.totalValue)}
-            </div>
-          </div>
-        </div>
-
-        {/* Approval distribution */}
-        <div className="dc-card" style={{ ...card, padding: 20 }}>
-          <div style={panelLabel}>APPROVAL DISTRIBUTION · {stats.n} UNITS</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <BarRow
-              label={
-                <>
-                  Strong <span style={{ color: "var(--color-text-subtle)" }}>({APPROVAL_CONFIG.bands.strong}+)</span>
-                </>
-              }
-              labelWidth={130}
-              pct={stats.n ? (stats.strong / stats.n) * 100 : 0}
-              color="var(--color-success)"
-              height={10}
-              right={`${stats.strong} · ${pct(stats.strong)}`}
-              rightWidth={70}
-            />
-            <BarRow
-              label={
-                <>
-                  Moderate{" "}
-                  <span style={{ color: "var(--color-text-subtle)" }}>
-                    ({APPROVAL_CONFIG.bands.moderate}–{APPROVAL_CONFIG.bands.strong - 1})
-                  </span>
-                </>
-              }
-              labelWidth={130}
-              pct={stats.n ? (stats.moderate / stats.n) * 100 : 0}
-              color="var(--color-warning)"
-              height={10}
-              right={`${stats.moderate} · ${pct(stats.moderate)}`}
-              rightWidth={70}
-            />
-            <BarRow
-              label={
-                <>
-                  Weak <span style={{ color: "var(--color-text-subtle)" }}>(&lt;{APPROVAL_CONFIG.bands.moderate})</span>
-                </>
-              }
-              labelWidth={130}
-              pct={stats.n ? (stats.weak / stats.n) * 100 : 0}
-              color="var(--color-danger)"
-              height={10}
-              right={`${stats.weak} · ${pct(stats.weak)}`}
-              rightWidth={70}
-            />
-          </div>
-        </div>
-
-        {/* 3-card row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 14 }}>
-          <div className="dc-card" style={{ ...card, padding: 18 }}>
-            <div style={kpiLabel}>Most approvable</div>
-            <div style={{ fontSize: 17, fontWeight: 700, marginTop: 8, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {bestName}
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                ...mono,
-                marginTop: 4,
-                color: bestScore === null ? "var(--color-text-subtle)" : approvalColor(bestScore),
-              }}
-            >
-              {bestScore === null ? "—" : `${bestScore} / 100 odds`}
-            </div>
-          </div>
-          <div className="dc-card" style={{ ...card, padding: 18 }}>
-            <div style={kpiLabel}>Payment range</div>
-            <div style={{ fontSize: 20, fontWeight: 700, ...mono, marginTop: 10, letterSpacing: "-0.02em" }}>
-              {stats.payMin === null || stats.payMax === null
-                ? "—"
-                : `${fmt(stats.payMin)} – ${fmt(stats.payMax)}`}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--color-text-subtle)", marginTop: 5 }}>
-              per month, current deal
-            </div>
-          </div>
-          <div className="dc-card" style={{ ...card, padding: 18 }}>
-            <div style={kpiLabel}>Avg lenders / unit</div>
-            <div style={{ fontSize: 32, fontWeight: 700, ...mono, marginTop: 8, letterSpacing: "-0.02em", color: "var(--color-primary)" }}>
-              {stats.avgLenders === null ? "—" : `${stats.avgLenders.toFixed(1)} / ${totalLenders}`}
-            </div>
-          </div>
-        </div>
-
-        {/* By make + lender reach */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
-          <div className="dc-card" style={{ ...card, padding: 20 }}>
-            <div style={panelLabel}>APPROVAL BY MAKE</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {stats.makeRows.length === 0 && (
-                <span style={{ fontSize: 13, color: "var(--color-text-subtle)" }}>No inventory loaded.</span>
-              )}
-              {stats.makeRows.map((m) => (
-                <div key={m.mk} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 13, width: 96, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0 }}>
-                    {m.mk}
-                  </span>
-                  <div style={{ flex: 1, height: 9, borderRadius: 5, background: "var(--color-bg-muted)", overflow: "hidden" }}>
-                    <div className="ring-anim" style={{ height: "100%", width: `${m.avg}%`, background: approvalColor(m.avg), borderRadius: 5 }} />
-                  </div>
-                  <span style={{ fontSize: 13, ...mono, fontWeight: 700, width: 26, textAlign: "right", color: approvalColor(m.avg), flexShrink: 0 }}>
-                    {m.avg}
-                  </span>
-                  <span style={{ fontSize: 11.5, ...mono, color: "var(--color-text-subtle)", width: 54, textAlign: "right", flexShrink: 0 }}>
-                    {m.n} {m.n === 1 ? "unit" : "units"}
-                  </span>
+              <div className="dc-card" style={{ ...card, padding: 18 }}>
+                <div style={kpiLabel}>Avg approval</div>
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontWeight: 700,
+                    marginTop: 8,
+                    letterSpacing: "-0.02em",
+                    color:
+                      stats.avgScore === null
+                        ? "var(--color-text-subtle)"
+                        : approvalColor(stats.avgScore),
+                  }}
+                >
+                  {stats.avgScore ?? "—"}
                 </div>
-              ))}
+              </div>
+              <div className="dc-card" style={{ ...card, padding: 18 }}>
+                <div style={kpiLabel}>Avg OTD LTV</div>
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontWeight: 700,
+                    marginTop: 8,
+                    letterSpacing: "-0.02em",
+                    color:
+                      stats.avgOtd === null ? "var(--color-text-subtle)" : otdColor(stats.avgOtd),
+                  }}
+                >
+                  {stats.avgOtd === null ? "—" : `${stats.avgOtd}%`}
+                </div>
+              </div>
+              <div className="dc-card" style={{ ...card, padding: 18 }}>
+                <div style={kpiLabel}>Avg payment</div>
+                <div
+                  style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: "-0.02em" }}
+                >
+                  {stats.avgPay === null ? "—" : `${fmt(stats.avgPay)}/mo`}
+                </div>
+              </div>
+              <div className="dc-card" style={{ ...card, padding: 18 }}>
+                <div style={kpiLabel}>Inventory value</div>
+                <div
+                  style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: "-0.02em" }}
+                >
+                  {fmt(stats.totalValue)}
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="dc-card" style={{ ...card, padding: 20 }}>
-            <div style={panelLabel}>LENDER REACH · UNITS FITTING</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              {lenderReach.length === 0 && (
-                <span style={{ fontSize: 13, color: "var(--color-text-subtle)" }}>No active lenders.</span>
-              )}
-              {lenderReach.map((l) => {
-                const units = unitsPerLender[l.id] ?? 0;
-                const barPct = stats.n ? (units / stats.n) * 100 : 0;
-                return (
-                  <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 13, width: 96, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0 }}>
-                      {l.name}
-                    </span>
-                    <div style={{ flex: 1, height: 9, borderRadius: 5, background: "var(--color-bg-muted)", overflow: "hidden" }}>
-                      <div
-                        className="ring-anim"
-                        style={{
-                          height: "100%",
-                          width: `${barPct}%`,
-                          background: units > 0 ? "var(--color-success)" : "var(--color-warning)",
-                          borderRadius: 5,
-                        }}
-                      />
-                    </div>
-                    <span style={{ fontSize: 12, ...mono, color: "var(--color-text-muted)", width: 52, textAlign: "right", flexShrink: 0 }}>
-                      {units}/{stats.n}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
 
-        {/* Pipeline snapshot */}
-        <div className="dc-card" style={{ ...card, padding: 20, marginTop: 14 }}>
-          <div style={panelLabel}>PIPELINE SNAPSHOT</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
-            <div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Financed in pipeline</div>
-              <div style={{ fontSize: 24, fontWeight: 700, ...mono, marginTop: 6, letterSpacing: "-0.02em" }}>
-                {pStats.total ? fmt(pStats.financed) : "—"}
+            {/* Approval distribution */}
+            <div className="dc-card" style={{ ...card, padding: 20 }}>
+              <div style={panelLabel}>APPROVAL DISTRIBUTION · {stats.n} UNITS</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <BarRow
+                  label={
+                    <>
+                      Strong{" "}
+                      <span style={{ color: "var(--color-text-subtle)" }}>
+                        ({APPROVAL_CONFIG.bands.strong}+)
+                      </span>
+                    </>
+                  }
+                  labelWidth={130}
+                  pct={stats.n ? (stats.strong / stats.n) * 100 : 0}
+                  color="var(--color-success)"
+                  height={10}
+                  right={`${stats.strong} · ${pct(stats.strong)}`}
+                  rightWidth={70}
+                />
+                <BarRow
+                  label={
+                    <>
+                      Moderate{" "}
+                      <span style={{ color: "var(--color-text-subtle)" }}>
+                        ({APPROVAL_CONFIG.bands.moderate}–{APPROVAL_CONFIG.bands.strong - 1})
+                      </span>
+                    </>
+                  }
+                  labelWidth={130}
+                  pct={stats.n ? (stats.moderate / stats.n) * 100 : 0}
+                  color="var(--color-warning)"
+                  height={10}
+                  right={`${stats.moderate} · ${pct(stats.moderate)}`}
+                  rightWidth={70}
+                />
+                <BarRow
+                  label={
+                    <>
+                      Weak{" "}
+                      <span style={{ color: "var(--color-text-subtle)" }}>
+                        (&lt;{APPROVAL_CONFIG.bands.moderate})
+                      </span>
+                    </>
+                  }
+                  labelWidth={130}
+                  pct={stats.n ? (stats.weak / stats.n) * 100 : 0}
+                  color="var(--color-danger)"
+                  height={10}
+                  right={`${stats.weak} · ${pct(stats.weak)}`}
+                  rightWidth={70}
+                />
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Approval rate</div>
-              <div style={{ fontSize: 24, fontWeight: 700, ...mono, marginTop: 6, letterSpacing: "-0.02em", color: "var(--color-success)" }}>
-                {pStats.approvalRate === null ? "—" : `${pStats.approvalRate}%`}
+
+            {/* 3-card row */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 14,
+                marginTop: 14,
+              }}
+            >
+              <div className="dc-card" style={{ ...card, padding: 18 }}>
+                <div style={kpiLabel}>Most approvable</div>
+                <div
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 700,
+                    marginTop: 8,
+                    letterSpacing: "-0.01em",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {bestName}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    ...mono,
+                    marginTop: 4,
+                    color:
+                      bestScore === null ? "var(--color-text-subtle)" : approvalColor(bestScore),
+                  }}
+                >
+                  {bestScore === null ? "—" : `${bestScore} / 100 odds`}
+                </div>
+              </div>
+              <div className="dc-card" style={{ ...card, padding: 18 }}>
+                <div style={kpiLabel}>Payment range</div>
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    ...mono,
+                    marginTop: 10,
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {stats.payMin === null || stats.payMax === null
+                    ? "—"
+                    : `${fmt(stats.payMin)} – ${fmt(stats.payMax)}`}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--color-text-subtle)", marginTop: 5 }}>
+                  per month, current deal
+                </div>
+              </div>
+              <div className="dc-card" style={{ ...card, padding: 18 }}>
+                <div style={kpiLabel}>Avg lenders / unit</div>
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontWeight: 700,
+                    ...mono,
+                    marginTop: 8,
+                    letterSpacing: "-0.02em",
+                    color: "var(--color-primary)",
+                  }}
+                >
+                  {stats.avgLenders === null
+                    ? "—"
+                    : `${stats.avgLenders.toFixed(1)} / ${totalLenders}`}
+                </div>
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Funded</div>
-              <div style={{ fontSize: 24, fontWeight: 700, ...mono, marginTop: 6, letterSpacing: "-0.02em" }}>
-                {pStats.funded}
+
+            {/* By make + lender reach */}
+            <div
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}
+            >
+              <div className="dc-card" style={{ ...card, padding: 20 }}>
+                <div style={panelLabel}>Approval by make</div>
+                <div
+                  role="list"
+                  aria-label="Approval scores by make"
+                  style={{ display: "flex", flexDirection: "column", gap: 12 }}
+                >
+                  {stats.makeRows.length === 0 && (
+                    <span
+                      role="status"
+                      aria-live="polite"
+                      style={{ fontSize: 13, color: "var(--color-text-subtle)" }}
+                    >
+                      No inventory loaded.
+                    </span>
+                  )}
+                  {stats.makeRows.map((m) => (
+                    <div
+                      key={m.mk}
+                      role="listitem"
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          width: 96,
+                          fontWeight: 500,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {m.mk}
+                      </span>
+                      <div
+                        style={{
+                          flex: 1,
+                          height: 9,
+                          borderRadius: 5,
+                          background: "var(--color-bg-muted)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          className="ring-anim"
+                          style={{
+                            height: "100%",
+                            width: `${m.avg}%`,
+                            background: approvalColor(m.avg),
+                            borderRadius: 5,
+                          }}
+                        />
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 13,
+                          ...mono,
+                          fontWeight: 700,
+                          width: 26,
+                          textAlign: "right",
+                          color: approvalColor(m.avg),
+                          flexShrink: 0,
+                        }}
+                      >
+                        {m.avg}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          ...mono,
+                          color: "var(--color-text-subtle)",
+                          width: 54,
+                          textAlign: "right",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {m.n} {m.n === 1 ? "unit" : "units"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="dc-card" style={{ ...card, padding: 20 }}>
+                <div style={panelLabel}>LENDER REACH · UNITS FITTING</div>
+                <div
+                  role="list"
+                  aria-label="Lender reach and units fitting"
+                  style={{ display: "flex", flexDirection: "column", gap: 11 }}
+                >
+                  {lenderReach.length === 0 && (
+                    <span
+                      role="status"
+                      aria-live="polite"
+                      style={{ fontSize: 13, color: "var(--color-text-subtle)" }}
+                    >
+                      No active lenders.
+                    </span>
+                  )}
+                  {lenderReach.map((l) => {
+                    const units = unitsPerLender[l.id] ?? 0;
+                    const barPct = stats.n ? (units / stats.n) * 100 : 0;
+                    return (
+                      <div
+                        key={l.id}
+                        role="listitem"
+                        style={{ display: "flex", alignItems: "center", gap: 12 }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 13,
+                            width: 96,
+                            fontWeight: 500,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {l.name}
+                        </span>
+                        <div
+                          style={{
+                            flex: 1,
+                            height: 9,
+                            borderRadius: 5,
+                            background: "var(--color-bg-muted)",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            className="ring-anim"
+                            style={{
+                              height: "100%",
+                              width: `${barPct}%`,
+                              background:
+                                units > 0 ? "var(--color-success)" : "var(--color-warning)",
+                              borderRadius: 5,
+                            }}
+                          />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            ...mono,
+                            color: "var(--color-text-muted)",
+                            width: 52,
+                            textAlign: "right",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {units}/{stats.n}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Declined</div>
-              <div
-                style={{
-                  fontSize: 24,
-                  fontWeight: 700,
-                  ...mono,
-                  marginTop: 6,
-                  letterSpacing: "-0.02em",
-                  color: "var(--color-danger)",
-                }}
-              >
-                {pStats.declined}
+
+            {/* Pipeline snapshot */}
+            <div className="dc-card" style={{ ...card, padding: 20, marginTop: 14 }}>
+              <div style={panelLabel}>Pipeline snapshot</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                    Financed in pipeline
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      ...mono,
+                      marginTop: 6,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {pStats.total ? fmt(pStats.financed) : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                    Approval rate
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      ...mono,
+                      marginTop: 6,
+                      letterSpacing: "-0.02em",
+                      color: "var(--color-success)",
+                    }}
+                  >
+                    {pStats.approvalRate === null ? "—" : `${pStats.approvalRate}%`}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Funded</div>
+                  <div
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      ...mono,
+                      marginTop: 6,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {pStats.funded}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Declined</div>
+                  <div
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      ...mono,
+                      marginTop: 6,
+                      letterSpacing: "-0.02em",
+                      color: "var(--color-danger)",
+                    }}
+                  >
+                    {pStats.declined}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
+const ReportsScreen = React.memo(ReportsScreenBase);
+ReportsScreen.displayName = "ReportsScreen";
 export default ReportsScreen;

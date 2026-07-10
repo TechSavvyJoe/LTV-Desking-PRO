@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, memo } from "react";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Error state styling */
@@ -39,18 +39,23 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
     const baseClasses = `
       w-full
-      bg-white dark:bg-[var(--color-bg-subtle)]
+      bg-[var(--color-bg)] dark:bg-[var(--color-bg-subtle)]
       border rounded
       text-[var(--color-text)]
       placeholder-[var(--color-text-subtle)]
-      transition-colors duration-[120ms]
+      transition-colors duration-[var(--duration-fast)]
       focus:outline-none
       disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-[var(--color-bg-subtle)]
     `;
 
     const stateClasses = error
-      ? "border-[var(--color-danger)] focus:border-[var(--color-danger)] focus:ring-2 focus:ring-[var(--color-danger-subtle)]"
-      : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)]";
+      ? `border-[var(--color-danger)]
+         focus:border-[var(--color-danger)]
+         focus:ring-2 focus:ring-[var(--color-danger-subtle)]`
+      : `border-[var(--color-border)]
+         hover:border-[var(--color-border-strong)]
+         focus:border-[var(--color-primary)]
+         focus:ring-2 focus:ring-[var(--color-primary-subtle)]`;
 
     const iconPadding = {
       left: leftIcon ? "pl-11" : "",
@@ -61,7 +66,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)] pointer-events-none">
             {leftIcon}
           </span>
         )}
@@ -87,7 +92,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
         {/* Right Icon */}
         {rightIcon && (
-          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none">
+          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)] pointer-events-none">
             {rightIcon}
           </span>
         )}
@@ -98,4 +103,4 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
 Input.displayName = "Input";
 
-export default Input;
+export default memo(Input);

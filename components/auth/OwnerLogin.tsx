@@ -45,7 +45,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
       toast.success("Welcome to the Owner Console");
       onSuccess();
     } catch (err) {
-      console.error("Owner login error:", err);
+      // Owner login failure surfaced via UI toast.
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
@@ -136,7 +136,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
             <Button
               type="submit"
               disabled={loading}
-              className="btn-primary lift-btn w-full flex justify-center py-2 px-4 rounded shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary w-full flex justify-center py-2 px-4 rounded shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <Icons.SpinnerIcon className="animate-spin h-5 w-5" />

@@ -286,3 +286,44 @@ describe("tier otdLtv cap enforcement [review/P2]", () => {
     expect(result.eligible).toBe(false);
   });
 });
+
+// --- coverage for pre-1980 years, float loanTerm, blank/negative edge cases ---
+describe("edge coverage gaps (pre-1980, float term, blank, negative)", () => {
+  it("rejects pre-1980 vehicle years when tier minYear is later (e.g. 2018)", () => {
+    const result = checkBankEligibility(
+      mockVehicle({ modelYear: 1978 }),
+      mockDeal({ creditScore: 720 }),
+      mockLender()
+    );
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain(
+      "No fitting lending tier found for this deal structure and vehicle."
+    );
+  });
+
+  it("coerces float loanTerm for tier checks without error", () => {
+    const result = checkBankEligibility(
+      mockVehicle(),
+      mockDeal({ loanTerm: 59.9 }),
+      mockLender({
+        tiers: [{ name: "Flex", minFico: 700, maxTerm: 72 }],
+      })
+    );
+    // 59.9 < 72, should still match if other ok (fico default 720)
+    expect(result.eligible).toBe(true);
+  });
+
+  it("handles blank/zeroed inputs defensively (amountToFinance sentinel, year NaN)", () => {
+    const badVehicle = mockVehicle({ amountToFinance: "N/A" as any, modelYear: "N/A" as any });
+    const badDeal = mockDeal({ loanTerm: 0 as any, creditScore: null });
+    const result = checkBankEligibility(badVehicle, badDeal, mockLender());
+    expect(result.eligible).toBe(false);
+    expect(result.reasons[0]).toMatch(/financed amount unavailable/i);
+  });
+
+  it("treats negative amountToFinance as ineligible (LTV/amount checks)", () => {
+    const negFinanced = mockVehicle({ amountToFinance: -1000, jdPower: 20000 });
+    const result = checkBankEligibility(negFinanced, mockDeal(), mockLender());
+    expect(result.eligible).toBe(false);
+  });
+});

@@ -34,7 +34,7 @@ const StructureMatrix: React.FC<StructureMatrixProps> = ({
             <button
               type="button"
               key={`${row.term}-${cell.down}`}
-              className="desk-matrix-cell lift-btn"
+              className="desk-matrix-cell transition-colors"
               data-active={row.term === loanTerm && cell.down === downPayment}
               onClick={() => onSetTermDown(row.term, cell.down)}
             >

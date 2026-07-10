@@ -159,7 +159,7 @@ Tasks:
 1. Explain approval risk in plain dealership language.
 2. Suggest concrete deal changes that improve approval odds or gross.
 3. If the current unit is a poor fit, suggest one alternative inventory VIN from the provided list.
-4. Keep proposedChanges limited to these DealData fields: downPayment, tradeInValue, tradeInPayoff, backendProducts, loanTerm, interestRate, stateFees. Never include "notes".
+4. Keep proposedChanges limited to these DealData fields: downPayment, tradeInValue, tradeInPayoff, backendProducts, vscAmount, gapAmount, loanTerm, interestRate, stateFees, buyerState, rebate. Never include "notes".
 
 Return exactly:
 {

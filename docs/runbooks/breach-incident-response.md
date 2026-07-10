@@ -57,6 +57,6 @@ ltv-desking-pro-api`) — a hard outage is better than active exfiltration.
 ## Contacts
 
 - Platform owner: Joe Gallant — joejgallant@gmail.com
-- Counsel: ********\_\_\_\_******** (fill in before pilot)
+- Counsel: **\*\*\*\***\_\_\_\_**\*\*\*\*** (fill in before pilot)
 - Fly.io support: https://fly.io/dashboard → support · Vercel: vercel.com/help
 - FTC Safeguards breach reporting: https://www.ftc.gov/safeguards

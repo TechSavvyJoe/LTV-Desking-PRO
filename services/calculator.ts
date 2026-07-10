@@ -1,4 +1,5 @@
 import type { Vehicle, DealData, CalculatedVehicle, Settings } from "../types";
+import { MI_TRADE_IN_CREDIT_CAP } from "../constants";
 
 /**
  * Round a monetary value to whole cents. All currency leaving the calculator is
@@ -22,6 +23,9 @@ export const calculateMonthlyPayment = (
   annualRate: number,
   termMonths: number
 ): number | "Error" => {
+  if (!Number.isFinite(principal) || !Number.isFinite(annualRate) || !Number.isFinite(termMonths)) {
+    return "Error";
+  }
   if (termMonths <= 0) return "Error"; // Term cannot be zero or negative
   if (principal <= 0) return 0; // No loan, no payment
   if (annualRate < 0) return "Error"; // Rate cannot be negative
@@ -44,6 +48,13 @@ export const calculateLoanAmount = (
 ): number | "Error" => {
   // Match calculateMonthlyPayment's contract: invalid term / negative rate is an
   // "Error", not a silent 0 that a caller would mistake for a valid principal. [B8]
+  if (
+    !Number.isFinite(monthlyPayment) ||
+    !Number.isFinite(annualRate) ||
+    !Number.isFinite(termMonths)
+  ) {
+    return "Error";
+  }
   if (termMonths <= 0) return "Error";
   if (annualRate < 0) return "Error";
   if (monthlyPayment <= 0) return 0; // No payment, no principal
@@ -65,6 +76,12 @@ export const calculateLoanAmount = (
  * the buyer's home-state rate capped at the MI statutory rate. Out-of-state
  * DEALERSHIPS are NOT modeled — the state here is the BUYER's state for a
  * Michigan dealership, not the dealership's own state.
+ *
+ * Notes on taxable base:
+ * - docFee + cvrFee are included in taxableAmount (taxed).
+ * - stateFees (registration/title etc.) are added to OTD but EXCLUDED from tax base.
+ *   (Explicitly not part of taxableAmount = max(0, price - credit) + doc + cvr.)
+ * - backendProducts, downPayment, trade, rebate handled in amount-to-finance only.
  */
 const calculateSalesTax = (
   price: number,
@@ -129,13 +146,14 @@ const calculateSalesTax = (
   // Michigan caps the sales-tax trade-in credit by statute. [G17]
   // Stale stored settings may predate this field; fall back to the shipped
   // default rather than silently zeroing the trade credit.
-  // TODO(owner): verify current MI statutory trade-in credit cap before pilot.
+  // Uses named MI_TRADE_IN_CREDIT_CAP (verification note in constants.ts).
   const miTradeInCreditCap = Number.isFinite(settings.miTradeInCreditCap)
     ? settings.miTradeInCreditCap
-    : 12000;
+    : MI_TRADE_IN_CREDIT_CAP;
   const taxableTradeCredit =
     taxState === "MI" ? Math.min(tradeInValue, miTradeInCreditCap) : tradeInValue;
 
+  // stateFees deliberately excluded from taxable base (added only to baseOutTheDoorPrice later).
   const taxableAmount = Math.max(0, price - taxableTradeCredit) + docFee + cvrFee;
   const tax = roundCents(taxableAmount * taxRate); // [B7]
 
@@ -151,7 +169,9 @@ export const calculateFinancials = (
   // intent for down payment, fees, and trade values.
   const downPayment = toNumber(dealData.downPayment);
   const backendProducts = toNumber(dealData.backendProducts);
-  const loanTerm = toNumber(dealData.loanTerm);
+  // Ensure term is integer (>=1) for calculations; floor for robustness (terms
+  // are whole months per contract; documented here and partially by validator).
+  const loanTerm = Math.max(1, Math.floor(toNumber(dealData.loanTerm)));
   const tradeInValue = toNumber(dealData.tradeInValue);
   const tradeInPayoff = toNumber(dealData.tradeInPayoff);
   const stateFees = toNumber(dealData.stateFees);
@@ -169,7 +189,7 @@ export const calculateFinancials = (
     (typeof rawRate === "number" && !Number.isFinite(rawRate));
   const interestRate: number | null = rateIsBlank ? null : toNumber(rawRate);
 
-  const price = typeof vehicle.price === "number" ? vehicle.price : 0;
+  const price = Math.max(0, typeof vehicle.price === "number" ? vehicle.price : 0);
   const jdPower = typeof vehicle.jdPower === "number" ? vehicle.jdPower : 0;
   const jdPowerRetail = typeof vehicle.jdPowerRetail === "number" ? vehicle.jdPowerRetail : 0;
   const unitCost = typeof vehicle.unitCost === "number" ? vehicle.unitCost : 0;
@@ -184,8 +204,10 @@ export const calculateFinancials = (
   let otdLtv: number | "Error" | "N/A" = "N/A";
   let monthlyPayment: number | "Error" | "N/A" = "N/A";
 
-  // Only calculate if we have a valid price
-  if (typeof vehicle.price === "number") {
+  // Only calculate if we have a valid (positive) price. Negative prices are now rejected
+  // upstream in parser and schema; treat here as missing for safety. [negative prices]
+  // price var is clamped >=0 above.
+  if (price > 0) {
     const netTradeIn = tradeInValue - tradeInPayoff;
 
     const { tax, extraFees } = calculateSalesTax(

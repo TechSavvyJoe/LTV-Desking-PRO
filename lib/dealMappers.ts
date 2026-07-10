@@ -33,11 +33,13 @@ const toOptionalString = (value: unknown): string | undefined =>
   typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 const toOptionalNumber = (value: unknown): number | null => toFiniteNumber(value) ?? null;
+const DEFAULT_INTEREST_RATE =
+  typeof INITIAL_DEAL_DATA.interestRate === "number" ? INITIAL_DEAL_DATA.interestRate : 0;
 
-export const toAppState = (value: unknown, fallback: AppState): AppState =>
-  typeof value === "string" && APP_STATES.includes(value as AppState)
-    ? (value as AppState)
-    : fallback;
+export const toAppState = (value: unknown, fallback: AppState): AppState => {
+  const s = typeof value === "string" ? value : "";
+  return (APP_STATES as readonly string[]).includes(s) ? (s as AppState) : fallback;
+};
 
 // ============================================
 // Pipeline status buckets [Phase 6 / reconciliation 7]
@@ -127,10 +129,12 @@ export const STATUS_BUCKET_META: Record<StatusBucket, StatusBucketMeta> = {
  * unknown-status behavior) so a legacy/bad value can never render an
  * out-of-vocabulary status or a terminal pill.
  */
-export const toCanonicalStatus = (value: unknown): CanonicalDealStatus =>
-  typeof value === "string" && (CANONICAL_DEAL_STATUSES as readonly string[]).includes(value)
-    ? (value as CanonicalDealStatus)
+export const toCanonicalStatus = (value: unknown): CanonicalDealStatus => {
+  const s = typeof value === "string" ? value : "";
+  return (CANONICAL_DEAL_STATUSES as readonly string[]).includes(s)
+    ? (s as CanonicalDealStatus)
     : "draft";
+};
 
 export const mapDealData = (value: unknown): DealData => {
   const record = isRecord(value) ? value : {};
@@ -141,14 +145,20 @@ export const mapDealData = (value: unknown): DealData => {
     tradeInPayoff: toNumberOr(record.tradeInPayoff, INITIAL_DEAL_DATA.tradeInPayoff),
     backendProducts: toNumberOr(record.backendProducts, INITIAL_DEAL_DATA.backendProducts),
     loanTerm: toNumberOr(record.loanTerm, INITIAL_DEAL_DATA.loanTerm),
-    interestRate: toNumberOr(record.interestRate, INITIAL_DEAL_DATA.interestRate),
+    // Preserve "" sentinel (unset rate) from persisted records so calculator
+    // and UI continue to treat blank APR as "N/A" rather than forcing 0 or default.
+    // toNumberOr would collapse it; explicit check here maintains the DealData contract.
+    interestRate:
+      record.interestRate === "" ? "" : toNumberOr(record.interestRate, DEFAULT_INTEREST_RATE),
     stateFees: toNumberOr(record.stateFees, INITIAL_DEAL_DATA.stateFees),
     notes: toStringOr(record.notes, INITIAL_DEAL_DATA.notes),
     // Carry per-deal buyer state through persistence/PDF round-trips so an
     // out-of-state buyer's tax basis isn't silently lost on reload. [G18]
-    buyerState: APP_STATES.includes(record.buyerState as AppState)
-      ? (record.buyerState as DealData["buyerState"])
-      : undefined,
+    buyerState:
+      typeof record.buyerState === "string" &&
+      (APP_STATES as readonly string[]).includes(record.buyerState)
+        ? (record.buyerState as AppState)
+        : undefined,
     // Round-trip the add-on split and rebate: dropping them made a restored
     // deal misreport VSC/GAP (re-toggling would double-count into
     // backendProducts) and silently discard the rebate. [review/P1]
@@ -252,7 +262,10 @@ export const mapPocketBaseSavedDeal = (deal: PocketBaseSavedDeal): PipelineSaved
  * status reads "draft" → bucket "pending").
  */
 export const asPipelineDeal = (deal: AppSavedDeal): PipelineSavedDeal => {
-  const rec = deal as AppSavedDeal & Partial<PipelineDealFields>;
+  // Safe cast through unknown: PipelineSavedDeal extends AppSavedDeal with optional
+  // extra pipeline fields that may be present at runtime from PB (status, lenderName, calculatedData).
+  // We defensively read them without polluting the base type.
+  const rec = deal as unknown as Record<string, unknown>;
   return {
     ...deal,
     status: toCanonicalStatus(rec.status),

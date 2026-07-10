@@ -1,6 +1,9 @@
 import { pb, User, Dealer, clearSuperadminDealerOverride, asRecord } from "./pocketbase";
 import { validatePassword } from "./passwordPolicy";
 import { STORAGE_KEYS } from "../constants";
+import { createLogger } from "./logger";
+
+const authLogger = createLogger("auth");
 
 // Local alias delegates to the shared helper in lib/pocketbase.ts so the
 // cast lives in exactly one place.
@@ -23,7 +26,7 @@ export const login = async (email: string, password: string): Promise<AuthResult
       user: asType<User>(authData.record) ?? undefined,
     };
   } catch (error) {
-    console.error("Login failed:", error);
+    authLogger.error("Login failed", error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Login failed",
@@ -83,7 +86,7 @@ export const register = async (
     // Auto-login after registration
     return await login(email, password);
   } catch (error) {
-    console.error("Registration failed:", error);
+    authLogger.error("Registration failed", error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Registration failed",
@@ -142,7 +145,7 @@ export const requestPasswordReset = async (email: string): Promise<boolean> => {
     await pb.collection("users").requestPasswordReset(email);
     return true;
   } catch (error) {
-    console.error("Password reset request failed:", error);
+    authLogger.error("Password reset request failed", error as Error);
     return false;
   }
 };
@@ -158,7 +161,7 @@ export const updateProfile = async (
     const updated = await pb.collection("users").update(userId, data);
     return asType<User>(updated);
   } catch (error) {
-    console.error("Profile update failed:", error);
+    authLogger.error("Profile update failed", error as Error);
     return null;
   }
 };

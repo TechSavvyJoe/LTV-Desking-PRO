@@ -69,7 +69,7 @@ export const checkBankEligibility = (
 
   // Quoted APR may legitimately be unset ("" at runtime) — rate-cap checks are
   // then reported as unchecked rather than guessed. [G20]
-  const rawRate = (deal as { interestRate?: unknown }).interestRate;
+  const rawRate = deal.interestRate;
   const quotedRate = typeof rawRate === "number" && Number.isFinite(rawRate) ? rawRate : null;
   const backendAmount = Number(deal.backendProducts) || 0;
 
@@ -129,6 +129,12 @@ export const checkBankEligibility = (
     )
       continue;
 
+    // Tier-level minIncome (if specified) — enforce more tier fields. [robustness]
+    if (tier.minIncome !== undefined && tier.minIncome > 0) {
+      const income = Number(monthlyIncome) || 0;
+      if (income < tier.minIncome) continue;
+    }
+
     // Vehicle Year Check
     const year = Number(modelYear);
     if (tier.minYear !== undefined && (isNaN(year) || year < tier.minYear)) continue;
@@ -143,9 +149,10 @@ export const checkBankEligibility = (
     if (tier.minAmountFinanced !== undefined && amt < tier.minAmountFinanced) continue;
     if (tier.maxAmountFinanced !== undefined && amt > tier.maxAmountFinanced) continue;
 
-    // Loan Term Check
-    if (tier.minTerm !== undefined && deal.loanTerm < tier.minTerm) continue;
-    if (tier.maxTerm !== undefined && deal.loanTerm > tier.maxTerm) continue;
+    // Loan Term Check (coerce like other numeric fields; bad term skips tier)
+    const term = Number(deal.loanTerm);
+    if (tier.minTerm !== undefined && (isNaN(term) || term < tier.minTerm)) continue;
+    if (tier.maxTerm !== undefined && (isNaN(term) || term > tier.maxTerm)) continue;
 
     // Make exclusions / inclusions — previously extracted from rate sheets but
     // silently ignored by matching. [G20]
@@ -247,6 +254,15 @@ export const checkBankEligibility = (
     }
     if (tier.maxDti !== undefined && tier.maxDti > 0) {
       unchecked.add("max DTI (customer debts not collected)");
+    }
+
+    // Unmodeled tier fields: add unchecked notes so eligibility never silently
+    // claims more than was actually verified. [G20 from deep review]
+    if (tier.minLtv !== undefined && tier.minLtv > 0) {
+      unchecked.add("min LTV (LTV floor constraint not evaluated by matcher)");
+    }
+    if (tier.maxAge !== undefined && tier.maxAge > 0) {
+      unchecked.add("max age (maxAge not modeled — year/minYear used where possible)");
     }
 
     // If all evaluable checks pass, this tier is a preliminary fit.

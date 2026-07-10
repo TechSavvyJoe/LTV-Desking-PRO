@@ -6,7 +6,7 @@
  *
  * 1747800002 creates deal_events with NULL rules and applies the dealer-scoped
  * rules "best effort" — but on a same-boot fresh DB the rule parser can't yet
- * resolve `@request.auth.dealer.id`, so it skips and the collection would stay
+ * resolve `@request.auth.dealer`, so it skips and the collection would stay
  * admin-only with no re-run. Running the assertion here, one migration later,
  * means the schema cache is settled and the rules apply cleanly. Idempotent and
  * fail-closed: if it still can't apply, the collection remains admin-only (safe).
@@ -24,8 +24,8 @@ migrate(
     const AUTHED = '@request.auth.id != ""';
     const SUPER = '@request.auth.role = "superadmin"';
     const ADMIN_OR_SUPER = '(@request.auth.role = "superadmin" || @request.auth.role = "admin")';
-    const dealerScopedRead = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.auth.dealer.id ?= dealer.id))`;
-    const dealerScopedCreate = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= dealer.id)`;
+    const dealerScopedRead = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && dealer = @request.auth.dealer))`;
+    const dealerScopedCreate = `${AUTHED} && (${SUPER} || @request.body.dealer = @request.auth.dealer)`;
 
     // Only write if not already correct (keeps the migration a no-op on DBs
     // where 1747800002 already applied the rules).

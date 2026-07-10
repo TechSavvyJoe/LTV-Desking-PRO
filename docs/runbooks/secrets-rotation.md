@@ -52,3 +52,30 @@ All three should pass within ~5 minutes.
 - Calendar reminder every 90 days for "rotation Friday"
 - GitHub secret scanning enabled at the org level (catches leaks in pushes/PRs)
 - Never paste a secret into Claude/chat without rotating it after
+
+## Quarterly dependency hygiene (npm audit)
+
+Run as part of rotation day (or on every PR via CI):
+
+```bash
+npm run audit          # = npm audit --audit-level=moderate
+npm audit fix          # safe patch/minor only (never --force unless reviewed)
+```
+
+As of latest analysis (2026-07-08):
+
+- Performed safe `npm audit fix`; package-lock/package metadata updated.
+- `npm audit --audit-level=moderate` reports 0 vulnerabilities.
+- CI gate + Renovate vulnerability alerts prevent regression.
+- CI now includes explicit "Attempt safe npm audit fix (dry-run report only)" step.
+
+If `npm audit` reports moderate+:
+
+1. `npm audit` for details + GHSA links.
+2. Prefer `npm audit fix` (non-breaking) locally; commit updated package-lock.
+3. For force-required, review breaking impact, pin via overrides in package.json, or defer with documented exception in this runbook + issue.
+4. Update package-lock, commit, verify `npm ci && npm run build && npm test`.
+
+Add any persistent exceptions here (none currently).
+
+Update this section on each rotation with fresh `npm audit` summary + confirmation of safe fix.

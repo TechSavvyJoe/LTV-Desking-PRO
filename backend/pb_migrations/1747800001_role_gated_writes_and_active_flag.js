@@ -23,8 +23,9 @@
 const AUTHED = '@request.auth.id != ""';
 const SUPER = '@request.auth.role = "superadmin"';
 const ADMIN_OR_SUPER = '(@request.auth.role = "superadmin" || @request.auth.role = "admin")';
-const SAME_DEALER = `${AUTHED} && (${SUPER} || @request.auth.dealer.id ?= dealer.id)`;
-const SAME_DEALER_ADMIN = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.auth.dealer.id ?= dealer.id))`;
+const SAME_DEALER = `${AUTHED} && (${SUPER} || dealer = @request.auth.dealer)`;
+const SAME_DEALER_ADMIN = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && dealer = @request.auth.dealer))`;
+const SAME_DEALER_ADMIN_CREATE = `${AUTHED} && (${SUPER} || (${ADMIN_OR_SUPER} && @request.body.dealer = @request.auth.dealer))`;
 
 migrate(
   (app) => {
@@ -57,7 +58,7 @@ migrate(
     };
 
     apply("lender_profiles", {
-      createRule: SAME_DEALER_ADMIN,
+      createRule: SAME_DEALER_ADMIN_CREATE,
       updateRule: SAME_DEALER_ADMIN,
       deleteRule: SAME_DEALER_ADMIN,
     });

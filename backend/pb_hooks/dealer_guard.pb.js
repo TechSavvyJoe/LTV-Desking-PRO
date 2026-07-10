@@ -24,9 +24,26 @@
 const registerDealerGuard = (collectionName) => {
   const enforce = (e) => {
     const auth = e.auth;
+    let authCollectionName = "";
+    try {
+      const authCollection =
+        auth && typeof auth.collection === "function"
+          ? auth.collection()
+          : auth && typeof auth.collection === "object"
+            ? auth.collection
+            : null;
+      authCollectionName = authCollection ? String(authCollection.name || "") : "";
+    } catch (err) {
+      authCollectionName = "";
+    }
+    const authRole = auth && typeof auth.get === "function" ? auth.get("role") : "";
+
+    // Detect platform superuser (from _superusers collection) or app user with role=superadmin.
+    // The former is used by the seed helper and admin tools; the latter for app superadmins.
+    const isSuperuser = authCollectionName === "_superusers" || authRole === "superadmin";
 
     // Superadmins are trusted to write across dealerships (seeding, support).
-    if (auth && auth.get("role") === "superadmin") return e.next();
+    if (isSuperuser) return e.next();
 
     // Fail CLOSED. A write to a dealer-scoped collection with no enforceable
     // tenant must be rejected, never passed through with a client-supplied
@@ -34,7 +51,7 @@ const registerDealerGuard = (collectionName) => {
     if (!auth) {
       throw new ForbiddenError("Authentication is required to write dealer-scoped records.");
     }
-    const authDealer = auth.get("dealer");
+    const authDealer = typeof auth.get === "function" ? auth.get("dealer") : "";
     if (!authDealer) {
       throw new ForbiddenError("Your account is not associated with a dealership.");
     }

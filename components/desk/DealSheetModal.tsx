@@ -74,7 +74,7 @@ const dealSheetFilename = (vehicle: CalculatedVehicle): string => {
  * "Download PDF" action wired to the existing deal-sheet PDF path (same
  * DealPdfData shape the legacy Favorites flow built). [dc-redesign / Phase 5]
  */
-export const DealSheetModal: React.FC<DealSheetModalProps> = ({
+const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
   vehicle,
   onClose,
   onSaveToPipeline,
@@ -126,7 +126,10 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
     .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     .toUpperCase();
 
-  const custName = customerName.trim() || "Walk-in customer";
+  const custName =
+    typeof customerName === "string" && customerName.trim()
+      ? customerName.trim()
+      : "Walk-in customer";
 
   const price = numVal(vehicle.price);
   const baseOtd = numVal(vehicle.baseOutTheDoorPrice);
@@ -227,7 +230,7 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
         },
       });
     } catch (error) {
-      console.error("Error generating deal sheet PDF:", error);
+      // Error surfaced to UI via PdfGenerationError; log at call site if needed.
       const code = pdfErrorCode(error);
       const message = pdfErrorMessage(error);
       setPdfState({ status: "error", code, message });
@@ -291,18 +294,16 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
               style={{
                 fontSize: 11,
                 fontFamily: mono,
-                letterSpacing: "0.14em",
                 color: "var(--color-text-subtle)",
-                textTransform: "uppercase",
               }}
             >
-              {(dealerName || "—").toUpperCase()} · {dateLabel}
+              {dealerName || "—"} · {dateLabel}
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, marginTop: 3 }}>Deal sheet</div>
           </div>
           <button
             onClick={onClose}
-            className="lift-btn"
+            className="transition-colors"
             aria-label="Close"
             style={{
               background: "transparent",
@@ -490,12 +491,12 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
             borderRadius: "0 0 16px 16px",
           }}
         >
-          <button onClick={onClose} className="lift-btn" style={secondaryBtn}>
+          <button onClick={onClose} className="transition-colors" style={secondaryBtn}>
             Close
           </button>
           <button
             onClick={handleDownloadPdf}
-            className="lift-btn"
+            className="transition-colors"
             disabled={pdfBusy}
             style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}
           >
@@ -503,7 +504,7 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
           </button>
           <button
             onClick={onSaveToPipeline}
-            className="lift-btn"
+            className="transition-colors"
             style={{
               background: "var(--color-primary)",
               border: "1px solid transparent",
@@ -524,4 +525,7 @@ export const DealSheetModal: React.FC<DealSheetModalProps> = ({
   );
 };
 
+const DealSheetModal = React.memo(DealSheetModalBase) as React.FC<DealSheetModalProps>;
+DealSheetModal.displayName = "DealSheetModal";
 export default DealSheetModal;
+export { DealSheetModal };

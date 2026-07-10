@@ -130,4 +130,12 @@ describe("lenderFit", () => {
       expect(activeLenderCount([])).toBe(0);
     });
   });
+
+  describe("lenderFit additional edges", () => {
+    it("lenderFitForVehicle with no tiers returns fitCount 0", () => {
+      const noTier: LenderProfile = { id: "nt", name: "NT", tiers: [] };
+      const f = lenderFitForVehicle(mkVehicle(), mkDeal(), [noTier]);
+      expect(f.fitCount).toBe(0);
+    });
+  });
 });
