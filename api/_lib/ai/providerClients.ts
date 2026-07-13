@@ -101,7 +101,7 @@ const assertFetchOk = async (response: Response, provider: AiProvider): Promise<
   throw new Error(message);
 };
 
-const callOpenAiJson = async (request: AiJsonRequest): Promise<unknown> => {
+const callOpenAiJson = async (request: AiJsonRequest, signal: AbortSignal): Promise<unknown> => {
   const content: Record<string, unknown>[] = [];
   if (request.pdf) {
     content.push({
@@ -114,6 +114,7 @@ const callOpenAiJson = async (request: AiJsonRequest): Promise<unknown> => {
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
+    signal,
     headers: {
       Authorization: `Bearer ${request.apiKey}`,
       "Content-Type": "application/json",
@@ -143,7 +144,7 @@ const callOpenAiJson = async (request: AiJsonRequest): Promise<unknown> => {
   return extractJsonFromText(readOpenAiText(body));
 };
 
-const callAnthropicJson = async (request: AiJsonRequest): Promise<unknown> => {
+const callAnthropicJson = async (request: AiJsonRequest, signal: AbortSignal): Promise<unknown> => {
   const content: Record<string, unknown>[] = [];
   if (request.pdf) {
     content.push({
@@ -162,8 +163,15 @@ const callAnthropicJson = async (request: AiJsonRequest): Promise<unknown> => {
     )}`,
   });
 
+  // GLBA/Safeguards (SEC-002): Anthropic has no per-request `store:false`
+  // equivalent. Zero Data Retention is an organization-level arrangement
+  // enabled by Anthropic sales — not an API flag. We intentionally omit
+  // `cache_control` so prompt caching (ephemeral retention) is not opted in.
+  // Production Anthropic keys must be on a ZDR-eligible commercial org; see
+  // docs/runbooks/ai-data-retention.md and backend/DEPLOYMENT.md.
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
+    signal,
     headers: {
       "x-api-key": request.apiKey,
       "anthropic-version": "2023-06-01",
@@ -182,7 +190,7 @@ const callAnthropicJson = async (request: AiJsonRequest): Promise<unknown> => {
   return extractJsonFromText(readAnthropicText(body));
 };
 
-const callGeminiJson = async (request: AiJsonRequest): Promise<unknown> => {
+const callGeminiJson = async (request: AiJsonRequest, signal: AbortSignal): Promise<unknown> => {
   const ai = new GoogleGenAI({ apiKey: request.apiKey });
   const parts: Record<string, unknown>[] = [];
   if (request.pdf) {
@@ -195,47 +203,56 @@ const callGeminiJson = async (request: AiJsonRequest): Promise<unknown> => {
   }
   parts.push({ text: request.userPrompt });
 
+  // GLBA/Safeguards (SEC-002): generateContent defaults to store=false, but
+  // set it explicitly so project-level AI Studio logging cannot silently
+  // retain deal payloads. Paid Gemini keys + ZDR guidance: see
+  // docs/runbooks/ai-data-retention.md.
+  // `store` is documented by Google; @google/genai types lag the API.
   const response = await ai.models.generateContent({
     model: request.model,
     contents: { role: "user", parts },
     config: {
+      abortSignal: signal,
       systemInstruction: request.systemPrompt,
       temperature: request.temperature ?? 0.1,
       responseMimeType: "application/json",
       responseJsonSchema: request.jsonSchema,
-    },
+      store: false,
+    } as import("@google/genai").GenerateContentConfig,
   });
 
   return extractJsonFromText(response.text ?? "");
 };
 
-export const callAiJson = async (request: AiJsonRequest): Promise<unknown> => {
-  const operation = (() => {
+export const callAiJson = async (request: AiJsonRequest): Promise<unknown> =>
+  withAiTimeout((signal) => {
     switch (request.provider) {
       case "openai":
-        return callOpenAiJson(request);
+        return callOpenAiJson(request, signal);
       case "anthropic":
-        return callAnthropicJson(request);
+        return callAnthropicJson(request, signal);
       case "gemini":
-        return callGeminiJson(request);
+        return callGeminiJson(request, signal);
     }
-  })();
-
-  return withAiTimeout(operation);
-};
+  });
 
 const callGeminiGroundedJson = async (
-  request: GroundedAiJsonRequest
+  request: GroundedAiJsonRequest,
+  signal: AbortSignal
 ): Promise<GroundedAiJsonResponse> => {
   const ai = new GoogleGenAI({ apiKey: request.apiKey });
+  // SEC-002: explicit store:false — see callGeminiJson comment above.
+  // `store` is documented by Google; @google/genai types lag the API.
   const response = await ai.models.generateContent({
     model: request.model,
     contents: { role: "user", parts: [{ text: request.userPrompt }] },
     config: {
+      abortSignal: signal,
       systemInstruction: request.systemPrompt,
       temperature: request.temperature ?? 0.2,
       tools: [{ googleSearch: {} }],
-    },
+      store: false,
+    } as import("@google/genai").GenerateContentConfig,
   });
 
   const text = response.text ?? "";
@@ -264,4 +281,5 @@ const callGeminiGroundedJson = async (
 
 export const callGroundedAiJson = async (
   request: GroundedAiJsonRequest
-): Promise<GroundedAiJsonResponse> => withAiTimeout(callGeminiGroundedJson(request));
+): Promise<GroundedAiJsonResponse> =>
+  withAiTimeout((signal) => callGeminiGroundedJson(request, signal));

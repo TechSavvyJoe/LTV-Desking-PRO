@@ -24,7 +24,23 @@ routerUse((e) => {
   try {
     e.next();
   } catch (err) {
-    status = 500;
+    // PocketBase writes the response after middleware unwinds, so at this
+    // point e.response.statusCode may still be unset. Preserve structured HTTP
+    // errors (notably expected 401/403 auth failures) instead of reporting
+    // every thrown request as a server-side 500.
+    let errorStatus = 0;
+    try {
+      errorStatus = Number(
+        err &&
+          (err.status ||
+            err.statusCode ||
+            err.code ||
+            (err.value && (err.value.status || err.value.statusCode || err.value.code)))
+      );
+    } catch (_) {
+      errorStatus = 0;
+    }
+    status = Number.isFinite(errorStatus) && errorStatus >= 400 && errorStatus <= 599 ? errorStatus : 500;
     throw err;
   } finally {
     try {

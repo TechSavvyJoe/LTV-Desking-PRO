@@ -1,6 +1,6 @@
 # Runbook: Security Incident & Breach Response
 
-**Owner:** Joe Gallant (platform owner) · **Last updated:** 2026-06-11
+**Owner:** Joe Gallant (platform owner) · **Last updated:** 2026-07-13
 **Scope:** any suspected unauthorized access to dealer or consumer data (PocketBase, R2 backups,
 Vercel functions, AI provider accounts, GitHub).
 
@@ -18,15 +18,24 @@ Ask three questions:
 
 ## 2. Contain
 
-- **Compromised PB superuser / service account:** rotate immediately —
-  `fly secrets set PB_SERVICE_PASSWORD=... -a ltv-desking-pro-api` + update Vercel env
-  (`vercel env rm/add PB_SERVICE_PASSWORD production`). See `secrets-rotation.md`.
+- **Compromised AI proxy service identity:** run
+  `gh workflow run rotate-pb-service-account.yml --ref main`. The workflow
+  proves a new `api_service_accounts` identity through the actual Vercel AI API
+  before retiring the prior identity. If the old identity is being actively
+  abused, delete that record immediately in the PB Admin UI and accept the
+  temporary AI outage while rotation completes. Never put a `_superusers`
+  credential in Vercel. See `secrets-rotation.md`.
+- **Compromised human PB superuser:** change or delete it in the PB Admin UI and
+  review other `_superusers` records. It is separate from the Vercel service
+  identity.
 - **Compromised AI provider key:** revoke in the provider dashboard, clear it in Owner Console →
   AI Providers, enter the replacement.
 - **Compromised user account:** delete/deactivate the user (Owner Console), then verify with the
   dealer principal by phone.
-- **Active exploitation of the app itself:** scale the API to zero (`fly scale count 0 -a
-ltv-desking-pro-api`) — a hard outage is better than active exfiltration.
+- **Active exploitation of the app itself:** list the machine ID with
+  `fly machine list -a ltv-desking-pro-api`, then stop it with
+  `fly machine stop <machine-id> -a ltv-desking-pro-api`. Preserve the attached
+  volume; a hard outage is better than active exfiltration.
 - Preserve evidence BEFORE restarting machines: `fly logs` output to a file, a Litestream snapshot
   of the current DB state, screenshots of audit_log.
 

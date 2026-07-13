@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   checkRateLimit,
-  enforceAiRateLimit,
+  enforceLocalAiRateLimit,
+  enforceAnonymousModelsRateLimit,
+  clientIpFromRequest,
   pruneRateLimits,
   __resetRateLimits,
   type RateLimitRule,
 } from "./rateLimit";
 import type { AuthContext } from "./auth";
+import type { IncomingMessage } from "node:http";
 
 const rule: RateLimitRule = { limit: 3, windowMs: 1000 };
 
@@ -41,12 +44,12 @@ describe("rateLimit", () => {
     expect(checkRateLimit("b", rule, t).ok).toBe(true);
   });
 
-  it("enforceAiRateLimit throttles a single user across many calls", () => {
+  it("enforceLocalAiRateLimit throttles a single user across many calls", () => {
     const auth: AuthContext = { userId: "u1", role: "user", dealerId: "d1" };
     const t = 4_000_000;
     let blockedAt = -1;
     for (let i = 0; i < 200; i++) {
-      const r = enforceAiRateLimit(auth, t);
+      const r = enforceLocalAiRateLimit(auth, t);
       if (!r.ok) {
         blockedAt = i;
         break;
@@ -66,23 +69,23 @@ describe("rateLimit", () => {
     expect(checkRateLimit("prune-me", { limit: 1, windowMs: 100 }, t + 200).ok).toBe(true);
   });
 
-  it("enforceAiRateLimit allows superadmin without dealerId (no dealer bucket)", () => {
+  it("enforceLocalAiRateLimit allows superadmin without dealerId (no dealer bucket)", () => {
     const auth: AuthContext = { userId: "sa1", role: "superadmin", dealerId: null };
     const t = 5_000_000;
     // PER_USER is 20/min; should allow first 20
     for (let i = 0; i < 20; i++) {
-      expect(enforceAiRateLimit(auth, t).ok).toBe(true);
+      expect(enforceLocalAiRateLimit(auth, t).ok).toBe(true);
     }
-    expect(enforceAiRateLimit(auth, t).ok).toBe(false);
+    expect(enforceLocalAiRateLimit(auth, t).ok).toBe(false);
   });
 
-  it("enforceAiRateLimit applies both user and dealer limits and returns first violation", () => {
+  it("enforceLocalAiRateLimit applies both user and dealer limits and returns first violation", () => {
     const auth: AuthContext = { userId: "u2", role: "user", dealerId: "d2" };
     const t = 6_000_000;
     // Exhaust user (20) then dealer should still allow? but actually exhaust user first
     let lastOk = true;
     for (let i = 0; i < 25; i++) {
-      lastOk = enforceAiRateLimit(auth, t).ok;
+      lastOk = enforceLocalAiRateLimit(auth, t).ok;
     }
     expect(lastOk).toBe(false);
   });
@@ -103,15 +106,15 @@ describe("rateLimit", () => {
     expect(checkRateLimit("p1", { limit: 1, windowMs: 50 }, t + 60).ok).toBe(true);
   });
 
-  it("enforceAiRateLimit uses prune internally so expired user limits free up", () => {
+  it("enforceLocalAiRateLimit uses prune internally so expired user limits free up", () => {
     const auth: AuthContext = { userId: "u3", role: "user", dealerId: "d3" };
     const t = 9_000_000;
     // use up some
-    enforceAiRateLimit(auth, t);
-    enforceAiRateLimit(auth, t);
+    enforceLocalAiRateLimit(auth, t);
+    enforceLocalAiRateLimit(auth, t);
     // advance past window by calling with future time (enforce prunes)
     const future = t + 70_000;
-    expect(enforceAiRateLimit(auth, future).ok).toBe(true); // fresh window
+    expect(enforceLocalAiRateLimit(auth, future).ok).toBe(true); // fresh window
   });
 
   it("checkRateLimit handles concurrent checks on same key without overcount [AI-rate-races]", () => {
@@ -125,14 +128,14 @@ describe("rateLimit", () => {
     expect(results[5]!.retryAfterSec).toBeGreaterThan(0);
   });
 
-  it("enforceAiRateLimit for superadmin with dealerId=null does not apply dealer bucket [AI-rate-auth-edge]", () => {
+  it("enforceLocalAiRateLimit for superadmin with dealerId=null does not apply dealer bucket [AI-rate-auth-edge]", () => {
     const auth: AuthContext = { userId: "sa2", role: "superadmin", dealerId: null };
     const t = 11_000_000;
     for (let i = 0; i < 20; i++) {
-      expect(enforceAiRateLimit(auth, t).ok).toBe(true);
+      expect(enforceLocalAiRateLimit(auth, t).ok).toBe(true);
     }
     // 21st blocks on user
-    expect(enforceAiRateLimit(auth, t).ok).toBe(false);
+    expect(enforceLocalAiRateLimit(auth, t).ok).toBe(false);
   });
 
   it("rate limit recovers exactly after window boundary using injected time [AI-rate-recovery]", () => {
@@ -142,5 +145,32 @@ describe("rateLimit", () => {
     expect(checkRateLimit("recov", rule, t0 + 50).ok).toBe(false);
     // exact boundary
     expect(checkRateLimit("recov", rule, t0 + 200).ok).toBe(true);
+  });
+
+  it("clientIpFromRequest prefers the first x-forwarded-for hop", () => {
+    const req = {
+      headers: { "x-forwarded-for": " 203.0.113.9, 10.0.0.1 " },
+      socket: { remoteAddress: "127.0.0.1" },
+    } as unknown as IncomingMessage;
+    expect(clientIpFromRequest(req)).toBe("203.0.113.9");
+  });
+
+  it("enforceAnonymousModelsRateLimit throttles by IP without touching auth buckets", () => {
+    const t = 13_000_000;
+    const req = {
+      headers: { "x-forwarded-for": "198.51.100.7" },
+      socket: {},
+    } as unknown as IncomingMessage;
+
+    for (let i = 0; i < 30; i++) {
+      expect(enforceAnonymousModelsRateLimit(req, t).ok).toBe(true);
+    }
+    const blocked = enforceAnonymousModelsRateLimit(req, t);
+    expect(blocked.ok).toBe(false);
+    expect(blocked.retryAfterSec).toBeGreaterThan(0);
+
+    // Authenticated user bucket remains independent.
+    const auth: AuthContext = { userId: "u-models", role: "user", dealerId: "d-models" };
+    expect(enforceLocalAiRateLimit(auth, t).ok).toBe(true);
   });
 });

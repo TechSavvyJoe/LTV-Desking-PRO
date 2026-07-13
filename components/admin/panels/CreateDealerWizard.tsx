@@ -3,6 +3,7 @@ import { Dealer, User } from "../../../lib/pocketbase";
 import { createDealerWithAdmin } from "../../../lib/api";
 import Button from "../../common/Button";
 import * as Icons from "../../common/Icons";
+import { PASSWORD_MIN_LENGTH } from "../../../lib/passwordPolicy";
 
 /**
  * CreateDealerWizard (extracted from SuperAdminDashboard.tsx)
@@ -46,7 +47,7 @@ const CreateDealerWizard: React.FC<{
     adminForm.firstName.trim() &&
     adminForm.lastName.trim() &&
     adminForm.email.trim() &&
-    adminForm.password.length >= 8 &&
+    adminForm.password.length >= PASSWORD_MIN_LENGTH &&
     adminForm.password === adminForm.passwordConfirm;
 
   const handleSubmit = async () => {
@@ -315,7 +316,7 @@ const CreateDealerWizard: React.FC<{
                   value={adminForm.password}
                   onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
                   className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
-                  placeholder="Min 8 characters"
+                  placeholder="12+ chars, upper/lower/number"
                 />
               </div>
               <div>

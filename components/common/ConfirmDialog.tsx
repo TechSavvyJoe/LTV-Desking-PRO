@@ -25,7 +25,12 @@ export const ConfirmDialog: React.FC = () => {
   if (!request) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
+    // --z-confirm (150) — confirm dialogs must layer above modals (--z-modal: 100),
+    // since they are often launched from within one (e.g. destructive actions in Settings).
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black/70 p-4"
+      style={{ zIndex: "var(--z-confirm)" }}
+    >
       <div
         ref={panelRef}
         role="alertdialog"

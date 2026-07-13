@@ -223,6 +223,12 @@ migrate(
       return;
     }
 
+    if (!lenderProfiles.fields.getByName("isSample")) {
+      lenderProfiles.fields.add(new BoolField({ name: "isSample", required: false }));
+      app.save(lenderProfiles);
+      lenderProfiles = app.findCollectionByNameOrId("lender_profiles");
+    }
+
     if (!dealers || dealers.length === 0) {
       console.log("[skip] seed_empty_dealer_samples: no dealer records yet");
       return;
@@ -272,7 +278,9 @@ migrate(
               dealer: dealerId,
               ...lender,
               active: true,
-              notes: "Default sample program. Verify current lender terms and rate sheets before quoting.",
+              isSample: true,
+              generalNotes:
+                "Sample program only. Terms are illustrative and must be verified against the lender's current rate sheet before quoting.",
             })
           );
           app.save(record);

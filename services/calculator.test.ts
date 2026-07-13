@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { calculateMonthlyPayment, calculateLoanAmount, calculateFinancials } from "./calculator";
+import * as fc from "fast-check";
+import {
+  calculateMonthlyPayment,
+  calculateLoanAmount,
+  calculateFinancials,
+  roundCents,
+} from "./calculator";
 import { Vehicle, DealData, Settings } from "../types";
 import { DEFAULT_AI_SETTINGS } from "../lib/aiModelRegistry";
 
@@ -199,6 +205,60 @@ describe("Calculator Service", () => {
       expect(result.amountToFinance).toBeCloseTo((base.amountToFinance as number) - 2000, 2);
     });
 
+    it("treats an explicit manufacturer rebate as taxable and ignores its legacy mirror", () => {
+      const base = calculateFinancials(mockVehicle, mockDealData, mockSettings);
+      const result = calculateFinancials(
+        mockVehicle,
+        {
+          ...mockDealData,
+          rebate: 2000,
+          manufacturerRebate: 2000,
+          dealerDiscount: 0,
+          rebateType: "manufacturer",
+        },
+        mockSettings
+      );
+
+      expect(result.salesTax).toBe(base.salesTax);
+      expect(result.amountToFinance).toBeCloseTo((base.amountToFinance as number) - 2000, 2);
+    });
+
+    it("deducts a dealer discount before tax and does not subtract it twice", () => {
+      const base = calculateFinancials(mockVehicle, mockDealData, mockSettings);
+      const result = calculateFinancials(
+        mockVehicle,
+        {
+          ...mockDealData,
+          rebate: 2000,
+          rebateType: "dealer",
+          manufacturerRebate: 0,
+          dealerDiscount: 2000,
+        },
+        mockSettings
+      );
+
+      expect(result.salesTax).toBeCloseTo(1696.5, 2);
+      expect(result.baseOutTheDoorPrice).toBeCloseTo(
+        (base.baseOutTheDoorPrice as number) - 2120,
+        2
+      );
+      expect(result.amountToFinance).toBe(result.baseOutTheDoorPrice);
+      expect(result.frontEndGross).toBe(3000);
+      expect(result.frontEndLtv).toBeCloseTo(100, 5);
+    });
+
+    it("adds transaction fees once and taxes them", () => {
+      const result = calculateFinancials(
+        mockVehicle,
+        { ...mockDealData, transactionFees: 100 },
+        mockSettings
+      );
+
+      expect(result.salesTax).toBe(1822.5);
+      expect(result.baseOutTheDoorPrice).toBe(32397.5);
+      expect(result.amountToFinance).toBe(32397.5);
+    });
+
     it("keeps existing negative-amount semantics when the rebate exceeds the OTD (no clamp)", () => {
       const result = calculateFinancials(
         mockVehicle,
@@ -286,13 +346,76 @@ describe("Calculator Service", () => {
       expect(result.salesTax).toBeCloseTo(1216.5, 2);
     });
 
-    it("does not apply the MI cap to out-of-state (OH) buyers [G17]", () => {
+    it("does not assume Ohio's new-vehicle trade allowance when condition is unknown", () => {
       const deal = { ...mockDealData, tradeInValue: 20000, buyerState: "OH" as const };
       const settingsOOS: Settings = { ...mockSettings, outOfStateTransitFee: 0 };
       const result = calculateFinancials(mockVehicle, deal, settingsOOS);
-      // Full 20000 credit: taxable (30000 - 20000) + 250 + 25 = 10275
-      // OH 5.75% (< MI 6% reciprocal cap): 10275 * 0.0575 = 590.8125 -> 590.81
-      expect(result.salesTax).toBeCloseTo(590.81, 2);
+      // Home-state computation gets no assumed credit; Michigan's capped-credit
+      // computation is lower, so Form 485's lesser-of method collects $1,096.50.
+      expect(result.salesTax).toBeCloseTo(1096.5, 2);
+    });
+
+    it("applies Ohio's full trade allowance only to an explicitly new vehicle", () => {
+      const settingsOOS: Settings = { ...mockSettings, outOfStateTransitFee: 0 };
+      const newVehicle = calculateFinancials(
+        mockVehicle,
+        {
+          ...mockDealData,
+          tradeInValue: 20000,
+          buyerState: "OH",
+          vehicleCondition: "new",
+        },
+        settingsOOS
+      );
+      const usedVehicle = calculateFinancials(
+        mockVehicle,
+        {
+          ...mockDealData,
+          tradeInValue: 20000,
+          buyerState: "OH",
+          vehicleCondition: "used",
+        },
+        settingsOOS
+      );
+
+      expect(newVehicle.salesTax).toBeCloseTo(590.81, 2);
+      expect(usedVehicle.salesTax).toBeCloseTo(1096.5, 2);
+    });
+
+    it("uses a supported full out-of-state trade allowance with explicit state and condition", () => {
+      const result = calculateFinancials(
+        mockVehicle,
+        {
+          ...mockDealData,
+          tradeInValue: 20000,
+          buyerState: "IN",
+          vehicleCondition: "used",
+        },
+        { ...mockSettings, outOfStateTransitFee: 0 }
+      );
+
+      // Indiana home-state tax with the full allowance is below Michigan tax.
+      expect(result.salesTax).toBeCloseTo(719.25, 2);
+    });
+
+    it("does not assume an out-of-state trade allowance when condition is missing", () => {
+      const result = calculateFinancials(
+        mockVehicle,
+        { ...mockDealData, tradeInValue: 20000, buyerState: "IN" },
+        { ...mockSettings, outOfStateTransitFee: 0 }
+      );
+
+      expect(result.salesTax).toBeCloseTo(1096.5, 2);
+    });
+
+    it("does not use an out-of-state home allowance from settings alone", () => {
+      const result = calculateFinancials(
+        mockVehicle,
+        { ...mockDealData, tradeInValue: 20000 },
+        { ...mockSettings, defaultState: "IN", outOfStateTransitFee: 0 }
+      );
+
+      expect(result.salesTax).toBeCloseTo(1096.5, 2);
     });
 
     // --- per-deal buyer state [G18] ---
@@ -660,5 +783,164 @@ describe("Calculator Service", () => {
       const r = calculateFinancials(v, d, s);
       expect(typeof r.salesTax).toBe("number");
     });
+  });
+});
+
+describe("Calculator property tests (fast-check)", () => {
+  // Realistic auto-desk ranges — pathological micro-rates / sub-$100 loans
+  // can exceed a cent of amortization round-trip drift after boundary rounding.
+  const positivePrincipal = fc.double({
+    min: 1_000,
+    max: 200_000,
+    noNaN: true,
+    noDefaultInfinity: true,
+  });
+  const positiveRate = fc.double({ min: 0.5, max: 36, noNaN: true, noDefaultInfinity: true });
+  const positiveTerm = fc.integer({ min: 12, max: 96 });
+
+  it("payment ↔ loan amount round-trip within a cent", () => {
+    fc.assert(
+      fc.property(positivePrincipal, positiveRate, positiveTerm, (P, rate, n) => {
+        const payment = calculateMonthlyPayment(P, rate, n);
+        expect(payment).not.toBe("Error");
+        if (typeof payment !== "number") return;
+        const recovered = calculateLoanAmount(payment, rate, n);
+        expect(recovered).not.toBe("Error");
+        if (typeof recovered !== "number") return;
+        // Principal can drift a few cents after double boundary rounding; the
+        // payment derived from the recovered principal must match within a cent.
+        const repaid = calculateMonthlyPayment(recovered, rate, n);
+        expect(repaid).not.toBe("Error");
+        if (typeof repaid !== "number") return;
+        expect(Math.abs(repaid - payment)).toBeLessThanOrEqual(0.01);
+      }),
+      { numRuns: 80 }
+    );
+  });
+
+  it("payment is monotonic in principal and rate; anti-monotonic in term (rate>0)", () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 1_000, max: 80_000, noNaN: true, noDefaultInfinity: true }),
+        fc.double({ min: 500, max: 20_000, noNaN: true, noDefaultInfinity: true }),
+        fc.double({ min: 1, max: 20, noNaN: true, noDefaultInfinity: true }),
+        fc.double({ min: 0.25, max: 8, noNaN: true, noDefaultInfinity: true }),
+        fc.integer({ min: 12, max: 72 }),
+        fc.integer({ min: 6, max: 24 }),
+        (P, dP, rate, dRate, n, dN) => {
+          const p0 = calculateMonthlyPayment(P, rate, n);
+          const pHigherPrincipal = calculateMonthlyPayment(P + dP, rate, n);
+          const pHigherRate = calculateMonthlyPayment(P, rate + dRate, n);
+          const pLongerTerm = calculateMonthlyPayment(P, rate, n + dN);
+          expect(typeof p0).toBe("number");
+          expect(typeof pHigherPrincipal).toBe("number");
+          expect(typeof pHigherRate).toBe("number");
+          expect(typeof pLongerTerm).toBe("number");
+          if (
+            typeof p0 !== "number" ||
+            typeof pHigherPrincipal !== "number" ||
+            typeof pHigherRate !== "number" ||
+            typeof pLongerTerm !== "number"
+          ) {
+            return;
+          }
+          expect(pHigherPrincipal).toBeGreaterThanOrEqual(p0);
+          expect(pHigherRate).toBeGreaterThanOrEqual(p0);
+          expect(pLongerTerm).toBeLessThanOrEqual(p0);
+        }
+      ),
+      { numRuns: 60 }
+    );
+  });
+
+  it("as rate→0, payment approaches P/n (matches the 0% special case)", () => {
+    fc.assert(
+      fc.property(positivePrincipal, positiveTerm, (P, n) => {
+        const zero = calculateMonthlyPayment(P, 0, n);
+        const nearZero = calculateMonthlyPayment(P, 1e-8, n);
+        expect(zero).not.toBe("Error");
+        expect(nearZero).not.toBe("Error");
+        if (typeof zero !== "number" || typeof nearZero !== "number") return;
+        expect(zero).toBe(roundCents(P / n));
+        expect(Math.abs(nearZero - zero)).toBeLessThanOrEqual(0.02);
+      }),
+      { numRuns: 50 }
+    );
+  });
+
+  it("MI deal sales tax is ≥ 0 for valid positive-priced vehicles", () => {
+    const miSettings: Settings = {
+      docFee: 250,
+      cvrFee: 25,
+      defaultState: "MI",
+      outOfStateTransitFee: 0,
+      ltvThresholds: { warn: 115, danger: 125, critical: 135 },
+      defaultTerm: 60,
+      defaultApr: 7.99,
+      defaultStateFees: 200,
+      customTaxRate: null,
+      miTradeInCreditCap: 12000,
+      vscPrice: 2495,
+      gapPrice: 895,
+      ai: DEFAULT_AI_SETTINGS,
+    };
+
+    fc.assert(
+      fc.property(
+        fc.double({ min: 1_000, max: 80_000, noNaN: true, noDefaultInfinity: true }),
+        fc.double({ min: 0, max: 10_000, noNaN: true, noDefaultInfinity: true }),
+        fc.double({ min: 0, max: 8_000, noNaN: true, noDefaultInfinity: true }),
+        (price, down, trade) => {
+          const vehicle: Vehicle = {
+            vehicle: "Prop Car",
+            stock: "P1",
+            vin: "PROP",
+            modelYear: 2022,
+            mileage: 12000,
+            price,
+            jdPower: Math.max(1, price * 0.9),
+            jdPowerRetail: price,
+            unitCost: price * 0.8,
+            baseOutTheDoorPrice: "N/A",
+          };
+          const deal: DealData = {
+            downPayment: down,
+            tradeInValue: trade,
+            tradeInPayoff: 0,
+            interestRate: 6.5,
+            loanTerm: 60,
+            backendProducts: 0,
+            stateFees: 200,
+            notes: "",
+            buyerState: "MI",
+          };
+          const result = calculateFinancials(vehicle, deal, miSettings);
+          expect(typeof result.salesTax).toBe("number");
+          if (typeof result.salesTax === "number") {
+            expect(result.salesTax).toBeGreaterThanOrEqual(0);
+          }
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+
+  it("roundCents is idempotent and rounds negatives symmetrically", () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: -1e6, max: 1e6, noNaN: true, noDefaultInfinity: true }),
+        (value) => {
+          const once = roundCents(value);
+          const twice = roundCents(once);
+          expect(twice).toBe(once);
+          // Half-away-from-zero symmetry: roundCents(-x) === -roundCents(x)
+          expect(roundCents(-value)).toBe(-roundCents(value));
+        }
+      ),
+      { numRuns: 100 }
+    );
+
+    expect(roundCents(0.125)).toBe(0.13);
+    expect(roundCents(-0.125)).toBe(-0.13);
   });
 });

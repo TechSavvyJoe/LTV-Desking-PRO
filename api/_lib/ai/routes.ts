@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { enforceAiRateLimit } from "./rateLimit.js";
+import { enforceAiRateLimit, enforceAnonymousModelsRateLimit } from "./rateLimit.js";
 import {
   buildAiModelRegistryResponse,
   type AiSettings,
@@ -23,7 +23,13 @@ import type {
 } from "../../../types.js";
 import { callAiJson, callGroundedAiJson } from "./providerClients.js";
 import { getConfiguredProviders, resolveAiModel } from "./modelSelection.js";
-import { resolveProviderKeys, updateProviderKeyTestStatus } from "./keyResolver.js";
+import {
+  getMaskedProviderKeys,
+  resolveProviderKeys,
+  updateProviderKeys,
+  updateProviderKeyTestStatus,
+  writeProviderKeyAudit,
+} from "./keyResolver.js";
 import { AuthError, requireAuth, requireSuperadmin, type AuthContext } from "./auth.js";
 import {
   dealSuggestionJsonSchema,
@@ -310,6 +316,39 @@ const TestKeyPayloadSchema = z.object({
   provider: z.enum(["openai", "anthropic", "gemini"]),
 });
 
+const ProviderKeysUpdateSchema = z
+  .object({
+    openaiApiKey: z.string().trim().min(1).max(500).optional(),
+    anthropicApiKey: z.string().trim().min(1).max(500).optional(),
+    geminiApiKey: z.string().trim().min(1).max(500).optional(),
+    clear: z
+      .array(z.enum(["openai", "anthropic", "gemini"]))
+      .max(3)
+      .optional(),
+  })
+  .strict()
+  .refine(
+    (value) =>
+      Boolean(
+        value.openaiApiKey || value.anthropicApiKey || value.geminiApiKey || value.clear?.length
+      ),
+    "At least one provider-key change is required."
+  );
+
+const handleProviderKeyStatus = async (response: ServerResponse): Promise<void> => {
+  sendJson(response, 200, { ok: true, data: await getMaskedProviderKeys() });
+};
+
+const handleProviderKeyUpdate = async (
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext
+): Promise<void> => {
+  const body = ProviderKeysUpdateSchema.parse(await readRequestBody(request));
+  const data = await updateProviderKeys(body, auth.userId);
+  sendJson(response, 200, { ok: true, data });
+};
+
 const testProviderKey = async (
   provider: "openai" | "anthropic" | "gemini",
   apiKey: string
@@ -357,7 +396,11 @@ const testProviderKey = async (
   }
 };
 
-const handleTestKey = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+const handleTestKey = async (
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthContext
+): Promise<void> => {
   const body = TestKeyPayloadSchema.parse(await readRequestBody(request));
   const keys = await resolveProviderKeys();
   const apiKey = keys[body.provider];
@@ -370,15 +413,16 @@ const handleTestKey = async (request: IncomingMessage, response: ServerResponse)
     return;
   }
 
+  let result: { ok: boolean; error?: string } = { ok: true };
   try {
     await testProviderKey(body.provider, apiKey);
-    await updateProviderKeyTestStatus(body.provider, { ok: true });
-    sendJson(response, 200, { ok: true, at: new Date().toISOString() });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await updateProviderKeyTestStatus(body.provider, { ok: false, error: message });
-    sendJson(response, 200, { ok: false, at: new Date().toISOString(), error: message });
+    result = { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
+
+  await updateProviderKeyTestStatus(body.provider, result);
+  await writeProviderKeyAudit(auth.userId, "ai_key_tested", body.provider, result);
+  sendJson(response, 200, { ...result, at: new Date().toISOString() });
 };
 
 const handleDealAnalysis = async (
@@ -423,8 +467,15 @@ export const handleAiRequest = async (
     // GET /api/ai/models is the only route that doesn't need auth — the
     // frontend hits it pre-auth to render the AI Defaults dropdown. It
     // returns no secret data (just model IDs + which providers have a key
-    // configured).
+    // configured). Still IP-throttled so scrapers cannot re-drive key
+    // resolution unbounded (SEC-005). The 60s keyResolver cache is unchanged.
     if (method === "GET" && url.startsWith("/api/ai/models")) {
+      const anonLimit = enforceAnonymousModelsRateLimit(request);
+      if (!anonLimit.ok) {
+        response.setHeader("Retry-After", String(anonLimit.retryAfterSec));
+        sendError(response, 429, `Rate limit exceeded. Try again in ${anonLimit.retryAfterSec}s.`);
+        return;
+      }
       await handleModels(request, response);
       return;
     }
@@ -434,9 +485,9 @@ export const handleAiRequest = async (
     // a paid provider call and reads the masked key status.
     let auth: AuthContext;
     try {
-      auth = url.startsWith("/api/ai/test-key")
-        ? await requireSuperadmin(request)
-        : await requireAuth(request);
+      const requiresOwner =
+        url.startsWith("/api/ai/test-key") || url.startsWith("/api/ai/provider-keys");
+      auth = requiresOwner ? await requireSuperadmin(request) : await requireAuth(request);
     } catch (e) {
       if (e instanceof AuthError) {
         sendError(response, e.statusCode, e.message);
@@ -453,15 +504,29 @@ export const handleAiRequest = async (
     }
 
     // Rate limit per user (and per dealer) before spending the owner's keys. [B3]
-    const limit = enforceAiRateLimit(auth);
+    const limit = await enforceAiRateLimit(auth, request);
     if (!limit.ok) {
+      if (limit.statusCode) {
+        sendError(response, limit.statusCode, limit.error ?? "AI request is not available.");
+        return;
+      }
       response.setHeader("Retry-After", String(limit.retryAfterSec));
       sendError(response, 429, `Rate limit exceeded. Try again in ${limit.retryAfterSec}s.`);
       return;
     }
 
+    if (method === "GET" && url.startsWith("/api/ai/provider-keys")) {
+      await handleProviderKeyStatus(response);
+      return;
+    }
+
+    if ((method === "PUT" || method === "PATCH") && url.startsWith("/api/ai/provider-keys")) {
+      await handleProviderKeyUpdate(request, response, auth);
+      return;
+    }
+
     if (method === "POST" && url.startsWith("/api/ai/test-key")) {
-      await handleTestKey(request, response);
+      await handleTestKey(request, response, auth);
       return;
     }
 

@@ -257,6 +257,22 @@ describe("checkBankEligibility", () => {
       // With retail book of 25000 and 28000 financed, LTV = 112% (within 125%)
       expect(result.eligible).toBe(true);
     });
+
+    it("does not substitute trade book when a required retail book is missing", () => {
+      const lender = mockLender({
+        bookValueSource: "Retail",
+        tiers: [{ name: "Retail book", maxLtv: 120 }],
+      });
+      const result = checkBankEligibility(
+        mockVehicle({ jdPower: 25000, jdPowerRetail: "N/A" }),
+        mockDeal(),
+        lender
+      );
+
+      expect(result.eligible).toBe(false);
+      expect(result.status).toBe("pending");
+      expect(result.uncheckedConstraints).toContain("book value for LTV");
+    });
   });
 });
 
@@ -325,5 +341,167 @@ describe("edge coverage gaps (pre-1980, float term, blank, negative)", () => {
     const negFinanced = mockVehicle({ amountToFinance: -1000, jdPower: 20000 });
     const result = checkBankEligibility(negFinanced, mockDeal(), mockLender());
     expect(result.eligible).toBe(false);
+  });
+});
+
+describe("conservative lender-wide constraints and pending inputs", () => {
+  it("requires a positive principal even when a tier has no LTV rule", () => {
+    const lender = mockLender({ tiers: [{ name: "Open" }] });
+    const result = checkBankEligibility(mockVehicle({ amountToFinance: 0 }), mockDeal(), lender);
+
+    expect(result.eligible).toBe(false);
+    expect(result.status).toBe("ineligible");
+    expect(result.reasons[0]).toMatch(/greater than \$0/i);
+  });
+
+  it("enforces lender-wide financed minimum and maximum", () => {
+    const lender = mockLender({
+      minAmountFinanced: 20000,
+      maxAmountFinanced: 24000,
+      tiers: [{ name: "Open" }],
+    });
+
+    expect(
+      checkBankEligibility(mockVehicle({ amountToFinance: 19000 }), mockDeal(), lender).eligible
+    ).toBe(false);
+    expect(
+      checkBankEligibility(mockVehicle({ amountToFinance: 25000 }), mockDeal(), lender).eligible
+    ).toBe(false);
+    expect(
+      checkBankEligibility(mockVehicle({ amountToFinance: 22000 }), mockDeal(), lender).eligible
+    ).toBe(true);
+  });
+
+  it("enforces a zero lender-wide backend cap", () => {
+    const lender = mockLender({ maxBackend: 0, tiers: [{ name: "No backend" }] });
+    const result = checkBankEligibility(mockVehicle(), mockDeal({ backendProducts: 1 }), lender);
+
+    expect(result.eligible).toBe(false);
+    expect(result.reasons.some((reason) => reason.includes("Backend too high"))).toBe(true);
+  });
+
+  it("enforces lender-wide DTI using existing debt plus the proposed payment", () => {
+    const lender = mockLender({ maxDti: 25, tiers: [{ name: "DTI" }] });
+    const result = checkBankEligibility(
+      mockVehicle({ monthlyPayment: 500 }),
+      mockDeal({ monthlyIncome: 5000, monthlyDebt: 1000 }),
+      lender
+    );
+
+    expect(result.eligible).toBe(false);
+    expect(result.reasons.some((reason) => reason.includes("DTI too high"))).toBe(true);
+  });
+
+  it("marks required DTI data pending instead of assuming zero debt", () => {
+    const lender = mockLender({ maxDti: 40, tiers: [{ name: "DTI" }] });
+    const result = checkBankEligibility(
+      mockVehicle({ monthlyPayment: 500 }),
+      mockDeal({ monthlyIncome: 5000, monthlyDebt: null }),
+      lender
+    );
+
+    expect(result.eligible).toBe(false);
+    expect(result.status).toBe("pending");
+    expect(result.uncheckedConstraints.join(" ")).toMatch(/monthly debt/i);
+  });
+
+  it("marks missing borrower and vehicle inputs pending", () => {
+    const lender = mockLender({
+      tiers: [
+        {
+          name: "Required data",
+          minFico: 600,
+          maxMileage: 100000,
+          includedMakes: ["Toyota"],
+          maxRate: 15,
+        },
+      ],
+    });
+    const result = checkBankEligibility(
+      mockVehicle({ mileage: "N/A", make: undefined }),
+      mockDeal({ creditScore: null, interestRate: "" }),
+      lender
+    );
+
+    expect(result.eligible).toBe(false);
+    expect(result.status).toBe("pending");
+    expect(result.uncheckedConstraints).toEqual(
+      expect.arrayContaining(["credit score", "vehicle mileage", "vehicle make", "quoted APR"])
+    );
+  });
+
+  it("uses amount financed as the max-backend-percent denominator", () => {
+    const lender = mockLender({
+      tiers: [{ name: "Backend percent", maxBackendPercent: 10 }],
+    });
+    const result = checkBankEligibility(
+      mockVehicle({ amountToFinance: 25000, jdPower: 100000 }),
+      mockDeal({ backendProducts: 3000 }),
+      lender
+    );
+
+    expect(result.eligible).toBe(false);
+  });
+
+  it("chooses the lowest-rate passing tier instead of the first tier", () => {
+    const lender = mockLender({
+      tiers: [
+        { name: "Expensive", minFico: 700, baseInterestRate: 9.5 },
+        { name: "Better", minFico: 700, baseInterestRate: 6.5, rateAdder: 0.25 },
+      ],
+    });
+    const result = checkBankEligibility(mockVehicle(), mockDeal(), lender);
+
+    expect(result.matchedTier?.name).toBe("Better");
+    expect(result.effectiveRate).toBe(6.75);
+  });
+
+  it("keeps an otherwise fitting sample program pending", () => {
+    const result = checkBankEligibility(
+      mockVehicle(),
+      mockDeal(),
+      mockLender({ isSample: true, tiers: [{ name: "Illustrative" }] })
+    );
+
+    expect(result.eligible).toBe(false);
+    expect(result.status).toBe("pending");
+    expect(result.reasons[0]).toMatch(/illustrative only/i);
+  });
+
+  it("keeps a non-matching sample visible as pending with provenance", () => {
+    const result = checkBankEligibility(
+      mockVehicle(),
+      mockDeal({ creditScore: 720 }),
+      mockLender({
+        isSample: true,
+        tiers: [{ name: "Illustrative super-prime", minFico: 800 }],
+      })
+    );
+
+    expect(result.eligible).toBe(false);
+    expect(result.status).toBe("pending");
+    expect(result.reasons).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/illustrative only/i),
+        expect.stringMatching(/criteria do not currently match/i),
+      ])
+    );
+  });
+
+  it("retains sample provenance when the principal itself is invalid", () => {
+    const result = checkBankEligibility(
+      mockVehicle({ amountToFinance: 0 }),
+      mockDeal(),
+      mockLender({ isSample: true, tiers: [{ name: "Illustrative" }] })
+    );
+
+    expect(result.eligible).toBe(false);
+    expect(result.status).toBe("pending");
+    expect(result.reasons).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/illustrative only/i),
+        expect.stringMatching(/greater than \$0/i),
+      ])
+    );
   });
 });

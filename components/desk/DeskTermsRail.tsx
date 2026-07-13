@@ -1,5 +1,6 @@
 import React from "react";
 import { parseMoneyInput } from "../../services/backendProducts";
+import { getRebateBreakdown } from "../../services/calculator";
 import { DESK_TERMS } from "./deskConstants";
 import type { AppState, DealData, FilterData } from "../../types";
 
@@ -44,6 +45,22 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
     const n = parseMoneyInput(e.target.value);
     fn(n);
   };
+  const rebateBreakdown = getRebateBreakdown(dealData);
+  const rebateType =
+    dealData.rebateType ??
+    (rebateBreakdown.dealerDiscount > 0 && rebateBreakdown.manufacturerRebate === 0
+      ? "dealer"
+      : "manufacturer");
+  const rebateAmount =
+    rebateType === "dealer" ? rebateBreakdown.dealerDiscount : rebateBreakdown.manufacturerRebate;
+  const setRebate = (type: "manufacturer" | "dealer", amount: number) =>
+    setDeal({
+      rebateType: type,
+      rebate: amount,
+      manufacturerRebate: type === "manufacturer" ? amount : 0,
+      dealerDiscount: type === "dealer" ? amount : 0,
+      dealerRebate: undefined,
+    });
 
   return (
     <section className="desk-terms-card">
@@ -207,6 +224,78 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
               inputMode="numeric"
               value={dealData.tradeInPayoff || ""}
               onChange={setNumber((n) => setDeal({ tradeInPayoff: n }))}
+            />
+          </div>
+          <div className="desk-field">
+            <label htmlFor="desk-rebate-type">Rebate type</label>
+            <select
+              id="desk-rebate-type"
+              className="dc-input"
+              value={rebateType}
+              onChange={(event) => {
+                const nextType = event.target.value === "dealer" ? "dealer" : "manufacturer";
+                const total = rebateBreakdown.manufacturerRebate + rebateBreakdown.dealerDiscount;
+                setRebate(nextType, total);
+              }}
+            >
+              <option value="manufacturer">Manufacturer rebate</option>
+              <option value="dealer">Dealer discount / rebate</option>
+            </select>
+          </div>
+          <div className="desk-field">
+            <label htmlFor="desk-rebate-amount">Rebate amount</label>
+            <input
+              id="desk-rebate-amount"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={rebateAmount || ""}
+              onChange={setNumber((amount) => setRebate(rebateType, amount))}
+            />
+          </div>
+          <div className="desk-field">
+            <label htmlFor="desk-transaction-fees">Transaction fees</label>
+            <input
+              id="desk-transaction-fees"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={dealData.transactionFees ?? dealData.transactionFee ?? ""}
+              onChange={setNumber((transactionFees) => setDeal({ transactionFees }))}
+            />
+          </div>
+          <div className="desk-field">
+            <label htmlFor="desk-vehicle-condition">Vehicle condition</label>
+            <select
+              id="desk-vehicle-condition"
+              className="dc-input"
+              value={dealData.vehicleCondition ?? ""}
+              onChange={(event) =>
+                setDeal({
+                  vehicleCondition:
+                    event.target.value === "new" || event.target.value === "used"
+                      ? event.target.value
+                      : undefined,
+                })
+              }
+            >
+              <option value="">Select</option>
+              <option value="new">New</option>
+              <option value="used">Used</option>
+            </select>
+          </div>
+          <div className="desk-field">
+            <label htmlFor="desk-monthly-debt">Monthly debt</label>
+            <input
+              id="desk-monthly-debt"
+              className="dc-input mono"
+              inputMode="numeric"
+              value={filters.monthlyDebt ?? ""}
+              onChange={(event) =>
+                setFilter({
+                  monthlyDebt:
+                    event.target.value.trim() === "" ? null : parseMoneyInput(event.target.value),
+                })
+              }
+              placeholder="Obligations"
             />
           </div>
           <div className="desk-field">

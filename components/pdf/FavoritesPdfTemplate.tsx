@@ -1,5 +1,6 @@
 import React from "react";
 import type { DealPdfData, Settings, LenderEligibilityStatus } from "../../types";
+import { getRebateBreakdown, getTransactionFees } from "../../services/calculator";
 import {
   formatCurrency,
   formatCurrencyExact,
@@ -7,20 +8,19 @@ import {
   formatPercentage,
 } from "../common/TableCell";
 
-const el = React.createElement;
-const logoSvg = encodeURIComponent(
-  `<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="18" fill="url(#g)"/><path d="M26 49c0-10.5 8.5-19 19-19h6c10.5 0 19 8.5 19 19s-8.5 19-19 19h-6c-10.5 0-19-8.5-19-19Z" stroke="white" stroke-width="6"/><path d="M32 49c0-7.2 5.8-13 13-13h6c7.2 0 13 5.8 13 13s-5.8 13-13 13h-6c-7.2 0-13-5.8-13-13Z" stroke="white" stroke-width="6" opacity="0.6"/><defs><linearGradient id="g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse"><stop stop-color="#1e40af"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient></defs></svg>`
-);
-
+/* Print styling follows PdfTemplate.tsx (the deal-sheet reference): emerald
+   brand family, "LTV" mark tile instead of a logo image, no box-shadows
+   (they print as gray smudges), and a local font stack — no render-time
+   Google Fonts import, so PDF generation has no network dependency. */
 const styles = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body {
-        font-family: 'Inter', sans-serif;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         margin: 0;
         padding: 0;
         background-color: #fff;
         color: #1f2937;
         -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
         font-size: 9pt;
     }
     .page {
@@ -41,7 +41,7 @@ const styles = `
         opacity: 0.04;
         font-size: 72pt;
         font-weight: 800;
-        color: #0ea5e9;
+        color: #059669;
         letter-spacing: 4px;
         transform: rotate(-18deg);
         pointer-events: none;
@@ -55,17 +55,32 @@ const styles = `
         border-bottom: 2px solid #374151;
     }
     .brand { display: flex; align-items: center; gap: 10px; }
-    .logo {
+    .mark {
         width: 34px;
         height: 34px;
-        border-radius: 10px;
-        background: #1e40af;
+        border-radius: 9px;
+        background: #34d399;
+        color: #07120e;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10pt;
+        font-weight: 900;
+        letter-spacing: 0;
+        flex-shrink: 0;
+    }
+    .mark--lg {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        font-size: 15pt;
+        margin: 0 auto 8px auto;
     }
     .header h1 { font-size: 18pt; font-weight: 700; margin: 0; color: #111827; }
     .header p { font-size: 9pt; color: #4b5563; margin: 0; text-align: right; }
     .vehicle-counter {
-        background: #e0f2fe;
-        color: #075985;
+        background: #d1fae5;
+        color: #065f46;
         padding: 4px 10px;
         border-radius: 99px;
         font-size: 9pt;
@@ -108,13 +123,13 @@ const styles = `
     .payment-summary {
         margin: 0.5cm 0;
         padding: 0.4cm;
-        background: #f8fafc;
+        background: #ecfdf5;
+        border: 1px solid #d1fae5;
         border-radius: 10px;
         text-align: center;
-        box-shadow: 0 6px 12px rgba(59,130,246,0.18);
     }
-    .payment-summary .label { font-size: 10pt; color: #1e40af; }
-    .payment-summary .value { font-size: 20pt; font-weight: 700; color: #1e3a8a; }
+    .payment-summary .label { font-size: 10pt; color: #047857; }
+    .payment-summary .value { font-size: 20pt; font-weight: 700; color: #064e3b; }
 
     .lender-section { margin-top: 0.5cm; }
     .lender-list {
@@ -158,7 +173,6 @@ const styles = `
         border-bottom: 2px solid #374151;
         margin-bottom: 0.75cm;
     }
-    .cover-hero img { width: 56px; margin-bottom: 8px; }
     .cover-hero h1 { font-size: 22pt; font-weight: 700; margin: 0; color: #111827; }
     .cover-hero p { font-size: 10pt; color: #4b5563; margin: 6px 0 0 0; }
     .customer-card {
@@ -191,7 +205,7 @@ const styles = `
     .overview-table .text-right { text-align: right; }
     .overview-table .vehicle-name { font-weight: 600; color: #111827; font-size: 9pt; }
     .overview-table .vehicle-sub { font-size: 7.5pt; color: #6b7280; }
-    .overview-table .strong { font-weight: 700; color: #1e3a8a; }
+    .overview-table .strong { font-weight: 700; color: #064e3b; }
     .badge {
         display: inline-block;
         padding: 2px 8px;
@@ -203,23 +217,33 @@ const styles = `
     .badge-noeligible { background: #fee2e2; color: #991b1b; }
 `;
 
-const InfoListItem = (label: string, value: React.ReactNode) =>
-  el(
-    "li",
-    null,
-    el("span", { className: "label" }, label),
-    el("span", { className: "value" }, value)
-  );
+const BrandMarkTile: React.FC<{ large?: boolean }> = ({ large }) => (
+  <div className={large ? "mark mark--lg" : "mark"} role="img" aria-label="LTV Desking PRO">
+    LTV
+  </div>
+);
 
-const FinancialsRow = (label: string, value: string, isTotal = false, isSeparator = false) => {
+const InfoListItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <li>
+    <span className="label">{label}</span>
+    <span className="value">{value}</span>
+  </li>
+);
+
+const FinancialsRow: React.FC<{
+  label: string;
+  value: string;
+  isTotal?: boolean;
+  isSeparator?: boolean;
+}> = ({ label, value, isTotal = false, isSeparator = false }) => {
   let className = "";
   if (isTotal) className = "total-row";
   else if (isSeparator) className = "separator-row";
-  return el(
-    "tr",
-    { className },
-    el("td", { className: "label" }, label),
-    el("td", { className: "value" }, value)
+  return (
+    <tr className={className}>
+      <td className="label">{label}</td>
+      <td className="value">{value}</td>
+    </tr>
   );
 };
 
@@ -237,139 +261,96 @@ const CoverPage: React.FC<{
 }> = ({ deals, customerName, salespersonName, creditScore, loanTerm, apr, downPayment }) => {
   const eligibleCount = deals.filter((d) => countEligible(d.lenderEligibility) > 0).length;
 
-  return el(
-    "div",
-    { className: "page" },
-    el("div", { className: "watermark" }, "ESTIMATE"),
-    el(
-      "div",
-      { className: "cover-hero" },
-      el("img", { src: `data:image/svg+xml,${logoSvg}`, alt: "LTV Desking PRO" }),
-      el("h1", null, "Vehicle Deal Comparison"),
-      el(
-        "p",
-        null,
-        `${deals.length} favorited vehicle${deals.length === 1 ? "" : "s"} · ${eligibleCount} with possible lender fit${eligibleCount === 1 ? "" : "s"}`
-      ),
-      el(
-        "p",
-        { style: { fontSize: "8.5pt", color: "#9ca3af", marginTop: "2px" } },
-        `Generated ${new Date().toLocaleDateString()}`
-      )
-    ),
-    el(
-      "div",
-      { className: "customer-card" },
-      el(
-        "div",
-        { className: "field" },
-        el("div", { className: "label" }, "Customer"),
-        el("div", { className: "value" }, customerName || "—")
-      ),
-      el(
-        "div",
-        { className: "field" },
-        el("div", { className: "label" }, "Salesperson"),
-        el("div", { className: "value" }, salespersonName || "—")
-      ),
-      el(
-        "div",
-        { className: "field" },
-        el("div", { className: "label" }, "Credit Score (est.)"),
-        el("div", { className: "value" }, creditScore ?? "—")
-      ),
-      el(
-        "div",
-        { className: "field" },
-        el("div", { className: "label" }, "Down Payment"),
-        el("div", { className: "value" }, formatCurrency(downPayment))
-      ),
-      el(
-        "div",
-        { className: "field" },
-        el("div", { className: "label" }, "Loan Term"),
-        el("div", { className: "value" }, `${loanTerm} mo`)
-      ),
-      el(
-        "div",
-        { className: "field" },
-        el("div", { className: "label" }, "APR"),
-        // A cleared APR arrives as "" (typed-around via `as number`). Guard like
-        // every other APR site so the cover page doesn't crash the whole PDF. [G5]
-        el("div", { className: "value" }, typeof apr === "number" ? `${apr.toFixed(2)}%` : "—")
-      )
-    ),
-    el("h2", { className: "section-title" }, "Vehicles in this Report"),
-    el(
-      "table",
-      { className: "overview-table" },
-      el(
-        "thead",
-        null,
-        el(
-          "tr",
-          null,
-          el("th", { style: { width: "5%" } }, "#"),
-          el("th", { style: { width: "30%" } }, "Vehicle"),
-          el("th", { className: "text-right" }, "Price"),
-          el("th", { className: "text-right" }, "Payment"),
-          el("th", { className: "text-right" }, "OTD LTV"),
-          el("th", { className: "text-right" }, "Lenders"),
-          el("th", null, "Status")
-        )
-      ),
-      el(
-        "tbody",
-        null,
-        ...deals.map((deal, idx) => {
-          const eligible = countEligible(deal.lenderEligibility);
-          return el(
-            "tr",
-            { key: deal.vehicle?.vin || idx },
-            el("td", null, String(idx + 1)),
-            el(
-              "td",
-              null,
-              el("div", { className: "vehicle-name" }, deal.vehicle?.vehicle || "Unknown Vehicle"),
-              el(
-                "div",
-                { className: "vehicle-sub" },
-                `Stock ${deal.vehicle?.stock || "—"} · ${formatNumber(deal.vehicle?.mileage || 0)} mi`
-              )
-            ),
-            el("td", { className: "text-right" }, formatCurrency(deal.vehicle?.price)),
-            el(
-              "td",
-              { className: "text-right strong" },
-              formatCurrency(deal.vehicle?.monthlyPayment)
-            ),
-            el("td", { className: "text-right" }, formatPercentage(deal.vehicle?.otdLtv)),
-            el("td", { className: "text-right" }, `${eligible}`),
-            el(
-              "td",
-              null,
-              el(
-                "span",
-                {
-                  className: `badge ${eligible > 0 ? "badge-eligible" : "badge-noeligible"}`,
-                },
-                // ✓/✗ glyphs keep the distinction on B&W laser printouts. [G69]
-                eligible > 0 ? "✓ Possible fit" : "✗ No fit"
-              )
-            )
-          );
-        })
-      )
-    ),
-    el(
-      "div",
-      { className: "footer" },
-      el(
-        "p",
-        null,
-        "Each vehicle's full deal details follow on the next pages. All figures are estimates and subject to lender approval."
-      )
-    )
+  return (
+    <div className="page">
+      <div className="watermark">ESTIMATE</div>
+      <div className="cover-hero">
+        <BrandMarkTile large />
+        <h1>Vehicle Deal Comparison</h1>
+        <p>
+          {`${deals.length} favorited vehicle${deals.length === 1 ? "" : "s"} · ${eligibleCount} with possible lender fit${eligibleCount === 1 ? "" : "s"}`}
+        </p>
+        <p style={{ fontSize: "8.5pt", color: "#9ca3af", marginTop: "2px" }}>
+          {`Generated ${new Date().toLocaleDateString()}`}
+        </p>
+      </div>
+      <div className="customer-card">
+        <div className="field">
+          <div className="label">Customer</div>
+          <div className="value">{customerName || "—"}</div>
+        </div>
+        <div className="field">
+          <div className="label">Salesperson</div>
+          <div className="value">{salespersonName || "—"}</div>
+        </div>
+        <div className="field">
+          <div className="label">Credit Score (est.)</div>
+          <div className="value">{creditScore ?? "—"}</div>
+        </div>
+        <div className="field">
+          <div className="label">Down Payment</div>
+          <div className="value">{formatCurrency(downPayment)}</div>
+        </div>
+        <div className="field">
+          <div className="label">Loan Term</div>
+          <div className="value">{`${loanTerm} mo`}</div>
+        </div>
+        <div className="field">
+          <div className="label">APR</div>
+          {/* A cleared APR arrives as "" (typed-around via `as number`). Guard like
+              every other APR site so the cover page doesn't crash the whole PDF. [G5] */}
+          <div className="value">{typeof apr === "number" ? `${apr.toFixed(2)}%` : "—"}</div>
+        </div>
+      </div>
+      <h2 className="section-title">Vehicles in this Report</h2>
+      <table className="overview-table">
+        <thead>
+          <tr>
+            <th style={{ width: "5%" }}>#</th>
+            <th style={{ width: "30%" }}>Vehicle</th>
+            <th className="text-right">Price</th>
+            <th className="text-right">Payment</th>
+            <th className="text-right">OTD LTV</th>
+            <th className="text-right">Lenders</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {deals.map((deal, idx) => {
+            const eligible = countEligible(deal.lenderEligibility);
+            return (
+              <tr key={deal.vehicle?.vin || idx}>
+                <td>{String(idx + 1)}</td>
+                <td>
+                  <div className="vehicle-name">{deal.vehicle?.vehicle || "Unknown Vehicle"}</div>
+                  <div className="vehicle-sub">
+                    {`Stock ${deal.vehicle?.stock || "—"} · ${formatNumber(deal.vehicle?.mileage || 0)} mi`}
+                  </div>
+                </td>
+                <td className="text-right">{formatCurrency(deal.vehicle?.price)}</td>
+                <td className="text-right strong">
+                  {formatCurrency(deal.vehicle?.monthlyPayment)}
+                </td>
+                <td className="text-right">{formatPercentage(deal.vehicle?.otdLtv)}</td>
+                <td className="text-right">{`${eligible}`}</td>
+                <td>
+                  <span className={`badge ${eligible > 0 ? "badge-eligible" : "badge-noeligible"}`}>
+                    {/* ✓/✗ glyphs keep the distinction on B&W laser printouts. [G69] */}
+                    {eligible > 0 ? "✓ Possible fit" : "✗ No fit"}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="footer">
+        <p>
+          Each vehicle's full deal details follow on the next pages. All figures are estimates and
+          subject to lender approval.
+        </p>
+      </div>
+    </div>
   );
 };
 
@@ -382,227 +363,229 @@ const VehiclePage: React.FC<{
   const { vehicle, dealData, customerFilters, customerName, salespersonName, lenderEligibility } =
     data;
   const netTradeIn = dealData.tradeInValue - dealData.tradeInPayoff;
-  const totalDown = dealData.downPayment + netTradeIn;
+  const rebate = getRebateBreakdown(dealData);
+  const transactionFees = getTransactionFees(dealData);
+  const totalDown = dealData.downPayment + netTradeIn + rebate.manufacturerRebate;
   const safeEligibility = Array.isArray(lenderEligibility) ? lenderEligibility : [];
-  const eligibleLenders = safeEligibility.filter((l) => l && l.eligible);
+  const eligibleLenders = safeEligibility.filter(
+    (l) => l && l.eligible && (l.status === undefined || l.status === "eligible")
+  );
+  const pendingLenders = safeEligibility.filter(
+    (l) => l && !l.eligible && (l.status === "pending" || (l.uncheckedConstraints?.length ?? 0) > 0)
+  );
 
-  return el(
-    "div",
-    { className: "page" },
-    el("div", { className: "watermark" }, "ESTIMATE"),
-    el(
-      "header",
-      { className: "header" },
-      el(
-        "div",
-        { className: "brand" },
-        el("img", {
-          src: `data:image/svg+xml,${logoSvg}`,
-          alt: "LTV Desking PRO",
-          style: { width: "34px", height: "34px" },
-        }),
-        el(
-          "div",
-          null,
-          el("h1", null, vehicle?.vehicle || "Vehicle"),
-          el(
-            "div",
-            { className: "vehicle-counter" },
-            `Vehicle ${index + 1} of ${total} · ${customerName || "Customer"}`
-          )
-        )
-      ),
-      el(
-        "div",
-        { style: { textAlign: "right" } },
-        el("p", null, `Date: ${new Date().toLocaleDateString()}`),
-        dealData?.notes && el("p", { style: { marginTop: "4px" } }, `Notes: ${dealData.notes}`)
-      )
-    ),
-    el(
-      "div",
-      { className: "content" },
-      el(
-        "div",
-        { className: "grid" },
-        el(
-          "div",
-          null,
-          el("h2", { className: "section-title" }, "Vehicle Details"),
-          el(
-            "ul",
-            { className: "info-list" },
-            InfoListItem("Vehicle", el("strong", null, vehicle?.vehicle)),
-            InfoListItem("Stock #", vehicle?.stock),
-            InfoListItem("VIN", vehicle?.vin),
-            InfoListItem("Mileage", formatNumber(vehicle?.mileage)),
-            // Dealer-entered book values — never imply a licensed feed. [G26/G80]
-            InfoListItem("Book Value (Trade)", formatCurrency(vehicle?.jdPower)),
-            InfoListItem("Book Value (Retail)", formatCurrency(vehicle?.jdPowerRetail))
-          )
-        ),
-        el(
-          "div",
-          null,
-          el("h2", { className: "section-title" }, "Customer & Deal Terms"),
-          el(
-            "ul",
-            { className: "info-list" },
-            InfoListItem("Customer", customerName || "N/A"),
-            InfoListItem("Salesperson", salespersonName || "N/A"),
-            InfoListItem("Credit Score (est.)", customerFilters?.creditScore || "N/A"),
-            InfoListItem("Loan Term", `${dealData?.loanTerm} Months`),
-            // Blank APR arrives as "" — guard the toFixed crash. [G5]
-            InfoListItem(
-              "Est. Interest Rate",
-              typeof dealData?.interestRate === "number"
-                ? `${dealData.interestRate.toFixed(2)}% APR`
-                : "—"
-            )
-            // Front-End Gross removed: dealer-internal profit never prints on
-            // customer paper. [G1]
-          )
-        )
-      ),
-      el(
-        "div",
-        null,
-        el("h2", { className: "section-title" }, "Financial Breakdown"),
-        el(
-          "table",
-          { className: "financials-table" },
-          el(
-            "tbody",
-            null,
-            FinancialsRow("Selling Price", formatCurrencyExact(vehicle?.price)),
-            FinancialsRow("Doc Fee", `+ ${formatCurrencyExact(settings.docFee)}`),
-            FinancialsRow("CVR Fee", `+ ${formatCurrencyExact(settings.cvrFee)}`),
-            FinancialsRow("State/Title Fees", `+ ${formatCurrencyExact(dealData?.stateFees)}`),
-            FinancialsRow("Sales Tax (est.)", `+ ${formatCurrencyExact(vehicle?.salesTax)}`),
-            FinancialsRow(
-              "Total OTD Price (est.)",
-              formatCurrencyExact(vehicle?.baseOutTheDoorPrice),
-              true
-            ),
-            FinancialsRow(
-              "Cash Down",
-              `- ${formatCurrencyExact(dealData?.downPayment)}`,
-              false,
-              true
-            ),
-            // Explicit rollover line instead of "- -$3,000". [G21]
-            netTradeIn >= 0
-              ? FinancialsRow("Net Trade-In", `- ${formatCurrencyExact(netTradeIn)}`)
-              : FinancialsRow(
-                  "Negative Equity (added to amount financed)",
-                  `+ ${formatCurrencyExact(Math.abs(netTradeIn))}`
-                ),
-            FinancialsRow(
-              "Sub-Total",
-              formatCurrencyExact(
-                typeof vehicle?.baseOutTheDoorPrice === "number"
-                  ? vehicle.baseOutTheDoorPrice - totalDown
-                  : "Error"
-              ),
-              true
-            ),
-            FinancialsRow(
-              "Backend Products",
-              `+ ${formatCurrencyExact(dealData?.backendProducts)}`,
-              false,
-              true
-            ),
-            FinancialsRow(
-              "Total Amount to Finance (est.)",
-              formatCurrencyExact(vehicle?.amountToFinance),
-              true
-            )
-          )
-        )
-      ),
-      el(
-        "div",
-        { className: "payment-summary" },
-        el("div", { className: "label" }, "Estimated Monthly Payment"),
-        el("div", { className: "value" }, formatCurrencyExact(vehicle?.monthlyPayment)),
-        el(
-          "div",
-          { style: { fontSize: "8pt", color: "#1e40af", marginTop: "4px" } },
-          typeof dealData?.interestRate === "number"
-            ? `Estimate at ${dealData.interestRate.toFixed(2)}% APR for ${dealData?.loanTerm} months — not an offer of credit`
-            : "Estimate — enter a rate for payment terms; not an offer of credit"
-        )
-      ),
-      el(
-        "div",
-        { className: "lender-section" },
-        el(
-          "h2",
-          { className: "section-title" },
-          `Preliminary Lender Fits (${eligibleLenders.length} of ${safeEligibility.length}) — verify with lender`
-        ),
-        eligibleLenders.length > 0
-          ? el(
-              "div",
-              { className: "lender-list" },
-              ...eligibleLenders
-                .slice(0, 9)
-                .map((lender) =>
-                  el(
-                    "div",
-                    { key: lender.name, className: "lender-item" },
-                    el("p", { className: "name" }, lender.name),
-                    el("p", { className: "tier" }, lender.matchedTier?.name || "Possible fit")
-                  )
-                ),
-              eligibleLenders.length > 9 &&
-                el(
-                  "div",
-                  {
-                    key: "more",
-                    className: "lender-item",
-                    style: {
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: "#f3f4f6",
-                      borderStyle: "dashed",
-                    },
-                  },
-                  el(
-                    "p",
-                    {
-                      style: {
-                        fontSize: "8.5pt",
-                        color: "#6b7280",
-                        fontStyle: "italic",
-                        margin: 0,
-                      },
-                    },
-                    `+ ${eligibleLenders.length - 9} more possible fits`
-                  )
+  return (
+    <div className="page">
+      <div className="watermark">ESTIMATE</div>
+      <header className="header">
+        <div className="brand">
+          <BrandMarkTile />
+          <div>
+            <h1>{vehicle?.vehicle || "Vehicle"}</h1>
+            <div className="vehicle-counter">
+              {`Vehicle ${index + 1} of ${total} · ${customerName || "Customer"}`}
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <p>{`Date: ${new Date().toLocaleDateString()}`}</p>
+          {dealData?.notes && <p style={{ marginTop: "4px" }}>{`Notes: ${dealData.notes}`}</p>}
+        </div>
+      </header>
+      <div className="content">
+        <div className="grid">
+          <div>
+            <h2 className="section-title">Vehicle Details</h2>
+            <ul className="info-list">
+              <InfoListItem label="Vehicle" value={<strong>{vehicle?.vehicle}</strong>} />
+              <InfoListItem label="Stock #" value={vehicle?.stock} />
+              <InfoListItem label="VIN" value={vehicle?.vin} />
+              <InfoListItem label="Mileage" value={formatNumber(vehicle?.mileage)} />
+              {/* Dealer-entered book values — never imply a licensed feed. [G26/G80] */}
+              <InfoListItem label="Book Value (Trade)" value={formatCurrency(vehicle?.jdPower)} />
+              <InfoListItem
+                label="Book Value (Retail)"
+                value={formatCurrency(vehicle?.jdPowerRetail)}
+              />
+            </ul>
+          </div>
+          <div>
+            <h2 className="section-title">Customer & Deal Terms</h2>
+            <ul className="info-list">
+              <InfoListItem label="Customer" value={customerName || "N/A"} />
+              <InfoListItem label="Salesperson" value={salespersonName || "N/A"} />
+              <InfoListItem
+                label="Credit Score (est.)"
+                value={customerFilters?.creditScore || "N/A"}
+              />
+              <InfoListItem label="Loan Term" value={`${dealData?.loanTerm} Months`} />
+              {/* Blank APR arrives as "" — guard the toFixed crash. [G5] */}
+              <InfoListItem
+                label="Est. Interest Rate"
+                value={
+                  typeof dealData?.interestRate === "number"
+                    ? `${dealData.interestRate.toFixed(2)}% APR`
+                    : "—"
+                }
+              />
+              {/* Front-End Gross removed: dealer-internal profit never prints on
+                  customer paper. [G1] */}
+            </ul>
+          </div>
+        </div>
+        <div>
+          <h2 className="section-title">Financial Breakdown</h2>
+          <table className="financials-table">
+            <tbody>
+              <FinancialsRow label="Selling Price" value={formatCurrencyExact(vehicle?.price)} />
+              {rebate.dealerDiscount > 0 && (
+                <FinancialsRow
+                  label="Dealer Discount / Rebate"
+                  value={`- ${formatCurrencyExact(rebate.dealerDiscount)}`}
+                />
+              )}
+              <FinancialsRow label="Doc Fee" value={`+ ${formatCurrencyExact(settings.docFee)}`} />
+              <FinancialsRow label="CVR Fee" value={`+ ${formatCurrencyExact(settings.cvrFee)}`} />
+              {transactionFees > 0 && (
+                <FinancialsRow
+                  label="Transaction Fees"
+                  value={`+ ${formatCurrencyExact(transactionFees)}`}
+                />
+              )}
+              <FinancialsRow
+                label="State/Title Fees"
+                value={`+ ${formatCurrencyExact(dealData?.stateFees)}`}
+              />
+              <FinancialsRow
+                label="Sales Tax (est.)"
+                value={`+ ${formatCurrencyExact(vehicle?.salesTax)}`}
+              />
+              <FinancialsRow
+                label="Total OTD Price (est.)"
+                value={formatCurrencyExact(vehicle?.baseOutTheDoorPrice)}
+                isTotal
+              />
+              <FinancialsRow
+                label="Cash Down"
+                value={`- ${formatCurrencyExact(dealData?.downPayment)}`}
+                isSeparator
+              />
+              {/* Explicit rollover line instead of "- -$3,000". [G21] */}
+              {netTradeIn >= 0 ? (
+                <FinancialsRow
+                  label="Net Trade-In"
+                  value={`- ${formatCurrencyExact(netTradeIn)}`}
+                />
+              ) : (
+                <FinancialsRow
+                  label="Negative Equity (added to amount financed)"
+                  value={`+ ${formatCurrencyExact(Math.abs(netTradeIn))}`}
+                />
+              )}
+              {rebate.manufacturerRebate > 0 && (
+                <FinancialsRow
+                  label="Manufacturer Rebate"
+                  value={`- ${formatCurrencyExact(rebate.manufacturerRebate)}`}
+                />
+              )}
+              <FinancialsRow
+                label="Sub-Total"
+                value={formatCurrencyExact(
+                  typeof vehicle?.baseOutTheDoorPrice === "number"
+                    ? vehicle.baseOutTheDoorPrice - totalDown
+                    : "Error"
+                )}
+                isTotal
+              />
+              <FinancialsRow
+                label="Backend Products"
+                value={`+ ${formatCurrencyExact(dealData?.backendProducts)}`}
+                isSeparator
+              />
+              <FinancialsRow
+                label="Total Amount to Finance (est.)"
+                value={formatCurrencyExact(vehicle?.amountToFinance)}
+                isTotal
+              />
+            </tbody>
+          </table>
+        </div>
+        <div className="payment-summary">
+          <div className="label">Estimated Monthly Payment</div>
+          <div className="value">{formatCurrencyExact(vehicle?.monthlyPayment)}</div>
+          <div style={{ fontSize: "8pt", color: "#047857", marginTop: "4px" }}>
+            {typeof dealData?.interestRate === "number"
+              ? `Estimate at ${dealData.interestRate.toFixed(2)}% APR for ${dealData?.loanTerm} months — not an offer of credit`
+              : "Estimate — enter a rate for payment terms; not an offer of credit"}
+          </div>
+        </div>
+        <div className="lender-section">
+          <h2 className="section-title">
+            {`Verified Lender Fits (${eligibleLenders.length} of ${safeEligibility.length})`}
+          </h2>
+          {eligibleLenders.length > 0 ? (
+            <div className="lender-list">
+              {eligibleLenders.slice(0, 9).map((lender) => (
+                <div key={lender.name} className="lender-item">
+                  <p className="name">{lender.name}</p>
+                  <p className="tier">{lender.matchedTier?.name || "Possible fit"}</p>
+                </div>
+              ))}
+              {eligibleLenders.length > 9 && (
+                <div
+                  key="more"
+                  className="lender-item"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "#f3f4f6",
+                    borderStyle: "dashed",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: "8.5pt",
+                      color: "#6b7280",
+                      fontStyle: "italic",
+                      margin: 0,
+                    }}
+                  >
+                    {`+ ${eligibleLenders.length - 9} more possible fits`}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="no-lender-banner">
+              No verified lender fits for this vehicle with the current borrower and vehicle
+              information.
+            </div>
+          )}
+          {pendingLenders.length > 0 && (
+            <div className="no-lender-banner" style={{ marginTop: "8px" }}>
+              {`Pending verification (${pendingLenders.length}): ${pendingLenders
+                .slice(0, 3)
+                .map(
+                  (lender) =>
+                    `${lender.name} - ${lender.reasons?.[0] || "required information is incomplete"}`
                 )
-            )
-          : el(
-              "div",
-              { className: "no-lender-banner" },
-              "No preliminary lender fits for this vehicle with current customer info (credit, income, or LTV screens)."
-            )
-      )
-    ),
-    el(
-      "footer",
-      { className: "footer" },
-      el(
-        "p",
-        null,
-        "This worksheet is a preliminary estimate for discussion only. It is not a contract, not an " +
-          "offer or extension of credit, and not a Truth-in-Lending disclosure. Lender fits are a " +
-          "preliminary screen against dealer-entered program data, not credit decisions. All figures " +
-          "are estimates; final pricing, taxes, fees, APR, and payment are subject to lender credit " +
-          "approval and final contract documents. Book values are entered by the dealership."
-      )
-    )
+                .join(" ")}`}
+            </div>
+          )}
+        </div>
+      </div>
+      <footer className="footer">
+        <p>
+          {"This worksheet is a preliminary estimate for discussion only. It is not a contract, not an " +
+            "offer or extension of credit, and not a Truth-in-Lending disclosure. Lender fits are a " +
+            "preliminary screen against dealer-entered program data, not credit decisions. Sample and " +
+            "incomplete programs are pending and excluded from verified fit counts. All figures " +
+            "are estimates; final pricing, taxes, fees, APR, and payment are subject to lender credit " +
+            "approval and final contract documents. Book values are entered by the dealership."}
+        </p>
+      </footer>
+    </div>
   );
 };
 
@@ -612,11 +595,11 @@ export const FavoritesPdfTemplate: React.FC<{ deals: DealPdfData[]; settings: Se
 }) => {
   const safeDeals = Array.isArray(deals) ? deals.filter(Boolean) : [];
   if (safeDeals.length === 0) {
-    return el(
-      "div",
-      { className: "page" },
-      el("style", null, styles),
-      el("h1", null, "No favorited vehicles to report.")
+    return (
+      <div className="page">
+        <style>{styles}</style>
+        <h1>No favorited vehicles to report.</h1>
+      </div>
     );
   }
 
@@ -631,27 +614,27 @@ export const FavoritesPdfTemplate: React.FC<{ deals: DealPdfData[]; settings: Se
   const apr = typeof rawApr === "number" && Number.isFinite(rawApr) ? rawApr : null;
   const downPayment = first.dealData?.downPayment ?? 0;
 
-  return el(
-    React.Fragment,
-    null,
-    el("style", null, styles),
-    el(CoverPage, {
-      deals: safeDeals,
-      customerName,
-      salespersonName,
-      creditScore,
-      loanTerm,
-      apr,
-      downPayment,
-    }),
-    ...safeDeals.map((deal, idx) =>
-      el(VehiclePage, {
-        key: deal.vehicle?.vin || idx,
-        data: deal,
-        settings,
-        index: idx,
-        total: safeDeals.length,
-      })
-    )
+  return (
+    <>
+      <style>{styles}</style>
+      <CoverPage
+        deals={safeDeals}
+        customerName={customerName}
+        salespersonName={salespersonName}
+        creditScore={creditScore}
+        loanTerm={loanTerm}
+        apr={apr}
+        downPayment={downPayment}
+      />
+      {safeDeals.map((deal, idx) => (
+        <VehiclePage
+          key={deal.vehicle?.vin || idx}
+          data={deal}
+          settings={settings}
+          index={idx}
+          total={safeDeals.length}
+        />
+      ))}
+    </>
   );
 };

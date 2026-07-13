@@ -16,6 +16,26 @@ jobs:
     steps:
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
 
+      - name: Capture control-plane and backup state
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          {
+            flyctl status --app ltv-desking-pro-api
+            flyctl machine list --app ltv-desking-pro-api
+            flyctl volumes list --app ltv-desking-pro-api
+            flyctl secrets list --app ltv-desking-pro-api
+          } | tee fly-state.txt
+
+          VOLUME_ID=$(flyctl volumes list --app ltv-desking-pro-api --json \
+            | jq -r '.[] | select((.name // .Name) == "ltv_desking_data") | (.id // .ID)' \
+            | head -1)
+          if [ -n "$VOLUME_ID" ] && [ "$VOLUME_ID" != "null" ]; then
+            flyctl volumes snapshots list "$VOLUME_ID" --app ltv-desking-pro-api \
+              | tee -a fly-state.txt
+          fi
+
       - name: Pull last 500 log lines
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -27,8 +47,10 @@ jobs:
           tail -120 fly-logs.txt
 
       - name: Upload as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: fly-logs
-          path: fly-logs.txt
+          path: |
+            fly-logs.txt
+            fly-state.txt
           retention-days: 7

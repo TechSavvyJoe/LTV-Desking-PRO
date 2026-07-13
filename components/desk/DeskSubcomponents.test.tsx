@@ -10,6 +10,7 @@ import type { CalculatedVehicle, DealData, LenderProfile, Settings } from "../..
 import type { LenderFitEntry } from "../../services/lenderFit";
 import BackendAddons from "./BackendAddons";
 import { DealInspector } from "./DealInspector";
+import { InventoryGrid } from "./InventoryGrid";
 import StructureMatrix from "./StructureMatrix";
 
 const settings: Settings = {
@@ -191,6 +192,34 @@ describe("desk subcomponents", () => {
     const fordCredit = screen.getAllByText("Ford Credit");
     expect(fordCredit.length).toBeGreaterThan(0);
     expect(screen.getByRole("tab", { name: "Add-ons" })).toBeTruthy();
+  });
+
+  it("InventoryGrid exposes table/cell ARIA semantics for virtualized rows", () => {
+    const { container } = render(
+      <InventoryGrid
+        rows={[vehicle]}
+        inventoryCount={1}
+        focusedVin={vehicle.vin}
+        thresholds={settings.ltvThresholds}
+        searchQuery=""
+        sortKey="approvalScore"
+        sortDirection="desc"
+        onSearchChange={vi.fn()}
+        onSort={vi.fn()}
+        onFocus={vi.fn()}
+        onOpenInspector={vi.fn()}
+        onLoadSampleData={vi.fn()}
+        onClearFilters={vi.fn()}
+      />
+    );
+
+    const table = screen.getByRole("table", { name: "Ranked inventory table" });
+    expect(table.getAttribute("aria-rowcount")).toBe("2");
+    expect(screen.getAllByRole("columnheader").length).toBeGreaterThan(0);
+    expect(container.querySelector('[role="rowgroup"]')).toBeTruthy();
+    // Header is always present; body cells depend on the virtualizer scrollport
+    // (often 0-height in jsdom), so assert markup roles rather than getByRole("cell").
+    expect(container.querySelector('[role="row"][aria-rowindex="1"]')).toBeTruthy();
   });
 
   it("StructureMatrix handles empty grid without crash (edge)", () => {

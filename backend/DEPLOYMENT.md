@@ -36,14 +36,41 @@ fly launch --no-deploy
 ### Step 3: Create Persistent Volume
 
 ```bash
-fly volumes create ltv_desking_data --size 1 --region ord
+fly volumes create ltv_desking_data --size 1 --region ord --snapshot-retention 14
 ```
 
-### Step 4: Deploy
+### Step 4: Configure R2 before the first boot
+
+`start.sh` fails closed when R2 is not configured. Complete the bucket and
+bucket-scoped token setup in [`../docs/runbooks/r2-backup-setup.md`](../docs/runbooks/r2-backup-setup.md),
+then set all four Litestream values before deploying:
+
+```bash
+: "${R2_ACCOUNT_ID:?set the Cloudflare account ID}"
+: "${R2_WRITE_ACCESS_KEY_ID:?set the R2 read/write access key ID}"
+: "${R2_WRITE_SECRET_ACCESS_KEY:?set the R2 read/write secret key}"
+fly secrets set -a ltv-desking-pro-api \
+  LITESTREAM_BUCKET=ltv-desking-pro-backups \
+  LITESTREAM_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+  LITESTREAM_ACCESS_KEY_ID="$R2_WRITE_ACCESS_KEY_ID" \
+  LITESTREAM_SECRET_ACCESS_KEY="$R2_WRITE_SECRET_ACCESS_KEY" \
+  ALLOW_NO_BACKUP=0 \
+  ALLOW_FRESH_DB=1
+```
+
+`ALLOW_FRESH_DB=1` is required only because this brand-new environment has no
+database and no R2 generation yet. Do not use it for a restore.
+
+### Step 5: Bootstrap once, then restore fail-closed startup
 
 ```bash
 fly deploy
+curl -fsS https://ltv-desking-pro-api.fly.dev/api/health
+fly secrets unset ALLOW_FRESH_DB -a ltv-desking-pro-api
 ```
+
+The secret removal restarts the machine. Confirm the second boot restores normal
+supervised replication and remains healthy before creating production data.
 
 ---
 
@@ -121,6 +148,7 @@ Current migrations in this repo:
 | `1747600002_create_audit_log.js`                   | Creates append-only `audit_log` collection. Records every AI key update, removal, and test attempt (actor, action, target, details). Superadmin-only read.                                                                                                                                                              |
 | `1747810006_reassert_dealer_scoped_rules.js`       | Repairs missing dealer-scoped fields and reasserts PocketBase 0.26-compatible rules for dealer data, deals, and users.                                                                                                                                                                                                  |
 | `1747810007_seed_empty_dealer_samples.js`          | Initializes only empty dealer tenants with 35 sample vehicles, 13 illustrative lender profiles, and desk defaults. Existing inventory, lender programs, and settings are never modified.                                                                                                                                |
+| `1747900000_authorization_lifecycle_hardening.js`  | Creates the locked `api_service_accounts` auth collection, adds `active`/`scope`, and grants `scope = "ai_proxy"` only the provider-key operations required by the Vercel AI proxy.                                                                                                                                     |
 
 ## AI server architecture
 
@@ -129,21 +157,45 @@ The AI proxy serves `/api/ai/*` and exists in two places:
 | Environment               | Where the proxy runs                                | How it gets keys                                                                                                                                        |
 | ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Local dev (`npm run dev`) | Vite middleware (`server/ai/vitePlugin.ts`)         | `keyResolver.ts` → PB `ai_provider_keys` collection if PB creds are set, else local `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` env vars. |
-| Production                | Vercel serverless function at `api/ai/[...path].ts` | Same `keyResolver.ts` → PB. Authenticates to PB using a `_superusers` account via `PB_SERVICE_EMAIL` / `PB_SERVICE_PASSWORD` env vars on Vercel.        |
+| Production                | Vercel serverless function at `api/ai/[...path].ts` | Same `keyResolver.ts` → PB. Authenticates through the dedicated `api_service_accounts` auth collection with `scope = "ai_proxy"`.                       |
 
 Both code paths share `server/ai/routes.ts` — the Vercel function is a thin wrapper. Keys live in PB at rest; the proxy reads them per-request (cached 60s).
 
+When `AI_KEYS_MASTER` is set on the Vercel AI proxy, keys are stored as
+AES-256-GCM envelopes (`enc:v1:…`) in PocketBase. Dual-read still accepts
+legacy plaintext until the next Owner Console write. See
+[`../docs/runbooks/secrets-rotation.md`](../docs/runbooks/secrets-rotation.md)
+and [`../docs/runbooks/ai-data-retention.md`](../docs/runbooks/ai-data-retention.md).
+
 ### Production setup
 
-1. Create a PocketBase `_superusers` row that the AI proxy will use:
-   - PB Admin UI → `_superusers` → New
-   - Set a strong password
-2. On Vercel, set the following Project Environment Variables (Production scope):
+1. Add at least one provider key in Owner Console → Settings → AI Providers.
+   Rotation requires a configured provider so it can prove the deployed Vercel
+   function read the PocketBase key through the narrow identity.
+2. Configure GitHub Actions secrets `FLY_API_TOKEN`, `VERCEL_TOKEN`,
+   `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`.
+3. Run `gh workflow run rotate-pb-service-account.yml --ref main`.
+4. The workflow creates a new generated, active record in
+   `api_service_accounts` with `scope = "ai_proxy"`, stages Vercel without moving production aliases,
+   verifies `/api/ai/models`, promotes the deployment, verifies the canonical
+   alias, and only then deletes prior `ai_proxy` identities.
+5. The workflow maintains these Vercel Project Environment Variables (Production scope):
    - `PB_INTERNAL_URL` = `https://ltv-desking-pro-api.fly.dev`
-   - `PB_SERVICE_EMAIL` = the superuser email above
-   - `PB_SERVICE_PASSWORD` = the superuser password
-3. Deploy the frontend. Vercel will auto-build `api/ai/[...path].ts` as a Node serverless function.
-4. In the Owner Console → Settings → AI Providers, add provider keys. Click **Test** on each to verify the key works against the provider.
+   - `PB_SERVICE_COLLECTION` = `api_service_accounts`
+   - `PB_SERVICE_EMAIL` = the generated narrow record email
+   - `PB_SERVICE_PASSWORD` = the generated narrow record password
+6. Set `AI_KEYS_MASTER` (64 hex chars from `openssl rand -hex 32`) on Vercel
+   Production so new provider-key writes are envelope-encrypted. Re-save each
+   key once after enabling the secret.
+7. Confirm Anthropic ZDR / Gemini paid-tier retention settings
+   ([`../docs/runbooks/ai-data-retention.md`](../docs/runbooks/ai-data-retention.md)).
+
+Never put a `_superusers` credential in Vercel. The rotation's generated
+bootstrap superuser exists only long enough to manage the collection and is
+deleted in an `always()` cleanup step. The collection and exact
+`ai_provider_keys` rules are source controlled by
+`1747900000_authorization_lifecycle_hardening.js`; rotation verifies that live
+shape and refuses to mint credentials when it has drifted.
 
 ### Request size limit (Vercel)
 
@@ -167,21 +219,32 @@ Every `/api/ai/*` request except `GET /api/ai/models` requires a PocketBase bear
 
 JS hook files in `backend/pb_hooks/` are loaded by PocketBase on boot. Current hooks:
 
-| File                 | What it does                                                                                                                                                                                                                                                                                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dealer_guard.pb.js` | Defense-in-depth on writes. On every create/update of an `inventory`, `lender_profiles`, `saved_deals`, or `dealer_settings` record, the `dealer` field is overwritten with the auth user's `dealer`. Superadmins are exempt. Closes the gap where the read-side RBAC rules block cross-dealer reads but write rules trusted client-supplied `dealer` values. |
+| File                        | What it does                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `dealer_guard.pb.js`        | Force-stamps the authenticated dealer on tenant-scoped writes.                    |
+| `deal_attribution.pb.js`    | Forces `user` to the auth actor on create; blocks sales re-attribution on update. |
+| `users_guard.pb.js`         | Blocks role/dealer escalation and deactivated-user authentication.                |
+| `field_visibility.pb.js`    | Removes dealer cost/gross fields from sales-role responses.                       |
+| `authorization_rules.pb.js` | Idempotently reasserts the full collection-rule contract (incl. `deal_events`).   |
+| `ai_rate_limit.pb.js`       | Atomic cross-instance AI quota endpoint (`/api/ltv/ai-rate-limit`).               |
+| `log.pb.js`                 | Structured slow-request and 5xx logging.                                          |
+
+### Single-machine deploy outage window
+
+Production is one Fly machine + one volume. A normal `fly deploy` or secret
+restart produces an API outage of roughly **30–90 seconds** while Litestream and
+PocketBase come healthy. There is no hot standby. See
+[`../docs/runbooks/alerting.md`](../docs/runbooks/alerting.md).
 
 ### Fresh-environment caveat for `1747400002_tighten_api_rules.js`
 
 PocketBase v0.26 has an in-process schema cache that doesn't see auth-collection fields added earlier in the same `pocketbase serve` boot. The first time a brand-new PB instance applies the user-fields baseline immediately followed by the rules migration, PB's rule parser will fail with `failed to resolve field "dealer"` even though the field exists in SQLite.
 
-To work around this, `1747400002_tighten_api_rules.js` skips itself when no `dealers` records exist (fresh-DB signal). If you ever bootstrap a new environment:
-
-1. Let the baseline migrations run on first boot.
-2. Seed at least one dealer record (e.g., create one through the PB Admin UI or via the app's onboarding wizard once a superadmin is set up).
-3. Restart PB. On the second boot, the rules migration will re-evaluate — but because it's already recorded in `_migrations`, it won't re-run. Manually apply the per-dealer rules through the PB Admin UI on each collection, OR temporarily clear the `_migrations` row for it and restart.
-
-Production was unaffected because the rules migration was deployed in a separate Fly release than the user-fields setup, so PB had restarted in between.
+The forward repair migration `1747810006_reassert_dealer_scoped_rules.js`, the
+seed helper's second migration pass, and the runtime authorization rule hook
+(`pb_hooks/authorization_rules.pb.js`) now close this same-boot gap. The backend deployment workflow boots a fresh database,
+verifies every migration and required field, then reboots it to prove idempotency
+before Fly deployment.
 
 ## Database Schema
 
@@ -242,7 +305,8 @@ fly status
 
 ```bash
 fly volumes list
-fly volumes create ltv_desking_data --size 1 --region <your-region>
+REGION=ord
+fly volumes create ltv_desking_data --size 1 --region "$REGION"
 ```
 
 **"Connection refused"**

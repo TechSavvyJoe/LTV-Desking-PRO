@@ -1,12 +1,27 @@
-import type { Vehicle, DealData, CalculatedVehicle, Settings } from "../types";
-import { MI_TRADE_IN_CREDIT_CAP } from "../constants";
+import type {
+  AppState,
+  Vehicle,
+  DealData,
+  CalculatedVehicle,
+  Settings,
+  VehicleCondition,
+} from "../types";
+import { getMiTradeInCreditCap, TAX_RATES } from "../constants";
+import { getBackendProductSplit } from "./backendProducts";
+import { selectBookValue } from "./bookValue";
 
 /**
  * Round a monetary value to whole cents. All currency leaving the calculator is
  * rounded at the boundary so the financed amount and the displayed figures agree
  * with what a lender will actually amortize (no sub-cent float drift). [B7]
+ *
+ * ROUNDING POLICY: round-half-up on the magnitude (half AWAY from zero), not
+ * banker's rounding — $0.125 → $0.13 and -$0.125 → -$0.13. The Math.sign/abs
+ * form keeps negative amounts symmetric with positive ones (a bare Math.round
+ * would round -0.125 to -0.12 but 0.125 to 0.13).
  */
-const roundCents = (value: number): number => Math.round(value * 100) / 100;
+export const roundCents = (value: number): number =>
+  (Math.sign(value) * Math.round(Math.abs(value) * 100)) / 100;
 
 /**
  * Coerce a possibly-blank numeric deal field to a number, treating empty string /
@@ -17,6 +32,44 @@ const toNumber = (value: unknown): number => {
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : 0;
 };
+
+const nonNegative = (value: unknown): number => Math.max(0, toNumber(value));
+
+export interface RebateBreakdown {
+  manufacturerRebate: number;
+  dealerDiscount: number;
+}
+
+/**
+ * Resolve the additive rebate fields without double-counting the legacy
+ * `rebate` value. Explicit split fields win; otherwise legacy records retain
+ * their historical taxable manufacturer-rebate treatment unless rebateType
+ * explicitly identifies a dealer discount.
+ */
+export const getRebateBreakdown = (dealData: Partial<DealData>): RebateBreakdown => {
+  const hasManufacturer =
+    typeof dealData.manufacturerRebate === "number" && Number.isFinite(dealData.manufacturerRebate);
+  const hasDealerDiscount =
+    (typeof dealData.dealerDiscount === "number" && Number.isFinite(dealData.dealerDiscount)) ||
+    (typeof dealData.dealerRebate === "number" && Number.isFinite(dealData.dealerRebate));
+
+  if (hasManufacturer || hasDealerDiscount) {
+    return {
+      manufacturerRebate: hasManufacturer ? nonNegative(dealData.manufacturerRebate) : 0,
+      dealerDiscount: hasDealerDiscount
+        ? nonNegative(dealData.dealerDiscount ?? dealData.dealerRebate)
+        : 0,
+    };
+  }
+
+  const legacyRebate = nonNegative(dealData.rebate);
+  return dealData.rebateType === "dealer"
+    ? { manufacturerRebate: 0, dealerDiscount: legacyRebate }
+    : { manufacturerRebate: legacyRebate, dealerDiscount: 0 };
+};
+
+export const getTransactionFees = (dealData: Partial<DealData>): number =>
+  nonNegative(dealData.transactionFees ?? dealData.transactionFee);
 
 export const calculateMonthlyPayment = (
   principal: number,
@@ -81,23 +134,38 @@ export const calculateLoanAmount = (
  * - docFee + cvrFee are included in taxableAmount (taxed).
  * - stateFees (registration/title etc.) are added to OTD but EXCLUDED from tax base.
  *   (Explicitly not part of taxableAmount = max(0, price - credit) + doc + cvr.)
- * - backendProducts, downPayment, trade, rebate handled in amount-to-finance only.
+ * - manufacturer rebates remain taxable and are deducted from amount financed.
+ * - dealer discounts reduce selling price before tax.
+ * - transaction fees are dealer charges and are included in the taxable base.
  */
-const calculateSalesTax = (
-  price: number,
+const OUT_OF_STATE_TRADE_CREDIT: Record<Exclude<AppState, "MI">, readonly VehicleCondition[]> = {
+  OH: ["new"],
+  IN: ["new", "used"],
+  IL: ["new", "used"],
+  FL: ["new", "used"],
+};
+
+const outOfStateTradeCredit = (
+  state: Exclude<AppState, "MI">,
   tradeInValue: number,
+  buyerStateWasExplicit: boolean,
+  vehicleCondition?: VehicleCondition
+): number => {
+  if (!buyerStateWasExplicit || !vehicleCondition) return 0;
+  const supportedConditions = OUT_OF_STATE_TRADE_CREDIT[state];
+  return supportedConditions.includes(vehicleCondition) ? tradeInValue : 0;
+};
+
+const calculateSalesTax = (
+  discountedPrice: number,
+  tradeInValue: number,
+  transactionFees: number,
   settings: Settings,
-  buyerState?: DealData["buyerState"]
+  buyerState?: DealData["buyerState"],
+  vehicleCondition?: VehicleCondition
 ): { tax: number; extraFees: number } => {
   const { docFee, cvrFee, defaultState, outOfStateTransitFee, customTaxRate } = settings;
 
-  const TAX_RATES: Record<string, number> = {
-    MI: 0.06,
-    OH: 0.0575,
-    IN: 0.07,
-    IL: 0.0625,
-    FL: 0.06,
-  };
   const michiganTaxRate = TAX_RATES.MI;
   if (michiganTaxRate === undefined) {
     throw new Error("Michigan tax rate must be configured for reciprocal tax calculations.");
@@ -115,25 +183,7 @@ const calculateSalesTax = (
     throw new Error(`Unsupported tax state: ${String(taxState)}`);
   }
 
-  let taxRate: number;
   let extraFees = 0;
-
-  if (typeof customTaxRate === "number" && customTaxRate >= 0) {
-    // Use custom rate (stored as percentage, e.g. 6.0 for 6%)
-    taxRate = customTaxRate / 100;
-  } else {
-    // Default logic
-    taxRate = stateRate;
-
-    if (taxState !== "MI") {
-      // Michigan reciprocity caps out-of-state tax at the Michigan statutory rate.
-      // NOTE (flagged for F&I review): this caps the *collected* rate at MI's 6%.
-      // For a buyer whose home state rate is higher than 6%, the remaining
-      // differential is collected by the buyer's home state at registration — it
-      // is intentionally not added here.
-      taxRate = Math.min(michiganTaxRate, taxRate);
-    }
-  }
 
   // The out-of-state transit fee is a real out-of-state cost and must apply
   // regardless of whether a custom tax rate is in play. Previously it was only
@@ -143,19 +193,46 @@ const calculateSalesTax = (
     extraFees += toNumber(outOfStateTransitFee);
   }
 
-  // Michigan caps the sales-tax trade-in credit by statute. [G17]
-  // Stale stored settings may predate this field; fall back to the shipped
-  // default rather than silently zeroing the trade credit.
-  // Uses named MI_TRADE_IN_CREDIT_CAP (verification note in constants.ts).
+  // Michigan caps the sales-tax trade-in credit by statute, with a scheduled
+  // annual step-up (see getMiTradeInCreditCap in constants.ts). [G17]
+  // A dealer-configured settings value still wins; stale stored settings may
+  // predate this field, in which case the statutory cap for the current
+  // calendar year applies rather than silently zeroing the trade credit.
   const miTradeInCreditCap = Number.isFinite(settings.miTradeInCreditCap)
     ? settings.miTradeInCreditCap
-    : MI_TRADE_IN_CREDIT_CAP;
-  const taxableTradeCredit =
-    taxState === "MI" ? Math.min(tradeInValue, miTradeInCreditCap) : tradeInValue;
+    : getMiTradeInCreditCap();
+  const miTradeCredit = Math.min(nonNegative(tradeInValue), Math.max(0, miTradeInCreditCap));
+  const taxableFees = nonNegative(docFee) + nonNegative(cvrFee) + transactionFees;
+  const taxFor = (rate: number, tradeCredit: number): number =>
+    roundCents((Math.max(0, discountedPrice - tradeCredit) + taxableFees) * rate);
 
-  // stateFees deliberately excluded from taxable base (added only to baseOutTheDoorPrice later).
-  const taxableAmount = Math.max(0, price - taxableTradeCredit) + docFee + cvrFee;
-  const tax = roundCents(taxableAmount * taxRate); // [B7]
+  let tax: number;
+  if (typeof customTaxRate === "number" && Number.isFinite(customTaxRate) && customTaxRate >= 0) {
+    const customTradeCredit =
+      taxState === "MI"
+        ? miTradeCredit
+        : outOfStateTradeCredit(
+            taxState,
+            nonNegative(tradeInValue),
+            buyerState === taxState,
+            vehicleCondition
+          );
+    tax = taxFor(customTaxRate / 100, customTradeCredit);
+  } else if (taxState === "MI") {
+    tax = taxFor(michiganTaxRate, miTradeCredit);
+  } else {
+    // Michigan Form 485 requires both computations and collection of the lesser:
+    // home-state law/rate versus Michigan law/rate. The home-state allowance is
+    // only used when this deal explicitly identifies a supported buyer state and,
+    // for Ohio, the purchased vehicle condition.
+    const homeTradeCredit = outOfStateTradeCredit(
+      taxState,
+      nonNegative(tradeInValue),
+      buyerState === taxState,
+      vehicleCondition
+    );
+    tax = Math.min(taxFor(stateRate, homeTradeCredit), taxFor(michiganTaxRate, miTradeCredit));
+  }
 
   return { tax, extraFees: roundCents(extraFees) };
 };
@@ -168,14 +245,24 @@ export const calculateFinancials = (
   // Defensive defaults — empty/blank fields collapse to 0, which is the correct
   // intent for down payment, fees, and trade values.
   const downPayment = toNumber(dealData.downPayment);
-  const backendProducts = toNumber(dealData.backendProducts);
-  // Ensure term is integer (>=1) for calculations; floor for robustness (terms
-  // are whole months per contract; documented here and partially by validator).
-  const loanTerm = Math.max(1, Math.floor(toNumber(dealData.loanTerm)));
+  const backendProducts = getBackendProductSplit(dealData).total;
+  // Term gets the same "unset means no quote" semantics as APR (below): a
+  // blank / zero / negative / NaN term yields an "N/A" payment rather than a
+  // fabricated 1-month quote. Valid terms are floored to whole months (terms
+  // are whole months per contract). [term-unset]
+  const rawTerm: unknown = dealData.loanTerm;
+  const termIsBlank =
+    rawTerm === "" ||
+    rawTerm === null ||
+    rawTerm === undefined ||
+    (typeof rawTerm === "number" && !Number.isFinite(rawTerm));
+  const flooredTerm = termIsBlank ? 0 : Math.floor(toNumber(rawTerm));
+  const loanTerm: number | null = flooredTerm >= 1 ? flooredTerm : null;
   const tradeInValue = toNumber(dealData.tradeInValue);
   const tradeInPayoff = toNumber(dealData.tradeInPayoff);
   const stateFees = toNumber(dealData.stateFees);
-  const rebate = toNumber(dealData.rebate);
+  const { manufacturerRebate, dealerDiscount } = getRebateBreakdown(dealData);
+  const transactionFees = getTransactionFees(dealData);
 
   // APR is special: a cleared field arrives as "" at runtime (see DealControls
   // handleDealChange). Treat blank/NaN as "unset" (no payment quoted) so we never
@@ -194,7 +281,8 @@ export const calculateFinancials = (
   const jdPowerRetail = typeof vehicle.jdPowerRetail === "number" ? vehicle.jdPowerRetail : 0;
   const unitCost = typeof vehicle.unitCost === "number" ? vehicle.unitCost : 0;
 
-  const { docFee, cvrFee } = settings;
+  const docFee = nonNegative(settings.docFee);
+  const cvrFee = nonNegative(settings.cvrFee);
 
   let baseOutTheDoorPrice: number | "Error" | "N/A" = "N/A";
   let salesTax: number | "Error" | "N/A" = "N/A";
@@ -209,44 +297,51 @@ export const calculateFinancials = (
   // price var is clamped >=0 above.
   if (price > 0) {
     const netTradeIn = tradeInValue - tradeInPayoff;
+    const discountedPrice = Math.max(0, price - dealerDiscount);
 
     const { tax, extraFees } = calculateSalesTax(
-      price,
+      discountedPrice,
       tradeInValue,
+      transactionFees,
       settings,
-      dealData.buyerState // per-deal buyer state overrides settings.defaultState [G18]
+      dealData.buyerState,
+      dealData.vehicleCondition
     );
     salesTax = tax;
 
     // Round OTD and amount-to-finance to cents so the payment is amortized off the
     // same figure the customer sees, and the financed amount reconciles. [B7]
-    baseOutTheDoorPrice = roundCents(price + docFee + cvrFee + stateFees + salesTax + extraFees);
-
-    if (typeof vehicle.unitCost === "number") {
-      frontEndGross = roundCents(price - unitCost);
-    }
-
-    // Rebate reduces the financed amount like cash down (it is NOT tax-exempt in
-    // this engine — the taxable base above is unchanged). [reconciliation 4/WS-C]
-    amountToFinance = roundCents(
-      baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn - rebate
+    baseOutTheDoorPrice = roundCents(
+      discountedPrice + docFee + cvrFee + transactionFees + stateFees + salesTax + extraFees
     );
 
-    // An unset APR yields no payment rather than a spurious interest-free figure. [B6]
+    if (typeof vehicle.unitCost === "number") {
+      frontEndGross = roundCents(discountedPrice - unitCost);
+    }
+
+    // Manufacturer rebate reduces principal after tax. Dealer discount is already
+    // reflected in discountedPrice/baseOutTheDoorPrice and is not subtracted twice.
+    amountToFinance = roundCents(
+      baseOutTheDoorPrice + backendProducts - downPayment - netTradeIn - manufacturerRebate
+    );
+
+    // An unset APR or an unset/invalid term yields no payment rather than a
+    // spurious interest-free or 1-month figure. [B6][term-unset]
     monthlyPayment =
-      interestRate === null
+      interestRate === null || loanTerm === null
         ? "N/A"
         : calculateMonthlyPayment(amountToFinance, interestRate, loanTerm);
 
-    // LTV Logic: Prefer Trade Book, fallback to Retail Book
-    const bookValue = jdPower > 0 ? jdPower : jdPowerRetail > 0 ? jdPowerRetail : 0;
+    // LTV Logic: Prefer Trade Book, fallback to Retail Book — via the shared
+    // book-value selector so the lender rules engine uses identical semantics.
+    const bookValue = selectBookValue({ jdPower, jdPowerRetail }) ?? 0;
 
     if (bookValue > 0) {
-      // Front-end LTV = selling price / book — the deal-independent unit advance
+      // Front-end LTV = net selling price / book - the deal-independent unit advance
       // metric per the dc design contract (resolves flagged F&I decision #2).
       // Cash down / trade / taxes / fees do not move it; otdLtv carries the
       // deal-structure view. [reconciliation 5]
-      frontEndLtv = (price / bookValue) * 100;
+      frontEndLtv = (discountedPrice / bookValue) * 100;
       otdLtv = amountToFinance >= 0 ? (amountToFinance / bookValue) * 100 : 0;
     } else {
       frontEndLtv = "Error";

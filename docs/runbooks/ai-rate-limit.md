@@ -62,9 +62,28 @@ You've hit a real traffic spike. Options:
 - Single provider 429: usage spike or rate-tier change (typical fix: upgrade tier)
 - Multiple providers 429 simultaneously: someone is hitting the AI proxy from a script — check Vercel logs for unusual traffic patterns
 
+## App-side rate limiting (current architecture)
+
+The proxy enforces its own quota before any provider call
+(`api/_lib/ai/rateLimit.ts`):
+
+- **Production**: every metered `/api/ai/*` request consults the atomic
+  PocketBase quota endpoint `POST /api/ltv/ai-rate-limit`
+  (`backend/pb_hooks/ai_rate_limit.pb.js`). Buckets are per user
+  (**20/user/min**) and per dealer (**80/dealer/min**), fixed 60s window,
+  upserted in a single SQLite transaction so concurrent Vercel instances share
+  the same durable counters.
+- **Non-production** (local dev, unit tests): a deterministic in-memory
+  fixed-window limiter with the same 20/user/min + 80/dealer/min limits,
+  per function instance.
+- **Fail-closed**: if the PB quota service is unreachable, misconfigured, or
+  returns an unusable response in production, the proxy responds **503** with
+  `Retry-After` rather than serving unmetered AI calls. So a PB outage also
+  surfaces as AI failures — check `fly status` before blaming providers.
+
 ## Prevention
 
 - Multi-provider configuration in `ai_provider_keys` collection (already supported)
 - Per-task model selection (already supported in `aiDefaults`)
-- Sentry error tracking wired; configure /api/ai/\* error rate alert in Sentry dashboard (rate limit impl in `api/_lib/ai/rateLimit.ts`: per-user 20/min + per-dealer 80/min fixed window, in-memory per instance)
-- For durable/global rate limit, consider Upstash or PB-backed counter (not yet)
+- Sentry error tracking wired; configure /api/ai/\* error rate alert in Sentry dashboard
+- Durable cross-instance quota already enforced via the PB-backed counter described above; limits are defined in `backend/pb_hooks/ai_rate_limit.pb.js` and mirrored in `api/_lib/ai/rateLimit.ts`

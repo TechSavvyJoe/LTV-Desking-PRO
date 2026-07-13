@@ -13,6 +13,8 @@ Operational playbooks for production incidents. Keep these short, specific, and 
 | [`oom.md`](oom.md)                                           | Fly machine OOM-killed or trending toward it                    |
 | [`ai-rate-limit.md`](ai-rate-limit.md)                       | One or more AI providers returning 429 or sustained errors      |
 | [`secrets-rotation.md`](secrets-rotation.md)                 | Quarterly rotation of API tokens / passwords                    |
+| [`alerting.md`](alerting.md)                                 | Uptime checks, FATAL log alerts, deploy outage window           |
+| [`ai-data-retention.md`](ai-data-retention.md)               | Provider ZDR / no-store flags for AI proxy                      |
 | [`breach-incident-response.md`](breach-incident-response.md) | Security incident, breach, data exfil, anomalous audit_log      |
 | [`dealer-offboarding.md`](dealer-offboarding.md)             | Dealer cancellation, data export + GDPR-style deletion request  |
 

@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useDealContext } from "../context/DealContext";
 import { saveDeal, logDealEvent } from "../lib/api";
 import { capture } from "../lib/analytics";
@@ -6,8 +7,9 @@ import { checkBankEligibility } from "../services/lenderMatcher";
 import { calculateFinancials } from "../services/calculator";
 import { lenderFitForVehicle } from "../services/lenderFit";
 import { scoreApprovalOdds } from "../services/approvalScorer";
+import { normalizeBackendProductFields } from "../services/backendProducts";
 import { mapPocketBaseSavedDeal } from "../lib/dealMappers";
-import { currentDealerQueryKeys, queryClient, queryKeys } from "../lib/queryClient";
+import { queryClient, queryKeys } from "../lib/queryClient";
 import type { CalculatedVehicle, SavedDeal } from "../types";
 import type { SavedDeal as PocketBaseSavedDeal } from "../lib/pocketbase";
 
@@ -20,7 +22,7 @@ type NewSavedDealPayload = Omit<
  * Save-to-pipeline handler, extracted verbatim from the legacy MainLayout
  * (App.tsx) so DeskScreen's save flow can consume it. Validation, the lender
  * eligibility snapshot [G48], deal_saved event and analytics capture are all
- * preserved. [dc-redesign]
+ * preserved. Persist path uses React Query useMutation. [dc-redesign]
  */
 export function useSaveDeal() {
   const {
@@ -37,6 +39,10 @@ export function useSaveDeal() {
     setErrors,
     setIsDealDirty,
   } = useDealContext();
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: NewSavedDealPayload) => saveDeal(payload),
+  });
 
   const handleSaveDeal = useCallback(
     (vehicleOverride?: CalculatedVehicle) => {
@@ -74,10 +80,14 @@ export function useSaveDeal() {
       // vehicle handed in comes from the 300ms-debounced scoring pass, so a
       // save clicked right after a term/down change would otherwise persist a
       // payment that never coexisted with the saved dealData. [review/P1]
-      const freshVehicle = calculateFinancials(vehicleToSave, dealData, settings);
+      const normalizedDealData = {
+        ...dealData,
+        ...normalizeBackendProductFields(dealData),
+      };
+      const freshVehicle = calculateFinancials(vehicleToSave, normalizedDealData, settings);
       const freshFit = lenderFitForVehicle(
         freshVehicle,
-        { ...dealData, ...filters },
+        { ...normalizedDealData, ...filters },
         safeLenderProfiles
       );
       const freshApproval = scoreApprovalOdds(freshVehicle, filters, freshFit.fitCount);
@@ -93,10 +103,16 @@ export function useSaveDeal() {
       // Lender grid + settings snapshot make the saved deal self-contained
       // evidence of what was on screen at save time. [G48]
       const eligibilitySnapshot = safeLenderProfiles.map((profile) => {
-        const result = checkBankEligibility(vehicleSnapshot, { ...dealData, ...filters }, profile);
+        const result = checkBankEligibility(
+          vehicleSnapshot,
+          { ...normalizedDealData, ...filters },
+          profile
+        );
         return {
           name: profile.name,
           eligible: result.eligible,
+          status: result.status,
+          reasons: result.reasons,
           matchedTier: result.matchedTier?.name ?? null,
           uncheckedConstraints: result.uncheckedConstraints,
         };
@@ -108,17 +124,18 @@ export function useSaveDeal() {
         salespersonName,
         vehicle: vehicleToSave.id, // Assuming calculated vehicle has ID matching inventory
         vehicleData: { ...vehicleSnapshot } as Record<string, unknown>, // Serialized to JSON in PocketBase
-        dealData: { ...dealData } as Record<string, unknown>,
+        dealData: { ...normalizedDealData } as Record<string, unknown>,
         customerFilters: {
           creditScore: filters.creditScore,
           monthlyIncome: filters.monthlyIncome,
-        },
+          monthlyDebt: filters.monthlyDebt,
+        } as unknown as NewSavedDealPayload["customerFilters"],
         notes: scratchPadNotes,
         // Desk saves land as "pending" (mockup's save-to-pipeline semantics) —
         // "draft" is reserved for deals persisted before they're worked.
         status: "pending" as const,
-        // First fitting lender at save time — the Pipeline LENDER column.
-        lenderName: eligibilitySnapshot.find((entry) => entry.eligible)?.name,
+        // Ranked, verified fitting lender at save time - never a pending sample.
+        lenderName: freshFit.fitNames[0],
         calculatedData: {
           lenderEligibility: eligibilitySnapshot,
           settings: { ...settings, ai: undefined },
@@ -134,38 +151,31 @@ export function useSaveDeal() {
         } as Record<string, unknown>,
       };
 
-      saveDeal(newDealData).then((saved) => {
-        if (saved) {
+      saveMutation.mutate(newDealData, {
+        onSuccess: (saved) => {
+          if (!saved) {
+            setMessage({ type: "error", text: "Failed to save deal to backend." });
+            return;
+          }
           const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
-          // Optimistic prepend. RACE NOTE: realtime sub (see subscribeToSavedDeals
-          // + DealContext useEffect) will soon fire a debounced full refetch and
-          // replace the array entirely. Prepend + replace is usually harmless
-          // (new deal will be present); worst case short dup until sub lands.
-          // Progress: load now via fetchQuery; cache also set here.
-          // Future: full RQ useMutation + invalidation.
           setSavedDeals((prev) => [mappedSaved, ...prev]);
-          // Keep RQ cache roughly in sync on the optimistic path too.
-          queryClient.setQueryData(
-            currentDealerQueryKeys().savedDeals,
-            (old: SavedDeal[] | undefined) => (old ? [mappedSaved, ...old] : [mappedSaved])
-          );
-          // More RQ integration: schedule authoritative refetch into cache.
-          // Does not clobber optimistic state/setSavedDeals; sub will align UI later.
-          queryClient.invalidateQueries({ queryKey: queryKeys.savedDeals });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.savedDeals });
           setMessage({ type: "success", text: "Deal saved successfully." });
-          // The structure is persisted — stop the beforeunload "unsaved deal"
-          // warning from firing on the very next navigation. [dc-redesign]
           setIsDealDirty(false);
           void logDealEvent({
             action: "deal_saved",
             customerName,
             vin: vehicleToSave.vin,
-            snapshot: { dealData, monthlyPayment: vehicleSnapshot.monthlyPayment },
+            snapshot: {
+              dealData: normalizedDealData,
+              monthlyPayment: vehicleSnapshot.monthlyPayment,
+            },
           });
           capture("deal_saved", { term: dealData.loanTerm });
-        } else {
+        },
+        onError: () => {
           setMessage({ type: "error", text: "Failed to save deal to backend." });
-        }
+        },
       });
     },
     [
@@ -181,6 +191,7 @@ export function useSaveDeal() {
       setMessage,
       setErrors,
       setIsDealDirty,
+      saveMutation,
     ]
   );
 

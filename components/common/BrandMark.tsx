@@ -6,8 +6,8 @@ import React from "react";
  * raw pixels, or use `className` for tailwind sizing (e.g. w-10 h-10).
  *
  * Mark composition: two stylized letterforms — a tall "L" (front-end
- * gross) and a softer "V" (loan-to-value V-curve) — in primary-blue
- * on slate-950. Reads as "LV" at small sizes; the "v" tightens at
+ * gross) and a softer "V" (loan-to-value V-curve) — in the active brand
+ * palette. Reads as "LV" at small sizes; the "v" tightens at
  * larger scales.
  */
 
@@ -36,9 +36,20 @@ export const BrandMark: React.FC<BrandMarkProps> = ({
       className={className}
       style={dims}
     >
-      {variant === "default" && <rect width="32" height="32" rx="7" fill="#0F172A" />}
-      <path d="M9 8v16h6v-2.5h-3.5V8H9z" fill="#3B82F6" />
-      <path d="M16.5 8l3.25 11.5L23 8h2.5l-4.5 16h-2.5L14 8h2.5z" fill="#60A5FA" />
+      {variant === "default" && (
+        <rect
+          width="32"
+          height="32"
+          rx="7"
+          fill="var(--color-bg-muted, #11161c)"
+          stroke="var(--color-border, #202830)"
+        />
+      )}
+      <path d="M9 8v16h6v-2.5h-3.5V8H9z" fill="var(--color-primary, #34d399)" />
+      <path
+        d="M16.5 8l3.25 11.5L23 8h2.5l-4.5 16h-2.5L14 8h2.5z"
+        fill="var(--color-primary-hover, #6ee7b7)"
+      />
     </svg>
   );
 };
@@ -61,8 +72,8 @@ export const BrandWordmark: React.FC<{
       <BrandMark className={dims} variant="default" />
       <div className="leading-tight">
         <p
-          className={`${titleSize} font-bold tracking-tight text-[var(--color-text)]`}
-          style={{ letterSpacing: "-0.02em" }}
+          className={`${titleSize} font-bold text-[var(--color-text)]`}
+          style={{ letterSpacing: 0 }}
         >
           LTV Desking <span style={{ color: "var(--color-primary)" }}>PRO</span>
         </p>

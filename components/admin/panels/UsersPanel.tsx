@@ -13,6 +13,7 @@ import { confirmAction } from "../../../lib/confirm";
 import { toast } from "../../../lib/toast";
 import { SearchInput, SortHeader } from "./OwnerPanels";
 import { EmptyState } from "../../common/states";
+import { PASSWORD_MIN_LENGTH } from "../../../lib/passwordPolicy";
 
 /**
  * UsersPanel (extracted from SuperAdminDashboard.tsx)
@@ -95,8 +96,8 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
           setError("Passwords do not match");
           return;
         }
-        if (formData.password.length < 8) {
-          setError("Password must be at least 8 characters");
+        if (formData.password.length < PASSWORD_MIN_LENGTH) {
+          setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`);
           return;
         }
         await createUser({ ...formData, role: formData.role });
@@ -414,7 +415,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
-                    placeholder="Min 8 characters"
+                    placeholder="12+ chars, upper/lower/number"
                   />
                 </div>
                 <div>

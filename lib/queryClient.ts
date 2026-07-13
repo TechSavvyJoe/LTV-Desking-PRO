@@ -7,17 +7,10 @@ import { getCurrentDealerId } from "./pocketbase";
  * - gcTime: Unused cache is garbage collected after 10 minutes.
  * - retry: Only retry once on failure.
  *
- * Progress (state/RQ cleanup):
- * - DealContext loadData now routes the 3 main + settings reads through
- *   queryClient.fetchQuery (with domain-mapped queryFn results). Cache is
- *   populated by RQ rather than only setQueryData.
- * - setQueryData remains in subs/optimistic paths to keep realtime + optimistic
- *   in sync with cache.
- * - Still no useQuery/useMutation in consumers (safe incremental; avoids
- *   breaking all screens/hooks).
- *
- * Per PRODUCTION_READINESS_PLAN.md: DealContext / RQ consolidation to eliminate
- * duplication of server state.
+ * React Query is the source of truth for dealer-scoped server arrays:
+ * - DealProvider drives inventory / lenderProfiles / savedDeals via useQuery
+ * - Optimistic + realtime paths update the cache with setQueryData
+ * - Admin dashboards read dealers / users / systemStats via useQuery
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,14 +26,14 @@ export const queryClient = new QueryClient({
   },
 });
 
-// Query keys for cache invalidation + fetchQuery.
-// Keep in sync. Now actively used by fetchQuery in DealContext.loadData
-// (in addition to setQueryData in mutation/sub paths).
+// Query keys for cache invalidation + useQuery / fetchQuery.
 export const queryKeys = {
   inventory: ["dealerData", "inventory"] as const,
   lenderProfiles: ["dealerData", "lenderProfiles"] as const,
   savedDeals: ["dealerData", "savedDeals"] as const,
   dealerSettings: ["dealerData", "dealerSettings"] as const,
+  dealerUsers: ["dealerData", "dealerUsers"] as const,
+  currentDealer: ["dealerData", "currentDealer"] as const,
   systemStats: ["systemStats"] as const,
   dealers: ["dealers"] as const,
   users: ["users"] as const,
@@ -53,6 +46,8 @@ export const dealerQueryKeys = (dealerId: string | null | undefined) => {
     lenderProfiles: [...queryKeys.lenderProfiles, scope] as const,
     savedDeals: [...queryKeys.savedDeals, scope] as const,
     dealerSettings: [...queryKeys.dealerSettings, scope] as const,
+    dealerUsers: [...queryKeys.dealerUsers, scope] as const,
+    currentDealer: [...queryKeys.currentDealer, scope] as const,
   };
 };
 

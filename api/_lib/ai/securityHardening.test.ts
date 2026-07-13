@@ -28,7 +28,10 @@ vi.mock("./keyResolver.js", () => {
       anthropic: "test-anthropic-key",
       gemini: "test-gemini-key",
     }),
+    getMaskedProviderKeys: vi.fn(),
+    updateProviderKeys: vi.fn(),
     updateProviderKeyTestStatus: vi.fn(),
+    writeProviderKeyAudit: vi.fn(),
   };
 });
 
@@ -48,6 +51,7 @@ vi.mock("./providerClients.js", () => {
 import { handleAiRequest } from "./routes.js";
 import { __resetRateLimits } from "./rateLimit.js";
 import * as authLib from "./auth.js";
+import * as keyResolverLib from "./keyResolver.js";
 import * as providerClients from "./providerClients.js";
 
 // Helper to create mock IncomingMessage requests
@@ -333,6 +337,54 @@ describe("Milestone 2 Security & Cost Control Verification", () => {
     });
   });
 
+  describe("SEC-005: unauthenticated GET /api/ai/models is IP rate-limited", () => {
+    beforeEach(() => {
+      __resetRateLimits();
+      vi.restoreAllMocks();
+    });
+
+    it("allows models listing then returns 429 after the anonymous IP budget", async () => {
+      // Exhaust the 30/min anonymous budget for one forwarded IP.
+      for (let i = 0; i < 30; i++) {
+        const req = createMockReq({
+          method: "GET",
+          url: "/api/ai/models",
+          headers: {
+            "x-forwarded-for": "203.0.113.50",
+          },
+        });
+        const { res, promise } = createMockRes();
+        await handleAiRequest(req, res);
+        const state = await promise;
+        expect(state.statusCode).toBe(200);
+      }
+
+      const blockedReq = createMockReq({
+        method: "GET",
+        url: "/api/ai/models",
+        headers: {
+          "x-forwarded-for": "203.0.113.50",
+        },
+      });
+      const { res, promise } = createMockRes();
+      await handleAiRequest(blockedReq, res);
+      const blocked = await promise;
+
+      expect(blocked.statusCode).toBe(429);
+      expect(blocked.headers["retry-after"]).toBeDefined();
+      expect(JSON.parse(blocked.body).error).toContain("Rate limit exceeded");
+      // A different IP still succeeds — proves the limiter is IP-scoped, not global.
+      const otherReq = createMockReq({
+        method: "GET",
+        url: "/api/ai/models",
+        headers: { "x-forwarded-for": "203.0.113.51" },
+      });
+      const { res: otherRes, promise: otherPromise } = createMockRes();
+      await handleAiRequest(otherReq, otherRes);
+      expect((await otherPromise).statusCode).toBe(200);
+    });
+  });
+
   describe("B4: Request payload size limits and MIME type validation", () => {
     beforeEach(() => {
       vi.restoreAllMocks();
@@ -473,6 +525,75 @@ describe("Milestone 2 Security & Cost Control Verification", () => {
       // Verify the real error was logged on the server
       expect(consoleErrorSpy).toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe("AI provider key server boundary", () => {
+    const owner = { userId: "owner-1", role: "superadmin", dealerId: null };
+    const masked = {
+      id: "keys-1",
+      openaiApiKey: "••••3456",
+      anthropicApiKey: "",
+      geminiApiKey: "",
+      configured: { openai: true, anthropic: false, gemini: false },
+      lastTested: {},
+    };
+
+    beforeEach(() => {
+      vi.restoreAllMocks();
+      vi.clearAllMocks();
+      __resetRateLimits();
+      vi.mocked(authLib.requireSuperadmin).mockResolvedValue(owner);
+      vi.mocked(keyResolverLib.getMaskedProviderKeys).mockResolvedValue(masked);
+      vi.mocked(keyResolverLib.updateProviderKeys).mockResolvedValue(masked);
+    });
+
+    it("returns only masked provider status to the owner", async () => {
+      const req = createMockReq({ method: "GET", url: "/api/ai/provider-keys" });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).toBe(200);
+      expect(JSON.parse(state.body).data).toEqual(masked);
+      expect(state.body).not.toContain("test-openai-key");
+    });
+
+    it("accepts a key update server-side without echoing the secret", async () => {
+      const secret = "sk-sentinel-full-provider-secret-123456";
+      const req = createMockReq({
+        method: "PUT",
+        url: "/api/ai/provider-keys",
+        body: JSON.stringify({ openaiApiKey: secret }),
+      });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).toBe(200);
+      expect(keyResolverLib.updateProviderKeys).toHaveBeenCalledWith(
+        { openaiApiKey: secret },
+        owner.userId
+      );
+      expect(state.body).not.toContain(secret);
+      expect(state.body).toContain("••••3456");
+    });
+
+    it("rejects provider status access when owner authorization fails", async () => {
+      const { AuthError } = await import("./auth.js");
+      vi.mocked(authLib.requireSuperadmin).mockRejectedValue(
+        new AuthError("Superadmin role required", 403)
+      );
+      const req = createMockReq({ method: "GET", url: "/api/ai/provider-keys" });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).toBe(403);
+      expect(keyResolverLib.getMaskedProviderKeys).not.toHaveBeenCalled();
     });
   });
 

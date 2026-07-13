@@ -1,4 +1,4 @@
-# Litestream config — continuous WAL replication of PocketBase's SQLite DB
+# Litestream config — continuous LTX replication of PocketBase's SQLite DB
 # to a Cloudflare R2 bucket. Recovery point objective: seconds.
 #
 # Required Fly secrets (set via `fly secrets set …`):
@@ -8,22 +8,32 @@
 #   LITESTREAM_ENDPOINT            R2 S3-compatible endpoint
 #                                  (e.g. https://<accountid>.r2.cloudflarestorage.com)
 #
-# The container's start.sh wraps the PocketBase binary with `litestream replicate`
-# so writes are streamed to R2 in real time. On a fresh boot the script first
-# attempts `litestream restore` so a new machine can hydrate from R2 if its
-# volume is empty.
+# The container's start.sh wraps PocketBase with `litestream replicate -exec`
+# so a failed replicator cannot leave an apparently healthy, unprotected API.
+
+# Preserve 14 days of point-in-time recovery with daily full snapshots and
+# hourly/daily LTX compaction. Validation catches remote gaps before a restore.
+snapshot:
+  interval: 24h
+  retention: 336h
+
+levels:
+  - interval: 1h
+    retention: 24h
+  - interval: 24h
+    retention: 336h
+
+validation:
+  interval: 6h
 
 dbs:
   - path: /pb/pb_data/data.db
-    replicas:
-      - type: s3
-        bucket: ${LITESTREAM_BUCKET}
-        path: data.db
-        endpoint: ${LITESTREAM_ENDPOINT}
-        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
-        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
-        # WAL segments uploaded every 10s; full snapshots every 24h.
-        sync-interval: 10s
-        snapshot-interval: 24h
-        # Keep 14 days of point-in-time recovery history.
-        retention: 336h
+    replica:
+      type: s3
+      bucket: ${LITESTREAM_BUCKET}
+      path: data.db
+      endpoint: ${LITESTREAM_ENDPOINT}
+      region: auto
+      access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+      secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+      sync-interval: 10s

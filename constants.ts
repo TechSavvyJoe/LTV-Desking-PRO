@@ -20,13 +20,68 @@ export const MI_DOC_FEE_WARN_THRESHOLD = 280;
 
 /**
  * Michigan statutory cap (in USD) on the trade-in credit that can be subtracted
- * from the sales-tax base for MI buyers. [G17]
- * Named constant to replace magic 12000.
- * Verification note: Value set to 12000 (conservative for 2026); re-verify against
- * current Michigan statute (e.g. via MCL or Treasury guidance) before pilot or
- * production use. Override via dealer Settings if statute changes.
+ * from the sales-tax base for MI buyers, by calendar year. [G17]
+ *
+ * MCL 205.51(1)(d) as amended (2023 PA 20) schedules annual step-ups:
+ * - 2026: $12,000 (verified conservative value; re-verify via MI Treasury
+ *   RAB/guidance before pilot or production use)
+ * - 2027: $13,000
+ * - 2028: $14,000
+ * - 2029 onward: no cap (full trade-in value creditable)
+ * Dealers can still override the effective cap via Settings.
  */
-export const MI_TRADE_IN_CREDIT_CAP = 12000;
+const MI_TRADE_IN_CREDIT_CAP_BY_YEAR: Record<number, number> = {
+  2026: 12000,
+  2027: 13000,
+  2028: 14000,
+};
+
+/** First calendar year with NO statutory cap on the MI trade-in credit. */
+const MI_TRADE_IN_CAP_SUNSET_YEAR = 2029;
+
+/**
+ * Statutory MI trade-in credit cap for a calendar year (defaults to the
+ * current year). Returns Infinity from 2029 onward (uncapped) — callers
+ * already apply the cap via Math.min, which Infinity passes through.
+ * Years before the table's first entry use the earliest scheduled cap.
+ */
+export const getMiTradeInCreditCap = (year: number = new Date().getFullYear()): number => {
+  if (year >= MI_TRADE_IN_CAP_SUNSET_YEAR) return Number.POSITIVE_INFINITY;
+  if (year <= 2026) return MI_TRADE_IN_CREDIT_CAP_BY_YEAR[2026]!;
+  return MI_TRADE_IN_CREDIT_CAP_BY_YEAR[year] ?? MI_TRADE_IN_CREDIT_CAP_BY_YEAR[2026]!;
+};
+
+/**
+ * Legacy single-value alias (2026 cap). Prefer getMiTradeInCreditCap(year);
+ * kept for the Settings seed default and older call sites.
+ */
+export const MI_TRADE_IN_CREDIT_CAP = getMiTradeInCreditCap(2026);
+
+/**
+ * State sales/use tax rates the tax engine models (Michigan dealer selling to
+ * MI/OH/IN/IL/FL buyers — see services/calculator.ts [G16]).
+ * Sources (statutory state-level rates, verified 2026):
+ * - MI 6%    — MCL 205.52 (General Sales Tax Act)
+ * - OH 5.75% — Ohio Rev. Code 5739.02 (state rate; county add-ons not modeled)
+ * - IN 7%    — Ind. Code 6-2.5-2-2
+ * - IL 6.25% — 35 ILCS 105/3-10 (state rate; local vehicle taxes not modeled)
+ * - FL 6%    — Fla. Stat. 212.05
+ */
+export const TAX_RATES: Record<string, number> = {
+  MI: 0.06,
+  OH: 0.0575,
+  IN: 0.07,
+  IL: 0.0625,
+  FL: 0.06,
+};
+
+/**
+ * Window event dispatched after DealContext.updateSettings persists settings
+ * to localStorage, so same-tab consumers outside the provider (useSettings)
+ * can re-read immediately instead of waiting for a remount. Cross-tab updates
+ * arrive via the native "storage" event instead.
+ */
+export const SETTINGS_CHANGED_EVENT = "ltv:settings-changed";
 
 export const STORAGE_KEYS = {
   INVENTORY: "ltvInventory_v3",
@@ -75,12 +130,16 @@ export const INITIAL_DEAL_DATA: DealData = {
   loanTerm: INITIAL_SETTINGS.defaultTerm,
   interestRate: INITIAL_SETTINGS.defaultApr,
   stateFees: INITIAL_SETTINGS.defaultStateFees,
+  rebate: 0,
+  rebateType: "manufacturer",
+  transactionFees: 0,
   notes: "",
 };
 
 export const INITIAL_FILTER_DATA: FilterData = {
   creditScore: null,
   monthlyIncome: null,
+  monthlyDebt: null,
   vehicle: "",
   maxPrice: null,
   maxPayment: null,
@@ -95,6 +154,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "accu",
     name: "Alliance CCU",
+    isSample: true,
     maxPti: 20,
     bookValueSource: "Trade",
     tiers: [
@@ -184,6 +244,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "cap1",
     name: "Capital One",
+    isSample: true,
     minIncome: 1500,
     maxPti: 20,
     bookValueSource: "Trade",
@@ -227,6 +288,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "cres",
     name: "Crescent Bank",
+    isSample: true,
     minIncome: 2000,
     minAmountFinanced: 7000,
     maxAmountFinanced: 45000,
@@ -253,6 +315,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "ford",
     name: "Ford Credit",
+    isSample: true,
     bookValueSource: "Trade",
     tiers: [
       {
@@ -302,6 +365,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "ltcu",
     name: "Lake Trust CU",
+    isSample: true,
     bookValueSource: "Retail",
     tiers: [
       {
@@ -357,6 +421,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "pnc",
     name: "PNC Bank",
+    isSample: true,
     minAmountFinanced: 5000,
     bookValueSource: "Retail",
     tiers: [
@@ -388,6 +453,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "sant",
     name: "Santander",
+    isSample: true,
     minIncome: 1750,
     maxPti: 22,
     minAmountFinanced: 5000,
@@ -414,6 +480,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "tdaf",
     name: "TD Auto Finance",
+    isSample: true,
     minAmountFinanced: 7500,
     bookValueSource: "Trade",
     tiers: [
@@ -444,6 +511,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "prest",
     name: "Prestige Financial",
+    isSample: true,
     minIncome: 3000,
     maxPti: 15,
     maxAmountFinanced: 40000,
@@ -461,6 +529,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "rac",
     name: "Regional Acceptance",
+    isSample: true,
     minIncome: 1900,
     bookValueSource: "Trade",
     tiers: [
@@ -476,6 +545,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "ca",
     name: "Credit Acceptance",
+    isSample: true,
     maxPti: 25,
     bookValueSource: "Trade",
     tiers: [
@@ -488,6 +558,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "exeter",
     name: "Exeter",
+    isSample: true,
     minIncome: 1700,
     maxPti: 21,
     minAmountFinanced: 6000,
@@ -516,6 +587,7 @@ export const DEFAULT_LENDER_PROFILES: LenderProfile[] = [
   {
     id: "gls",
     name: "Global Lending",
+    isSample: true,
     minIncome: 1800,
     maxPti: 24,
     minAmountFinanced: 7000,

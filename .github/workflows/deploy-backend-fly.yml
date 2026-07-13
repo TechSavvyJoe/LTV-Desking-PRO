@@ -1,34 +1,119 @@
 name: Deploy Backend to Fly
 
 on:
-  push:
+  workflow_run:
+    workflows: [Verification]
     branches: [main]
-    paths:
-      - "backend/**"
-      - ".github/workflows/deploy-backend-fly.yml"
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full main commit SHA with a successful Verification run
+        required: true
+        type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
-  group: fly-backend
+  group: production-release
   cancel-in-progress: false
 
 env:
-  PB_VERSION: 0.26.5
+  FLY_APP: ltv-desking-pro-api
+  PB_VERSION: 0.39.6
+  PB_SHA256: 9251d4ebca4fe91771392dc389a6e449e4e00a34182b0316e7a2d9984d34da3d
 
 jobs:
+  release-gate:
+    name: Confirm successful main verification
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release_sha: ${{ steps.gate.outputs.release_sha }}
+    steps:
+      - name: Resolve and verify release commit
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          REQUESTED_SHA: ${{ inputs.release_sha }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+          VERIFIED_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          VERIFIED_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          VERIFIED_EVENT: ${{ github.event.workflow_run.event }}
+          VERIFIED_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            if [ "$VERIFIED_CONCLUSION" != "success" ] || \
+               [ "$VERIFIED_BRANCH" != "main" ] || \
+               [ "$VERIFIED_EVENT" != "push" ] || \
+               [ "$VERIFIED_REPOSITORY" != "$GITHUB_REPOSITORY" ]; then
+              echo "::error::Automatic releases require a successful main push Verification run from this repository."
+              exit 1
+            fi
+            RELEASE_SHA=$VERIFIED_SHA
+          else
+            if [ "$EVENT_REF" != "refs/heads/main" ]; then
+              echo "::error::Manual releases must run from the main workflow definition."
+              exit 1
+            fi
+            RELEASE_SHA=$REQUESTED_SHA
+          fi
+
+          if ! printf '%s' "$RELEASE_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::Release SHA must be a full lowercase Git commit SHA."
+            exit 1
+          fi
+
+          MAIN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [ "$RELEASE_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::Refusing to deploy $RELEASE_SHA because current main is $MAIN_SHA."
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            RUNS=$(gh api --method GET \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/check.yml/runs" \
+              -f branch=main \
+              -f head_sha="$RELEASE_SHA" \
+              -f status=success \
+              -f per_page=20)
+            VERIFIED_RUN_ID=$(printf '%s' "$RUNS" | jq -r --arg sha "$RELEASE_SHA" '
+              [.workflow_runs[]
+                | select(.event == "push" and .head_sha == $sha and .conclusion == "success")]
+              | first
+              | .id // empty
+            ')
+            if [ -z "$VERIFIED_RUN_ID" ]; then
+              echo "::error::No successful main Verification run exists for $RELEASE_SHA."
+              exit 1
+            fi
+            echo "Using successful Verification run $VERIFIED_RUN_ID."
+          fi
+
+          echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+
   validate-migrations:
     name: Validate PB migrations on ephemeral DB
+    needs: release-gate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.release-gate.outputs.release_sha }}
 
       - name: Download PocketBase ${{ env.PB_VERSION }}
         run: |
+          set -euo pipefail
           curl -fsSL -o /tmp/pb.zip \
             "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip"
+          echo "${PB_SHA256}  /tmp/pb.zip" | sha256sum -c -
           unzip -o /tmp/pb.zip -d /tmp/pb
           chmod +x /tmp/pb/pocketbase
           /tmp/pb/pocketbase --version
@@ -36,134 +121,238 @@ jobs:
       - name: Boot PocketBase with migrations against empty data dir
         working-directory: ./backend
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p /tmp/pb-test/pb_data
           /tmp/pb/pocketbase serve \
             --http=127.0.0.1:18090 \
             --dir=/tmp/pb-test/pb_data \
             --migrationsDir=./pb_migrations \
-            --hooksDir=/tmp/pb-test/pb_hooks > /tmp/pb-test/serve.log 2>&1 &
+            --hooksDir=./pb_hooks \
+            --hooksWatch=false > /tmp/pb-test/serve.log 2>&1 &
           PB_PID=$!
+          HEALTHY=0
+          trap 'kill "$PB_PID" 2>/dev/null || true; wait "$PB_PID" 2>/dev/null || true' EXIT
 
-          # Wait up to 60s for /api/health to return 200.
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:18090/api/health > /dev/null 2>&1; then
               echo "PB up after ${i}s"
+              HEALTHY=1
               break
             fi
-            if ! kill -0 $PB_PID 2>/dev/null; then
-              echo "PB died during startup — migration error likely. Full log:"
+            if ! kill -0 "$PB_PID" 2>/dev/null; then
+              echo "PocketBase died during startup; full log follows."
               cat /tmp/pb-test/serve.log
               exit 1
             fi
             sleep 1
           done
 
-          # Stop PB so we can inspect the SQLite DB without lock contention.
-          kill $PB_PID || true
-          wait $PB_PID 2>/dev/null || true
+          if [ "$HEALTHY" != "1" ]; then
+            echo "PocketBase stayed running but did not become healthy within 60 seconds."
+            cat /tmp/pb-test/serve.log
+            exit 1
+          fi
 
-      - name: Verify migrations applied by querying SQLite directly
+          kill "$PB_PID" || true
+          wait "$PB_PID" 2>/dev/null || true
+          trap - EXIT
+
+      - name: Verify migrations and required schema
         run: |
-          set -e
+          set -euo pipefail
           DB=/tmp/pb-test/pb_data/data.db
 
           echo "Migrations recorded in _migrations table:"
           sqlite3 "$DB" "SELECT file FROM _migrations ORDER BY file;"
-          echo "---"
 
-          # EVERY migration file in the repo must be recorded as applied —
-          # no hardcoded list to forget to update when a migration is added.
           for path in backend/pb_migrations/*.js; do
-            f=$(basename "$path")
-            count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM _migrations WHERE file='$f';")
+            file=$(basename "$path")
+            count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM _migrations WHERE file='$file';")
             if [ "$count" != "1" ]; then
-              echo "ERROR: migration $f not recorded as applied (count=$count)"
+              echo "ERROR: migration $file was not recorded exactly once (count=$count)."
               cat /tmp/pb-test/serve.log
               exit 1
             fi
-            echo "OK: $f applied"
           done
 
-          # Collections the app depends on must have been created.
-          for col in system_settings ai_provider_keys audit_log deal_events; do
-            if ! sqlite3 "$DB" "SELECT name FROM _collections WHERE name='$col';" | grep -q "$col"; then
-              echo "ERROR: $col collection not in _collections"
-              cat /tmp/pb-test/serve.log
+          for collection in system_settings ai_provider_keys api_service_accounts audit_log deal_events; do
+            count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM _collections WHERE name='$collection';")
+            if [ "$count" != "1" ]; then
+              echo "ERROR: required collection $collection is missing (count=$count)."
               exit 1
             fi
-            echo "OK: $col collection exists"
           done
 
-          # Seed row was inserted by migration 0.
+          for spec in \
+            dealers:name dealers:code users:dealer users:role users:active \
+            inventory:dealer inventory:vin inventory:stockNumber inventory:year inventory:price \
+            lender_profiles:dealer lender_profiles:name lender_profiles:tiers \
+            saved_deals:dealer saved_deals:dealData saved_deals:status \
+            dealer_settings:dealer dealer_settings:vscPrice dealer_settings:gapPrice \
+            system_settings:supportEmail ai_provider_keys:openaiApiKey \
+            api_service_accounts:active api_service_accounts:scope \
+            audit_log:action deal_events:dealer deal_events:action; do
+            collection=${spec%%:*}
+            field=${spec#*:}
+            count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM _collections, json_each(_collections.fields) WHERE _collections.name='$collection' AND json_extract(json_each.value, '$.name')='$field';")
+            if [ "$count" != "1" ]; then
+              echo "ERROR: required field $collection.$field is missing (count=$count)."
+              exit 1
+            fi
+          done
+
           seed_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM system_settings;")
           if [ "$seed_count" -lt 1 ]; then
-            echo "ERROR: system_settings has no seed row (count=$seed_count)"
+            echo "ERROR: system_settings has no seed row."
             exit 1
           fi
-          echo "OK: system_settings has $seed_count seed row(s)"
 
-      - name: Re-boot (idempotency check — migrations must not re-run)
+      - name: Reboot and prove migration idempotency
         working-directory: ./backend
         run: |
-          set -e
-          before_count=$(sqlite3 /tmp/pb-test/pb_data/data.db "SELECT COUNT(*) FROM _migrations;")
+          set -euo pipefail
+          DB=/tmp/pb-test/pb_data/data.db
+          before_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM _migrations;")
 
           /tmp/pb/pocketbase serve \
             --http=127.0.0.1:18090 \
             --dir=/tmp/pb-test/pb_data \
             --migrationsDir=./pb_migrations \
-            --hooksDir=/tmp/pb-test/pb_hooks > /tmp/pb-test/serve2.log 2>&1 &
+            --hooksDir=./pb_hooks \
+            --hooksWatch=false > /tmp/pb-test/serve2.log 2>&1 &
           PB_PID=$!
+          HEALTHY=0
+          trap 'kill "$PB_PID" 2>/dev/null || true; wait "$PB_PID" 2>/dev/null || true' EXIT
 
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:18090/api/health > /dev/null 2>&1; then
+              HEALTHY=1
               break
             fi
-            if ! kill -0 $PB_PID 2>/dev/null; then
-              echo "PB died on re-boot:"
+            if ! kill -0 "$PB_PID" 2>/dev/null; then
               cat /tmp/pb-test/serve2.log
               exit 1
             fi
             sleep 1
           done
-          kill $PB_PID || true
-          wait $PB_PID 2>/dev/null || true
-
-          after_count=$(sqlite3 /tmp/pb-test/pb_data/data.db "SELECT COUNT(*) FROM _migrations;")
-          if [ "$before_count" != "$after_count" ]; then
-            echo "ERROR: migration count changed on re-boot ($before_count -> $after_count) — not idempotent"
+          if [ "$HEALTHY" != "1" ]; then
+            cat /tmp/pb-test/serve2.log
             exit 1
           fi
-          echo "OK: idempotency confirmed (${before_count} migrations stable across re-boots)"
+
+          kill "$PB_PID" || true
+          wait "$PB_PID" 2>/dev/null || true
+          trap - EXIT
+
+          after_count=$(sqlite3 "$DB" "SELECT COUNT(*) FROM _migrations;")
+          if [ "$before_count" != "$after_count" ]; then
+            echo "ERROR: migration count changed on reboot ($before_count -> $after_count)."
+            exit 1
+          fi
 
   deploy:
-    name: Deploy to Fly
-    needs: validate-migrations
+    name: Snapshot, deploy, and verify Fly
+    needs: [release-gate, validate-migrations]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.release-gate.outputs.release_sha }}
 
-      # Pinned to tag 1.6 (SHA ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1) for supply-chain safety.
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
 
-      - name: Deploy to Fly
-        run: flyctl deploy --remote-only --strategy=rolling --wait-timeout=600
+      - name: Snapshot active production volume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          MACHINES=$(flyctl machine list --app "$FLY_APP" --json)
+          MACHINE_COUNT=$(printf '%s' "$MACHINES" | jq 'length')
+          if [ "$MACHINE_COUNT" -ne 1 ]; then
+            echo "::error::Expected exactly one Fly machine before release; found $MACHINE_COUNT. Resolve any restore hold or scaling drift first."
+            exit 1
+          fi
+          mapfile -t STARTED_IDS < <(printf '%s' "$MACHINES" | jq -r '
+            .[] | select((.state // .State) == "started") | (.id // .ID)
+          ')
+          if [ "${#STARTED_IDS[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one started PocketBase machine; found ${#STARTED_IDS[@]}."
+            exit 1
+          fi
+
+          VOLUMES=$(flyctl volumes list --app "$FLY_APP" --json)
+          mapfile -t VOLUME_IDS < <(printf '%s' "$VOLUMES" | jq -r --arg machine "${STARTED_IDS[0]}" '
+            .[]
+            | select((.attached_machine_id // .attachedMachineId // .AttachedMachineId) == $machine)
+            | (.id // .ID)
+          ')
+          if [ "${#VOLUME_IDS[@]}" -ne 1 ]; then
+            echo "::error::Expected one volume attached to the active machine; found ${#VOLUME_IDS[@]}."
+            exit 1
+          fi
+
+          flyctl volumes update "${VOLUME_IDS[0]}" \
+            --app "$FLY_APP" \
+            --snapshot-retention 14 \
+            --scheduled-snapshots=true
+          flyctl volumes snapshots create "${VOLUME_IDS[0]}" --app "$FLY_APP"
+          flyctl volumes snapshots list "${VOLUME_IDS[0]}" --app "$FLY_APP"
+
+      - name: Deploy verified commit to Fly
         working-directory: ./backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - name: Verify health endpoint
+          RELEASE_SHA: ${{ needs.release-gate.outputs.release_sha }}
         run: |
-          set -e
-          for i in 1 2 3 4 5; do
-            body=$(curl -fsS https://ltv-desking-pro-api.fly.dev/api/health || true)
-            if echo "$body" | grep -q '"code":200'; then
-              echo "Health check passed: $body"
-              exit 0
+          set -euo pipefail
+          flyctl deploy --remote-only --strategy=rolling --wait-timeout=600 \
+            --image-label="git-${RELEASE_SHA}"
+
+      - name: Verify Fly release, health, and backup supervision
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          HEALTHY=0
+          for attempt in $(seq 1 12); do
+            if BODY=$(curl --connect-timeout 10 --max-time 20 -fsS \
+              "https://${FLY_APP}.fly.dev/api/health") && \
+              printf '%s' "$BODY" | jq -e '.code == 200' > /dev/null; then
+              HEALTHY=1
+              break
             fi
-            echo "Attempt $i did not return healthy: ${body:-<no body>}"
+            echo "Health endpoint has not converged on attempt $attempt."
             sleep 10
           done
-          echo "Health check failed after 5 attempts"
-          exit 1
+          if [ "$HEALTHY" != "1" ]; then
+            echo "::error::Fly health endpoint failed after deployment."
+            exit 1
+          fi
+
+          MACHINES=$(flyctl machine list --app "$FLY_APP" --json)
+          MACHINE_COUNT=$(printf '%s' "$MACHINES" | jq 'length')
+          STARTED_COUNT=$(printf '%s' "$MACHINES" | jq '[.[] | select((.state // .State) == "started")] | length')
+          if [ "$MACHINE_COUNT" -ne 1 ] || [ "$STARTED_COUNT" -ne 1 ]; then
+            echo "::error::Expected exactly one Fly machine and one started PocketBase machine; found $MACHINE_COUNT total and $STARTED_COUNT started."
+            printf '%s\n' "$MACHINES"
+            exit 1
+          fi
+
+          flyctl status --app "$FLY_APP"
+          flyctl checks list --app "$FLY_APP"
+          flyctl releases --app "$FLY_APP" --image
+
+          PROCESSES=$(flyctl ssh console --app "$FLY_APP" \
+            --command "ps -o pid,ppid,args")
+          printf '%s\n' "$PROCESSES"
+          printf '%s\n' "$PROCESSES" | grep -F "/pb/litestream replicate" > /dev/null
+          printf '%s\n' "$PROCESSES" | grep -F "/pb/pocketbase serve" > /dev/null
+
+  deploy-vercel:
+    name: Deploy verified release to Vercel
+    needs: [release-gate, deploy]
+    uses: ./.github/workflows/deploy-vercel.yml
+    with:
+      release_sha: ${{ needs.release-gate.outputs.release_sha }}
+    secrets: inherit

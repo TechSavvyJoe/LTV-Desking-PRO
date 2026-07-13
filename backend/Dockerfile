@@ -1,20 +1,26 @@
-# Build stage
-FROM alpine:latest AS build
+# Pin the base and verify every downloaded release artifact. Remote ADD without
+# a digest previously made Fly builds trust mutable upstream bytes.
+ARG ALPINE_VERSION=3.24.1
+FROM alpine:${ALPINE_VERSION} AS build
 
-ARG PB_VERSION=0.26.5
-ARG LITESTREAM_VERSION=0.3.13
+ARG PB_VERSION=0.39.6
+ARG PB_SHA256=9251d4ebca4fe91771392dc389a6e449e4e00a34182b0316e7a2d9984d34da3d
+ARG LITESTREAM_VERSION=0.5.14
+ARG LITESTREAM_SHA256=32083dd2af13840b273c538360b828368d7b82bbaa2c641106052dc7814ed956
 
 # Download and extract PocketBase
 ADD https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip /tmp/pb.zip
-RUN unzip /tmp/pb.zip -d /pb/
+RUN echo "${PB_SHA256}  /tmp/pb.zip" | sha256sum -c - \
+    && unzip /tmp/pb.zip -d /pb/
 
-# Download Litestream for continuous WAL replication to R2. If LITESTREAM_*
-# secrets aren't set at runtime, start.sh skips litestream and runs PB directly.
-ADD https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-v${LITESTREAM_VERSION}-linux-amd64.tar.gz /tmp/litestream.tar.gz
-RUN tar -xzf /tmp/litestream.tar.gz -C /pb/
+# Download Litestream for continuous WAL replication to R2. Runtime startup is
+# fail-closed when backup settings are missing; plain PB requires ALLOW_NO_BACKUP=1.
+ADD https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-${LITESTREAM_VERSION}-linux-x86_64.tar.gz /tmp/litestream.tar.gz
+RUN echo "${LITESTREAM_SHA256}  /tmp/litestream.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/litestream.tar.gz -C /pb/
 
 # Runtime stage
-FROM alpine:latest
+FROM alpine:${ALPINE_VERSION}
 
 # Install ca-certificates for HTTPS
 RUN apk add --no-cache ca-certificates
@@ -38,5 +44,5 @@ EXPOSE 8080
 # Create data directory (volume mount target)
 RUN mkdir -p /pb/pb_data
 
-# Boot PocketBase under Litestream (or plain if R2 secrets aren't set)
+# Boot PocketBase under Litestream; unprotected plain mode requires an explicit override.
 CMD ["/pb/start.sh"]

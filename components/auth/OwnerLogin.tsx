@@ -34,15 +34,18 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
         return;
       }
 
-      if (getCurrentUser()?.role !== "superadmin") {
+      const role = result.user?.role ?? getCurrentUser()?.role;
+      if (role !== "superadmin" && role !== "admin") {
         // Clear the token WITHOUT logout() — logout() reloads the page, which
         // unmounted this component before the error could ever render. [C-auth]
         pb.authStore.clear();
-        setError("Owner access required. This account is not authorized for the Owner Console.");
+        setError("Administrator access required. This account cannot open the Admin Console.");
         return;
       }
 
-      toast.success("Welcome to the Owner Console");
+      toast.success(
+        role === "superadmin" ? "Welcome to the Owner Console" : "Welcome to Dealer Administration"
+      );
       onSuccess();
     } catch (err) {
       // Owner login failure surfaced via UI toast.
@@ -65,12 +68,12 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
           <div className="flex flex-col items-center text-center">
             <BrandMark className="w-14 h-14 mb-4" />
             <h1 className="text-2xl font-semibold tracking-tight">
-              Owner <span className="text-[var(--color-primary)]">Console</span>
+              Admin <span className="text-[var(--color-primary)]">Console</span>
             </h1>
             <p className="mt-2 text-sm text-[var(--color-text-muted)]">
               LTV Desking <span className="text-[var(--color-primary)] font-semibold">PRO</span>
               <span className="mx-2 text-[var(--color-text-subtle)]">·</span>
-              Authorized personnel only
+              Dealership and platform administrators
             </p>
           </div>
 
@@ -141,7 +144,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
               {loading ? (
                 <Icons.SpinnerIcon className="animate-spin h-5 w-5" />
               ) : (
-                "Sign in to Owner Console"
+                "Sign in to Admin Console"
               )}
             </Button>
           </form>

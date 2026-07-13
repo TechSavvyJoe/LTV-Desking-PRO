@@ -6,7 +6,7 @@ import type { CalculatedVehicle, FilterData, ApprovalBand } from "../types";
  *
  * The weights and component curves deliberately adopt the dc mockup's formula
  * (LTV-led 0.36/0.50/0.14, ltvComp `115 − (otd − 100) · 2.2` clamped 0-105,
- * ptiComp `100 − max(0, pti − 12) · 5` with unknown income reading 100, final
+ * ptiComp `100 − max(0, pti − 12) · 5` with unknown income held neutral, final
  * clamp 8-98) so the shipped gauge matches the approved design contract.
  * The production hardening is RETAINED on top: PTI soft/hard affordability
  * caps, the no-fit cap + reasons, and neutral-50 for missing fico/ltv.
@@ -24,9 +24,8 @@ export const APPROVAL_CONFIG = {
   fico: { floor: 450, ceil: 850 },
   // ltvComp = clamp(base − (otdLtv − pivot) · slope, 0, max)
   ltv: { base: 115, pivot: 100, slope: 2.2, max: 105 },
-  // ptiComp = clamp(100 − max(0, pti − freeUpTo) · slope, 0, 100); unknown
-  // income reads 100 (no affordability signal is not a bad signal).
-  pti: { freeUpTo: 12, slope: 5, unknown: 100 },
+  // Missing affordability data cannot earn the best PTI component.
+  pti: { freeUpTo: 12, slope: 5, unknown: 50 },
   // Affordability veto — a deal the customer plainly can't carry can't read high.
   ptiSoftCap: { threshold: 20, cap: 55 },
   ptiHardCap: { threshold: 25, cap: 35 },
@@ -83,6 +82,8 @@ export const scoreApprovalOdds = (
     ptiRatio = (payment / income) * 100;
     ptiComp = clamp(100 - Math.max(0, ptiRatio - C.pti.freeUpTo) * C.pti.slope, 0, 100);
     if (ptiRatio > 18) reasons.push(`Payment-to-income high (${ptiRatio.toFixed(1)}%)`);
+  } else if (income === null) {
+    reasons.push("Monthly income missing; PTI held neutral");
   }
 
   let score = C.weights.credit * creditComp + C.weights.ltv * ltvComp + C.weights.pti * ptiComp;

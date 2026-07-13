@@ -21,6 +21,7 @@ export const useKeyboardShortcuts = (keyMap: KeyMap, enabled: boolean = true) =>
 
       // Build key string
       const parts: string[] = [];
+      const hasModifier = event.ctrlKey || event.metaKey || event.shiftKey || event.altKey;
       if (event.ctrlKey || event.metaKey) parts.push("ctrl");
       if (event.shiftKey) parts.push("shift");
       if (event.altKey) parts.push("alt");
@@ -28,21 +29,15 @@ export const useKeyboardShortcuts = (keyMap: KeyMap, enabled: boolean = true) =>
 
       const keyString = parts.join("+");
       const handler = keyMap[keyString];
+      if (!handler) return;
 
-      if (handler) {
+      if (
+        hasModifier ||
+        ["escape", "f1", "f2", "f3", "f4", "f5"].includes(event.key.toLowerCase())
+      ) {
         event.preventDefault();
-        handler(event);
       }
-
-      // Also check without modifiers for simple keys like 'escape'
-      const simpleHandler = keyMap[event.key.toLowerCase()];
-      if (simpleHandler && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
-        // Only prevent default for escape and similar, not for regular typing
-        if (["escape", "f1", "f2", "f3", "f4", "f5"].includes(event.key.toLowerCase())) {
-          event.preventDefault();
-          simpleHandler(event);
-        }
-      }
+      handler(event);
     },
     [keyMap, enabled]
   );
@@ -57,6 +52,9 @@ export const useKeyboardShortcuts = (keyMap: KeyMap, enabled: boolean = true) =>
  * Hook for trapping focus within a modal or dialog
  * Essential for accessibility - keeps keyboard focus inside the modal
  */
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 export const useFocusTrap = (
   containerRef: React.RefObject<HTMLElement>,
   isActive: boolean = true
@@ -65,18 +63,18 @@ export const useFocusTrap = (
     if (!isActive || !containerRef.current) return;
 
     const container = containerRef.current;
-    const focusableElements = container.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
 
     // Focus first element when trap activates
-    firstElement?.focus();
+    container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
 
     const handleTabKey = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
+
+      // Query live on every Tab press so content mounted after activation
+      // (e.g. a PDF-status link appearing inside a modal) joins the cycle.
+      const focusableElements = container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
 
       if (event.shiftKey) {
         // Shift + Tab

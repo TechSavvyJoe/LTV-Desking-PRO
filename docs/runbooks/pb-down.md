@@ -23,9 +23,11 @@ Look for:
 - **`max restart count of 10`** — machine is in a crash loop. See Recovery → A.
 - **`reboot: Restarting system`** repeatedly — same as above.
 - **`OOM kill`** — see [`oom.md`](oom.md).
-- **`litestream: not found`** — Litestream wrapper bug. Run `gh workflow run recover-fly.yml` to unset LITESTREAM\_\* secrets and fall back to plain PB.
-- **No machine output at all** — Fly hardware issue. Force a new machine:
-  `fly machine list -a ltv-desking-pro-api` → `fly machine destroy <id>` → app autoscales a fresh one.
+- **`Litestream is missing` / missing `LITESTREAM_*` settings** — startup fails closed. Run `gh workflow run recover-fly.yml` only for an emergency, explicitly monitored no-backup recovery.
+- **No machine output at all** — possible Fly host or volume issue. Do not
+  destroy the only machine or volume. Record both IDs, then follow
+  [`db-restore.md`](db-restore.md) to build and validate a replacement while
+  retaining the original recovery path.
 
 ## Recovery
 
@@ -37,28 +39,54 @@ gh workflow run recover-fly.yml
 curl -sS https://ltv-desking-pro-api.fly.dev/api/health
 ```
 
-This unsets `LITESTREAM_*` secrets. `start.sh` falls back to plain PocketBase. Production back in ~60s.
+This stages removal of `LITESTREAM_*` and sets `ALLOW_NO_BACKUP=1`, then restarts
+plain PocketBase. Production can return in ~60s, but it is not protected by R2.
+Repair R2 and run `gh workflow run set-fly-secrets.yml` immediately; that workflow
+restores the settings and resets `ALLOW_NO_BACKUP=0`.
 
 ### B. Crash loop with PB migration errors
 
 The deploy must have shipped a broken migration. Roll the image back:
 
 ```bash
-fly releases list -a ltv-desking-pro-api      # find the previous good release
-fly releases rollback <version> -a ltv-desking-pro-api
+# From the repository root, find and copy the previous good image reference.
+fly releases --app ltv-desking-pro-api --image
+
+# Redeploy that immutable image. Fly has no `releases rollback` command.
+fly deploy --app ltv-desking-pro-api \
+  --config backend/fly.toml \
+  --image registry.fly.io/ltv-desking-pro-api:<previous-image-tag> \
+  --strategy rolling
+
+curl -fsS https://ltv-desking-pro-api.fly.dev/api/health
 ```
 
-Then fix the migration in a follow-up PR — `.github/workflows/deploy-backend-fly.yml` runs `validate-migrations` against an empty data dir before deploying, so it should catch the same error and block the merge.
+This rolls back the machine image, not SQLite migrations or current Fly secrets.
+Then fix the migration in a follow-up PR.
+
+> **Warning — rollback also rolls back `pb_hooks`.** The image bundles the hook
+> files, and `authorization_rules.pb.js` reasserts collection rules at runtime
+> (bootstrap + per-minute cron). Rolling back to an older image therefore
+> quietly reasserts that image's OLD authorization rules within a minute of
+> boot. After any rollback, re-deploy the current image promptly, or manually
+> verify collection rules in the PB admin UI against the current
+> `authorization_rules.pb.js` contract. The backend release workflow runs
+> `validate-migrations` against an empty data directory and blocks the production
+> deploy when the same startup failure is reproducible.
 
 ### C. Machine fine but `/api/health` slow
 
 Probably DB lock contention or a runaway query. SSH in and check:
 
 ```bash
-fly ssh console -a ltv-desking-pro-api -C "sqlite3 /pb/pb_data/data.db '.tables' && echo OK"
+fly ssh console -a ltv-desking-pro-api \
+  -C "ls -lh /pb/pb_data/data.db* && ps -o pid,ppid,args"
 ```
 
-If that hangs, the WAL is blocked. Look for long-running PB hooks — `pb_hooks/log.pb.js` should be logging anything > 500 ms.
+If that hangs, use `fly logs` and the read-only isolated check in
+[`r2-backup-setup.md`](r2-backup-setup.md). Do not run an ad hoc SQLite write or
+replace the live database in place. Look for long-running PB hooks;
+`pb_hooks/log.pb.js` should log requests over 500 ms.
 
 ## Root cause
 
@@ -73,4 +101,4 @@ After service is restored:
 
 - Fly health check (already configured, 30 s interval)
 - Validate-migrations CI gate (already configured)
-- `recover-fly.yml` workflow (already configured) — keeps unsetting the bad secrets to under 60 seconds
+- `recover-fly.yml` workflow (already configured) — explicit emergency bypass, never a silent fallback

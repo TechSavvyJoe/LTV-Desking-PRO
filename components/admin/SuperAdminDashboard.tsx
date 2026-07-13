@@ -1,29 +1,29 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser, type User, type Dealer } from "../../lib/pocketbase";
 import { ConsoleHeader, ConsoleTab, RefreshBar } from "./panels/OwnerPanels";
 import { getSystemStats, getAllDealers, getAllUsers, type SystemStats } from "../../lib/api";
 import { logout } from "../../lib/auth";
 import * as Icons from "../common/Icons";
-import { DealersPanel } from "./panels/DealersPanel"; // now fully implemented
+import { DealersPanel } from "./panels/DealersPanel";
 import { CreateDealerWizard } from "./panels/CreateDealerWizard";
 import { UsersPanel } from "./panels/UsersPanel";
 import { SystemSettingsPanel } from "./panels/SystemSettingsPanel";
 import { OverviewPanel } from "./panels/OverviewPanel";
-
-// (Extracted subcomponents live in ./panels/: OverviewPanel, CreateDealerWizard, DealersPanel,
-// UsersPanel, AuditLogPanel, AIKeysPanel, AIDefaultsPanel, SystemSettingsPanel)
-// All major panels extracted to split the original god file. OverviewPanel extracted in this pass.
-
-// Audit log now in ./panels/AuditLogPanel.tsx (no direct import here to avoid name conflicts)
-
-// ============================================
-// Main SuperAdmin Dashboard
-// ============================================
+import { queryClient, queryKeys } from "../../lib/queryClient";
 
 interface SuperAdminDashboardProps {
   onSwitchToDealer?: () => void;
   onImpersonate?: (dealerId: string) => void;
 }
+
+const EMPTY_STATS: SystemStats = {
+  totalDealers: 0,
+  activeDealers: 0,
+  totalUsers: 0,
+  totalDeals: 0,
+  totalInventory: 0,
+};
 
 export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   onSwitchToDealer,
@@ -32,43 +32,62 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<"overview" | "dealers" | "users" | "settings">(
     "overview"
   );
-  // Header/quick-action "Onboard new dealer" → the existing create-dealer
-  // wizard, hoisted to the dashboard level. [P7]
   const [showOnboard, setShowOnboard] = useState(false);
-  const [stats, setStats] = useState<SystemStats>({
-    totalDealers: 0,
-    activeDealers: 0,
-    totalUsers: 0,
-    totalDeals: 0,
-    totalInventory: 0,
-  });
-  const [dealers, setDealers] = useState<Dealer[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const currentUser = getCurrentUser();
 
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
-    const [statsData, dealersData, usersData] = await Promise.all([
-      getSystemStats(),
-      getAllDealers(),
-      getAllUsers(),
-    ]);
-    setStats(statsData);
-    setDealers(dealersData);
-    setUsers(usersData);
-    setLastUpdated(new Date());
-    setIsLoading(false);
-    setIsRefreshing(false);
-  }, []);
+  const statsQuery = useQuery({
+    queryKey: queryKeys.systemStats,
+    queryFn: getSystemStats,
+  });
+  const dealersQuery = useQuery({
+    queryKey: queryKeys.dealers,
+    queryFn: getAllDealers,
+  });
+  const usersQuery = useQuery({
+    queryKey: queryKeys.users,
+    queryFn: getAllUsers,
+  });
+
+  const stats = statsQuery.data ?? EMPTY_STATS;
+  const dealers = dealersQuery.data ?? [];
+  const users = usersQuery.data ?? [];
+  const isLoading = statsQuery.isLoading || dealersQuery.isLoading || usersQuery.isLoading;
+  const isRefreshing =
+    !isLoading && (statsQuery.isFetching || dealersQuery.isFetching || usersQuery.isFetching);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (statsQuery.isSuccess && dealersQuery.isSuccess && usersQuery.isSuccess) {
+      setLastUpdated(new Date());
+    }
+  }, [
+    statsQuery.isSuccess,
+    dealersQuery.isSuccess,
+    usersQuery.isSuccess,
+    statsQuery.dataUpdatedAt,
+    dealersQuery.dataUpdatedAt,
+    usersQuery.dataUpdatedAt,
+  ]);
+
+  const loadData = useCallback(async (_isRefresh = false) => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.systemStats }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dealers }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.users }),
+    ]);
+  }, []);
+
+  const refreshBar = useMemo(
+    () => (
+      <RefreshBar
+        loading={isRefreshing}
+        lastUpdated={lastUpdated}
+        onRefresh={() => loadData(true)}
+      />
+    ),
+    [isRefreshing, lastUpdated, loadData]
+  );
 
   if (isLoading) {
     return (
@@ -83,7 +102,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
       className="min-h-screen text-[var(--color-text)]"
       style={{ background: "var(--color-bg-subtle)", fontFamily: "var(--font-sans)" }}
     >
-      {/* 58px console header — mockup lines 761-771 */}
       <ConsoleHeader
         label="OWNER CONSOLE"
         title={
@@ -165,7 +183,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
         }
       />
 
-      {/* Sub-tab bar — .tab-btn idiom, counts live */}
       <div
         style={{
           padding: "0 24px",
@@ -198,13 +215,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           onClick={() => setActiveTab("settings")}
           label="Settings"
         />
-        <div style={{ marginLeft: "auto" }}>
-          <RefreshBar
-            loading={isRefreshing}
-            lastUpdated={lastUpdated}
-            onRefresh={() => loadData(true)}
-          />
-        </div>
+        <div style={{ marginLeft: "auto" }}>{refreshBar}</div>
       </div>
 
       {showOnboard && (
@@ -212,13 +223,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           onClose={() => setShowOnboard(false)}
           onCreated={() => {
             setShowOnboard(false);
-            loadData(true);
+            void loadData(true);
           }}
         />
       )}
 
       <div style={{ padding: 24 }}>
-        {/* Content */}
         {activeTab === "overview" && (
           <OverviewPanel
             stats={stats}

@@ -54,6 +54,7 @@ describe("AI provider clients", () => {
     );
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body.model).toBe("gpt-5.5");
+    expect(body.store).toBe(false);
     expect(body.text.format.type).toBe("json_schema");
   });
 
@@ -79,6 +80,9 @@ describe("AI provider clients", () => {
 
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body.messages[0].content[0].type).toBe("document");
+    // Anthropic has no store:false flag; ensure we did not invent one.
+    expect(body.store).toBeUndefined();
+    expect(body.cache_control).toBeUndefined();
   });
 
   it("calls Gemini with response JSON schema and parses lender data", async () => {
@@ -111,6 +115,7 @@ describe("AI provider clients", () => {
         config: expect.objectContaining({
           responseMimeType: "application/json",
           responseJsonSchema: lenderExtractJsonSchema,
+          store: false,
         }),
       })
     );
@@ -118,11 +123,40 @@ describe("AI provider clients", () => {
 
   it("rejects operations that exceed the AI timeout", async () => {
     vi.useFakeTimers();
-    const pending = withAiTimeout(new Promise(() => undefined), 50);
+    const pending = withAiTimeout(() => new Promise(() => undefined), 50);
     const expectation = expect(pending).rejects.toThrow("timed out");
     await vi.advanceTimersByTimeAsync(50);
     await expectation;
     vi.useRealTimers();
+  });
+
+  it("aborts the underlying provider request when the timeout fires", async () => {
+    vi.useFakeTimers();
+    let observedSignal: AbortSignal | undefined;
+    const pending = withAiTimeout((signal) => {
+      observedSignal = signal;
+      return new Promise(() => undefined);
+    }, 50);
+    const expectation = expect(pending).rejects.toThrow("timed out");
+
+    expect(observedSignal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(50);
+    await expectation;
+    expect(observedSignal?.aborted).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("passes an abort signal through to provider fetch calls", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ output_text: '{"analysis":"ok","suggestions":[]}' }), {
+        status: 200,
+      })
+    );
+
+    await callAiJson({ ...requestBase, provider: "openai", model: "gpt-5.5" });
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("propagates fetch network errors for OpenAI", async () => {

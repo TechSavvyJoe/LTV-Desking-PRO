@@ -1,52 +1,212 @@
 name: Deploy Frontend to Vercel
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "backend/**"
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_sha:
+        description: Verified main commit to deploy
+        required: true
+        type: string
+    secrets:
+      VERCEL_TOKEN:
+        required: true
+      VERCEL_ORG_ID:
+        required: true
+      VERCEL_PROJECT_ID:
+        required: true
+      VITE_SENTRY_DSN:
+        required: false
+      VITE_POSTHOG_KEY:
+        required: false
+
+permissions:
+  contents: read
 
 env:
+  VERCEL_CLI_VERSION: 55.0.0
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  PRODUCTION_URL: ${{ vars.VERCEL_PRODUCTION_URL || 'https://ltvdeskingpro.vercel.app' }}
 
 jobs:
   deploy:
+    name: Stage, verify, and promote Vercel
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ inputs.release_sha }}
+
+      - name: Validate release inputs
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$RELEASE_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::release_sha must be a full Git commit SHA."
+            exit 1
+          fi
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID PRODUCTION_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured."
+              exit 1
+            fi
+          done
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "22"
+          node-version: "24"
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
+      - name: Install pinned Vercel CLI
+        run: |
+          set -euo pipefail
+          npm install --global "vercel@${VERCEL_CLI_VERSION}"
+          vercel --version
 
-      - name: Pull Vercel Environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build Project
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      # The AI proxy reads provider keys exclusively through the narrow PB
+      # service identity in production (no env-key fallback), and only the
+      # "Rotate PocketBase Service Account" workflow provisions those Vercel
+      # env vars. Fail fast with a clear remediation instead of shipping a
+      # deployment whose /api/ai/* routes cannot read ai_provider_keys.
+      - name: Require PB service credentials on Vercel production
         env:
-          # Sentry DSN baked into the production bundle. Empty in env =
-          # lib/sentry.ts no-ops gracefully, which is fine for previews
-          # / local dev.
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          # Surfaced to Sentry as `release` for source-map matching
-          VITE_RELEASE: ${{ github.sha }}
-          # Backend URL baked into the bundle. The Vercel project env was
-          # never actually set (masked for months by the old silent
-          # fallback to the Fly URL) — pin it here so CI builds are
-          # deterministic. Not a secret; override via repo variable if
-          # the backend ever moves.
-          VITE_POCKETBASE_URL: ${{ vars.VITE_POCKETBASE_URL || 'https://ltv-desking-pro-api.fly.dev' }}
-          # PostHog client key for product analytics (lib/analytics.ts).
-          # Placeholder/empty comment: set VITE_POSTHOG_KEY secret in Vercel
-          # (or repo secret) for prod; leave unset for previews to no-op.
-          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY || '' }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          ENV_LIST=$(vercel env ls production --token="$VERCEL_TOKEN")
+          MISSING=""
+          for name in PB_INTERNAL_URL PB_SERVICE_COLLECTION PB_SERVICE_EMAIL PB_SERVICE_PASSWORD; do
+            if ! printf '%s\n' "$ENV_LIST" | grep -Eq "(^|[[:space:]])$name([[:space:]]|$)"; then
+              MISSING="$MISSING $name"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::Vercel production is missing:$MISSING. Run the 'Rotate PocketBase Service Account' workflow once to provision the narrow PB service credentials, then re-run this release."
+            exit 1
+          fi
 
-      - name: Deploy to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Pull Vercel production environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          ENV_FILE=$(mktemp)
+          trap 'rm -f "$ENV_FILE"' EXIT
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel env pull "$ENV_FILE" --environment=production --yes --token="$VERCEL_TOKEN"
+          node - "$ENV_FILE" <<'NODE'
+          const { loadEnvFile } = require("node:process");
+
+          loadEnvFile(process.argv[2]);
+          if (process.env.PB_SERVICE_COLLECTION !== "api_service_accounts") {
+            console.error(
+              "::error::Vercel PB_SERVICE_COLLECTION must be api_service_accounts; refusing a privileged or unknown collection.",
+            );
+            process.exit(1);
+          }
+          NODE
+
+      - name: Build production project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_RELEASE: ${{ inputs.release_sha }}
+          VITE_POCKETBASE_URL: ${{ vars.VITE_POCKETBASE_URL || 'https://ltv-desking-pro-api.fly.dev' }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY || '' }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Stage production deployment without aliases
+        id: stage
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN")
+          case "$DEPLOYMENT_URL" in
+            https://*.vercel.app) ;;
+            *)
+              echo "::error::Vercel returned an unexpected deployment URL."
+              exit 1
+              ;;
+          esac
+          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for staged deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
+        run: vercel inspect "$DEPLOYMENT_URL" --wait --timeout=10m --token="$VERCEL_TOKEN"
+
+      - name: Verify staged site and AI API
+        env:
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          curl --retry 8 --retry-delay 5 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 -fsS "$DEPLOYMENT_URL/" > /dev/null
+          MODELS=$(curl --retry 8 --retry-delay 5 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 -fsS "$DEPLOYMENT_URL/api/ai/models")
+          printf '%s' "$MODELS" | jq -e '
+            (.providers | type == "array" and length > 0) and
+            any(.providers[]; .configured == true) and
+            all(.providers[]; (.id | type == "string") and (.configured | type == "boolean"))
+          ' > /dev/null
+
+      - name: Promote verified deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
+        run: vercel promote "$DEPLOYMENT_URL" --yes --token="$VERCEL_TOKEN"
+
+      - name: Verify production alias and AI API
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          DEPLOYMENT_HOST=${DEPLOYMENT_URL#https://}
+          PRODUCTION_URL=${PRODUCTION_URL%/}
+          PRODUCTION_HOST=${PRODUCTION_URL#https://}
+          PRODUCTION_HOST=${PRODUCTION_HOST%%/*}
+
+          STAGED_ID=$(curl -fsS \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v13/deployments/$DEPLOYMENT_HOST?teamId=$VERCEL_ORG_ID" \
+            | jq -r '.id // empty')
+          if [ -z "$STAGED_ID" ]; then
+            echo "::error::Unable to resolve the staged Vercel deployment ID."
+            exit 1
+          fi
+
+          ALIAS_ID=""
+          for attempt in $(seq 1 12); do
+            ALIAS_ID=$(curl -fsS \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v13/deployments/$PRODUCTION_HOST?teamId=$VERCEL_ORG_ID" \
+              | jq -r '.id // empty')
+            if [ "$ALIAS_ID" = "$STAGED_ID" ]; then
+              break
+            fi
+            echo "Alias has not converged on attempt $attempt."
+            sleep 5
+          done
+          if [ "$ALIAS_ID" != "$STAGED_ID" ]; then
+            echo "::error::Production alias does not resolve to the promoted deployment."
+            exit 1
+          fi
+
+          curl --retry 5 --retry-delay 3 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 -fsS "$PRODUCTION_URL/" > /dev/null
+          curl --retry 5 --retry-delay 3 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 -fsS "$PRODUCTION_URL/api/ai/models" \
+            | jq -e '
+                (.providers | type == "array" and length > 0) and
+                any(.providers[]; .configured == true)
+              ' > /dev/null
+
+      - name: Remove runner Vercel material
+        if: always()
+        run: rm -rf .vercel

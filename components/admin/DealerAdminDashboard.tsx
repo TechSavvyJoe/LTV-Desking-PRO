@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { getCurrentUser, User, Dealer } from "../../lib/pocketbase";
+import { useQuery } from "@tanstack/react-query";
+import { getCurrentUser, User } from "../../lib/pocketbase";
 import {
   getDealerUsers,
   createDealerUser,
@@ -14,7 +15,9 @@ import * as Icons from "../common/Icons";
 import { EmptyState } from "../common/states";
 import { confirmAction } from "../../lib/confirm";
 import { toast } from "../../lib/toast";
+import { PASSWORD_MIN_LENGTH } from "../../lib/passwordPolicy";
 import { ConsoleHeader, ConsoleTab } from "./panels/OwnerPanels";
+import { currentDealerQueryKeys, queryClient, queryKeys } from "../../lib/queryClient";
 
 interface DealerAdminDashboardProps {
   onSwitchToDealer: () => void;
@@ -22,9 +25,20 @@ interface DealerAdminDashboardProps {
 
 export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSwitchToDealer }) => {
   const [activeTab, setActiveTab] = useState<"users" | "dealership">("users");
-  const [users, setUsers] = useState<User[]>([]);
-  const [dealer, setDealer] = useState<Dealer | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const dealerKeys = currentDealerQueryKeys();
+
+  const usersQuery = useQuery({
+    queryKey: dealerKeys.dealerUsers,
+    queryFn: getDealerUsers,
+  });
+  const dealerQuery = useQuery({
+    queryKey: dealerKeys.currentDealer,
+    queryFn: getCurrentDealerDetails,
+  });
+
+  const users = usersQuery.data ?? [];
+  const dealer = dealerQuery.data ?? null;
+  const isLoading = usersQuery.isLoading || dealerQuery.isLoading;
 
   // User form state
   const [isCreatingUser, setIsCreatingUser] = useState(false);
@@ -59,32 +73,24 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
     email: "",
   });
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    const [fetchedUsers, fetchedDealer] = await Promise.all([
-      getDealerUsers(),
-      getCurrentDealerDetails(),
-    ]);
-    setUsers(fetchedUsers);
-    setDealer(fetchedDealer);
-
-    if (fetchedDealer) {
-      setDealerFormData({
-        name: fetchedDealer.name || "",
-        address: fetchedDealer.address || "",
-        city: fetchedDealer.city || "",
-        state: fetchedDealer.state || "",
-        phone: fetchedDealer.phone || "",
-        email: fetchedDealer.email || "",
-      });
-    }
-
-    setIsLoading(false);
-  }, []);
-
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!dealer) return;
+    setDealerFormData({
+      name: dealer.name || "",
+      address: dealer.address || "",
+      city: dealer.city || "",
+      state: dealer.state || "",
+      phone: dealer.phone || "",
+      email: dealer.email || "",
+    });
+  }, [dealer]);
+
+  const loadData = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.dealerUsers }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentDealer }),
+    ]);
+  }, []);
 
   // --- User Management Handlers ---
 
@@ -120,8 +126,8 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           setUserError("Passwords do not match");
           return;
         }
-        if (userFormData.password.length < 8) {
-          setUserError("Password must be at least 8 characters");
+        if (userFormData.password.length < PASSWORD_MIN_LENGTH) {
+          setUserError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`);
           return;
         }
         await createDealerUser({
@@ -300,16 +306,20 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
             )}
 
             {(isCreatingUser || editingUserId) && (
-              <div className="bg-[var(--color-bg)] rounded-xl p-6 border border-[var(--color-border)] shadow-sm">
+              <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)] shadow-sm">
                 <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
                   {editingUserId ? "Edit Team Member" : "Add New Team Member"}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                    <label
+                      htmlFor="admin-user-first-name"
+                      className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                    >
                       First Name *
                     </label>
                     <input
+                      id="admin-user-first-name"
                       type="text"
                       value={userFormData.firstName}
                       onChange={(e) =>
@@ -320,10 +330,14 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                    <label
+                      htmlFor="admin-user-last-name"
+                      className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                    >
                       Last Name *
                     </label>
                     <input
+                      id="admin-user-last-name"
                       type="text"
                       value={userFormData.lastName}
                       onChange={(e) =>
@@ -334,10 +348,14 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                    <label
+                      htmlFor="admin-user-email"
+                      className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                    >
                       Email *
                     </label>
                     <input
+                      id="admin-user-email"
                       type="email"
                       value={userFormData.email}
                       onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
@@ -346,10 +364,14 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                    <label
+                      htmlFor="admin-user-phone"
+                      className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                    >
                       Phone
                     </label>
                     <input
+                      id="admin-user-phone"
                       type="tel"
                       value={userFormData.phone}
                       onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
@@ -358,10 +380,14 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                    <label
+                      htmlFor="admin-user-role"
+                      className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                    >
                       Role *
                     </label>
                     <select
+                      id="admin-user-role"
                       value={userFormData.role}
                       onChange={(e) =>
                         setUserFormData({
@@ -383,24 +409,32 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   {!editingUserId && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                        <label
+                          htmlFor="admin-user-password"
+                          className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                        >
                           Password *
                         </label>
                         <input
+                          id="admin-user-password"
                           type="password"
                           value={userFormData.password}
                           onChange={(e) =>
                             setUserFormData({ ...userFormData, password: e.target.value })
                           }
                           className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
-                          placeholder="Min 8 characters"
+                          placeholder="12+ chars, upper/lower/number"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                        <label
+                          htmlFor="admin-user-password-confirm"
+                          className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                        >
                           Confirm Password *
                         </label>
                         <input
+                          id="admin-user-password-confirm"
                           type="password"
                           value={userFormData.passwordConfirm}
                           onChange={(e) =>
@@ -432,7 +466,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               </div>
             )}
 
-            <div className="bg-[var(--color-bg)] rounded-xl border border-[var(--color-border)] overflow-hidden shadow-sm">
+            <div className="bg-[var(--color-bg)] rounded-md border border-[var(--color-border)] overflow-hidden shadow-sm">
               <table className="w-full text-left" aria-label="Team users list">
                 <thead className="bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
                   <tr>
@@ -602,14 +636,18 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               )}
             </div>
 
-            <div className="bg-[var(--color-bg)] rounded-xl p-6 border border-[var(--color-border)] shadow-sm">
+            <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)] shadow-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                  <label
+                    htmlFor={isEditingDealer ? "admin-dealer-name" : undefined}
+                    className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                  >
                     Dealership Name
                   </label>
                   {isEditingDealer ? (
                     <input
+                      id="admin-dealer-name"
                       type="text"
                       value={dealerFormData.name}
                       onChange={(e) =>
@@ -633,11 +671,15 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                  <label
+                    htmlFor={isEditingDealer ? "admin-dealer-email" : undefined}
+                    className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                  >
                     Email Contact
                   </label>
                   {isEditingDealer ? (
                     <input
+                      id="admin-dealer-email"
                       type="email"
                       value={dealerFormData.email}
                       onChange={(e) =>
@@ -650,11 +692,15 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                  <label
+                    htmlFor={isEditingDealer ? "admin-dealer-phone" : undefined}
+                    className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                  >
                     Phone Contact
                   </label>
                   {isEditingDealer ? (
                     <input
+                      id="admin-dealer-phone"
                       type="tel"
                       value={dealerFormData.phone}
                       onChange={(e) =>
@@ -667,11 +713,15 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   )}
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                  <label
+                    htmlFor={isEditingDealer ? "admin-dealer-address" : undefined}
+                    className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                  >
                     Address
                   </label>
                   {isEditingDealer ? (
                     <input
+                      id="admin-dealer-address"
                       type="text"
                       value={dealerFormData.address}
                       onChange={(e) =>
@@ -684,11 +734,15 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                  <label
+                    htmlFor={isEditingDealer ? "admin-dealer-city" : undefined}
+                    className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                  >
                     City
                   </label>
                   {isEditingDealer ? (
                     <input
+                      id="admin-dealer-city"
                       type="text"
                       value={dealerFormData.city}
                       onChange={(e) =>
@@ -701,11 +755,15 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                  <label
+                    htmlFor={isEditingDealer ? "admin-dealer-state" : undefined}
+                    className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
+                  >
                     State
                   </label>
                   {isEditingDealer ? (
                     <input
+                      id="admin-dealer-state"
                       type="text"
                       value={dealerFormData.state}
                       onChange={(e) =>
