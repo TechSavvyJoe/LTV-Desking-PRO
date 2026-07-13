@@ -76,14 +76,13 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          # Non-secret constant expected by the AI proxy; older prod projects may
-          # already have the identity vars from a prior rotate without this name.
+          # Collection name is a public constant, not a secret. Production
+          # defaults to "sensitive", which makes `vercel env pull` return "" and
+          # also has historically stored empty values via CLI bugs. Always
+          # (re)write it non-sensitive so the gate below can verify the value.
+          printf '%s' "api_service_accounts" \
+            | vercel env add PB_SERVICE_COLLECTION production --force --yes --no-sensitive --token="$VERCEL_TOKEN"
           ENV_LIST=$(vercel env ls production --token="$VERCEL_TOKEN")
-          if ! printf '%s\n' "$ENV_LIST" | grep -Eq "(^|[[:space:]])PB_SERVICE_COLLECTION([[:space:]]|$)"; then
-            printf '%s' "api_service_accounts" \
-              | vercel env add PB_SERVICE_COLLECTION production --force --yes --token="$VERCEL_TOKEN"
-            ENV_LIST=$(vercel env ls production --token="$VERCEL_TOKEN")
-          fi
           MISSING=""
           for name in PB_INTERNAL_URL PB_SERVICE_COLLECTION PB_SERVICE_EMAIL PB_SERVICE_PASSWORD; do
             if ! printf '%s\n' "$ENV_LIST" | grep -Eq "(^|[[:space:]])$name([[:space:]]|$)"; then
@@ -104,17 +103,26 @@ jobs:
           trap 'rm -f "$ENV_FILE"' EXIT
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
           vercel env pull "$ENV_FILE" --environment=production --yes --token="$VERCEL_TOKEN"
-          node - "$ENV_FILE" <<'NODE'
-          const { loadEnvFile } = require("node:process");
-
-          loadEnvFile(process.argv[2]);
-          if (process.env.PB_SERVICE_COLLECTION !== "api_service_accounts") {
-            console.error(
-              "::error::Vercel PB_SERVICE_COLLECTION must be api_service_accounts; refusing a privileged or unknown collection.",
-            );
-            process.exit(1);
-          }
-          NODE
+          # Sensitive secrets pull as empty by design; only assert the
+          # non-sensitive collection constant that proves AI key scope.
+          COLLECTION=$(
+            node - "$ENV_FILE" <<'NODE'
+            const fs = require("node:fs");
+            const text = fs.readFileSync(process.argv[2], "utf8");
+            const match = text.match(/^PB_SERVICE_COLLECTION=(.*)$/m);
+            if (!match) {
+              console.error("::error::PB_SERVICE_COLLECTION missing from env pull.");
+              process.exit(1);
+            }
+            const raw = match[1].trim().replace(/^['"]|['"]$/g, "");
+            process.stdout.write(raw);
+            NODE
+          )
+          if [ "$COLLECTION" != "api_service_accounts" ]; then
+            echo "::error::Vercel PB_SERVICE_COLLECTION must be api_service_accounts; refusing a privileged or unknown collection (got: ${COLLECTION:-<empty>})."
+            exit 1
+          fi
+          echo "PB_SERVICE_COLLECTION verified as api_service_accounts."
 
       - name: Build production project
         env:
