@@ -136,20 +136,74 @@ jobs:
           DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
         run: vercel inspect "$DEPLOYMENT_URL" --wait --timeout=10m --token="$VERCEL_TOKEN"
 
+      # Unaliased production deployments sit behind Vercel Authentication SSO.
+      # CI needs Protection Bypass for Automation to curl the staged URL.
+      - name: Resolve Vercel protection bypass for automation
+        id: bypass
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          EXISTING_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          BYPASS=${EXISTING_BYPASS:-}
+          if [ -z "$BYPASS" ]; then
+            PROJECT=$(curl -fsS \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID")
+            BYPASS=$(printf '%s' "$PROJECT" | jq -r '
+              (.protectionBypass // {})
+              | to_entries
+              | map(select(.value.scope == "automation-bypass" or .value.scope == "bypass"))
+              | first
+              | .key // empty
+            ')
+          fi
+          if [ -z "$BYPASS" ]; then
+            SECRET=$(openssl rand -hex 16)
+            CREATED=$(curl -fsS -X PATCH \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.vercel.com/v1/projects/$VERCEL_PROJECT_ID/protection-bypass?teamId=$VERCEL_ORG_ID" \
+              --data "$(jq -nc --arg secret "$SECRET" --arg note "GitHub Actions deploy verify" \
+                '{generate:{secret:$secret,note:$note}}')")
+            BYPASS=$(printf '%s' "$CREATED" | jq -r '
+              (.protectionBypass // {})
+              | to_entries
+              | map(select(.value.scope == "automation-bypass" or .value.scope == "bypass"))
+              | first
+              | .key // empty
+            ')
+            if [ -z "$BYPASS" ]; then
+              BYPASS=$SECRET
+            fi
+            echo "::notice::Created Vercel automation bypass for CI. Store it as GitHub secret VERCEL_AUTOMATION_BYPASS_SECRET to reuse."
+          fi
+          echo "::add-mask::$BYPASS"
+          echo "secret=$BYPASS" >> "$GITHUB_OUTPUT"
+
       - name: Verify staged site and AI API
         env:
           DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
+          BYPASS: ${{ steps.bypass.outputs.secret }}
         run: |
           set -euo pipefail
           curl --retry 8 --retry-delay 5 --retry-all-errors \
-            --connect-timeout 10 --max-time 30 -fsS "$DEPLOYMENT_URL/" > /dev/null
+            --connect-timeout 10 --max-time 30 -fsS \
+            -H "x-vercel-protection-bypass: $BYPASS" \
+            "$DEPLOYMENT_URL/" > /dev/null
           MODELS=$(curl --retry 8 --retry-delay 5 --retry-all-errors \
-            --connect-timeout 10 --max-time 30 -fsS "$DEPLOYMENT_URL/api/ai/models")
+            --connect-timeout 10 --max-time 30 -fsS \
+            -H "x-vercel-protection-bypass: $BYPASS" \
+            "$DEPLOYMENT_URL/api/ai/models")
+          # Desking ships without vendor AI keys; require a healthy models
+          # catalog, and only warn when no provider is configured yet.
           printf '%s' "$MODELS" | jq -e '
             (.providers | type == "array" and length > 0) and
-            any(.providers[]; .configured == true) and
             all(.providers[]; (.id | type == "string") and (.configured | type == "boolean"))
           ' > /dev/null
+          if ! printf '%s' "$MODELS" | jq -e 'any(.providers[]; .configured == true)' > /dev/null; then
+            echo "::warning::No AI provider keys are configured yet. Core desking works; add keys in Owner Console → Settings → AI Providers."
+          fi
 
       - name: Promote verified deployment
         env:
@@ -161,6 +215,7 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           DEPLOYMENT_URL: ${{ steps.stage.outputs.deployment_url }}
+          BYPASS: ${{ steps.bypass.outputs.secret }}
         run: |
           set -euo pipefail
           DEPLOYMENT_HOST=${DEPLOYMENT_URL#https://}
@@ -195,12 +250,16 @@ jobs:
           fi
 
           curl --retry 5 --retry-delay 3 --retry-all-errors \
-            --connect-timeout 10 --max-time 30 -fsS "$PRODUCTION_URL/" > /dev/null
+            --connect-timeout 10 --max-time 30 -fsS \
+            -H "x-vercel-protection-bypass: $BYPASS" \
+            "$PRODUCTION_URL/" > /dev/null
           curl --retry 5 --retry-delay 3 --retry-all-errors \
-            --connect-timeout 10 --max-time 30 -fsS "$PRODUCTION_URL/api/ai/models" \
+            --connect-timeout 10 --max-time 30 -fsS \
+            -H "x-vercel-protection-bypass: $BYPASS" \
+            "$PRODUCTION_URL/api/ai/models" \
             | jq -e '
                 (.providers | type == "array" and length > 0) and
-                any(.providers[]; .configured == true)
+                all(.providers[]; (.id | type == "string") and (.configured | type == "boolean"))
               ' > /dev/null
 
       - name: Remove runner Vercel material
