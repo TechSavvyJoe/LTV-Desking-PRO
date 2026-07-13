@@ -24,6 +24,9 @@ export interface Vehicle {
  * [dc-redesign / reconciliation 1]
  */
 export type ApprovalBand = "strong" | "moderate" | "weak" | "none";
+export type EligibilityStatus = "eligible" | "ineligible" | "pending";
+export type RebateType = "manufacturer" | "dealer";
+export type VehicleCondition = "new" | "used";
 
 export interface CalculatedVehicle extends Vehicle {
   salesTax: number | "Error" | "N/A";
@@ -57,7 +60,24 @@ export interface DealData {
    * settings-level behavior. [G18]
    */
   buyerState?: AppState;
-  rebate?: number; // Manufacturer/dealer rebate applied to the amount financed [WS-C]
+  /** Explicit condition of the vehicle being purchased; never inferred from age or mileage. */
+  vehicleCondition?: VehicleCondition;
+  /**
+   * Legacy rebate amount. Records without a rebateType retain the historical
+   * manufacturer-rebate behavior (taxable, then deducted from amount financed).
+   */
+  rebate?: number;
+  rebateType?: RebateType;
+  /** Canonical taxable manufacturer incentive. */
+  manufacturerRebate?: number;
+  /** Canonical dealer-funded discount/rebate, deducted before sales tax. */
+  dealerDiscount?: number;
+  /** Serialized alias accepted for older/imported dealer-discount records. */
+  dealerRebate?: number;
+  /** Dealer transaction charges added to the taxable selling price. */
+  transactionFees?: number;
+  /** Singular serialized alias accepted at calculation/mapping boundaries. */
+  transactionFee?: number;
   /**
    * UI-level split of backend products (VSC / GAP add-ons on the desk).
    * `backendProducts` remains the canonical TOTAL the calculator consumes —
@@ -71,6 +91,8 @@ export interface DealData {
 export interface FilterData {
   creditScore: number | null;
   monthlyIncome: number | null;
+  /** Existing monthly obligations used with the proposed payment for DTI. */
+  monthlyDebt?: number | null;
   vehicle: string;
   maxPrice: number | null;
   maxPayment: number | null;
@@ -138,6 +160,8 @@ export interface LenderProfile {
   id: string;
   name: string;
   active?: boolean;
+  /** Illustrative seed data; excluded from verified fit/approval counts until cleared. */
+  isSample?: boolean;
   bookValueSource?: "Trade" | "Retail";
   minIncome?: number;
   maxPti?: number;
@@ -183,6 +207,7 @@ export interface SavedDeal {
   customerFilters: {
     creditScore: number | null;
     monthlyIncome: number | null;
+    monthlyDebt?: number | null;
   };
   notes?: string;
   // Legacy/compat fields so older saves don't crash the UI
@@ -195,8 +220,10 @@ export interface SavedDeal {
 export interface LenderEligibilityStatus {
   name: string;
   eligible: boolean;
+  status?: EligibilityStatus;
   reasons: string[];
   matchedTier: LenderTier | null;
+  uncheckedConstraints?: string[];
 }
 
 export interface DealPdfData {
@@ -205,6 +232,7 @@ export interface DealPdfData {
   customerFilters: {
     creditScore: number | null;
     monthlyIncome: number | null;
+    monthlyDebt?: number | null;
   };
   customerName: string;
   salespersonName: string;

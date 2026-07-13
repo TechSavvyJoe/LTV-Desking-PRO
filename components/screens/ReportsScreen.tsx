@@ -241,8 +241,9 @@ const ReportsScreenBase: React.FC = () => {
   const lenderReach = safeLenderProfiles.filter((l) => l.active !== false);
 
   return (
-    <div data-screen-label="Reports">
+    <div className="reports-screen" data-screen-label="Reports">
       <header
+        className="reports-screen-header"
         style={{
           height: 58,
           borderBottom: "1px solid var(--color-border)",
@@ -253,7 +254,10 @@ const ReportsScreenBase: React.FC = () => {
           padding: "0 24px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div
+          className="reports-screen-summary"
+          style={{ display: "flex", alignItems: "center", gap: 14 }}
+        >
           <span
             style={{
               fontSize: 11,
@@ -264,15 +268,21 @@ const ReportsScreenBase: React.FC = () => {
           >
             PERFORMANCE
           </span>
-          <div style={{ height: 20, width: 1, background: "var(--color-border)" }} />
+          <div
+            className="reports-screen-divider"
+            style={{ height: 20, width: 1, background: "var(--color-border)" }}
+          />
           <span style={{ fontSize: 15, fontWeight: 600 }}>Inventory desirability</span>
-          <span style={{ fontSize: 13, color: "var(--color-text-subtle)" }}>
+          <span
+            className="reports-screen-description"
+            style={{ fontSize: 13, color: "var(--color-text-subtle)" }}
+          >
             live, against the current deal structure
           </span>
         </div>
       </header>
 
-      <div style={{ padding: "22px 24px", maxWidth: 1100 }}>
+      <div className="reports-screen-content" style={{ padding: "22px 24px", maxWidth: 1100 }}>
         {stats.n === 0 ? (
           <EmptyState
             icon={<Icons.ChartIcon className="w-full h-full" />}
@@ -283,6 +293,7 @@ const ReportsScreenBase: React.FC = () => {
           <>
             {/* KPI row */}
             <div
+              className="reports-kpi-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
@@ -297,7 +308,7 @@ const ReportsScreenBase: React.FC = () => {
                     fontSize: 32,
                     fontWeight: 700,
                     marginTop: 8,
-                    letterSpacing: "-0.02em",
+                    letterSpacing: 0,
                     color:
                       stats.avgScore === null
                         ? "var(--color-text-subtle)"
@@ -314,7 +325,7 @@ const ReportsScreenBase: React.FC = () => {
                     fontSize: 32,
                     fontWeight: 700,
                     marginTop: 8,
-                    letterSpacing: "-0.02em",
+                    letterSpacing: 0,
                     color:
                       stats.avgOtd === null ? "var(--color-text-subtle)" : otdColor(stats.avgOtd),
                   }}
@@ -324,17 +335,13 @@ const ReportsScreenBase: React.FC = () => {
               </div>
               <div className="dc-card" style={{ ...card, padding: 18 }}>
                 <div style={kpiLabel}>Avg payment</div>
-                <div
-                  style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: "-0.02em" }}
-                >
+                <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: 0 }}>
                   {stats.avgPay === null ? "—" : `${fmt(stats.avgPay)}/mo`}
                 </div>
               </div>
               <div className="dc-card" style={{ ...card, padding: 18 }}>
                 <div style={kpiLabel}>Inventory value</div>
-                <div
-                  style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: "-0.02em" }}
-                >
+                <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: 0 }}>
                   {fmt(stats.totalValue)}
                 </div>
               </div>
@@ -397,6 +404,7 @@ const ReportsScreenBase: React.FC = () => {
 
             {/* 3-card row */}
             <div
+              className="reports-three-column-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(3, 1fr)",
@@ -411,7 +419,7 @@ const ReportsScreenBase: React.FC = () => {
                     fontSize: 17,
                     fontWeight: 700,
                     marginTop: 8,
-                    letterSpacing: "-0.01em",
+                    letterSpacing: 0,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -439,7 +447,7 @@ const ReportsScreenBase: React.FC = () => {
                     fontWeight: 700,
                     ...mono,
                     marginTop: 10,
-                    letterSpacing: "-0.02em",
+                    letterSpacing: 0,
                   }}
                 >
                   {stats.payMin === null || stats.payMax === null
@@ -458,7 +466,7 @@ const ReportsScreenBase: React.FC = () => {
                     fontWeight: 700,
                     ...mono,
                     marginTop: 8,
-                    letterSpacing: "-0.02em",
+                    letterSpacing: 0,
                     color: "var(--color-primary)",
                   }}
                 >
@@ -471,6 +479,7 @@ const ReportsScreenBase: React.FC = () => {
 
             {/* By make + lender reach */}
             <div
+              className="reports-two-column-grid"
               style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}
             >
               <div className="dc-card" style={{ ...card, padding: 20 }}>
@@ -636,7 +645,10 @@ const ReportsScreenBase: React.FC = () => {
             {/* Pipeline snapshot */}
             <div className="dc-card" style={{ ...card, padding: 20, marginTop: 14 }}>
               <div style={panelLabel}>Pipeline snapshot</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
+              <div
+                className="reports-pipeline-grid"
+                style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}
+              >
                 <div>
                   <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
                     Financed in pipeline
@@ -647,7 +659,7 @@ const ReportsScreenBase: React.FC = () => {
                       fontWeight: 700,
                       ...mono,
                       marginTop: 6,
-                      letterSpacing: "-0.02em",
+                      letterSpacing: 0,
                     }}
                   >
                     {pStats.total ? fmt(pStats.financed) : "—"}
@@ -663,7 +675,7 @@ const ReportsScreenBase: React.FC = () => {
                       fontWeight: 700,
                       ...mono,
                       marginTop: 6,
-                      letterSpacing: "-0.02em",
+                      letterSpacing: 0,
                       color: "var(--color-success)",
                     }}
                   >
@@ -678,7 +690,7 @@ const ReportsScreenBase: React.FC = () => {
                       fontWeight: 700,
                       ...mono,
                       marginTop: 6,
-                      letterSpacing: "-0.02em",
+                      letterSpacing: 0,
                     }}
                   >
                     {pStats.funded}
@@ -692,7 +704,7 @@ const ReportsScreenBase: React.FC = () => {
                       fontWeight: 700,
                       ...mono,
                       marginTop: 6,
-                      letterSpacing: "-0.02em",
+                      letterSpacing: 0,
                       color: "var(--color-danger)",
                     }}
                   >

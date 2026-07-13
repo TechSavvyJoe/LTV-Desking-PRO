@@ -223,24 +223,34 @@ export const AppShell: React.FC = () => {
   // (reuses the old Header DealerSwitcher logic — auto-select first dealer,
   // manual switch reloads so every query refetches under the new dealer).
   const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [dealersError, setDealersError] = useState(false);
+  // Bumped by the retry button to re-run the dealer fetch after a failure.
+  const [dealersFetchNonce, setDealersFetchNonce] = useState(0);
   const [dealerName, setDealerName] = useState<string>("");
 
   useEffect(() => {
     if (!isSuperAdmin) return;
     let cancelled = false;
-    getAllDealers().then((dealerList) => {
-      if (cancelled) return;
-      setDealers(dealerList);
-      const firstDealer = dealerList[0];
-      if (!getSuperadminDealerOverride() && firstDealer) {
-        // Auto-selection doesn't reload — data loads with the selected dealer.
-        setSuperadminDealerOverride(firstDealer.id);
-      }
-    });
+    setDealersError(false);
+    getAllDealers()
+      .then((dealerList) => {
+        if (cancelled) return;
+        setDealers(dealerList);
+        const firstDealer = dealerList[0];
+        if (!getSuperadminDealerOverride() && firstDealer) {
+          // Auto-selection doesn't reload — data loads with the selected dealer.
+          setSuperadminDealerOverride(firstDealer.id);
+        }
+      })
+      .catch(() => {
+        // A failed fetch used to leave the switcher on "Loading dealers…"
+        // forever; surface the failure and offer a retry instead.
+        if (!cancelled) setDealersError(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, dealersFetchNonce]);
 
   useEffect(() => {
     if (isSuperAdmin) return;
@@ -384,53 +394,97 @@ export const AppShell: React.FC = () => {
           className="app-shell-topbar"
           style={{ height: 54, display: "flex", alignItems: "center", gap: 12, padding: "0 20px" }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            className="app-shell-brand"
+            style={{ display: "flex", alignItems: "center", gap: 10 }}
+          >
             <GaugeMark size={30} radius={9} />
             <span
+              className="app-shell-wordmark"
               style={{
                 fontSize: 15,
                 fontWeight: 700,
-                letterSpacing: "-0.01em",
+                letterSpacing: 0,
                 whiteSpace: "nowrap",
               }}
             >
               LTV Desking <span style={{ color: "var(--color-primary)" }}>PRO</span>
             </span>
           </div>
-          <div style={{ height: 22, width: 1, background: "var(--color-border)" }} />
+          <div
+            className="app-shell-divider"
+            style={{ height: 22, width: 1, background: "var(--color-border)" }}
+          />
 
           {isSuperAdmin ? (
-            <select
-              aria-label="Active dealership"
-              className="dc-input"
-              value={overrideId ?? ""}
-              onChange={(e) => handleDealerSwitch(e.target.value)}
-              disabled={dealers.length === 0}
-              style={{
-                background: "var(--color-bg-subtle)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
-                padding: "6px 11px",
-                fontSize: 13.5,
-                fontWeight: 600,
-                color: "var(--color-text)",
-                fontFamily: "inherit",
-                outline: "none",
-                cursor: "pointer",
-              }}
-            >
-              {dealers.length === 0 ? (
-                <option value="">Loading dealers…</option>
-              ) : (
-                dealers.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))
-              )}
-            </select>
+            dealersError ? (
+              <div
+                className="app-shell-dealer"
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
+              >
+                <span
+                  role="alert"
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--color-danger)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Couldn't load dealers
+                </span>
+                <button
+                  onClick={() => setDealersFetchNonce((n) => n + 1)}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid var(--color-border-strong)",
+                    borderRadius: 8,
+                    padding: "5px 10px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                    fontFamily: "inherit",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <select
+                aria-label="Active dealership"
+                className="dc-input app-shell-dealer"
+                value={overrideId ?? ""}
+                onChange={(e) => handleDealerSwitch(e.target.value)}
+                disabled={dealers.length === 0}
+                style={{
+                  background: "var(--color-bg-subtle)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  padding: "6px 11px",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                  fontFamily: "inherit",
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {dealers.length === 0 ? (
+                  <option value="">Loading dealers…</option>
+                ) : (
+                  dealers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            )
           ) : (
             <span
+              className="app-shell-dealer"
               style={{
                 fontSize: 13.5,
                 fontWeight: 600,
@@ -498,8 +552,12 @@ export const AppShell: React.FC = () => {
 
           <button
             onClick={openAiUpload}
+            className="app-shell-ai-btn"
+            aria-label="AI lender upload"
+            title="AI lender upload"
+            // Background + hover live in index.css (.app-shell-ai-btn) so the
+            // hover state is plain CSS instead of JS style mutation.
             style={{
-              background: "var(--color-primary)",
               color: "var(--on-primary, white)",
               border: "1px solid transparent",
               borderRadius: 6,
@@ -512,15 +570,10 @@ export const AppShell: React.FC = () => {
               alignItems: "center",
               gap: 7,
               whiteSpace: "nowrap",
-              transition: "background-color var(--duration-fast)",
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "var(--color-primary-hover)")
-            }
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-primary)")}
           >
             <SparkleIcon />
-            AI Lender Upload
+            <span className="app-shell-ai-label">AI Lender Upload</span>
           </button>
 
           <button
@@ -534,7 +587,7 @@ export const AppShell: React.FC = () => {
 
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="rail-btn"
+            className="rail-btn app-shell-secondary-action"
             aria-label="Settings"
             style={railBtnStyle}
           >
@@ -543,7 +596,7 @@ export const AppShell: React.FC = () => {
 
           <button
             onClick={() => navigate("/tools")}
-            className="rail-btn"
+            className="rail-btn app-shell-secondary-action"
             title="Finance tools"
             aria-label="Finance tools"
             style={railBtnStyle}
@@ -607,6 +660,30 @@ export const AppShell: React.FC = () => {
                     {isSuperAdmin ? "Owner Console" : "Admin"}
                   </button>
                 )}
+                <button
+                  role="menuitem"
+                  className="rail-btn"
+                  style={menuItemStyle}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setIsSettingsOpen(true);
+                  }}
+                >
+                  <GearIcon />
+                  Settings
+                </button>
+                <button
+                  role="menuitem"
+                  className="rail-btn"
+                  style={menuItemStyle}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/tools");
+                  }}
+                >
+                  <WrenchIcon />
+                  Finance tools
+                </button>
                 <button
                   role="menuitem"
                   className="rail-btn"

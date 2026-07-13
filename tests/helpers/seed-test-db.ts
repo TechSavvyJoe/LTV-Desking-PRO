@@ -1,4 +1,5 @@
 import { execSync, spawn } from "child_process";
+import { createHash } from "crypto";
 import fs from "fs";
 import path from "path";
 import PocketBase from "pocketbase";
@@ -14,12 +15,14 @@ const isCI = !!process.env.CI || !!process.env.E2E_REAL_BACKEND;
 const PB_BIN_OVERRIDE = process.env.PB_BIN || process.env.PB_PATH;
 const PB_DATA_OVERRIDE = process.env.PB_DATA_DIR;
 const KEEP_RUNNING = !!process.env.E2E_KEEP_PB_RUNNING || !!process.env.E2E_REAL_BACKEND;
+const PRESERVE_DATABASE = process.env.E2E_PRESERVE_DB === "1";
 
 const DB_PATH = path.resolve(
   PB_DATA_OVERRIDE ? path.join(PB_DATA_OVERRIDE, "data.db") : "backend/pb_data/data.db"
 );
 const PB_PATH = PB_BIN_OVERRIDE || path.resolve("backend/pocketbase");
 const MIGRATIONS_DIR = path.resolve("backend/pb_migrations");
+const HOOKS_DIR = path.resolve("backend/pb_hooks");
 const PB_DATA_DIR = path.resolve(PB_DATA_OVERRIDE || "backend/pb_data");
 const DEFAULT_DEALER_A_ID = "dealeraid12345x";
 const DEFAULT_DEALER_B_ID = "dealerbid45678x";
@@ -59,6 +62,22 @@ async function assertCollectionCount(
   }
 }
 
+async function assertSeededInventoryIdentity(pb: PocketBase, dealerId: string): Promise<void> {
+  const page = await pb.collection("inventory").getList(1, 1, {
+    filter: pb.filter("dealer = {:dealer}", { dealer: dealerId }),
+    requestKey: null,
+  });
+  const item = page.items[0] as { stockNumber?: unknown; year?: unknown } | undefined;
+  const stockNumber = typeof item?.stockNumber === "string" ? item.stockNumber.trim() : "";
+  const year = typeof item?.year === "number" ? item.year : Number(item?.year);
+
+  if (!stockNumber || !Number.isInteger(year) || year < 1980) {
+    throw new Error(
+      `inventory seed mapping is invalid for ${dealerId}: stock=${stockNumber || "<empty>"}, year=${String(item?.year ?? "<empty>")}`
+    );
+  }
+}
+
 /**
  * Download PocketBase linux amd64 binary (for CI ubuntu) if needed.
  * Idempotent; places at targetPath.
@@ -74,13 +93,20 @@ async function ensurePocketBaseBinary(targetPath: string): Promise<string> {
   }
   console.log("Downloading PocketBase for current platform (CI/linux fallback)...");
   // Use a stable recent version known for amd64 linux
-  const version = process.env.PB_VERSION || "0.26.5";
-  const platform =
-    process.platform === "linux"
-      ? "linux_amd64"
-      : process.platform === "darwin"
-        ? "darwin_arm64"
-        : "linux_amd64";
+  const version = process.env.PB_VERSION || "0.39.6";
+  const arch = process.arch === "arm64" ? "arm64" : "amd64";
+  const platform = process.platform === "darwin" ? `darwin_${arch}` : `linux_${arch}`;
+  const releaseChecksums: Record<string, string> = {
+    darwin_amd64: "ee642cd5f8b2f77b4f28e36d93536e19887f42f1e01b384e1fe53775428aed88",
+    darwin_arm64: "704111f6c4b489f27cebf525bcbe7fe0b98661a147f05f1c7b9dffeb89dcef6d",
+    linux_amd64: "9251d4ebca4fe91771392dc389a6e449e4e00a34182b0316e7a2d9984d34da3d",
+    linux_arm64: "1787ec2de1821f9464d835ccede697603d45eabe9078c3a4209442b3c6f7d18b",
+  };
+  const expectedChecksum = process.env.PB_SHA256 || releaseChecksums[platform];
+  if (version !== "0.39.6" && !process.env.PB_SHA256) {
+    throw new Error(`PB_SHA256 is required when overriding PB_VERSION (${version}).`);
+  }
+  if (!expectedChecksum) throw new Error(`Unsupported PocketBase platform: ${platform}`);
   const url = `https://github.com/pocketbase/pocketbase/releases/download/v${version}/pocketbase_${version}_${platform}.zip`;
   const tmpDir = path.resolve("/tmp/pb-download-" + Date.now());
   fs.mkdirSync(tmpDir, { recursive: true });
@@ -88,6 +114,12 @@ async function ensurePocketBaseBinary(targetPath: string): Promise<string> {
   execSync(`curl -L --max-time 120 --connect-timeout 30 -o "${zipPath}" "${url}"`, {
     stdio: "inherit",
   });
+  const actualChecksum = createHash("sha256").update(fs.readFileSync(zipPath)).digest("hex");
+  if (actualChecksum !== expectedChecksum) {
+    throw new Error(
+      `PocketBase checksum mismatch for ${platform}: expected ${expectedChecksum}, got ${actualChecksum}`
+    );
+  }
   execSync(`unzip -o "${zipPath}" -d "${tmpDir}"`, { stdio: "inherit" });
   const extracted = path.join(tmpDir, "pocketbase");
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
@@ -243,7 +275,23 @@ export async function seedData(
 
   console.log("Seeding inventory...");
   for (const vehicle of SAMPLE_INVENTORY) {
-    const { id: _id, ...vehicleData } = vehicle;
+    // SAMPLE_INVENTORY uses the UI Vehicle contract (`stock`, `modelYear`).
+    // PocketBase stores those fields as `stockNumber` and `year`; spreading
+    // the UI object silently dropped both values and produced "0 / STK N/A"
+    // throughout the real-backend E2E desk.
+    const vehicleData = {
+      vin: vehicle.vin,
+      stockNumber: vehicle.stock,
+      year: typeof vehicle.modelYear === "number" ? vehicle.modelYear : 0,
+      make: vehicle.make || "",
+      model: vehicle.model || "",
+      trim: vehicle.trim || "",
+      mileage: typeof vehicle.mileage === "number" ? vehicle.mileage : 0,
+      price: typeof vehicle.price === "number" ? vehicle.price : 0,
+      unitCost: typeof vehicle.unitCost === "number" ? vehicle.unitCost : 0,
+      jdPower: typeof vehicle.jdPower === "number" ? vehicle.jdPower : 0,
+      jdPowerRetail: typeof vehicle.jdPowerRetail === "number" ? vehicle.jdPowerRetail : 0,
+    };
     try {
       await pb
         .collection("inventory")
@@ -275,6 +323,8 @@ export async function seedData(
   await assertCollectionCount(pb, "dealer_settings", 2);
   await assertCollectionCount(pb, "inventory", SAMPLE_INVENTORY.length * 2);
   await assertCollectionCount(pb, "lender_profiles", DEFAULT_LENDER_PROFILES.length * 2);
+  await assertSeededInventoryIdentity(pb, dealerA);
+  await assertSeededInventoryIdentity(pb, dealerB);
   console.log("Data seeding complete.");
 }
 
@@ -286,12 +336,14 @@ async function main() {
     effectivePbPath = await ensurePocketBaseBinary(effectivePbPath);
   }
 
-  // 1. Reset database file (unless keep mode)
-  if (!KEEP_RUNNING && fs.existsSync(DB_PATH)) {
+  // 1. Reset the disposable E2E database unless reuse was explicitly requested.
+  // KEEP_RUNNING controls the process lifetime only; coupling it to data reuse
+  // allowed stale records from older schemas to contaminate local full-stack runs.
+  if (!PRESERVE_DATABASE && fs.existsSync(DB_PATH)) {
     console.log("Deleting existing test database...");
     fs.unlinkSync(DB_PATH);
   }
-  if (!KEEP_RUNNING) {
+  if (!PRESERVE_DATABASE) {
     if (fs.existsSync(`${DB_PATH}-wal`)) fs.unlinkSync(`${DB_PATH}-wal`);
     if (fs.existsSync(`${DB_PATH}-shm`)) fs.unlinkSync(`${DB_PATH}-shm`);
   }
@@ -318,7 +370,14 @@ async function main() {
   // and let the server reliably outlive this script in CI.
   let pbProcess = spawn(
     effectivePbPath,
-    ["serve", "--http=127.0.0.1:8090", `--dir=${PB_DATA_DIR}`],
+    [
+      "serve",
+      "--http=127.0.0.1:8090",
+      `--dir=${PB_DATA_DIR}`,
+      `--migrationsDir=${MIGRATIONS_DIR}`,
+      `--hooksDir=${HOOKS_DIR}`,
+      "--hooksWatch=false",
+    ],
     {
       stdio: KEEP_RUNNING ? "ignore" : "pipe",
       detached: KEEP_RUNNING,
@@ -370,10 +429,21 @@ async function main() {
 
   const restartPocketBase = async () => {
     console.log("Restarting PocketBase on port 8090 after rule migration re-run...");
-    pbProcess = spawn(effectivePbPath, ["serve", "--http=127.0.0.1:8090", `--dir=${PB_DATA_DIR}`], {
-      stdio: "ignore",
-      detached: true,
-    });
+    pbProcess = spawn(
+      effectivePbPath,
+      [
+        "serve",
+        "--http=127.0.0.1:8090",
+        `--dir=${PB_DATA_DIR}`,
+        `--migrationsDir=${MIGRATIONS_DIR}`,
+        `--hooksDir=${HOOKS_DIR}`,
+        "--hooksWatch=false",
+      ],
+      {
+        stdio: "ignore",
+        detached: true,
+      }
+    );
     if (pbProcess.pid) pbProcess.unref();
 
     for (let i = 0; i < 600; i++) {

@@ -39,6 +39,21 @@ export const getBackendProductSplit = (
   };
 };
 
+/**
+ * Canonical persistence shape. A stale total can never be lower than its VSC
+ * and GAP components; any excess total remains the implicit "other" amount.
+ */
+export const normalizeBackendProductFields = (
+  dealData: Pick<DealData, "backendProducts" | "vscAmount" | "gapAmount">
+): Pick<DealData, "backendProducts" | "vscAmount" | "gapAmount"> => {
+  const split = getBackendProductSplit(dealData);
+  return {
+    backendProducts: split.total,
+    vscAmount: split.vscAmount,
+    gapAmount: split.gapAmount,
+  };
+};
+
 export const applyBackendProductPatch = (
   dealData: Pick<DealData, "backendProducts" | "vscAmount" | "gapAmount">,
   patch: BackendProductPatch

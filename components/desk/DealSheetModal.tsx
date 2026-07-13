@@ -1,12 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDealContext } from "../../context/DealContext";
 import { fmt, splitPay } from "../../utils/format";
 import { PdfGenerationError, generateDealPdf } from "../../services/pdfGenerator";
 import { checkBankEligibility } from "../../services/lenderMatcher";
+import { calculateFinancials, getRebateBreakdown } from "../../services/calculator";
+import { lenderFitForVehicle } from "../../services/lenderFit";
+import { scoreApprovalOdds } from "../../services/approvalScorer";
+import { normalizeBackendProductFields } from "../../services/backendProducts";
 import { getCurrentDealerDetails, logDealEvent } from "../../lib/api";
 import { capture } from "../../lib/analytics";
 import { toast } from "../../lib/toast";
 import { BlobDownloadError, downloadBlob } from "../../utils/downloadBlob";
+import { useFocusTrap, useKeyboardShortcuts, useRestoreFocus } from "../../hooks/useKeyboard";
 import type { CalculatedVehicle, DealPdfData } from "../../types";
 
 const mono = "var(--mono)";
@@ -86,7 +91,12 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
   const [pdfState, setPdfState] = useState<PdfUiState>({ status: "idle" });
   const revokePdfUrlRef = useRef<(() => void) | null>(null);
   const expirePdfFallbackRef = useRef<number | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const pdfBusy = pdfState.status === "generating";
+
+  useRestoreFocus(true);
+  useFocusTrap(dialogRef as React.RefObject<HTMLElement>, true);
+  useKeyboardShortcuts({ escape: onClose }, true);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,22 +106,6 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // The modal handles its own Escape (the desk shortcut hook also closes it —
-  // both firing on one press is harmless).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  // Initial focus: move the keyboard user into the dialog on mount. [a11y]
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    dialogRef.current?.focus();
   }, []);
 
   useEffect(
@@ -131,19 +125,42 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
       ? customerName.trim()
       : "Walk-in customer";
 
-  const price = numVal(vehicle.price);
-  const baseOtd = numVal(vehicle.baseOutTheDoorPrice);
-  const taxFees = price !== null && baseOtd !== null ? baseOtd - price : numVal(vehicle.salesTax);
-  const addons = dealData.backendProducts || 0;
+  const lenders = Array.isArray(safeLenderProfiles) ? safeLenderProfiles : [];
+  const normalizedDealData = useMemo(
+    () => ({ ...dealData, ...normalizeBackendProductFields(dealData) }),
+    [dealData]
+  );
+  const liveVehicle = useMemo(() => {
+    const calculated = calculateFinancials(vehicle, normalizedDealData, settings);
+    const fit = lenderFitForVehicle(calculated, { ...normalizedDealData, ...filters }, lenders);
+    const approval = scoreApprovalOdds(calculated, filters, fit.fitCount);
+    return {
+      ...calculated,
+      approvalScore: approval.internalScore,
+      approvalBand: approval.band,
+      ptiRatio: approval.ptiRatio,
+      fitCount: fit.fitCount,
+      fitNames: fit.fitNames,
+    };
+  }, [filters, lenders, normalizedDealData, settings, vehicle]);
+  const rebate = getRebateBreakdown(normalizedDealData);
+  const price = numVal(liveVehicle.price);
+  const baseOtd = numVal(liveVehicle.baseOutTheDoorPrice);
+  const discountedPrice = price === null ? null : Math.max(0, price - rebate.dealerDiscount);
+  const taxFees =
+    discountedPrice !== null && baseOtd !== null
+      ? baseOtd - discountedPrice
+      : numVal(liveVehicle.salesTax);
+  const addons = normalizedDealData.backendProducts;
   const down =
-    (dealData.downPayment || 0) +
-    ((dealData.tradeInValue || 0) - (dealData.tradeInPayoff || 0)) +
-    (dealData.rebate || 0);
-  const financed = numVal(vehicle.amountToFinance);
-  const payment = numVal(vehicle.monthlyPayment);
+    (normalizedDealData.downPayment || 0) +
+    ((normalizedDealData.tradeInValue || 0) - (normalizedDealData.tradeInPayoff || 0)) +
+    rebate.manufacturerRebate;
+  const financed = numVal(liveVehicle.amountToFinance);
+  const payment = numVal(liveVehicle.monthlyPayment);
   const pay = payment !== null ? splitPay(payment) : null;
 
-  const pti = vehicle.ptiRatio;
+  const pti = liveVehicle.ptiRatio;
   const ptiColor =
     pti === undefined
       ? "var(--color-text-muted)"
@@ -153,35 +170,53 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
           ? "var(--color-warning)"
           : "var(--color-danger)";
 
-  const bestLender = vehicle.fitNames && vehicle.fitNames.length > 0 ? vehicle.fitNames[0] : "—";
+  const bestLender =
+    liveVehicle.fitNames && liveVehicle.fitNames.length > 0 ? liveVehicle.fitNames[0] : "—";
 
   const aprLabel =
-    typeof dealData.interestRate === "number" && Number.isFinite(dealData.interestRate)
-      ? `${dealData.interestRate}%`
+    typeof normalizedDealData.interestRate === "number" &&
+    Number.isFinite(normalizedDealData.interestRate)
+      ? `${normalizedDealData.interestRate}%`
       : "—";
 
   const handleDownloadPdf = async () => {
     if (pdfBusy) return;
     setPdfState({ status: "generating", message: "Generating PDF..." });
     try {
-      // Same DealPdfData shape the legacy flow built (FavoritesTable
-      // preparePdfData): full lender-eligibility pass across ALL profiles.
+      // Recalculate from the live, non-debounced inputs at click time. The
+      // vehicle prop may still carry the prior 300ms scoring snapshot.
+      const freshFinancials = calculateFinancials(vehicle, normalizedDealData, settings);
+      const freshFit = lenderFitForVehicle(
+        freshFinancials,
+        { ...normalizedDealData, ...filters },
+        lenders
+      );
+      const freshApproval = scoreApprovalOdds(freshFinancials, filters, freshFit.fitCount);
+      const freshVehicle: CalculatedVehicle = {
+        ...freshFinancials,
+        approvalScore: freshApproval.internalScore,
+        approvalBand: freshApproval.band,
+        ptiRatio: freshApproval.ptiRatio,
+        fitCount: freshFit.fitCount,
+        fitNames: freshFit.fitNames,
+      };
       const pdfData: DealPdfData = {
-        vehicle,
-        dealData,
+        vehicle: freshVehicle,
+        dealData: normalizedDealData,
         customerFilters: {
           creditScore: filters.creditScore,
           monthlyIncome: filters.monthlyIncome,
+          monthlyDebt: filters.monthlyDebt,
         },
         customerName,
         salespersonName,
-        lenderEligibility: safeLenderProfiles.map((bank) => ({
+        lenderEligibility: lenders.map((bank) => ({
           name: bank.name,
-          ...checkBankEligibility(vehicle, { ...dealData, ...filters }, bank),
+          ...checkBankEligibility(freshVehicle, { ...normalizedDealData, ...filters }, bank),
         })),
       };
       const blob = await generateDealPdf(pdfData, settings);
-      const result = downloadBlob(blob, dealSheetFilename(vehicle), {
+      const result = downloadBlob(blob, dealSheetFilename(freshVehicle), {
         revokeAfterMs: PDF_FALLBACK_LIFETIME_MS,
       });
       revokePdfUrlRef.current?.();
@@ -209,23 +244,23 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
       capture("pdf_generated", {
         pdfType: "deal_sheet",
         status: result.status,
-        term: dealData.loanTerm,
-        fitCount: vehicle.fitCount ?? 0,
+        term: normalizedDealData.loanTerm,
+        fitCount: freshVehicle.fitCount ?? 0,
       });
       logDealEvent("deal_sheet_generated", {
-        vin: vehicle.vin,
+        vin: freshVehicle.vin,
         customerName,
         snapshot: {
-          stock: vehicle.stock,
-          term: dealData.loanTerm,
-          amountFinanced: vehicle.amountToFinance,
-          monthlyPayment: vehicle.monthlyPayment,
-          otdLtv: vehicle.otdLtv,
-          ptiRatio: vehicle.ptiRatio,
-          backendProducts: dealData.backendProducts,
-          vscAmount: dealData.vscAmount ?? 0,
-          gapAmount: dealData.gapAmount ?? 0,
-          fitCount: vehicle.fitCount ?? 0,
+          stock: freshVehicle.stock,
+          term: normalizedDealData.loanTerm,
+          amountFinanced: freshVehicle.amountToFinance,
+          monthlyPayment: freshVehicle.monthlyPayment,
+          otdLtv: freshVehicle.otdLtv,
+          ptiRatio: freshVehicle.ptiRatio,
+          backendProducts: normalizedDealData.backendProducts,
+          vscAmount: normalizedDealData.vscAmount ?? 0,
+          gapAmount: normalizedDealData.gapAmount ?? 0,
+          fitCount: freshVehicle.fitCount ?? 0,
           pdfStatus: result.status,
         },
       });
@@ -237,8 +272,8 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
       capture("pdf_failed", {
         pdfType: "deal_sheet",
         code,
-        term: dealData.loanTerm,
-        fitCount: vehicle.fitCount ?? 0,
+        term: normalizedDealData.loanTerm,
+        fitCount: liveVehicle.fitCount ?? 0,
       });
       toast.error(`PDF failed (${code}).`);
     }
@@ -255,7 +290,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 60,
+        zIndex: "var(--z-modal)",
         padding: 16,
       }}
     >
@@ -269,7 +304,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         style={{
           background: "var(--color-bg)",
           border: "1px solid var(--color-border)",
-          borderRadius: 16,
+          borderRadius: 8,
           boxShadow: "var(--shadow-md)",
           width: "100%",
           maxWidth: 440,
@@ -336,7 +371,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
           <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Prepared for</div>
           <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>{custName}</div>
           <div style={{ fontSize: 14, color: "var(--color-text-muted)", marginTop: 2 }}>
-            {vehicle.vehicle} · STK {vehicle.stock}
+            {liveVehicle.vehicle} · STK {liveVehicle.stock}
           </div>
 
           <div
@@ -360,16 +395,14 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               EST. MONTHLY PAYMENT
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 1, marginTop: 4 }}>
-              <span
-                style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }}
-              >
+              <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: 0, lineHeight: 1 }}>
                 {pay ? pay.whole : "—"}
               </span>
               <span style={{ fontSize: 17, fontWeight: 600, color: "var(--color-text-muted)" }}>
                 {pay ? pay.frac : ""}
               </span>
               <span style={{ fontSize: 13, color: "var(--color-text-subtle)", marginLeft: 6 }}>
-                /mo · {dealData.loanTerm} mo · {aprLabel} APR
+                /mo · {normalizedDealData.loanTerm} mo · {aprLabel} APR
               </span>
             </div>
           </div>
@@ -379,6 +412,14 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               <span style={rowLabel}>Selling price</span>
               <span style={{ fontFamily: mono }}>{price === null ? "—" : fmt(price)}</span>
             </div>
+            {rebate.dealerDiscount > 0 && (
+              <div style={rowStyle}>
+                <span style={rowLabel}>Dealer discount / rebate</span>
+                <span style={{ fontFamily: mono, color: "var(--color-danger)" }}>
+                  −{fmt(rebate.dealerDiscount)}
+                </span>
+              </div>
+            )}
             <div style={rowStyle}>
               <span style={rowLabel}>Tax + fees</span>
               <span style={{ fontFamily: mono }}>{taxFees === null ? "—" : fmt(taxFees)}</span>
@@ -388,7 +429,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               <span style={{ fontFamily: mono }}>{fmt(addons)}</span>
             </div>
             <div style={rowStyle}>
-              <span style={rowLabel}>Down + trade + rebate</span>
+              <span style={rowLabel}>Down + trade + manufacturer rebate</span>
               <span style={{ fontFamily: mono, color: "var(--color-danger)" }}>
                 {down >= 0 ? `−${fmt(down)}` : `+${fmt(-down)}`}
               </span>

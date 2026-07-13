@@ -88,7 +88,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
       style={{
         background: "var(--color-bg)",
         border: "1px solid var(--color-border)",
-        borderRadius: 16,
+        borderRadius: 12 /* --radius-xl — matches the Register card radius fix */,
         boxShadow: "var(--shadow-md)",
         padding: "28px 28px 30px",
       }}
@@ -96,7 +96,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
         <span
           style={{
-            fontSize: 10,
+            fontSize: 11 /* uppercase mono kicker — 11px readable floor */,
             fontFamily: "var(--mono)",
             letterSpacing: "0.12em",
             color: "var(--color-text-subtle)",

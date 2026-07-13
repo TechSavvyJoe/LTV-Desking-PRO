@@ -64,6 +64,55 @@ test.describe("Load desk", () => {
     await expect(page.getByText(/Est\. monthly|payment|LTV|Financed/i).first()).toBeVisible({
       timeout: 10000,
     });
+
+    if (USE_REAL_BACKEND) {
+      // The seed source uses UI names (`modelYear`, `stock`) while PocketBase
+      // stores `year`, `stockNumber`. Guard the mapping so a successful count
+      // assertion cannot hide identity data being silently dropped.
+      const sampleRow = page.getByRole("row", {
+        name: /Focus 2020 Ford Explorer XLT on desk/i,
+      });
+      await expect(sampleRow).toBeVisible();
+      await expect(sampleRow).toContainText("STK STK1026");
+    }
+  });
+
+  test("keeps the selected VIN stable while back-end products reprice the deal", async ({
+    page,
+  }) => {
+    await setupTest(page, "/desk");
+
+    const inspectorTitle = page.locator(".desk-inspector-title-row h2");
+    await expect(inspectorTitle).toBeVisible();
+    const selectedVehicle = await inspectorTitle.innerText();
+
+    const metricValue = (label: string) =>
+      page.locator(".desk-summary-metrics > div").filter({ hasText: label }).locator("strong");
+    const parseCurrency = (value: string | null) => Number((value ?? "").replace(/[^0-9.-]/g, ""));
+    const financedBefore = parseCurrency(await metricValue("Amount financed").textContent());
+
+    await page.getByRole("tab", { name: "Add-ons" }).click();
+    await page.getByRole("button", { name: /Service contract/ }).click();
+
+    await expect(metricValue("Back-end products")).toHaveText("$2,495");
+    await expect(inspectorTitle).toHaveText(selectedVehicle);
+    await expect
+      .poll(async () => parseCurrency(await metricValue("Amount financed").textContent()))
+      .toBe(financedBefore + 2_495);
+  });
+
+  test("opens the deal sheet above the compact mobile inspector", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await setupTest(page, "/desk");
+
+    await page.locator(".desk-inventory-row").first().click();
+    await expect(page.locator(".desk-inspector")).toHaveAttribute("data-open", "true");
+    await page.getByRole("button", { name: "Deal sheet" }).click();
+
+    const dealSheet = page.getByRole("dialog", { name: "Deal sheet" });
+    await expect(dealSheet).toBeVisible();
+    await expect(page.locator(".desk-inspector")).toHaveAttribute("data-open", "false");
+    await dealSheet.getByRole("button", { name: "Download PDF" }).click({ trial: true });
   });
 });
 
@@ -87,6 +136,40 @@ const MOCK_AUTH = {
   token: MOCK_AUTH_TOKEN,
   record: MOCK_USER,
 };
+
+type TestRole = "sales" | "admin";
+
+interface TestCredentials {
+  identity: string;
+  password: string;
+  role: TestRole;
+}
+
+const SALES_TEST_AUTH: TestCredentials = {
+  identity: "sales.a@dealera.com",
+  password: "SalesPassword123!",
+  role: "sales",
+};
+
+const ADMIN_TEST_AUTH: TestCredentials = {
+  identity: "admin.a@dealera.com",
+  password: "AdminPassword123!",
+  role: "admin",
+};
+
+const mockAuthForRole = (role: TestRole) =>
+  role === "admin"
+    ? {
+        token: MOCK_AUTH_TOKEN,
+        record: {
+          ...MOCK_USER,
+          id: "admin0000000001",
+          email: ADMIN_TEST_AUTH.identity,
+          firstName: "Admin",
+          role: "admin",
+        },
+      }
+    : MOCK_AUTH;
 
 const SAMPLE_VEHICLES = [
   {
@@ -338,7 +421,7 @@ async function mockAiLenderProfileWrites(page: Page) {
   });
 }
 
-async function mockPocketBaseEndpoints(page: Page) {
+async function mockPocketBaseEndpoints(page: Page, role: TestRole = "sales") {
   if (USE_REAL_BACKEND) {
     // When using seed helper for real backend, skip network mocks. Real PB + seeded data used.
     // Auth uses real credentials: sales.a@dealera.com / SalesPassword123!
@@ -348,13 +431,18 @@ async function mockPocketBaseEndpoints(page: Page) {
     );
     return;
   }
+  const mockAuth = mockAuthForRole(role);
+  const inventoryRecords: Array<Record<string, unknown>> = SAMPLE_VEHICLES.map((vehicle) => ({
+    ...vehicle,
+  }));
+  let inventoryRecordSequence = 0;
   // Auth
   await page.route("**/api/collections/users/auth-with-password", async (route) => {
     if (route.request().method() === "POST") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(MOCK_AUTH),
+        body: JSON.stringify(mockAuth),
       });
       return;
     }
@@ -365,7 +453,7 @@ async function mockPocketBaseEndpoints(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(MOCK_AUTH),
+      body: JSON.stringify(mockAuth),
     });
   });
 
@@ -382,9 +470,9 @@ async function mockPocketBaseEndpoints(page: Page) {
           body: JSON.stringify({
             page: 1,
             perPage: 100,
-            totalItems: SAMPLE_VEHICLES.length,
+            totalItems: inventoryRecords.length,
             totalPages: 1,
-            items: SAMPLE_VEHICLES,
+            items: inventoryRecords,
           }),
         });
         return;
@@ -435,13 +523,47 @@ async function mockPocketBaseEndpoints(page: Page) {
     }
 
     if (["POST", "PATCH", "PUT"].includes(method)) {
-      // Accept writes (sync, create etc) with echo
       let body: Record<string, unknown> = {};
       try {
         body = route.request().postDataJSON() as Record<string, unknown>;
       } catch {
         body = {};
       }
+
+      if (url.includes("/inventory/records")) {
+        const recordId = url.match(/\/inventory\/records\/([^/?]+)/)?.[1];
+        const now = "2026-01-01 00:00:00";
+        let record: Record<string, unknown>;
+
+        if (method === "POST") {
+          inventoryRecordSequence++;
+          record = {
+            id: `mockinv${String(inventoryRecordSequence).padStart(8, "0")}`,
+            created: now,
+            updated: now,
+            ...body,
+          };
+          inventoryRecords.push(record);
+        } else {
+          const index = inventoryRecords.findIndex((item) => item.id === recordId);
+          record = {
+            ...(index >= 0 ? inventoryRecords[index] : {}),
+            ...body,
+            id: recordId,
+            updated: now,
+          };
+          if (index >= 0) inventoryRecords[index] = record;
+        }
+
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(record),
+        });
+        return;
+      }
+
+      // Accept other writes (settings, lenders, deals) with an echo response.
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -480,29 +602,15 @@ async function mockPocketBaseEndpoints(page: Page) {
   await mockAiEndpoints(page);
 }
 
-async function preAuthenticate(page: Page) {
+async function preAuthenticate(page: Page, role: TestRole = "sales") {
   if (USE_REAL_BACKEND) {
     // For seeded real backend, do NOT inject mock auth. Perform actual login in tests.
     return;
   }
-  await page.addInitScript(() => {
-    // PocketBase stores under this key; provide a "valid" non-expired token
-    const authData = {
-      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjQxMDI0NDQ4MDB9.mock",
-      model: {
-        id: "sales0000000001",
-        email: "sales.a@dealera.com",
-        firstName: "Sales",
-        lastName: "A",
-        role: "sales",
-        dealer: "dealer000000001",
-        collectionName: "users",
-        collectionId: "_pb_users_auth_",
-      },
-      // no expiry in mock
-    };
-    localStorage.setItem("pocketbase_auth", JSON.stringify(authData));
-  });
+  const authData = mockAuthForRole(role);
+  await page.addInitScript((data) => {
+    localStorage.setItem("pocketbase_auth", JSON.stringify(data));
+  }, authData);
 }
 
 async function waitForDeskReady(page: Page) {
@@ -514,11 +622,15 @@ async function waitForDeskReady(page: Page) {
   });
 }
 
-async function setupTest(page: Page, targetPath?: string) {
+async function setupTest(
+  page: Page,
+  targetPath?: string,
+  credentials: TestCredentials = SALES_TEST_AUTH
+) {
   if (!USE_REAL_BACKEND) {
-    await mockPocketBaseEndpoints(page);
+    await mockPocketBaseEndpoints(page, credentials.role);
   }
-  await preAuthenticate(page);
+  await preAuthenticate(page, credentials.role);
 
   if (USE_REAL_BACKEND) {
     // For real backend E2E, authenticate via the API (reliable) and inject the token
@@ -526,7 +638,7 @@ async function setupTest(page: Page, targetPath?: string) {
     // after recent redesign. The dedicated login test covers the form for mocks.
     const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
     const authRes = await page.request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
-      data: { identity: "sales.a@dealera.com", password: "SalesPassword123!" },
+      data: { identity: credentials.identity, password: credentials.password },
       headers: { "Content-Type": "application/json" },
     });
     if (!authRes.ok()) {
@@ -548,8 +660,8 @@ async function setupTest(page: Page, targetPath?: string) {
     if (startPath === "/" || startPath === "/desk") {
       await waitForDeskReady(page);
     }
-  } else if (targetPath && targetPath !== "/") {
-    await page.goto(targetPath);
+  } else {
+    await page.goto(targetPath || "/");
   }
 }
 
@@ -612,20 +724,189 @@ test.describe("Login flow", () => {
   });
 });
 
+test.describe("User lifecycle guards", () => {
+  test("admin-created users default active and deactivation blocks authentication", async ({
+    request,
+  }) => {
+    test.skip(!USE_REAL_BACKEND, "Requires PocketBase with the production hooks loaded");
+
+    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const adminAuth = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
+      data: { identity: "admin.a@dealera.com", password: "AdminPassword123!" },
+    });
+    expect(adminAuth.ok()).toBeTruthy();
+    const { token } = (await adminAuth.json()) as { token: string };
+    const email = `lifecycle-${Date.now()}@example.test`;
+    const password = "LifecyclePassword123!";
+
+    const createdResponse = await request.post(`${pbUrl}/api/collections/users/records`, {
+      headers: { Authorization: token },
+      data: {
+        email,
+        password,
+        passwordConfirm: password,
+        firstName: "Lifecycle",
+        lastName: "Test",
+        dealer: "dealeraid12345x",
+        role: "sales",
+      },
+    });
+    expect(createdResponse.ok()).toBeTruthy();
+    const created = (await createdResponse.json()) as { id: string; active: boolean };
+    expect(created.active).toBe(true);
+
+    const initialLogin = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
+      data: { identity: email, password },
+    });
+    expect(initialLogin.ok()).toBeTruthy();
+
+    const deactivate = await request.patch(`${pbUrl}/api/collections/users/records/${created.id}`, {
+      headers: { Authorization: token },
+      data: { active: false },
+    });
+    expect(deactivate.ok()).toBeTruthy();
+
+    const blockedLogin = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
+      data: { identity: email, password },
+    });
+    expect(blockedLogin.ok()).toBeFalsy();
+
+    const cleanupResponse = await request.delete(
+      `${pbUrl}/api/collections/users/records/${created.id}`,
+      { headers: { Authorization: token } }
+    );
+    expect(cleanupResponse.ok()).toBeTruthy();
+  });
+});
+
+test.describe("Administrative console login", () => {
+  test("dealer administrators can sign in and reach their scoped console", async ({ page }) => {
+    test.skip(!USE_REAL_BACKEND, "Requires the seeded PocketBase backend");
+
+    await page.goto("/admin");
+    await expect(page.getByRole("heading", { name: /Admin Console/i })).toBeVisible();
+    await page.getByLabel(/email address/i).fill("admin.a@dealera.com");
+    await page.getByLabel(/password/i).fill("AdminPassword123!");
+    await page.getByRole("button", { name: /Sign in to Admin Console/i }).click();
+
+    await expect(page.getByText("Team Members")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Dealer A \(DEALERA\)/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Add User/i })).toBeVisible();
+  });
+
+  test("dealer administrators can manage a team member lifecycle through the console", async ({
+    page,
+    request,
+  }) => {
+    test.skip(!USE_REAL_BACKEND, "Requires the seeded PocketBase backend");
+
+    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const email = `ui-lifecycle-${Date.now()}@example.test`;
+    const password = `LifecycleUi${Date.now()}!`;
+
+    await page.goto("/admin");
+    await page.getByLabel(/email address/i).fill("admin.a@dealera.com");
+    await page.getByLabel(/password/i).fill("AdminPassword123!");
+    await page.getByRole("button", { name: /Sign in to Admin Console/i }).click();
+    await expect(page.getByText("Team Members")).toBeVisible({ timeout: 15_000 });
+
+    try {
+      await page.getByRole("button", { name: /Add User/i }).click();
+      await page.getByLabel(/First Name/i).fill("UI");
+      await page.getByLabel(/Last Name/i).fill("Lifecycle");
+      await page.getByLabel(/^Email/i).fill(email);
+      await page.getByLabel(/^Phone/i).fill("555-0109");
+      await page.getByLabel(/^Role/i).selectOption("manager");
+      await page.getByLabel(/^Password/i).fill(password);
+      await page.getByLabel(/Confirm Password/i).fill(password);
+      await page.getByRole("button", { name: "Create User", exact: true }).click();
+
+      await expect(page.getByText("User created successfully")).toBeVisible({ timeout: 15_000 });
+      const teamRow = () => page.getByRole("row").filter({ hasText: email });
+      await expect(teamRow()).toBeVisible();
+      await expect(teamRow().getByRole("combobox")).toHaveValue("manager");
+
+      await teamRow().getByRole("button", { name: "Deactivate", exact: true }).click();
+      await expect(page.getByText("User deactivated")).toBeVisible();
+      await expect(teamRow().getByText("Inactive", { exact: true })).toBeVisible();
+
+      const blockedLogin = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
+        data: { identity: email, password },
+      });
+      expect(blockedLogin.ok()).toBeFalsy();
+
+      await teamRow().getByRole("button", { name: "Activate", exact: true }).click();
+      await expect(page.getByText("User reactivated")).toBeVisible();
+      await expect(teamRow().getByText("Inactive", { exact: true })).toHaveCount(0);
+
+      const restoredLogin = await request.post(
+        `${pbUrl}/api/collections/users/auth-with-password`,
+        { data: { identity: email, password } }
+      );
+      expect(restoredLogin.ok()).toBeTruthy();
+
+      await teamRow()
+        .getByRole("button", { name: `Delete ${email} permanently` })
+        .click();
+      const dialog = page.getByRole("alertdialog", { name: "Delete user?" });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+      await expect(page.getByText("User deleted", { exact: true })).toBeVisible();
+      await expect(teamRow()).toHaveCount(0);
+    } finally {
+      const adminAuth = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
+        data: { identity: "admin.a@dealera.com", password: "AdminPassword123!" },
+      });
+      if (adminAuth.ok()) {
+        const { token } = (await adminAuth.json()) as { token: string };
+        const remaining = await request.get(`${pbUrl}/api/collections/users/records`, {
+          headers: { Authorization: token },
+          params: { filter: `email = "${email}"` },
+        });
+        if (remaining.ok()) {
+          const { items } = (await remaining.json()) as { items: Array<{ id: string }> };
+          for (const user of items) {
+            await request.delete(`${pbUrl}/api/collections/users/records/${user.id}`, {
+              headers: { Authorization: token },
+            });
+          }
+        }
+      }
+    }
+  });
+
+  test("platform superadmins can sign in and reach the owner console", async ({ page }) => {
+    test.skip(!USE_REAL_BACKEND, "Requires the seeded PocketBase backend");
+
+    await page.goto("/admin");
+    await page.getByLabel(/email address/i).fill("superadmin@ltvpro.com");
+    await page.getByLabel(/password/i).fill("SuperAdminPass123!");
+    await page.getByRole("button", { name: /Sign in to Admin Console/i }).click();
+
+    await expect(page.getByText("OWNER CONSOLE", { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByRole("banner").getByRole("button", { name: /Onboard new dealer/i })
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+  });
+});
+
 // ---------------------------------------------------------------------------
 // INVENTORY IMPORT
 // ---------------------------------------------------------------------------
 test.describe("Inventory import", () => {
   test("imports CSV via hidden input and shows success state", async ({ page }) => {
-    await setupTest(page, "/inventory");
+    await setupTest(page, "/inventory", ADMIN_TEST_AUTH);
 
     // Toolbar buttons from InventoryScreen + useInventoryImport
     await expect(page.getByRole("button", { name: "Import CSV/XLSX" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
 
     const csvContent = `Stock #,Year,Make,Model,Trim,VIN,Mileage,Price,Cost,J.D. Power Trade In,J.D. Power Retail,Unit Cost
-E2E001,2024,Toyota,Camry,SE,1G1ABCDE1EF123456,12000,26500,22000,23500,27500,22000
-E2E002,2022,Honda,Accord,LX,2HGES16575H123456,45000,18900,15500,17200,19900,15500`;
+  E2E001,2024,Toyota,Camry,SE,1M8GDM9AXKP042788,12000,26500,22000,23500,27500,22000
+  E2E002,2022,Honda,Accord,LX,1FAHP3F27CL123456,45000,18900,15500,17200,19900,15500`;
 
     // Target the hidden file input directly (always present)
     const fileInput = page.locator('input[type="file"]');
@@ -635,16 +916,59 @@ E2E002,2022,Honda,Accord,LX,2HGES16575H123456,45000,18900,15500,17200,19900,1550
       buffer: Buffer.from(csvContent, "utf-8"),
     });
 
-    // Expect success message from setMessage (toast or banner)
-    await expect(page.getByText(/Synced|Parsed|added/i)).toBeVisible({ timeout: 15000 });
+    // Seed inventory size varies; assert sync toast shape + both imported stocks.
+    await expect(
+      page.getByRole("status").filter({
+        hasText: /Synced: \d+ added, \d+ updated, \d+ marked sold\./,
+      })
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/STK E2E001/)).toBeVisible();
+    await expect(page.getByText(/STK E2E002/)).toBeVisible();
   });
 
-  test("shows sample CSV button and inventory toolbar", async ({ page }) => {
+  test("shows only server-persisted rows when part of a replacement import fails", async ({
+    page,
+  }) => {
+    await setupTest(page, "/inventory", ADMIN_TEST_AUTH);
+
+    await page.route("**/api/collections/inventory/records**", async (route) => {
+      if (route.request().method() === "POST") {
+        const body = route.request().postDataJSON() as { vin?: string };
+        if (body.vin === "1FAHP3F27CL123456") {
+          await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
+          return;
+        }
+      }
+      await route.fallback();
+    });
+
+    const csvContent = `Stock #,Year,Make,Model,Trim,VIN,Mileage,Price
+  SAVED01,2024,Toyota,Camry,SE,1M8GDM9AXKP042788,12000,26500
+  FAILED01,2022,Honda,Accord,LX,1FAHP3F27CL123456,45000,18900`;
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "partial-inventory.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(csvContent, "utf-8"),
+    });
+
+    await expect(
+      page.getByRole("alert").filter({
+        hasText:
+          /Synced: \d+ added, \d+ updated, \d+ marked sold\.\s*1 operation\(s\) failed and were not saved\./,
+      })
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/STK SAVED01/)).toBeVisible();
+    await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
+  });
+
+  test("keeps inventory import admin-only while sales can use read-only tools", async ({
+    page,
+  }) => {
     await setupTest(page, "/inventory");
 
     await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
-    // Direct click would download; just verify presence for skeleton coverage
-    await expect(page.getByRole("button", { name: "Import CSV/XLSX" }).first()).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Import CSV/XLSX" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Favorites PDF/i })).toBeVisible();
   });
 });
 
@@ -811,10 +1135,12 @@ test.describe("Deal save", () => {
     await saveBtn.click();
 
     // Success path in hook: setMessage success -> toast renders
-    await expect(page.getByText(/Deal saved successfully/i)).toBeVisible({ timeout: 8000 });
+    await expect(
+      page.getByRole("status").filter({ hasText: /Deal saved successfully/i })
+    ).toBeVisible({ timeout: 8000 });
 
-    // Optional: verify no error toasts
-    await expect(page.getByText(/error|failed|complete vehicle/i).first()).not.toBeVisible();
+    // Scope to alerts — inventory rows like STK FAILED01 must not trip this.
+    await expect(page.getByRole("alert")).toHaveCount(0);
   });
 });
 
@@ -822,6 +1148,8 @@ test.describe("Deal save", () => {
 // PDF GENERATION
 // ---------------------------------------------------------------------------
 test.describe("PDF generation", () => {
+  test.describe.configure({ mode: "serial" });
+
   test("opens deal sheet and downloads PDF (client-side jspdf)", async ({ page }) => {
     await setupTest(page, "/desk");
     await waitForDeskReady(page);
@@ -843,6 +1171,69 @@ test.describe("PDF generation", () => {
 
     expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
     // Optionally save to tmp but not required for assertion
+  });
+
+  test("downloads the bounded two-page PDF with long notes and many lenders", async ({ page }) => {
+    await setupTest(page, "/desk");
+
+    const longLenders = Array.from({ length: 12 }, (_, index) => ({
+      id: `longlender${String(index + 1).padStart(5, "0")}`,
+      dealer: MOCK_USER.dealer,
+      name: `Lender ${index + 1} with an intentionally long printable name`,
+      maxPti: 20,
+      bookValueSource: "Trade",
+      tiers: [
+        {
+          name: `Program ${index + 1} with an intentionally long printable description`,
+          minFico: 300,
+          maxFico: 850,
+          maxLtv: 125,
+          maxTerm: 72,
+        },
+      ],
+      active: true,
+      created: "2026-01-01 00:00:00",
+      updated: "2026-01-01 00:00:00",
+    }));
+
+    await page.route("**/api/collections/lender_profiles/records**", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          page: 1,
+          perPage: 100,
+          totalItems: longLenders.length,
+          totalPages: 1,
+          items: longLenders,
+        }),
+      });
+    });
+    await page.evaluate(() => {
+      const key = "ltvDealData_v2";
+      const current = JSON.parse(localStorage.getItem(key) || "{}");
+      localStorage.setItem(
+        key,
+        JSON.stringify({ ...current, notes: "Detailed deal note ".repeat(80) })
+      );
+    });
+    await page.reload();
+    await waitForDeskReady(page);
+    await expect(page.getByRole("link", { name: /Lenders 12/i })).toBeVisible();
+
+    await page.getByRole("button", { name: /Deal sheet/i }).click();
+    const dialog = page.getByRole("dialog", { name: "Deal sheet" });
+    await expect(dialog).toBeVisible();
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      dialog.getByRole("button", { name: /Download PDF/i }).click(),
+    ]);
+
+    expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
   });
 
   test("inventory favorites PDF button is present and triggers (with data)", async ({ page }) => {

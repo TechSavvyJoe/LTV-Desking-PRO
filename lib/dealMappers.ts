@@ -1,5 +1,6 @@
 import { INITIAL_DEAL_DATA } from "../constants";
 import type { AppState, CalculatedVehicle, DealData, SavedDeal as AppSavedDeal } from "../types";
+import { normalizeBackendProductFields } from "../services/backendProducts";
 import type { SavedDeal as PocketBaseSavedDeal } from "./pocketbase";
 
 type UnknownRecord = Record<string, unknown>;
@@ -33,12 +34,19 @@ const toOptionalString = (value: unknown): string | undefined =>
   typeof value === "string" && value.trim() !== "" ? value : undefined;
 
 const toOptionalNumber = (value: unknown): number | null => toFiniteNumber(value) ?? null;
-const DEFAULT_INTEREST_RATE =
-  typeof INITIAL_DEAL_DATA.interestRate === "number" ? INITIAL_DEAL_DATA.interestRate : 0;
 
 export const toAppState = (value: unknown, fallback: AppState): AppState => {
   const s = typeof value === "string" ? value : "";
   return (APP_STATES as readonly string[]).includes(s) ? (s as AppState) : fallback;
+};
+
+/**
+ * Preserve explicit zero-rate settings. Missing/blank values remain null, but a
+ * configured 0% rate is materially different and must survive storage.
+ */
+export const normalizeStoredTaxRate = (value: unknown): number | null => {
+  const rate = toFiniteNumber(value);
+  return rate !== undefined && rate >= 0 ? rate : null;
 };
 
 // ============================================
@@ -138,18 +146,29 @@ export const toCanonicalStatus = (value: unknown): CanonicalDealStatus => {
 
 export const mapDealData = (value: unknown): DealData => {
   const record = isRecord(value) ? value : {};
+  const backend = normalizeBackendProductFields({
+    backendProducts: toNumberOr(record.backendProducts, INITIAL_DEAL_DATA.backendProducts),
+    vscAmount: toFiniteNumber(record.vscAmount),
+    gapAmount: toFiniteNumber(record.gapAmount),
+  });
+  const rebateType =
+    record.rebateType === "dealer" || record.rebateType === "manufacturer"
+      ? record.rebateType
+      : undefined;
+  const vehicleCondition =
+    record.vehicleCondition === "new" || record.vehicleCondition === "used"
+      ? record.vehicleCondition
+      : undefined;
 
   return {
     downPayment: toNumberOr(record.downPayment, INITIAL_DEAL_DATA.downPayment),
     tradeInValue: toNumberOr(record.tradeInValue, INITIAL_DEAL_DATA.tradeInValue),
     tradeInPayoff: toNumberOr(record.tradeInPayoff, INITIAL_DEAL_DATA.tradeInPayoff),
-    backendProducts: toNumberOr(record.backendProducts, INITIAL_DEAL_DATA.backendProducts),
+    ...backend,
     loanTerm: toNumberOr(record.loanTerm, INITIAL_DEAL_DATA.loanTerm),
-    // Preserve "" sentinel (unset rate) from persisted records so calculator
-    // and UI continue to treat blank APR as "N/A" rather than forcing 0 or default.
-    // toNumberOr would collapse it; explicit check here maintains the DealData contract.
-    interestRate:
-      record.interestRate === "" ? "" : toNumberOr(record.interestRate, DEFAULT_INTEREST_RATE),
+    // Missing historical APR is unknown. Only explicit numeric values (including
+    // 0%) survive; never substitute today's default into an old deal.
+    interestRate: record.interestRate === "" ? "" : (toFiniteNumber(record.interestRate) ?? ""),
     stateFees: toNumberOr(record.stateFees, INITIAL_DEAL_DATA.stateFees),
     notes: toStringOr(record.notes, INITIAL_DEAL_DATA.notes),
     // Carry per-deal buyer state through persistence/PDF round-trips so an
@@ -159,12 +178,17 @@ export const mapDealData = (value: unknown): DealData => {
       (APP_STATES as readonly string[]).includes(record.buyerState)
         ? (record.buyerState as AppState)
         : undefined,
+    vehicleCondition,
     // Round-trip the add-on split and rebate: dropping them made a restored
     // deal misreport VSC/GAP (re-toggling would double-count into
     // backendProducts) and silently discard the rebate. [review/P1]
     rebate: toFiniteNumber(record.rebate),
-    vscAmount: toFiniteNumber(record.vscAmount),
-    gapAmount: toFiniteNumber(record.gapAmount),
+    rebateType,
+    manufacturerRebate: toFiniteNumber(record.manufacturerRebate),
+    dealerDiscount: toFiniteNumber(record.dealerDiscount ?? record.dealerRebate),
+    dealerRebate: toFiniteNumber(record.dealerRebate),
+    transactionFees: toFiniteNumber(record.transactionFees ?? record.transactionFee),
+    transactionFee: toFiniteNumber(record.transactionFee),
   };
 };
 
@@ -224,7 +248,7 @@ export interface PipelineDealFields {
 export type PipelineSavedDeal = AppSavedDeal & PipelineDealFields;
 
 export const mapPocketBaseSavedDeal = (deal: PocketBaseSavedDeal): PipelineSavedDeal => {
-  const customerFilterSource = isRecord(deal.customerFilters)
+  const customerFilterSource: UnknownRecord = isRecord(deal.customerFilters)
     ? deal.customerFilters
     : isRecord(deal.dealData)
       ? deal.dealData
@@ -247,6 +271,7 @@ export const mapPocketBaseSavedDeal = (deal: PocketBaseSavedDeal): PipelineSaved
     customerFilters: {
       creditScore: toOptionalNumber(customerFilterSource.creditScore),
       monthlyIncome: toOptionalNumber(customerFilterSource.monthlyIncome),
+      monthlyDebt: toOptionalNumber(customerFilterSource.monthlyDebt),
     },
     notes: deal.notes || "",
     status: toCanonicalStatus(deal.status),

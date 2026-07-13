@@ -1,4 +1,4 @@
-# LTV & Desking Pro
+# LTV Desking PRO
 
 Precision deal structuring, lender intelligence, and desking in one refined workspace.
 
@@ -22,8 +22,8 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 - **Model Switching** — Choose current top, balanced, and fast OpenAI/ChatGPT, Anthropic, and Gemini models per workflow
 - **Multi-Lender Matching** — See which lenders approve a deal based on credit score, income, vehicle age, and mileage
 - **Deal Structuring Modal** — Full deal worksheet with down payment, trade equity, backend products, and term selection
-- **Inventory Management** — CSV import, VIN lookup, inline editing, and favorites tracking
-- **PDF Deal Sheets** — Generate branded deal summaries for customers or lender submissions
+- **Inventory Management** — Admin-scoped CSV/XLSX import, VIN lookup, sorting, and favorites tracking
+- **PDF Deal Sheets** — Download a two-page Letter-size deal jacket with structure, backend products, lender paths, assumptions, and disclosures
 - **Multi-Tenant** — PocketBase enforces dealer isolation; superadmins can switch between dealerships
 - **Dark Mode** — Full light/dark theme support
 
@@ -31,8 +31,8 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 
 ### Prerequisites
 
-- Node.js 20+
-- PocketBase instance (local or hosted)
+- Node.js 24 LTS
+- PocketBase 0.39.6 instance (local or hosted)
 
 ### Setup
 
@@ -64,8 +64,12 @@ Precision deal structuring, lender intelligence, and desking in one refined work
    ```bash
    cd backend
    docker build -t ltv-pb .
-   docker run -p 8090:8080 -v pb_data:/pb/pb_data ltv-pb
+   docker run -p 8090:8080 -e ALLOW_NO_BACKUP=1 -v pb_data:/pb/pb_data ltv-pb
    ```
+
+   `ALLOW_NO_BACKUP=1` is for deliberate local development only. Fly production
+   requires the four `LITESTREAM_*` R2 settings and refuses to serve without
+   supervised replication.
 
 4. **Start the frontend:**
    ```bash
@@ -75,20 +79,19 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 ## Project Structure
 
 ```
-├── App.tsx                  # Root application with tab routing
+├── App.tsx                  # Root routing and authenticated app entry
 ├── index.tsx                # React entry point
 ├── types.ts                 # Core domain types (Vehicle, DealData, LenderProfile)
 ├── constants.ts             # Default data, sample inventory, lender profiles
 ├── components/
 │   ├── auth/                # Login, Register
-│   ├── admin/               # SuperAdmin dashboard
+│   ├── admin/               # Dealer admin and platform owner consoles
 │   ├── common/              # Button, Modal, Input, VirtualizedTable, etc.
-│   ├── pdf/                 # PDF templates for deal sheets
-│   ├── DealControls.tsx     # Customer info & deal structure inputs
-│   ├── DealStructuringModal.tsx
-│   ├── FavoritesTable.tsx   # Favorites with inline editing & lender matching
-│   ├── Header.tsx           # App header with dealer switcher
-│   └── InventoryTable.tsx   # Main inventory grid
+│   ├── desk/                # Terms rail, inventory grid, deal jacket, PDF modal
+│   ├── legal/               # Privacy and terms drafts for counsel review
+│   ├── pdf/                 # Two-page deal sheet and supporting PDF templates
+│   ├── screens/             # Desk-adjacent route screens
+│   └── shell/               # Responsive navigation and dealer switcher
 ├── context/
 │   └── DealContext.tsx      # Global state: inventory, deals, settings
 ├── hooks/                   # useDebounce, useLocalStorage, useTheme, etc.
@@ -109,29 +112,31 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 │   ├── pdfGenerator.ts      # PDF generation
 │   └── validator.ts         # Input validation
 ├── backend/
-│   ├── Dockerfile           # PocketBase server container
+│   ├── Dockerfile           # Pinned PocketBase + Litestream container
 │   ├── fly.toml             # Fly.io backend deployment
+│   ├── pb_hooks/            # Tenant, user, visibility, logging, and rule guards
 │   └── pb_migrations/       # Database schema migrations
 ├── playwright.config.ts     # Playwright e2e config (webServer + chromium)
 ├── tests/
-│   └── e2e/                 # Minimal e2e skeleton (auth.spec.ts)
+│   ├── e2e/                 # Full-stack Chromium workflow coverage
+│   └── helpers/             # Fresh PocketBase seed/runtime harness
 └── vite.config.ts           # Vite build config with chunking strategy
 ```
 
 ## Scripts
 
-| Command                 | Description                         |
-| ----------------------- | ----------------------------------- |
-| `npm run dev`           | Start development server            |
-| `npm run build`         | Production build                    |
-| `npm run preview`       | Preview production build locally    |
-| `npm run lint`          | ESLint baseline                     |
-| `npm run format:check`  | Prettier format check               |
-| `npm run type-check`    | TypeScript strict check             |
-| `npm test -- --run`     | Run unit test suite (vitest)        |
-| `npm run test:coverage` | Run tests + coverage report         |
-| `npm run test:e2e`      | Run Playwright E2E tests (skeleton) |
-| `npm run audit`         | Run npm audit (moderate severity)   |
+| Command                 | Description                       |
+| ----------------------- | --------------------------------- |
+| `npm run dev`           | Start development server          |
+| `npm run build`         | Production build                  |
+| `npm run preview`       | Preview production build locally  |
+| `npm run lint`          | ESLint baseline                   |
+| `npm run format:check`  | Prettier format check             |
+| `npm run type-check`    | TypeScript strict check           |
+| `npm test -- --run`     | Run unit test suite (vitest)      |
+| `npm run test:coverage` | Run tests + coverage report       |
+| `npm run test:e2e`      | Run Playwright E2E tests          |
+| `npm run audit`         | Run npm audit (moderate severity) |
 
 ## Testing & Ops Hygiene
 
@@ -144,8 +149,12 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 
 ## Deployment
 
-- **Frontend**: Deploy to Vercel — `vercel.json` handles SPA routing
-- **Backend**: Deploy to Fly.io — `cd backend && fly deploy`
+- **Frontend**: `.github/workflows/deploy-vercel.yml` builds once and deploys a
+  prebuilt artifact to Vercel. Automatic `main` Git deploys are disabled in
+  `vercel.json` to prevent racing production aliases; branch previews remain on.
+- **Backend**: `.github/workflows/deploy-backend-fly.yml` validates a fresh
+  migration boot, snapshots the Fly volume, deploys, and verifies health plus
+  supervised Litestream startup.
 
 ## License
 

@@ -64,6 +64,31 @@ describe("fileParser", () => {
       expect(vehicles[1]?.vehicle).toContain("Honda");
     });
 
+    it("derives required make and model fields from vehicle-only descriptions", () => {
+      const csv = [header, "2020 Toyota Camry SE,VIN1,S1,25000,30000,20000"].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+
+      expect(skipped).toBe(0);
+      expect(vehicles[0]).toMatchObject({
+        make: "Toyota",
+        model: "Camry",
+        trim: "SE",
+      });
+    });
+
+    it("skips vehicle-only rows that cannot provide required make and model fields", () => {
+      const csv = [
+        header,
+        "2024,1HGCM82633A004352,S1,25000,30000,20000",
+        "2020 Ford Focus,1M8GDM9AXKP042788,S2,18000,12000,15000",
+      ].join("\n");
+      const result = parseInventoryCsv(csv, false);
+
+      expect(result.vehicles).toHaveLength(1);
+      expect(result.skipped).toBe(1);
+      expect(result.reasons.join(" ")).toMatch(/Make\/Model/i);
+    });
+
     it("reports rows skipped for missing price/mileage instead of dropping silently [B1]", () => {
       const csv = [header, "2019 Ford F150,VIN3,S3,,40000,25000"].join("\n");
       // Only invalid rows -> parseInventoryCsv returns empty with a reason.
@@ -198,7 +223,7 @@ describe("fileParser", () => {
       const csv = [
         "Vehicle,Stock #,Price,Mileage,Trim",
         "Toyota Camry,S1,25000,30000,", // blank trim ok
-        "Honda,,22000,15000,EX", // missing stock ok
+        "Honda Accord,,22000,15000,EX", // missing stock ok
       ].join("\n");
       const { vehicles, skipped } = parseInventoryCsv(csv, false);
       expect(vehicles).toHaveLength(2);

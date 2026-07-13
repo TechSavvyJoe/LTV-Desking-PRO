@@ -10,6 +10,7 @@ import { EmptyState, DataLoading } from "../common/states";
 import * as Icons from "../common/Icons";
 import { fmt, fmtN } from "../../utils/format";
 import type { CalculatedVehicle } from "../../types";
+import { getCurrentUser } from "../../lib/pocketbase";
 
 const mono = "var(--mono)";
 
@@ -103,6 +104,8 @@ const InventoryScreenBase: React.FC = () => {
   } = useInventoryImport();
 
   const navigate = useNavigate();
+  const role = getCurrentUser()?.role;
+  const canManageInventory = role === "admin" || role === "superadmin";
   const totalLenders = activeLenderCount(safeLenderProfiles);
   const { warn, danger } = useMemo(() => settings.ltvThresholds, [settings.ltvThresholds]);
 
@@ -210,9 +213,10 @@ const InventoryScreenBase: React.FC = () => {
   const noResults = hasInventory && sortedInventory.length === 0;
 
   return (
-    <div data-screen-label="Inventory">
+    <div className="inventory-screen" data-screen-label="Inventory">
       {/* Sub-header — mockup lines 486-499 + the preserved import toolbar */}
       <header
+        className="inventory-screen-header"
         style={{
           height: 58,
           borderBottom: "1px solid var(--color-border)",
@@ -224,7 +228,10 @@ const InventoryScreenBase: React.FC = () => {
           gap: 12,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+        <div
+          className="inventory-screen-summary"
+          style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}
+        >
           <span
             style={{
               fontSize: 11,
@@ -234,11 +241,15 @@ const InventoryScreenBase: React.FC = () => {
           >
             Inventory
           </span>
-          <div style={{ height: 20, width: 1, background: "var(--color-border)" }} />
+          <div
+            className="inventory-screen-divider"
+            style={{ height: 20, width: 1, background: "var(--color-border)" }}
+          />
           <span style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap" }}>
             {sortedInventory.length} of {inventory.length} units
           </span>
           <span
+            className="inventory-screen-description"
             style={{
               fontSize: 13,
               color: "var(--color-text-subtle)",
@@ -251,25 +262,32 @@ const InventoryScreenBase: React.FC = () => {
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {/* Import CSV/XLSX (hidden file input) */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx"
-            onChange={handleFileUpload}
-            style={{ display: "none" }}
-            aria-hidden="true"
-            tabIndex={-1}
-          />
-          <button
-            className="transition-colors"
-            style={{ ...ghostBtnStyle, opacity: isUploadingInventory ? 0.6 : 1 }}
-            disabled={isUploadingInventory}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {isUploadingInventory ? "Importing…" : "Import CSV/XLSX"}
-          </button>
+        <div
+          className="inventory-screen-actions"
+          style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}
+        >
+          {/* Inventory replacement/update is admin-scoped by PocketBase RBAC. */}
+          {canManageInventory && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx"
+                onChange={handleFileUpload}
+                style={{ display: "none" }}
+                aria-hidden="true"
+                tabIndex={-1}
+              />
+              <button
+                className="transition-colors"
+                style={{ ...ghostBtnStyle, opacity: isUploadingInventory ? 0.6 : 1 }}
+                disabled={isUploadingInventory}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {isUploadingInventory ? "Importing…" : "Import CSV/XLSX"}
+              </button>
+            </>
+          )}
 
           <button className="transition-colors" style={ghostBtnStyle} onClick={downloadSampleCsv}>
             Sample CSV
@@ -386,7 +404,7 @@ const InventoryScreenBase: React.FC = () => {
           </button>
 
           {/* Search — bound to the shared context query (mockup line 496) */}
-          <div style={{ position: "relative" }}>
+          <div className="inventory-screen-search" style={{ position: "relative" }}>
             <svg
               width="14"
               height="14"
@@ -423,10 +441,12 @@ const InventoryScreenBase: React.FC = () => {
         </div>
       </header>
 
-      <div style={{ padding: "20px 24px" }}>
+      <div className="inventory-screen-content" style={{ padding: "20px 24px" }}>
         <div
+          className="inventory-screen-table"
           role="table"
           aria-label="Inventory priced against live deal"
+          aria-rowcount={sortedInventory.length + 1}
           style={{
             background: "var(--color-bg)",
             border: "1px solid var(--color-border)",
@@ -436,57 +456,61 @@ const InventoryScreenBase: React.FC = () => {
           }}
         >
           {/* Column headers — sortable with per-key default directions */}
-          <div
-            role="row"
-            style={{
-              display: "grid",
-              gridTemplateColumns: GRID,
-              columnGap: 14,
-              alignItems: "center",
-              padding: "11px 20px",
-              background: "var(--color-bg-subtle)",
-              borderBottom: "1px solid var(--color-border)",
-            }}
-          >
-            {COLUMNS.map((col) => (
-              <button
-                key={col.key as string}
-                type="button"
-                onClick={() => handleSort(col.key, col.defaultDir)}
-                title={col.title}
-                role="columnheader"
-                aria-label={
-                  inventorySort.key === col.key
-                    ? `Sort by ${col.label}, sorted ${inventorySort.direction === "asc" ? "ascending" : "descending"}`
-                    : `Sort by ${col.label}`
-                }
-                aria-sort={
-                  inventorySort.key === col.key
-                    ? inventorySort.direction === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : "none"
-                }
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  fontFamily: mono,
-                  color: "var(--color-text-subtle)",
-                  textAlign: col.right ? "right" : "left",
-                  cursor: "pointer",
-                  userSelect: "none",
-                  whiteSpace: "nowrap",
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  margin: 0,
-                }}
-              >
-                {col.label}
-                {sortArrow(col.key)}
-              </button>
-            ))}
+          <div role="rowgroup">
+            <div
+              className="inventory-screen-table-row"
+              role="row"
+              aria-rowindex={1}
+              style={{
+                display: "grid",
+                gridTemplateColumns: GRID,
+                columnGap: 14,
+                alignItems: "center",
+                padding: "11px 20px",
+                background: "var(--color-bg-subtle)",
+                borderBottom: "1px solid var(--color-border)",
+              }}
+            >
+              {COLUMNS.map((col) => (
+                <button
+                  key={col.key as string}
+                  type="button"
+                  onClick={() => handleSort(col.key, col.defaultDir)}
+                  title={col.title}
+                  role="columnheader"
+                  aria-label={
+                    inventorySort.key === col.key
+                      ? `Sort by ${col.label}, sorted ${inventorySort.direction === "asc" ? "ascending" : "descending"}`
+                      : `Sort by ${col.label}`
+                  }
+                  aria-sort={
+                    inventorySort.key === col.key
+                      ? inventorySort.direction === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.1em",
+                    fontFamily: mono,
+                    color: "var(--color-text-subtle)",
+                    textAlign: col.right ? "right" : "left",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    whiteSpace: "nowrap",
+                    background: "transparent",
+                    border: "none",
+                    padding: 0,
+                    margin: 0,
+                  }}
+                >
+                  {col.label}
+                  {sortArrow(col.key)}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Import-first empty state — no inventory at all */}
@@ -514,7 +538,7 @@ const InventoryScreenBase: React.FC = () => {
 
           {/* Rows — window-virtualized (no pager, per the mockup) */}
           {sortedInventory.length > 0 && (
-            <div ref={listRef}>
+            <div role="rowgroup" ref={listRef}>
               <div
                 style={{
                   height: virtualizer.getTotalSize(),
@@ -543,7 +567,7 @@ const InventoryScreenBase: React.FC = () => {
                       }}
                     >
                       <div
-                        className="inv-row"
+                        className="inv-row inventory-screen-table-row"
                         onClick={() => openOnDesk(v)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -552,6 +576,7 @@ const InventoryScreenBase: React.FC = () => {
                           }
                         }}
                         role="row"
+                        aria-rowindex={item.index + 2}
                         tabIndex={0}
                         aria-label={`Structure ${v.vehicle} on the desk`}
                         style={{
@@ -566,12 +591,12 @@ const InventoryScreenBase: React.FC = () => {
                           background: isFocused ? "var(--color-primary-subtle)" : "transparent",
                         }}
                       >
-                        <div style={{ minWidth: 0 }}>
+                        <div role="cell" style={{ minWidth: 0 }}>
                           <div
                             style={{
                               fontSize: 14.5,
                               fontWeight: 600,
-                              letterSpacing: "-0.01em",
+                              letterSpacing: 0,
                               lineHeight: 1.25,
                               display: "-webkit-box",
                               WebkitLineClamp: 2,
@@ -594,6 +619,7 @@ const InventoryScreenBase: React.FC = () => {
                           </div>
                         </div>
                         <span
+                          role="cell"
                           style={{
                             fontSize: 14,
                             textAlign: "right",
@@ -604,6 +630,7 @@ const InventoryScreenBase: React.FC = () => {
                           {numVal(v.price) === null ? "—" : fmt(v.price as number)}
                         </span>
                         <span
+                          role="cell"
                           style={{
                             fontSize: 14,
                             textAlign: "right",
@@ -615,6 +642,7 @@ const InventoryScreenBase: React.FC = () => {
                           {numVal(v.jdPower) === null ? "—" : fmt(v.jdPower as number)}
                         </span>
                         <span
+                          role="cell"
                           style={{
                             fontSize: 14,
                             textAlign: "right",
@@ -626,6 +654,7 @@ const InventoryScreenBase: React.FC = () => {
                           {pctOrDash(v.frontEndLtv)}
                         </span>
                         <span
+                          role="cell"
                           style={{
                             fontSize: 14.5,
                             textAlign: "right",
@@ -638,7 +667,7 @@ const InventoryScreenBase: React.FC = () => {
                             ? "—"
                             : fmt(v.amountToFinance as number)}
                         </span>
-                        <span style={{ textAlign: "right" }}>
+                        <span role="cell" style={{ textAlign: "right" }}>
                           <span
                             style={{
                               fontSize: 13,
@@ -655,6 +684,7 @@ const InventoryScreenBase: React.FC = () => {
                           </span>
                         </span>
                         <span
+                          role="cell"
                           style={{
                             fontSize: 14,
                             textAlign: "right",
@@ -668,6 +698,7 @@ const InventoryScreenBase: React.FC = () => {
                             : `${fmt(v.monthlyPayment as number)}/mo`}
                         </span>
                         <span
+                          role="cell"
                           style={{
                             fontSize: 13,
                             textAlign: "right",
@@ -679,6 +710,7 @@ const InventoryScreenBase: React.FC = () => {
                           {fitCount}/{totalLenders}
                         </span>
                         <span
+                          role="cell"
                           style={{
                             display: "flex",
                             alignItems: "center",

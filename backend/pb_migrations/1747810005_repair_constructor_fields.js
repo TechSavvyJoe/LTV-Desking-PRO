@@ -16,8 +16,8 @@
  * This migration re-adds every missing field with the PROVEN pattern
  * (collection.fields.add + app.save — same as 1747810001, which works).
  * Field-level idempotent, so it no-ops anywhere the fields exist. Once the
- * `dealer` relation exists, the deal_events bootstrap hook
- * (pb_hooks/deal_events_rules.pb.js) applies the access rules on the same
+ * `dealer` relation exists, the authorization bootstrap hook
+ * (pb_hooks/authorization_rules.pb.js) applies the access rules on the same
  * boot.
  */
 migrate(

@@ -59,6 +59,7 @@ vi.mock("../../lib/toast", () => ({
 }));
 
 import { PdfGenerationError } from "../../services/pdfGenerator";
+import { calculateFinancials } from "../../services/calculator";
 import DealSheetModal from "./DealSheetModal";
 
 const settings: Settings = {
@@ -182,6 +183,57 @@ describe("DealSheetModal PDF states", () => {
     );
   });
 
+  it("recalculates the PDF synchronously from edited terms and normalizes backend split", async () => {
+    const editedDeal = {
+      ...dealData,
+      downPayment: 5000,
+      backendProducts: 1000,
+    };
+    mocks.context = { ...mocks.context, dealData: editedDeal };
+
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
+    await waitFor(() => expect(mocks.generateDealPdf).toHaveBeenCalledTimes(1));
+
+    const pdfData = mocks.generateDealPdf.mock.calls[0]?.[0];
+    const normalizedDeal = { ...editedDeal, backendProducts: 3390 };
+    const expected = calculateFinancials(vehicle, normalizedDeal, settings);
+    expect(pdfData.dealData.backendProducts).toBe(3390);
+    expect(pdfData.vehicle.amountToFinance).toBe(expected.amountToFinance);
+    expect(pdfData.vehicle.amountToFinance).not.toBe(vehicle.amountToFinance);
+    expect(mocks.checkBankEligibility).toHaveBeenCalledWith(
+      expect.objectContaining({ amountToFinance: expected.amountToFinance }),
+      expect.objectContaining({ downPayment: 5000, backendProducts: 3390 }),
+      expect.any(Object)
+    );
+  });
+
+  it("passes pending sample provenance through to PDF lender language", async () => {
+    mocks.checkBankEligibility.mockReturnValue({
+      eligible: false,
+      status: "pending",
+      reasons: [
+        "Sample program - illustrative only; verify or convert it before using it as an approval path.",
+      ],
+      matchedTier: { name: "Illustrative" },
+      uncheckedConstraints: ["sample program - verify or convert before use"],
+      effectiveRate: 6.5,
+      evaluatedConstraints: 1,
+    });
+
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
+    await waitFor(() => expect(mocks.generateDealPdf).toHaveBeenCalledTimes(1));
+
+    const pdfData = mocks.generateDealPdf.mock.calls[0]?.[0];
+    expect(pdfData.vehicle.fitCount).toBe(0);
+    expect(pdfData.lenderEligibility[0]).toMatchObject({
+      eligible: false,
+      status: "pending",
+      reasons: [expect.stringMatching(/illustrative only/i)],
+    });
+  });
+
   it("shows coded PDF errors", async () => {
     mocks.generateDealPdf.mockRejectedValue(
       new PdfGenerationError("blank_canvas", "Canvas rendered blank.")
@@ -265,5 +317,29 @@ describe("DealSheetModal PDF states", () => {
     await waitFor(() => {
       expect(mocks.generateDealPdf).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("traps focus, closes once on Escape, and restores the trigger focus", async () => {
+    const trigger = document.createElement("button");
+    trigger.textContent = "Open deal sheet";
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const onClose = vi.fn();
+
+    const { unmount } = render(
+      <DealSheetModal vehicle={vehicle} onClose={onClose} onSaveToPipeline={vi.fn()} />
+    );
+    const headerClose = screen.getAllByRole("button", { name: /^close$/i })[0];
+    const saveButton = screen.getByRole("button", { name: /save to pipeline/i });
+
+    await waitFor(() => expect(document.activeElement).toBe(headerClose));
+    fireEvent.keyDown(headerClose!, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(saveButton);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    unmount();
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
   });
 });

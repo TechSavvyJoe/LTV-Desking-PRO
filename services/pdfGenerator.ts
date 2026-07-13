@@ -12,6 +12,8 @@ export type PdfGenerationErrorCode =
   | "dependency_load_failed"
   | "render_failed"
   | "blank_canvas"
+  | "content_overflow"
+  | "page_count_mismatch"
   | "invalid_blob";
 
 export class PdfGenerationError extends Error {
@@ -85,15 +87,80 @@ const waitForRenderReady = async (): Promise<void> => {
   await delay(80);
 };
 
-export const assertRenderedCanvas = (
-  canvas: Pick<HTMLCanvasElement, "width" | "height">,
-  imgData: string
-): void => {
-  if (!canvas.width || !canvas.height || imgData.length < 256) {
+type InspectableCanvas = Pick<HTMLCanvasElement, "width" | "height"> & {
+  getContext?: HTMLCanvasElement["getContext"];
+};
+
+const canvasHasVisibleInk = (canvas: InspectableCanvas): boolean => {
+  if (typeof canvas.getContext !== "function") return true;
+
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return false;
+
+  const rowCount = Math.min(canvas.height, 128);
+  const columnStride = Math.max(1, Math.floor(canvas.width / 512));
+  let sampledPixels = 0;
+  let inkPixels = 0;
+
+  for (let row = 0; row < rowCount; row++) {
+    const y = Math.min(canvas.height - 1, Math.floor(((row + 0.5) * canvas.height) / rowCount));
+    const pixels = context.getImageData(0, y, canvas.width, 1).data;
+
+    for (let x = 0; x < canvas.width; x += columnStride) {
+      const offset = x * 4;
+      const alpha = pixels[offset + 3] ?? 0;
+      if (alpha < 16) continue;
+
+      const red = pixels[offset] ?? 255;
+      const green = pixels[offset + 1] ?? 255;
+      const blue = pixels[offset + 2] ?? 255;
+      const average = (red + green + blue) / 3;
+      const chroma = Math.max(red, green, blue) - Math.min(red, green, blue);
+      sampledPixels++;
+
+      // Light gray page fills count as blank; text, borders, badges, and other
+      // meaningful marks clear either the darkness or color threshold.
+      if (255 - average >= 10 || chroma >= 12) inkPixels++;
+    }
+  }
+
+  const minimumInkPixels = Math.max(2, Math.ceil(sampledPixels * 0.0002));
+  return inkPixels >= minimumInkPixels;
+};
+
+export const assertRenderedCanvas = (canvas: InspectableCanvas, imgData: string): void => {
+  let hasVisibleInk = false;
+  try {
+    hasVisibleInk = canvasHasVisibleInk(canvas);
+  } catch {
+    hasVisibleInk = false;
+  }
+
+  if (!canvas.width || !canvas.height || imgData.length < 256 || !hasVisibleInk) {
     throw new PdfGenerationError(
       "blank_canvas",
-      "The PDF could not be rendered (the page is too large for this device's browser). " +
-        "Try fewer vehicles per PDF or generate from a desktop browser."
+      "The PDF page rendered blank or near-white. Try again from a desktop browser; " +
+        "for favorites, reduce the number of vehicles in one PDF."
+    );
+  }
+};
+
+export const assertPrintablePageFits = (page: HTMLElement): void => {
+  const measuredElements = [
+    page,
+    ...Array.from(page.querySelectorAll<HTMLElement>("[data-pdf-bounded]")),
+  ];
+  const overflowing = measuredElements.some(
+    (element) =>
+      (element.clientHeight > 0 && element.scrollHeight > element.clientHeight + 1) ||
+      (element.clientWidth > 0 && element.scrollWidth > element.clientWidth + 1)
+  );
+
+  if (overflowing) {
+    throw new PdfGenerationError(
+      "content_overflow",
+      "The deal sheet exceeded its fixed two-page printable area. Shorten the deal notes or " +
+        "lender details and try again; no content was silently clipped."
     );
   }
 };
@@ -109,10 +176,20 @@ export const assertGeneratedPdfBlob = (blob: Blob): void => {
   }
 };
 
+export const assertPdfPageCount = (actual: number, expected: number): void => {
+  if (actual !== expected) {
+    throw new PdfGenerationError(
+      "page_count_mismatch",
+      `The deal sheet rendered ${actual} page${actual === 1 ? "" : "s"}; expected ${expected}.`
+    );
+  }
+};
+
 const renderComponentAsPdfBlob = async (
   component: React.ReactElement,
   orientation: "portrait" | "landscape" = "portrait",
-  pageMode: "paginate" | "single-page" = "paginate"
+  pageMode: "paginate" | "single-page" | "explicit-pages" = "paginate",
+  expectedPageCount?: number
 ): Promise<Blob> => {
   if (typeof document === "undefined") {
     throw new PdfGenerationError(
@@ -133,7 +210,10 @@ const renderComponentAsPdfBlob = async (
   container.style.left = "-9999px"; // Move it far off the left of the screen
   container.style.background = "white"; // Ensure a solid background
   // Give it a defined size to help the layout engine
-  container.style.width = orientation === "landscape" ? "297mm" : "210mm";
+  // The PDF format below is US Letter, so render at the same physical width.
+  // Using A4 dimensions here subtly rescaled every export and made explicit
+  // page boundaries drift by a few pixels.
+  container.style.width = orientation === "landscape" ? "279.4mm" : "215.9mm";
   container.style.height = "auto"; // Allow height to grow based on content
 
   document.body.appendChild(container);
@@ -144,6 +224,63 @@ const renderComponentAsPdfBlob = async (
     // Render the component and wait for it to be fully painted in the DOM.
     root.render(component);
     await waitForRenderReady();
+
+    const pdf = new jsPDF({
+      orientation,
+      unit: "mm",
+      // US dealers print Letter; A4 output scales/shifts on every printout. [G69]
+      format: "letter",
+    });
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    if (pageMode === "explicit-pages") {
+      const pages = Array.from(container.querySelectorAll<HTMLElement>("[data-pdf-page]"));
+      const targetPages = expectedPageCount ?? pages.length;
+
+      if (pages.length === 0) {
+        throw new PdfGenerationError(
+          "page_count_mismatch",
+          "The PDF template did not render any printable pages."
+        );
+      }
+      assertPdfPageCount(pages.length, targetPages);
+
+      for (const [index, page] of pages.entries()) {
+        assertPrintablePageFits(page);
+        const canvas = await html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          windowWidth: page.scrollWidth,
+          windowHeight: page.scrollHeight,
+        });
+        const imgData = canvas.toDataURL("image/jpeg", 0.94);
+        assertRenderedCanvas(canvas, imgData);
+
+        if (index > 0) pdf.addPage();
+
+        const imgProps = pdf.getImageProperties(imgData);
+        const naturalHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        const scale = Math.min(1, pdfHeight / naturalHeight);
+        const renderWidth = pdfWidth * scale;
+        const renderHeight = naturalHeight * scale;
+        pdf.addImage(
+          imgData,
+          "JPEG",
+          (pdfWidth - renderWidth) / 2,
+          (pdfHeight - renderHeight) / 2,
+          renderWidth,
+          renderHeight
+        );
+      }
+
+      assertPdfPageCount(pdf.getNumberOfPages(), targetPages);
+      const blob = pdf.output("blob");
+      assertGeneratedPdfBlob(blob);
+      return blob;
+    }
 
     const canvas = await html2canvas(container, {
       scale: 2, // Higher scale for better quality
@@ -162,15 +299,6 @@ const renderComponentAsPdfBlob = async (
       imageFormat === "JPEG" ? canvas.toDataURL("image/jpeg", 0.92) : canvas.toDataURL("image/png");
     assertRenderedCanvas(canvas, imgData);
 
-    const pdf = new jsPDF({
-      orientation,
-      unit: "mm",
-      // US dealers print Letter; A4 output scales/shifts on every printout. [G69]
-      format: "letter",
-    });
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
     const imgProps = pdf.getImageProperties(imgData);
 
     // Calculate the height of the image in PDF units, maintaining aspect ratio relative to page width
@@ -196,7 +324,7 @@ const renderComponentAsPdfBlob = async (
     heightLeft -= pdfHeight;
 
     // Subsequent pages
-    while (heightLeft > 0) {
+    while (heightLeft > 0.5) {
       position -= pdfHeight; // Move the image up for the next page
       pdf.addPage();
       pdf.addImage(imgData, imageFormat, 0, position, pdfWidth, imgHeightInPdf);
@@ -227,7 +355,8 @@ export const generateDealPdf = async (data: DealPdfData, settings: Settings): Pr
   return renderComponentAsPdfBlob(
     React.createElement(PdfTemplate, props),
     "portrait",
-    "single-page"
+    "explicit-pages",
+    2
   );
 };
 

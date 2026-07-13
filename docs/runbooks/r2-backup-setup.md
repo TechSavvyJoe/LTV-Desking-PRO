@@ -33,6 +33,11 @@ Cloudflare dashboard → R2 → Manage R2 API Tokens → Create API Token
 
 Cloudflare shows the **Access Key ID** and **Secret Access Key** once. Copy both into 1Password immediately.
 
+Create a second, bucket-scoped **Object Read only** token named
+`ltv-desking-pro-restore-drill`. Store it separately as
+`R2_RESTORE_ACCESS_KEY_ID` / `R2_RESTORE_SECRET_ACCESS_KEY`. Restore drills must
+never receive the production read/write token.
+
 ### 3. Get the S3 endpoint URL
 
 It's `https://<accountid>.r2.cloudflarestorage.com`. Find your account ID at the top right of the Cloudflare R2 dashboard.
@@ -40,11 +45,14 @@ It's `https://<accountid>.r2.cloudflarestorage.com`. Find your account ID at the
 ### 4. Set Fly secrets
 
 ```bash
+: "${R2_ACCOUNT_ID:?set the Cloudflare account ID}"
+: "${R2_WRITE_ACCESS_KEY_ID:?set the R2 read/write access key ID}"
+: "${R2_WRITE_SECRET_ACCESS_KEY:?set the R2 read/write secret key}"
 fly secrets set -a ltv-desking-pro-api \
   LITESTREAM_BUCKET=ltv-desking-pro-backups \
-  LITESTREAM_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com \
-  LITESTREAM_ACCESS_KEY_ID=<from step 2> \
-  LITESTREAM_SECRET_ACCESS_KEY=<from step 2>
+  LITESTREAM_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+  LITESTREAM_ACCESS_KEY_ID="$R2_WRITE_ACCESS_KEY_ID" \
+  LITESTREAM_SECRET_ACCESS_KEY="$R2_WRITE_SECRET_ACCESS_KEY"
 ```
 
 The Fly machine restarts automatically when secrets change.
@@ -58,70 +66,76 @@ fly logs -a ltv-desking-pro-api | grep -i litestream
 You should see lines like:
 
 ```
-[start] Booting PocketBase under Litestream replication.
+[start] Booting PocketBase under supervised Litestream replication.
 level=INFO msg="replicating to" path=/pb/pb_data/data.db ...
 level=INFO msg="snapshot written" ... size=...
 ```
 
-If you see `[start] LITESTREAM_* secrets not set` instead, one of the four secrets above is missing.
+If a required setting is missing, `start.sh` exits with a `FATAL` message and
+Fly keeps the machine unhealthy instead of serving an unprotected database.
 
 ---
 
-## Verifying a restore (do this quarterly)
+## Quarterly restore drill
 
-The point of backups is that they restore. Verify on a scratch Fly app — never on the live one.
+The drill is isolated from Fly production and uses a read-only R2 token. It
+restores to a temporary local directory, never starts PocketBase or Litestream
+replication, and opens SQLite in read-only/query-only mode.
+
+Prerequisites: Litestream `0.5.14`, `sqlite3`, and the read-only token from step 2. Export the four `R2_RESTORE_*` values from 1Password, then run:
 
 ```bash
-# 1. Create a throwaway Fly app
-fly apps create ltv-desking-pro-restore-drill
+set -euo pipefail
+: "${R2_RESTORE_ACCESS_KEY_ID:?set the read-only R2 access key ID}"
+: "${R2_RESTORE_SECRET_ACCESS_KEY:?set the read-only R2 secret key}"
+: "${R2_RESTORE_ENDPOINT:?set the R2 endpoint URL}"
+: "${R2_RESTORE_BUCKET:?set the R2 bucket name}"
 
-# 2. Re-use the same image but a fresh volume
-fly volumes create ltv_desking_data --size 1 --region ord -a ltv-desking-pro-restore-drill
+DRILL_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ltv-r2-restore.XXXXXX")
+export DRILL_DB="$DRILL_DIR/data.db"
+trap 'rm -rf "$DRILL_DIR"' EXIT
 
-# 3. Set the same R2 secrets (read-only would suffice; reuse for simplicity)
-fly secrets set -a ltv-desking-pro-restore-drill \
-  LITESTREAM_BUCKET=ltv-desking-pro-backups \
-  LITESTREAM_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com \
-  LITESTREAM_ACCESS_KEY_ID=<...> \
-  LITESTREAM_SECRET_ACCESS_KEY=<...>
+cat > "$DRILL_DIR/litestream.yml" <<'YAML'
+dbs:
+  - path: ${DRILL_DB}
+    replica:
+      type: s3
+      bucket: ${R2_RESTORE_BUCKET}
+      path: data.db
+      endpoint: ${R2_RESTORE_ENDPOINT}
+      region: auto
+      access-key-id: ${R2_RESTORE_ACCESS_KEY_ID}
+      secret-access-key: ${R2_RESTORE_SECRET_ACCESS_KEY}
+YAML
 
-# 4. Deploy and verify
-fly deploy -a ltv-desking-pro-restore-drill
-fly logs -a ltv-desking-pro-restore-drill | head -50
-# Expect: "[start] No data.db on volume — attempting Litestream restore from R2…"
-# Then PocketBase should boot normally with the same data as prod.
+litestream restore \
+  -config "$DRILL_DIR/litestream.yml" \
+  -integrity-check full \
+  "$DRILL_DB"
+test -s "$DRILL_DB"
 
-# 5. SSH in and spot-check
-fly ssh console -a ltv-desking-pro-restore-drill \
-  -C "sqlite3 /pb/pb_data/data.db 'select count(*) from dealers, users, saved_deals;'"
-
-# 6. Tear down
-fly apps destroy ltv-desking-pro-restore-drill --yes
+sqlite3 -readonly "$DRILL_DB" <<'SQL'
+PRAGMA query_only = ON;
+PRAGMA integrity_check;
+SELECT 'dealers', COUNT(*) FROM dealers
+UNION ALL SELECT 'users', COUNT(*) FROM users
+UNION ALL SELECT 'saved_deals', COUNT(*) FROM saved_deals;
+SQL
 ```
 
-If step 4 doesn't show the restore line or step 5 returns zero rows, the backup chain is broken — investigate before relying on it.
+Require `PRAGMA integrity_check` to return `ok` and compare the record counts
+with a known production checkpoint. A zero count can be legitimate for a new
+tenant, so investigate unexpected deltas rather than relying on a blanket
+nonzero test. Record the restored transaction ID/time and counts in the
+quarterly operations issue.
 
 ---
 
-## Emergency restore (live volume gone)
+## Emergency restore
 
-```bash
-# 1. Take the app down to prevent partial writes
-fly scale count 0 -a ltv-desking-pro-api
-
-# 2. Either: create a new volume on a healthy host
-fly volumes destroy <broken-volume-id>
-fly volumes create ltv_desking_data --size 1 --region ord -a ltv-desking-pro-api
-
-# 3. Bring the app back up. start.sh detects empty volume → runs
-#    `litestream restore` automatically before PocketBase starts.
-fly scale count 1 -a ltv-desking-pro-api
-
-# 4. Watch logs for the restore line
-fly logs -a ltv-desking-pro-api | grep -i restore
-```
-
-Expected RTO: 5–15 minutes depending on DB size.
+Follow [`db-restore.md`](db-restore.md). It creates and validates a replacement
+volume while retaining the stopped original machine and volume. Never destroy
+the only volume to make room for a restore.
 
 ---
 
@@ -129,7 +143,7 @@ Expected RTO: 5–15 minutes depending on DB size.
 
 Quarterly, ideally automated via a calendar reminder.
 
-1. Create a new token in Cloudflare with the same bucket scope.
-2. Set the new Fly secrets (will trigger a restart — schedule outside business hours).
-3. Verify restart succeeded via `fly logs`.
-4. Revoke the old token in Cloudflare.
+1. Create a new read/write token in Cloudflare with the same single-bucket scope.
+2. Set the new Fly secrets (the machine restarts; schedule outside business hours).
+3. Verify health and a new Litestream snapshot before revoking the old token.
+4. Rotate the separate read-only restore token and rerun the quarterly drill.

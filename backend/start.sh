@@ -4,9 +4,9 @@
 # Litestream lives at /pb/litestream (not on PATH). PocketBase lives at
 # /pb/pocketbase. Always use absolute paths.
 #
-# We deliberately do NOT use `set -e`. A non-fatal Litestream warning should
-# never take down PocketBase, so we handle errors explicitly with `|| true`
-# and `timeout` so the wrapper can never hang the container.
+# We deliberately do not use `set -e`; restore failures need the explicit
+# fail-closed handling below. Once replication starts, Litestream supervises
+# PocketBase so a real replication-process failure restarts the container.
 #
 # This script is POSIX shell — Alpine's /bin/sh is busybox ash, so no
 # bash-specific features (no `wait -n`, no arrays).
@@ -19,28 +19,44 @@ LITESTREAM_BIN="/pb/litestream"
 log() { printf "[start] %s\n" "$*"; }
 
 run_pb_plain() {
-  log "Booting plain PocketBase (no replication)."
+  log "WARNING: Booting plain PocketBase because ALLOW_NO_BACKUP=1 is set."
   exec "$PB_BIN" serve \
     --http=0.0.0.0:8080 \
     --dir="$DATA_DIR" \
     --migrationsDir=/pb/pb_migrations \
-    --hooksDir=/pb/pb_hooks
+    --hooksDir=/pb/pb_hooks \
+    --hooksWatch=false
 }
 
 # Sanity check on the Litestream binary itself.
 if [ ! -x "$LITESTREAM_BIN" ]; then
-  log "Litestream binary missing or not executable at $LITESTREAM_BIN — falling back to plain PocketBase."
-  run_pb_plain
+  log "FATAL: Litestream is missing or not executable at $LITESTREAM_BIN."
+  if [ "$ALLOW_NO_BACKUP" = "1" ]; then
+    run_pb_plain
+  fi
+  exit 1
 fi
 
-# If R2 creds are missing, bypass Litestream entirely.
-if [ -z "$LITESTREAM_ACCESS_KEY_ID" ] || [ -z "$LITESTREAM_BUCKET" ]; then
-  log "LITESTREAM_* secrets not set — running PocketBase without replication."
-  run_pb_plain
+# Production must never serve while silently unprotected. Check every required
+# R2 setting by name without printing values. ALLOW_NO_BACKUP=1 remains a
+# deliberate local/emergency escape hatch and should never be left set on Fly.
+MISSING_LITESTREAM=""
+[ -z "$LITESTREAM_ACCESS_KEY_ID" ] && MISSING_LITESTREAM="$MISSING_LITESTREAM LITESTREAM_ACCESS_KEY_ID"
+[ -z "$LITESTREAM_SECRET_ACCESS_KEY" ] && MISSING_LITESTREAM="$MISSING_LITESTREAM LITESTREAM_SECRET_ACCESS_KEY"
+[ -z "$LITESTREAM_BUCKET" ] && MISSING_LITESTREAM="$MISSING_LITESTREAM LITESTREAM_BUCKET"
+[ -z "$LITESTREAM_ENDPOINT" ] && MISSING_LITESTREAM="$MISSING_LITESTREAM LITESTREAM_ENDPOINT"
+if [ -n "$MISSING_LITESTREAM" ]; then
+  log "FATAL: Required backup settings are missing:$MISSING_LITESTREAM"
+  if [ "$ALLOW_NO_BACKUP" = "1" ]; then
+    run_pb_plain
+  fi
+  exit 1
 fi
 
 # If the DB doesn't exist on the volume but a backup may exist in R2,
-# attempt a restore. `timeout 30s` ensures we never hang the container.
+# attempt a restore. `timeout 300s` ensures we never hang the container
+# indefinitely while still leaving room for a full-size database download —
+# this path only runs during disaster recovery, when the DB is largest.
 #
 # SAFETY (G51): if no data.db exists after the restore attempt (restore
 # failed, timed out, or found no replica) we REFUSE to boot. Booting
@@ -54,8 +70,8 @@ fi
 # environment that has no backup to restore (e.g.
 # `fly secrets set ALLOW_FRESH_DB=1`, boot once, then unset it).
 if [ ! -f "$DB_PATH" ]; then
-  log "No data.db on volume — attempting Litestream restore from R2 (30s budget)…"
-  if timeout 30s "$LITESTREAM_BIN" restore -if-replica-exists \
+  log "No data.db on volume — attempting Litestream restore from R2 (300s budget)…"
+  if timeout 300s "$LITESTREAM_BIN" restore -if-replica-exists -integrity-check quick \
        -config /pb/litestream.yml "$DB_PATH" && [ -f "$DB_PATH" ]; then
     log "Restore succeeded."
   elif [ "$ALLOW_FRESH_DB" = "1" ]; then
@@ -78,25 +94,8 @@ if [ ! -f "$DB_PATH" ]; then
   fi
 fi
 
-# Start Litestream as a child; PB in the foreground. If PB exits, kill
-# Litestream so Fly notices the machine is down and restarts the whole
-# container (rather than running a zombie Litestream against no DB).
-log "Booting PocketBase under Litestream replication."
-
-"$LITESTREAM_BIN" replicate -config /pb/litestream.yml &
-LS_PID=$!
-log "Litestream started (pid=$LS_PID)."
-
-# Clean up Litestream on SIGINT/SIGTERM.
-trap 'log "Signal received, stopping Litestream."; kill $LS_PID 2>/dev/null; exit' INT TERM
-
-# PB in the foreground — when it exits, kill Litestream and propagate code.
-"$PB_BIN" serve \
-  --http=0.0.0.0:8080 \
-  --dir="$DATA_DIR" \
-  --migrationsDir=/pb/pb_migrations \
-  --hooksDir=/pb/pb_hooks
-PB_EXIT=$?
-log "PocketBase exited (code=$PB_EXIT). Stopping Litestream."
-kill $LS_PID 2>/dev/null
-exit "$PB_EXIT"
+# Litestream supervises PocketBase. If either process fails the container exits,
+# allowing Fly to restart it instead of serving without continuous backups.
+log "Booting PocketBase under supervised Litestream replication."
+PB_COMMAND="$PB_BIN serve --http=0.0.0.0:8080 --dir=$DATA_DIR --migrationsDir=/pb/pb_migrations --hooksDir=/pb/pb_hooks --hooksWatch=false"
+exec "$LITESTREAM_BIN" replicate -config /pb/litestream.yml -exec "$PB_COMMAND"

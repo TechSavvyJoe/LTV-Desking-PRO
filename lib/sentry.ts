@@ -56,3 +56,22 @@ export const captureException = async (
     (context ?? undefined) as Parameters<SentryModule["captureException"]>[1]
   );
 };
+
+/**
+ * Report a non-exception message (e.g. a logged warning) to Sentry when it's
+ * configured. Same DSN gating as captureException: no DSN, no SDK download.
+ */
+export const captureMessage = async (
+  message: string,
+  context?: Record<string, unknown>
+): Promise<void> => {
+  if (!dsn()) return;
+  const Sentry = await loadSentry();
+  if (!initialized) {
+    await initSentry();
+  }
+  Sentry.captureMessage(
+    message,
+    (context ? { extra: context } : undefined) as Parameters<SentryModule["captureMessage"]>[1]
+  );
+};

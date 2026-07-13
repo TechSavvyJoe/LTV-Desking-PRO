@@ -10,12 +10,26 @@ import {
   statusBucket,
   toCanonicalStatus,
   toAppState,
+  normalizeStoredTaxRate,
   mapPocketBaseSavedDeal,
   asPipelineDeal,
   pipelineMetricsFromCalculatedData,
 } from "./dealMappers";
 import type { SavedDeal as PocketBaseSavedDeal } from "./pocketbase";
 import type { SavedDeal as AppSavedDeal } from "../types";
+
+describe("normalizeStoredTaxRate", () => {
+  it("preserves an explicit zero custom rate", () => {
+    expect(normalizeStoredTaxRate(0)).toBe(0);
+    expect(normalizeStoredTaxRate("0")).toBe(0);
+    expect(normalizeStoredTaxRate(null)).toBeNull();
+  });
+
+  it("preserves positive custom tax percentages", () => {
+    expect(normalizeStoredTaxRate(6)).toBe(6);
+    expect(normalizeStoredTaxRate("5.875")).toBe(5.875);
+  });
+});
 
 describe("statusBucket", () => {
   it("maps every canonical status to its pipeline bucket", () => {
@@ -170,7 +184,11 @@ describe("mapPocketBaseSavedDeal", () => {
     expect(mapped.dealData.vscAmount).toBe(2495);
     expect(mapped.dealData.gapAmount).toBe(895);
 
-    expect(mapped.customerFilters).toEqual({ creditScore: 712, monthlyIncome: 4800 });
+    expect(mapped.customerFilters).toEqual({
+      creditScore: 712,
+      monthlyIncome: 4800,
+      monthlyDebt: null,
+    });
 
     // Pipeline fields.
     expect(mapped.status).toBe("declined");
@@ -196,6 +214,49 @@ describe("mapPocketBaseSavedDeal", () => {
     );
     expect(mapped.dealData.buyerState).toBeUndefined();
     expect(mapped.dealData.downPayment).toBe(500);
+  });
+
+  it("keeps a missing historical APR unknown instead of applying today's default", () => {
+    const mapped = mapPocketBaseSavedDeal(
+      pbDeal({ dealData: { ...pbDeal().dealData, interestRate: undefined } })
+    );
+
+    expect(mapped.dealData.interestRate).toBe("");
+  });
+
+  it("normalizes backend components and round-trips explicit incentive fields", () => {
+    const mapped = mapPocketBaseSavedDeal(
+      pbDeal({
+        dealData: {
+          ...pbDeal().dealData,
+          backendProducts: 1000,
+          vscAmount: 2495,
+          gapAmount: 895,
+          rebateType: "dealer",
+          manufacturerRebate: 0,
+          dealerDiscount: 750,
+          transactionFees: 125,
+          vehicleCondition: "used",
+        },
+        customerFilters: {
+          creditScore: 712,
+          monthlyIncome: 4800,
+          monthlyDebt: 650,
+        } as unknown as PocketBaseSavedDeal["customerFilters"],
+      } as Partial<PocketBaseSavedDeal>)
+    );
+
+    expect(mapped.dealData).toMatchObject({
+      backendProducts: 3390,
+      vscAmount: 2495,
+      gapAmount: 895,
+      rebateType: "dealer",
+      manufacturerRebate: 0,
+      dealerDiscount: 750,
+      transactionFees: 125,
+      vehicleCondition: "used",
+    });
+    expect(mapped.customerFilters.monthlyDebt).toBe(650);
   });
 });
 

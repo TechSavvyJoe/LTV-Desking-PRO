@@ -10,7 +10,7 @@
  * Reference: https://haveibeenpwned.com/API/v3#PwnedPasswords
  */
 
-const MIN_LENGTH = 12;
+export const PASSWORD_MIN_LENGTH = 12;
 
 export interface PolicyResult {
   ok: boolean;
@@ -27,8 +27,11 @@ const sha1Hex = async (input: string): Promise<string> => {
 };
 
 const structuralCheck = (password: string): PolicyResult => {
-  if (password.length < MIN_LENGTH) {
-    return { ok: false, error: `Password must be at least ${MIN_LENGTH} characters.` };
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return {
+      ok: false,
+      error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+    };
   }
   if (!/[A-Z]/.test(password)) {
     return { ok: false, error: "Password must include at least one uppercase letter." };

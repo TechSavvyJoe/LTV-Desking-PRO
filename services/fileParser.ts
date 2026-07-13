@@ -147,6 +147,21 @@ const syntheticVin = (
   return `SYN-${(hash >>> 0).toString(36).toUpperCase()}`;
 };
 
+const parseVehicleDescription = (
+  description: string
+): { make?: string; model?: string; trim?: string } => {
+  const parts = description.trim().split(/\s+/).filter(Boolean);
+  if (/^(19|20)\d{2}$/.test(parts[0] || "")) parts.shift();
+  if (parts.length < 2) return {};
+
+  const [make, model, ...trimParts] = parts;
+  return {
+    make,
+    model,
+    trim: trimParts.length > 0 ? trimParts.join(" ") : undefined,
+  };
+};
+
 /**
  * Pure CSV/XLSX-as-CSV parser. Separated from file I/O so it can be unit-tested
  * without a browser FileReader.
@@ -212,6 +227,7 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
   }
 
   let skippedMissingData = 0;
+  let skippedMissingIdentity = 0;
   const seenVins = new Set<string>();
   // Occurrence counter for synthetic ids: identical no-VIN rows are real
   // physical units, not duplicates — disambiguate with "-2", "-3" suffixes
@@ -228,23 +244,37 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
     // optional column should not make a whole vehicle vanish. [B1]
     while (vals.length < headers.length) vals.push("");
 
-    const make = idx.make !== -1 ? (vals[idx.make] ?? "") : undefined;
-    const model = idx.model !== -1 ? (vals[idx.model] ?? "") : undefined;
-    const trim = idx.trim !== -1 ? (vals[idx.trim] ?? "") : undefined;
+    let make = idx.make !== -1 ? (vals[idx.make] ?? "").trim() || undefined : undefined;
+    let model = idx.model !== -1 ? (vals[idx.model] ?? "").trim() || undefined : undefined;
+    let trim = idx.trim !== -1 ? (vals[idx.trim] ?? "").trim() || undefined : undefined;
 
     let modelYear = parseNumber(vals[idx.modelYear] ?? "");
 
-    // Construct vehicle description if missing
     let vehicleDescription: string = idx.vehicle !== -1 ? (vals[idx.vehicle] ?? "") : "";
+    if (modelYear === "N/A") {
+      const yearMatch = vehicleDescription.match(/\b(19[89]\d|20\d{2})\b/);
+      if (yearMatch) modelYear = parseInt(yearMatch[0], 10);
+    }
+
+    // PocketBase requires make/model. Vehicle-only exports are common, so
+    // derive those fields from "Year Make Model Trim" when possible instead of
+    // sending empty strings that the server rejects.
+    if ((!make || !model) && vehicleDescription.trim()) {
+      const parsedIdentity = parseVehicleDescription(vehicleDescription);
+      make ||= parsedIdentity.make;
+      model ||= parsedIdentity.model;
+      trim ||= parsedIdentity.trim;
+    }
+
     if (!vehicleDescription && make && model) {
       vehicleDescription = `${modelYear !== "N/A" ? modelYear : ""} ${make} ${model} ${
         trim || ""
       }`.trim();
     }
 
-    if (modelYear === "N/A") {
-      const yearMatch = vehicleDescription.match(/\b(19[89]\d|20\d{2})\b/);
-      if (yearMatch) modelYear = parseInt(yearMatch[0], 10);
+    if (!make || !model) {
+      skippedMissingIdentity++;
+      continue;
     }
 
     const mileageRaw = parseNumber(vals[idx.mileage] ?? "");
@@ -314,11 +344,22 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
       `${skippedMissingData} row${skippedMissingData === 1 ? "" : "s"} skipped (missing, non-numeric, or negative Price/Mileage)`
     );
   }
+  if (skippedMissingIdentity > 0) {
+    reasons.push(
+      `${skippedMissingIdentity} row${
+        skippedMissingIdentity === 1 ? "" : "s"
+      } skipped (missing or unparseable Make/Model)`
+    );
+  }
   if (duplicateVins > 0) {
     reasons.push(`${duplicateVins} duplicate VIN${duplicateVins === 1 ? "" : "s"} ignored`);
   }
 
-  return { vehicles, skipped: skippedMissingData + duplicateVins, reasons };
+  return {
+    vehicles,
+    skipped: skippedMissingData + skippedMissingIdentity + duplicateVins,
+    reasons,
+  };
 };
 
 export const parseFile = (file: File): Promise<ParseResult> => {
@@ -347,7 +388,7 @@ export const parseFile = (file: File): Promise<ParseResult> => {
         if (result.vehicles.length === 0) {
           reject(
             new Error(
-              `No valid rows found. Ensure Price and Mileage are populated and numeric.${
+              `No valid rows found. Ensure each row has Make and Model plus numeric Price and Mileage.${
                 result.reasons.length ? ` (${result.reasons.join("; ")})` : ""
               }`
             )

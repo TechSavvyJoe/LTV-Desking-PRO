@@ -5,12 +5,33 @@ import { decodeVin } from "../services/vinDecoder";
 import { calculateFinancials } from "../services/calculator";
 import { generateFavoritesPdf } from "../services/pdfGenerator";
 import { checkBankEligibility } from "../services/lenderMatcher";
-import { syncInventory, logDealEvent } from "../lib/api";
+import { getInventory, syncInventory, logDealEvent } from "../lib/api";
 import { capture } from "../lib/analytics";
 import { createLogger } from "../lib/logger";
-import { queryClient, queryKeys } from "../lib/queryClient";
+import { currentDealerQueryKeys, queryClient, queryKeys } from "../lib/queryClient";
+import { getCurrentUser, type InventoryItem } from "../lib/pocketbase";
+import type { Vehicle } from "../types";
+import { downloadBlob } from "../utils/downloadBlob";
 
 const inventoryImportLogger = createLogger("inventory-import");
+
+const mapPersistedInventoryItem = (item: InventoryItem): Vehicle => ({
+  id: item.id,
+  vehicle: `${item.year} ${item.make} ${item.model} ${item.trim || ""}`.trim(),
+  stock: item.stockNumber || "N/A",
+  vin: item.vin,
+  modelYear: item.year,
+  mileage: typeof item.mileage === "number" ? item.mileage : "N/A",
+  price: item.price,
+  jdPower: typeof item.jdPower === "number" && item.jdPower > 0 ? item.jdPower : "N/A",
+  jdPowerRetail:
+    typeof item.jdPowerRetail === "number" && item.jdPowerRetail > 0 ? item.jdPowerRetail : "N/A",
+  unitCost: typeof item.unitCost === "number" && item.unitCost > 0 ? item.unitCost : "N/A",
+  baseOutTheDoorPrice: "N/A",
+  make: item.make,
+  model: item.model,
+  trim: item.trim,
+});
 
 /**
  * Inventory import / VIN decode / favorites-PDF handlers, extracted verbatim
@@ -45,6 +66,16 @@ export function useInventoryImport() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const role = getCurrentUser()?.role;
+    if (role !== "admin" && role !== "superadmin") {
+      setMessage({
+        type: "error",
+        text: "Administrator access is required to import inventory.",
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     // Validate file size (10MB max)
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
@@ -126,12 +157,20 @@ export function useInventoryImport() {
         jdPowerRetail: typeof v.jdPowerRetail === "number" ? v.jdPowerRetail : undefined,
       }));
 
-      // Wait for sync to complete before updating UI
-      const syncResult = await syncInventory(itemsToSync);
+      // A file import is an intentional full-feed replacement. VINs omitted
+      // from the uploaded feed are marked sold; the one-off VIN decoder below
+      // continues to use partial-update semantics.
+      const syncResult = await syncInventory(itemsToSync, { markMissingSold: true });
 
-      // Only update local state after successful sync
-      setInventory(data);
-      // Integrate RQ: ensure cache reflects the import (sub will also update via realtime).
+      // Re-read server state so partial write failures can never install
+      // unpersisted parsed rows in the local inventory.
+      const persistedItems = await getInventory();
+      const persistedVehicles = persistedItems
+        .filter((item) => item.status !== "sold")
+        .map(mapPersistedInventoryItem);
+
+      setInventory(persistedVehicles);
+      queryClient.setQueryData(currentDealerQueryKeys().inventory, persistedVehicles);
       queryClient.invalidateQueries({ queryKey: queryKeys.inventory });
       setPagination((prev) => ({ ...prev, currentPage: 1 }));
 
@@ -195,7 +234,7 @@ export function useInventoryImport() {
         "Toyota",
         "Camry",
         "SE",
-        "1G1...SAMPLE1",
+        "1HGCM82633A004352",
         "15000",
         "28500",
         "25000",
@@ -209,9 +248,15 @@ export function useInventoryImport() {
       type: "text/csv;charset=utf-8;",
     });
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    link.href = url;
     link.download = "inventory_sample.csv";
+    link.rel = "noopener";
+    link.style.display = "none";
+    document.body.appendChild(link);
     link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   // VIN Lookup Handler
@@ -326,10 +371,8 @@ export function useInventoryImport() {
         });
 
       const blob = await generateFavoritesPdf(pdfData, settings);
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      setMessage({ type: "success", text: "Favorites PDF generated." });
+      downloadBlob(blob, "LTV_Favorites.pdf");
+      setMessage({ type: "success", text: "Favorites PDF downloaded." });
       // Evidence trail: record exactly what was handed across the desk —
       // the PDF itself is ephemeral client-side output. [G44]
       void logDealEvent({

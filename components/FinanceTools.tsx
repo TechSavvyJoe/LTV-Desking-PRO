@@ -331,21 +331,21 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const navItems = NAV_ITEMS;
 
   return (
-    <div className="flex min-h-[600px] rounded-lg overflow-hidden shadow-sm bg-[var(--color-bg)] border border-[var(--color-border)]">
+    <div className="finance-tools-shell flex min-h-[600px] rounded-lg overflow-hidden shadow-sm bg-[var(--color-bg)] border border-[var(--color-border)]">
       {/* Sidebar */}
-      <div className="w-64 bg-[var(--color-bg-subtle)] border-r border-[var(--color-border)] flex flex-col">
-        <div className="p-4 border-b border-[var(--color-border)]">
+      <div className="finance-tools-sidebar w-64 bg-[var(--color-bg-subtle)] border-r border-[var(--color-border)] flex flex-col">
+        <div className="finance-tools-heading p-4 border-b border-[var(--color-border)]">
           <h3 className="text-lg font-semibold text-[var(--color-text)]">Finance tools</h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">Calculators & utilities</p>
         </div>
-        <nav className="flex-1 p-2 space-y-1" aria-label="Finance tools">
+        <nav className="finance-tools-nav flex-1 p-2 space-y-1" aria-label="Finance tools">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               role="tab"
               aria-selected={activeTab === item.id}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-[var(--duration-fast)] ${
+              className={`finance-tools-tab w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-[var(--duration-fast)] ${
                 activeTab === item.id
                   ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
                   : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)]"
@@ -357,7 +357,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
           ))}
         </nav>
         {dealData && (
-          <div className="p-4 border-t border-[var(--color-border)]">
+          <div className="finance-tools-reset p-4 border-t border-[var(--color-border)]">
             <button
               onClick={handleSyncToDeal}
               className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)] transition-colors duration-[var(--duration-fast)]"
@@ -370,8 +370,8 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-transparent">
-        <div className="flex-1 p-6">
+      <div className="finance-tools-main flex-1 flex flex-col bg-transparent">
+        <div className="finance-tools-content flex-1 p-6">
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-semibold text-[var(--color-text)]">

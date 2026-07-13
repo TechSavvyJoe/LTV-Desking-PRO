@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { lenderFitForVehicle, unitsForEachLender, activeLenderCount } from "./lenderFit";
-import { INITIAL_DEAL_DATA, INITIAL_FILTER_DATA } from "../constants";
+import { DEFAULT_LENDER_PROFILES, INITIAL_DEAL_DATA, INITIAL_FILTER_DATA } from "../constants";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile } from "../types";
 
 // Real LenderProfile shapes with tiers — Alpha has a prime tier that falls back
@@ -103,6 +103,49 @@ describe("lenderFit", () => {
       expect(fit.fitCount).toBe(0);
       expect(fit.fitNames).toEqual([]);
     });
+
+    it("ranks verified fits by effective rate with deterministic tie-breakers", () => {
+      const expensive: LenderProfile = {
+        id: "a-expensive",
+        name: "A Expensive Bank",
+        tiers: [{ name: "Rate", minFico: 600, baseInterestRate: 9.25 }],
+      };
+      const lowerRate: LenderProfile = {
+        id: "z-lower",
+        name: "Z Lower Rate CU",
+        tiers: [{ name: "Rate", minFico: 600, baseInterestRate: 6.25 }],
+      };
+
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal(), [expensive, lowerRate]);
+
+      expect(fit.fitNames).toEqual(["Z Lower Rate CU", "A Expensive Bank"]);
+      expect(fit.entries[0]?.effectiveRate).toBe(6.25);
+    });
+
+    it("keeps pending and sample programs visible but out of fitCount", () => {
+      const sample: LenderProfile = {
+        id: "sample",
+        name: "Sample Program",
+        isSample: true,
+        tiers: [{ name: "Illustrative" }],
+      };
+      const needsDebt: LenderProfile = {
+        id: "dti",
+        name: "Needs DTI",
+        maxDti: 40,
+        tiers: [{ name: "DTI" }],
+      };
+
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ monthlyDebt: null }), [
+        sample,
+        needsDebt,
+      ]);
+
+      expect(fit.entries).toHaveLength(2);
+      expect(fit.entries.every((entry) => entry.status === "pending")).toBe(true);
+      expect(fit.fitCount).toBe(0);
+      expect(fit.fitNames).toEqual([]);
+    });
   });
 
   describe("unitsForEachLender", () => {
@@ -129,6 +172,11 @@ describe("lenderFit", () => {
       expect(activeLenderCount([ghost])).toBe(0);
       expect(activeLenderCount([])).toBe(0);
     });
+  });
+
+  it("preserves all 13 illustrative default lender records with sample provenance", () => {
+    expect(DEFAULT_LENDER_PROFILES).toHaveLength(13);
+    expect(DEFAULT_LENDER_PROFILES.every((profile) => profile.isSample)).toBe(true);
   });
 
   describe("lenderFit additional edges", () => {

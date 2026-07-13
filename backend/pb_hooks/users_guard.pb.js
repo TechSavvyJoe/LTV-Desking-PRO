@@ -116,13 +116,19 @@ onRecordCreateRequest((e) => {
   // Detect platform superuser (from _superusers) or app superadmin.
   const isSuperuser = authCollectionName === "_superusers" || actorRole === "superadmin";
 
-  // CRITICAL: PocketBase BoolField is non-nullable and defaults to the zero
-  // value `false` when omitted on create — and NO create path (register,
-  // createUser, createDealerUser, admin) sets `active`. Without this, every new
-  // user is born active=false and the deactivation auth hook locks them out
-  // immediately (self-registration auto-login fails; admin-created users can
-  // never sign in). Stamp active=true unless explicitly being deactivated. [G40]
-  if (e.record.get("active") !== false) e.record.set("active", true);
+  // PocketBase BoolField defaults to false, so reading the record cannot tell
+  // whether `active: false` was intentional or merely omitted. Inspect the raw
+  // request body instead and default only omitted values to true. This keeps an
+  // explicit inactive create available to admins while ensuring ordinary new
+  // accounts are usable immediately. [G40]
+  let activeWasProvided = false;
+  try {
+    const body = e.requestInfo().body || {};
+    activeWasProvided = Object.prototype.hasOwnProperty.call(body, "active");
+  } catch (err) {
+    activeWasProvided = false;
+  }
+  if (!activeWasProvided) e.record.set("active", true);
 
   // Only a superadmin may create a user with an arbitrary role / dealership.
   if (isSuperuser) return e.next();
@@ -135,6 +141,13 @@ onRecordCreateRequest((e) => {
     const actorDealer = auth && typeof auth.get === "function" ? auth.get("dealer") : "";
     if (actorDealer) e.record.set("dealer", actorDealer);
     return e.next();
+  }
+
+  // The collection rule currently permits only admins/superadmins to create
+  // users. Keep this explicit denial as defense in depth in case that rule is
+  // ever relaxed for an invite flow.
+  if (auth) {
+    throw new ForbiddenError("Only a dealership administrator can create user accounts.");
   }
 
   // Public self-registration (no authenticated actor). PB API rules cannot
@@ -223,17 +236,18 @@ onRecordDeleteRequest((e) => {
 // no longer authenticate or refresh a session. Missing/undefined `active` is
 // treated as active so pre-flag accounts keep working. [G40]
 onRecordAuthRequest((e) => {
+  let isInactive = false;
   try {
     const record = e.record;
     if (record && record.collection().name === "users") {
-      const raw = record.get("active");
-      if (raw === false) {
-        throw new ForbiddenError("This account has been deactivated. Contact your administrator.");
-      }
+      isInactive = record.get("active") === false;
     }
   } catch (err) {
-    // Re-throw real denials; never let introspection errors block login.
-    if (err instanceof ForbiddenError) throw err;
+    // Introspection errors should not lock out otherwise valid legacy users.
+    isInactive = false;
+  }
+  if (isInactive) {
+    throw new ForbiddenError("This account has been deactivated. Contact your administrator.");
   }
   return e.next();
 });

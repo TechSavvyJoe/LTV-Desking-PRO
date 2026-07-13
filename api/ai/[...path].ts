@@ -12,8 +12,9 @@ import { handleAiRequest } from "../_lib/ai/routes.js";
  * Keys come from the PocketBase `ai_provider_keys` collection at request
  * time via server/ai/keyResolver.ts. Vercel env vars required:
  *   PB_INTERNAL_URL       — e.g. https://ltv-desking-pro-api.fly.dev
- *   PB_SERVICE_EMAIL      — a PocketBase _superusers email
- *   PB_SERVICE_PASSWORD   — the password for that superuser
+ *   PB_SERVICE_COLLECTION — api_service_accounts
+ *   PB_SERVICE_EMAIL      — a narrowly scoped ai_proxy service identity
+ *   PB_SERVICE_PASSWORD   — the password for that service identity
  *
  * Request body size: Vercel caps Node functions at ~4.5 MB. For lender PDF
  * extraction, files larger than ~3 MB (base64 inflates ~33%) will reject.

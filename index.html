@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LTV Desking PRO — Automotive desking, lender matching, F&amp;I tooling</title>
     <meta name="description" content="LTV Desking PRO helps US dealerships structure deals, match lenders, and run F&I workflows — with AI-assisted rate-sheet extraction and integrated audit logging." />
-    <meta name="theme-color" content="#14171c" />
+    <!-- Per-scheme browser chrome tint — matches --color-bg-subtle (light) and
+         --color-bg (dark) from index.css. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#05080b" />
     <meta name="color-scheme" content="dark light" />
 
     <!-- Theme bootstrap: set the <html> class before first paint to avoid a
@@ -52,15 +55,15 @@
         font-size: 16px;
         transition: background-color 0.3s, color 0.3s;
       }
-      /* Light (warm cream) */
+      /* Light — mirrors index.css :root tokens (--color-bg-subtle / --color-text) */
       body {
-        background-color: #f6f5f1;
-        color: #15140f;
+        background-color: #f8fafc;
+        color: #0f172a;
       }
-      /* Dark (near-black, default) */
+      /* Dark (default) — mirrors index.css .dark tokens (--color-bg / --color-text) */
       .dark body {
-        background-color: #0a0c0f;
-        color: #f1f0e9;
+        background-color: #05080b;
+        color: #f5f7f8;
       }
       /* Custom scrollbar */
       ::-webkit-scrollbar {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyBackendProductPatch,
   getBackendProductSplit,
+  normalizeBackendProductFields,
   parseMoneyInput,
 } from "./backendProducts";
 
@@ -44,6 +45,34 @@ describe("backend product split", () => {
       vscAmount: 0,
       gapAmount: 0,
       backendProducts: 125,
+    });
+  });
+
+  it("repairs a stale total that is lower than its persisted components", () => {
+    expect(
+      normalizeBackendProductFields({
+        backendProducts: 1000,
+        vscAmount: 2495,
+        gapAmount: 895,
+      })
+    ).toEqual({
+      backendProducts: 3390,
+      vscAmount: 2495,
+      gapAmount: 895,
+    });
+  });
+
+  it("preserves an excess canonical total as implicit other backend", () => {
+    expect(
+      normalizeBackendProductFields({
+        backendProducts: 4000,
+        vscAmount: 2495,
+        gapAmount: 895,
+      })
+    ).toEqual({
+      backendProducts: 4000,
+      vscAmount: 2495,
+      gapAmount: 895,
     });
   });
 

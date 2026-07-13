@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { XMarkIcon } from "./Icons";
 import { subscribe } from "../../lib/toast";
 
@@ -13,52 +13,37 @@ const BADGE: Record<ToastType, { bg: string; color: string; glyph: string }> = {
   info: { bg: "var(--color-bg-muted)", color: "var(--color-text-muted)", glyph: "i" },
 };
 
+/** At most 3 toasts on screen; older ones are dropped first. */
+const MAX_VISIBLE_TOASTS = 3;
+const AUTO_DISMISS_MS = 5500;
+
+interface ToastEntry {
+  id: number;
+  message: string;
+  type: ToastType;
+}
+
 /**
- * Bottom-center toast pill (dc mockup): opaque bg, strong border, 18px round
- * status badge + 14px/500 message, `.toast-pop` entrance. Keeps the existing
- * lib/toast pub/sub API, auto-dismiss timing (success/info: 5.5s, paused on
- * hover/focus; error/warning: persist until dismissed) and aria semantics.
+ * Single toast pill (dc mockup): opaque bg, strong border, 18px round status
+ * badge + 14px/500 message, `.toast-pop` entrance. Errors and warnings persist
+ * until dismissed; success/info auto-dismiss after a comfortable window and
+ * pause while the user hovers/focuses the toast. [a11y]
  */
-export const Toast: React.FC = () => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [message, setMessage] = useState("");
-  const [type, setType] = useState<ToastType>("info");
+const ToastItem: React.FC<{ entry: ToastEntry; onDismiss: (id: number) => void }> = ({
+  entry,
+  onDismiss,
+}) => {
   const [isPaused, setIsPaused] = useState(false);
-  // Bumped per publish so a repeat toast restarts the .toast-pop entrance.
-  const [nonce, setNonce] = useState(0);
+  const persistent = entry.type === "error" || entry.type === "warning";
 
   useEffect(() => {
-    return subscribe((msg, t) => {
-      setMessage(msg);
-      setType(t);
-      setIsVisible(true);
-      setIsPaused(false);
-      setNonce((n) => n + 1);
-    });
-  }, []);
+    if (persistent || isPaused) return;
 
-  // Errors and warnings persist until dismissed; success/info auto-dismiss after
-  // a comfortable window and pause while the user hovers/focuses the toast. [a11y]
-  const persistent = type === "error" || type === "warning";
+    const timer = setTimeout(() => onDismiss(entry.id), AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [persistent, isPaused, entry.id, onDismiss]);
 
-  useEffect(() => {
-    if (!isVisible || persistent || isPaused) return;
-
-    const duration = 5500;
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-    }, duration);
-
-    return () => {
-      clearTimeout(timer);
-    };
-    // `nonce` bumps on every publish — without it, re-publishing the SAME
-    // message near expiry kept the old timer and dismissed almost instantly.
-  }, [isVisible, message, persistent, isPaused, nonce]);
-
-  if (!isVisible) return null;
-
-  const badge = BADGE[type];
+  const badge = BADGE[entry.type];
 
   // Errors and warnings are assertive (announce immediately); success/info
   // are polite (wait for screen reader to finish its current utterance).
@@ -67,7 +52,6 @@ export const Toast: React.FC = () => {
 
   return (
     <div
-      key={nonce}
       className="toast-pop"
       role={role}
       aria-live={ariaLive}
@@ -77,11 +61,7 @@ export const Toast: React.FC = () => {
       onFocus={() => setIsPaused(true)}
       onBlur={() => setIsPaused(false)}
       style={{
-        position: "fixed",
-        left: "50%",
-        bottom: 26,
-        transform: "translateX(-50%)",
-        zIndex: 80,
+        pointerEvents: "auto",
         display: "flex",
         alignItems: "center",
         gap: 10,
@@ -111,10 +91,19 @@ export const Toast: React.FC = () => {
       >
         {badge.glyph}
       </span>
-      <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: "nowrap" }}>{message}</span>
+      <span
+        style={{
+          fontSize: 14,
+          fontWeight: 500,
+          maxWidth: "min(92vw, 480px)",
+          overflowWrap: "anywhere",
+        }}
+      >
+        {entry.message}
+      </span>
       {persistent && (
         <button
-          onClick={() => setIsVisible(false)}
+          onClick={() => onDismiss(entry.id)}
           aria-label="Dismiss notification"
           className="transition-colors"
           style={{
@@ -132,6 +121,52 @@ export const Toast: React.FC = () => {
           <XMarkIcon className="w-4 h-4" aria-hidden="true" />
         </button>
       )}
+    </div>
+  );
+};
+
+/**
+ * Bottom-center toast stack. Keeps the existing lib/toast pub/sub API —
+ * every publish appends a toast (newest at the bottom) instead of replacing
+ * the current one, so rapid events don't clobber each other. The container
+ * layers at the --z-toast token (200), above modals (--z-modal: 100).
+ */
+export const Toast: React.FC = () => {
+  const [toasts, setToasts] = useState<ToastEntry[]>([]);
+  const nextId = useRef(1);
+
+  useEffect(() => {
+    return subscribe((message, type) => {
+      setToasts((prev) =>
+        [...prev, { id: nextId.current++, message, type }].slice(-MAX_VISIBLE_TOASTS)
+      );
+    });
+  }, []);
+
+  const dismiss = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  if (toasts.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: 26,
+        zIndex: "var(--z-toast)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 8,
+        pointerEvents: "none",
+      }}
+    >
+      {toasts.map((entry) => (
+        <ToastItem key={entry.id} entry={entry} onDismiss={dismiss} />
+      ))}
     </div>
   );
 };

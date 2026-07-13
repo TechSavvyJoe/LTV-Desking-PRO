@@ -37,6 +37,7 @@ describe("approvalScorer (mockup formula + retained hardening)", () => {
       expect(APPROVAL_CONFIG.ptiSoftCap).toEqual({ threshold: 20, cap: 55 });
       expect(APPROVAL_CONFIG.ptiHardCap).toEqual({ threshold: 25, cap: 35 });
       expect(APPROVAL_CONFIG.noFitCap).toBe(45);
+      expect(APPROVAL_CONFIG.pti.unknown).toBe(50);
       expect(APPROVAL_CONFIG.bands).toEqual({ strong: 72, moderate: 50 });
       expect(APPROVAL_CONFIG.clamp).toEqual({ floor: 8, ceil: 98 });
     });
@@ -44,30 +45,26 @@ describe("approvalScorer (mockup formula + retained hardening)", () => {
 
   describe("band boundaries (strong ≥ 72, moderate ≥ 50)", () => {
     it("scores exactly 72 as strong", () => {
-      // creditComp (512) = 15.5 → 5.58; ltvComp (otd 100) = 105 → 52.5;
-      // ptiComp unknown = 100 → 14 ⇒ 72.08 → 72.
-      const r = scoreApprovalOdds(mkVehicle(100), { creditScore: 512, monthlyIncome: null }, 3);
+      // Missing income is neutral (7 weighted points), not best-in-class.
+      const r = scoreApprovalOdds(mkVehicle(100), { creditScore: 589, monthlyIncome: null }, 3);
       expect(r.internalScore).toBe(72);
       expect(r.band).toBe("strong");
     });
 
     it("scores just below 72 as moderate", () => {
-      // creditComp (500) = 12.5 → 4.5 ⇒ 71.0 → 71.
-      const r = scoreApprovalOdds(mkVehicle(100), { creditScore: 500, monthlyIncome: null }, 3);
+      const r = scoreApprovalOdds(mkVehicle(100), { creditScore: 580, monthlyIncome: null }, 3);
       expect(r.internalScore).toBe(71);
       expect(r.band).toBe("moderate");
     });
 
     it("scores at/above 50 as moderate and below 50 as weak", () => {
-      // fico unknown → creditComp 50 → 18; ptiComp unknown → 14.
-      // otd 135.9 ⇒ ltvComp 36.02 → 18.01 ⇒ 50.01 → 50 (moderate)
-      const atBoundary = scoreApprovalOdds(mkVehicle(135.9), noIncome, 3);
+      // fico unknown contributes 18 and neutral PTI contributes 7.
+      const atBoundary = scoreApprovalOdds(mkVehicle(129.55), noIncome, 3);
       expect(atBoundary.internalScore).toBe(50);
       expect(atBoundary.band).toBe("moderate");
 
-      // otd 137 ⇒ ltvComp 33.6 → 16.8 ⇒ 48.8 → 49 (weak)
-      const below = scoreApprovalOdds(mkVehicle(137), noIncome, 3);
-      expect(below.internalScore).toBe(49);
+      const below = scoreApprovalOdds(mkVehicle(131), noIncome, 3);
+      expect(below.internalScore).toBe(48);
       expect(below.band).toBe("weak");
     });
   });
@@ -85,8 +82,7 @@ describe("approvalScorer (mockup formula + retained hardening)", () => {
     });
 
     it("ceils a perfect structure at 98", () => {
-      // creditComp 100 → 36; ltvComp clamped to 105 → 52.5; unknown pti → 14 ⇒ 102.5 → 98.
-      const r = scoreApprovalOdds(mkVehicle(80), { creditScore: 850, monthlyIncome: null }, 8);
+      const r = scoreApprovalOdds(mkVehicle(80, 200), { creditScore: 850, monthlyIncome: 5000 }, 8);
       expect(r.internalScore).toBe(98);
       expect(r.band).toBe("strong");
     });
@@ -120,17 +116,17 @@ describe("approvalScorer (mockup formula + retained hardening)", () => {
   });
 
   describe("unknown inputs", () => {
-    it("treats unknown income as a neutral-high PTI component (100), not a penalty", () => {
-      // creditComp (650) = 50 → 18; ltvComp (otd 100) = 105 → 52.5; ptiComp 100 → 14 ⇒ 84.5 → 85.
+    it("holds unknown income neutral instead of awarding the best PTI component", () => {
       const r = scoreApprovalOdds(mkVehicle(100), { creditScore: 650, monthlyIncome: null }, 4);
-      expect(r.internalScore).toBe(85);
+      expect(r.internalScore).toBe(78);
       expect(r.ptiRatio).toBeUndefined();
+      expect(r.reasons).toContain("Monthly income missing; PTI held neutral");
     });
 
     it("treats missing fico and missing ltv as neutral 50 components", () => {
-      // creditComp 50 → 18; ltvComp 50 → 25; ptiComp 100 → 14 ⇒ 57.
+      // creditComp 50 → 18; ltvComp 50 → 25; neutral PTI → 7 ⇒ 50.
       const r = scoreApprovalOdds(mkVehicle("N/A"), noIncome, 2);
-      expect(r.internalScore).toBe(57);
+      expect(r.internalScore).toBe(50);
       expect(r.band).toBe("moderate");
     });
   });

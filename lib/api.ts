@@ -37,18 +37,30 @@ const asTypeArray = <T>(records: RecordModel[]): T[] => asRecordArray<T>(records
 // ============================================
 
 /**
- * Fetch options for the read APIs. `throwOnError: true` makes a network/server
- * failure THROW instead of silently returning [] — required by DealContext's
- * loadData so its error/retry UI is actually reachable (previously the catch
- * that sets dataError was dead code, and a network failure rendered as
- * "Inventory is empty"). [C10]
+ * Fetch options for the dealer-scoped read APIs.
  *
- * RQ: These are now used as queryFn inside DealContext's fetchQuery calls
- * (loadData). They remain the canonical fetch impls.
+ * Default: THROW on network/server failure so callers cannot silently treat
+ * outages as empty data (C10). Pass `{ soft: true }` (or legacy
+ * `{ throwOnError: false }`) only when an empty/null fallback is intentional.
+ *
+ * Unauthenticated / no-dealer early returns still return []/null without error.
  */
-interface FetchOpts {
+export interface FetchOpts {
+  /** Swallow errors and return []/null. Prefer this over throwOnError: false. */
+  soft?: boolean;
+  /**
+   * @deprecated Prefer `soft: true`. When `false`, swallows errors (legacy).
+   * When `true` or omitted, throws (default).
+   */
   throwOnError?: boolean;
 }
+
+/** True when the caller opted into empty/null fallbacks instead of throwing. */
+export const shouldSwallowFetchError = (opts?: FetchOpts): boolean => {
+  if (opts?.soft === true) return true;
+  if (opts?.throwOnError === false) return true;
+  return false;
+};
 
 export const getInventory = async (opts?: FetchOpts): Promise<InventoryItem[]> => {
   const dealerId = getCurrentDealerId();
@@ -66,8 +78,8 @@ export const getInventory = async (opts?: FetchOpts): Promise<InventoryItem[]> =
     return asTypeArray<InventoryItem>(records);
   } catch (error) {
     apiLogger.error("Failed to fetch inventory", error);
-    if (opts?.throwOnError) throw error;
-    return [];
+    if (shouldSwallowFetchError(opts)) return [];
+    throw error;
   }
 };
 
@@ -127,7 +139,8 @@ export const syncInventory = async (
     unitCost?: number;
     jdPower?: number;
     jdPowerRetail?: number;
-  }>
+  }>,
+  options: { markMissingSold?: boolean } = {}
 ): Promise<{ added: number; updated: number; removed: number; failed: number }> => {
   const dealerId = getCurrentDealerId();
   // Fail loudly instead of returning zeros that the UI would render as a green
@@ -207,11 +220,15 @@ export const syncInventory = async (
       }
     }
 
-    // Prepare removal operations (mark as sold)
+    // A partial file upload and the one-item VIN decoder both use this helper.
+    // Missing rows therefore mean "not included in this import", not "sold".
+    // Archiving absent units is available only to an explicit full-feed caller.
     const removeOperations: Promise<unknown>[] = [];
-    for (const [vin, existing] of existingByVin) {
-      if (!incomingVins.has(vin)) {
-        removeOperations.push(collections.inventory.update(existing.id, { status: "sold" }));
+    if (options.markMissingSold) {
+      for (const [vin, existing] of existingByVin) {
+        if (!incomingVins.has(vin)) {
+          removeOperations.push(collections.inventory.update(existing.id, { status: "sold" }));
+        }
       }
     }
 
@@ -274,8 +291,8 @@ export const getLenderProfiles = async (opts?: FetchOpts): Promise<LenderProfile
       "Failed to fetch lender profiles",
       error instanceof Error ? error : new Error(String(error))
     );
-    if (opts?.throwOnError) throw error;
-    return [];
+    if (shouldSwallowFetchError(opts)) return [];
+    throw error;
   }
 };
 
@@ -494,8 +511,8 @@ export const getSavedDeals = async (opts?: FetchOpts): Promise<SavedDeal[]> => {
     return asTypeArray<SavedDeal>(records);
   } catch (error) {
     apiLogger.error("Failed to fetch saved deals", error);
-    if (opts?.throwOnError) throw error;
-    return [];
+    if (shouldSwallowFetchError(opts)) return [];
+    throw error;
   }
 };
 
@@ -504,6 +521,8 @@ export const saveDeal = async (
 ): Promise<SavedDeal | null> => {
   const dealerId = getCurrentDealerId();
   const userId = pb.authStore.model?.id;
+  // Missing auth/dealer is not a transport failure — callers treat null as
+  // "cannot save in this session" without a thrown error.
   if (!dealerId || !userId) return null;
 
   try {
@@ -515,7 +534,7 @@ export const saveDeal = async (
     return asType<SavedDeal>(record);
   } catch (error) {
     apiLogger.error("Failed to save deal", error);
-    return null;
+    throw error instanceof Error ? error : new Error("Failed to save deal.");
   }
 };
 
@@ -621,8 +640,8 @@ export const getDealerSettings = async (opts?: FetchOpts): Promise<DealerSetting
     return records.items[0] ? asType<DealerSettings>(records.items[0]) : null;
   } catch (error) {
     apiLogger.error("Failed to fetch dealer settings", error);
-    if (opts?.throwOnError) throw error;
-    return null;
+    if (shouldSwallowFetchError(opts)) return null;
+    throw error;
   }
 };
 
@@ -633,7 +652,9 @@ export const updateDealerSettings = async (
   if (!dealerId) return null;
 
   try {
-    const existing = await getDealerSettings();
+    // Soft read: update path has its own catch and should not surface a
+    // settings-fetch blip as an unhandled rejection from a fire-and-forget sync.
+    const existing = await getDealerSettings({ soft: true });
 
     if (existing) {
       const record = await collections.dealerSettings.update(existing.id, data);
@@ -668,11 +689,10 @@ const SUBSCRIPTION_REFETCH_DEBOUNCE_MS = 300;
  * rejection. No initial fetch here — DealContext.loadData performs it, so we
  * don't double-fetch on mount. [frontend-state]
  *
- * RACE NOTE: The debounced refetch here + loadData's seq guard + direct set*
- * callbacks create potential races with optimistic updates in context/hooks.
- * See DealContext load/sub effect + handleInventoryUpdate. Progress: loadData
- * now drives via fetchQuery; optimistic success uses server result.
- * Future: subs can invalidateQueries + rely on useQuery data.
+ * RACE NOTE: The debounced refetch here + DealContext useQuery + direct
+ * setQueryData callbacks create potential races with optimistic updates.
+ * Subs write via setQueryData so useQuery remains the source of truth for
+ * arrays exposed on context.
  */
 export const subscribeToInventory = (callback: (data: InventoryItem[]) => void): (() => void) => {
   const dealerId = getCurrentDealerId();
@@ -820,13 +840,6 @@ export interface MaskedAiProviderKeys {
   lastTested: Partial<Record<AiProviderId, AiProviderKeyTest>>;
 }
 
-const maskKey = (raw: string | undefined | null): string => {
-  if (!raw) return "";
-  const trimmed = raw.trim();
-  if (trimmed.length <= 8) return "•".repeat(trimmed.length);
-  return `${trimmed.slice(0, 4)}…${trimmed.slice(-4)}`;
-};
-
 const SYSTEM_SETTINGS_CACHE_KEY = "ltv_system_settings_cache";
 
 export const getSystemSettings = async (): Promise<SystemSettings> => {
@@ -904,26 +917,6 @@ export interface AuditLogEntry {
   expand?: { actor?: { email?: string; firstName?: string; lastName?: string } };
 }
 
-const writeAuditLog = async (input: {
-  action: string;
-  target?: string;
-  details?: unknown;
-}): Promise<void> => {
-  const user = getCurrentUser();
-  if (!user?.id) return;
-  try {
-    await pb.collection("audit_log").create({
-      actor: user.id,
-      action: input.action,
-      target: input.target ?? "",
-      details: input.details ?? {},
-    });
-  } catch (error) {
-    // Audit logging must never break the user's action — just warn.
-    apiLogger.warn("audit log write failed", { error, action: input.action });
-  }
-};
-
 export const listAuditLog = async (limit = 25): Promise<AuditLogEntry[]> => {
   const user = getCurrentUser();
   if (user?.role !== "superadmin") throw new Error("Owner access required");
@@ -938,6 +931,34 @@ export const listAuditLog = async (limit = 25): Promise<AuditLogEntry[]> => {
 // SUPERADMIN: AI Provider Keys (singleton)
 // ============================================
 
+const requestAiProviderKeys = async (
+  method: "GET" | "PUT",
+  input?: {
+    openaiApiKey?: string;
+    anthropicApiKey?: string;
+    geminiApiKey?: string;
+    clear?: AiProviderId[];
+  }
+): Promise<MaskedAiProviderKeys> => {
+  const response = await fetch("/api/ai/provider-keys", {
+    method,
+    headers: {
+      Authorization: `Bearer ${pb.authStore.token}`,
+      ...(input ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(input ? { body: JSON.stringify(input) } : {}),
+  });
+  const body = (await response.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+    data?: MaskedAiProviderKeys;
+  };
+  if (!response.ok || !body.ok || !body.data) {
+    throw new Error(body.error ?? `AI provider settings request failed (${response.status}).`);
+  }
+  return body.data;
+};
+
 /**
  * Returns the singleton AI provider key record with keys masked (only last 4
  * chars visible). The server-side AI proxy reads full keys directly from PB —
@@ -946,34 +967,7 @@ export const listAuditLog = async (limit = 25): Promise<AuditLogEntry[]> => {
 export const getMaskedAiProviderKeys = async (): Promise<MaskedAiProviderKeys> => {
   const user = getCurrentUser();
   if (user?.role !== "superadmin") throw new Error("Owner access required");
-
-  const list = await pb.collection("ai_provider_keys").getFullList({ sort: "created" });
-  const first = list[0];
-  if (!first) {
-    return {
-      configured: { openai: false, anthropic: false, gemini: false },
-      lastTested: {},
-    };
-  }
-  const raw = asType<{
-    id: string;
-    openaiApiKey?: string;
-    anthropicApiKey?: string;
-    geminiApiKey?: string;
-    lastTested?: Partial<Record<AiProviderId, AiProviderKeyTest>>;
-  }>(first);
-  return {
-    id: raw.id,
-    openaiApiKey: maskKey(raw.openaiApiKey),
-    anthropicApiKey: maskKey(raw.anthropicApiKey),
-    geminiApiKey: maskKey(raw.geminiApiKey),
-    configured: {
-      openai: Boolean(raw.openaiApiKey && raw.openaiApiKey.length > 0),
-      anthropic: Boolean(raw.anthropicApiKey && raw.anthropicApiKey.length > 0),
-      gemini: Boolean(raw.geminiApiKey && raw.geminiApiKey.length > 0),
-    },
-    lastTested: raw.lastTested ?? {},
-  };
+  return requestAiProviderKeys("GET");
 };
 
 /**
@@ -991,45 +985,7 @@ export const updateAiProviderKeys = async (input: {
 }): Promise<MaskedAiProviderKeys> => {
   const user = getCurrentUser();
   if (user?.role !== "superadmin") throw new Error("Owner access required");
-
-  const list = await pb.collection("ai_provider_keys").getFullList({ sort: "created" });
-  const existing = list[0];
-
-  const patch: Record<string, string> = {};
-  if (input.openaiApiKey && input.openaiApiKey.trim()) {
-    patch.openaiApiKey = input.openaiApiKey.trim();
-  }
-  if (input.anthropicApiKey && input.anthropicApiKey.trim()) {
-    patch.anthropicApiKey = input.anthropicApiKey.trim();
-  }
-  if (input.geminiApiKey && input.geminiApiKey.trim()) {
-    patch.geminiApiKey = input.geminiApiKey.trim();
-  }
-  for (const provider of input.clear ?? []) {
-    patch[`${provider}ApiKey`] = "";
-  }
-
-  if (existing) {
-    await pb.collection("ai_provider_keys").update(existing.id, patch);
-  } else {
-    await pb.collection("ai_provider_keys").create({
-      openaiApiKey: patch.openaiApiKey ?? "",
-      anthropicApiKey: patch.anthropicApiKey ?? "",
-      geminiApiKey: patch.geminiApiKey ?? "",
-      lastTested: {},
-    });
-  }
-
-  for (const provider of ["openai", "anthropic", "gemini"] as const) {
-    if (patch[`${provider}ApiKey`] && patch[`${provider}ApiKey`] !== "") {
-      await writeAuditLog({ action: "ai_key_updated", target: provider });
-    }
-  }
-  for (const provider of input.clear ?? []) {
-    await writeAuditLog({ action: "ai_key_cleared", target: provider });
-  }
-
-  return getMaskedAiProviderKeys();
+  return requestAiProviderKeys("PUT", input);
 };
 
 /**
@@ -1057,11 +1013,6 @@ export const testAiProviderKey = async (provider: AiProviderId): Promise<AiProvi
     ok: Boolean(body.ok),
     error: body.error,
   };
-  await writeAuditLog({
-    action: "ai_key_tested",
-    target: provider,
-    details: { ok: result.ok, error: result.error },
-  });
   return result;
 };
 
@@ -1110,13 +1061,7 @@ export const getSystemStats = async (): Promise<SystemStats> => {
     };
   } catch (error) {
     apiLogger.error("Failed to fetch system stats", error);
-    return {
-      totalDealers: 0,
-      activeDealers: 0,
-      totalUsers: 0,
-      totalDeals: 0,
-      totalInventory: 0,
-    };
+    throw error;
   }
 };
 
@@ -1128,15 +1073,10 @@ export const getAllDealers = async (): Promise<Dealer[]> => {
   const user = getCurrentUser();
   if (user?.role !== "superadmin") return [];
 
-  try {
-    const records = await collections.dealers.getFullList({
-      sort: "name",
-    });
-    return asTypeArray<Dealer>(records);
-  } catch (error) {
-    apiLogger.error("Failed to fetch dealers", error);
-    return [];
-  }
+  const records = await collections.dealers.getFullList({
+    sort: "name",
+  });
+  return asTypeArray<Dealer>(records);
 };
 
 export const createDealer = async (
@@ -1324,7 +1264,7 @@ export const getAllUsers = async (): Promise<User[]> => {
       );
     }
 
-    return [];
+    throw error;
   }
 };
 
@@ -1382,16 +1322,11 @@ export const getDealerUsers = async (): Promise<User[]> => {
   if (!user || !dealerId) return [];
   if (user.role !== "admin" && user.role !== "superadmin") return [];
 
-  try {
-    const records = await pb.collection("users").getFullList({
-      filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
-      sort: "firstName",
-    });
-    return asTypeArray<User>(records);
-  } catch (error) {
-    apiLogger.error("Failed to fetch dealer users", error);
-    return [];
-  }
+  const records = await pb.collection("users").getFullList({
+    filter: pb.filter("dealer = {:dealer}", { dealer: sanitizeId(dealerId) }),
+    sort: "firstName",
+  });
+  return asTypeArray<User>(records);
 };
 
 export const createDealerUser = async (data: {
@@ -1401,11 +1336,13 @@ export const createDealerUser = async (data: {
   lastName: string;
   phone?: string;
   role: User["role"];
-}): Promise<User | null> => {
+}): Promise<User> => {
   const user = getCurrentUser();
   const dealerId = getCurrentDealerId();
 
-  if (!user || !dealerId || user.role !== "admin") return null;
+  if (!user || !dealerId || user.role !== "admin") {
+    throw new Error("Dealer administrator access required to create users.");
+  }
 
   if (data.password) {
     const policyCheck = await validatePassword(data.password);
@@ -1419,6 +1356,7 @@ export const createDealerUser = async (data: {
       ...data,
       passwordConfirm: data.password,
       dealer: dealerId,
+      emailVisibility: true,
     });
     return asType<User>(record);
   } catch (error) {
@@ -1430,11 +1368,13 @@ export const createDealerUser = async (data: {
 export const updateDealerUser = async (
   id: string,
   data: Partial<Pick<User, "firstName" | "lastName" | "email" | "phone" | "role">>
-): Promise<User | null> => {
+): Promise<User> => {
   const user = getCurrentUser();
   const dealerId = getCurrentDealerId();
 
-  if (!user || !dealerId || user.role !== "admin") return null;
+  if (!user || !dealerId || user.role !== "admin") {
+    throw new Error("Dealer administrator access required to update users.");
+  }
 
   const safeId = sanitizeId(id);
   const target = await pb.collection("users").getOne(safeId);
@@ -1450,7 +1390,9 @@ export const deleteDealerUser = async (id: string): Promise<boolean> => {
   const user = getCurrentUser();
   const dealerId = getCurrentDealerId();
 
-  if (!user || !dealerId || user.role !== "admin") return false;
+  if (!user || !dealerId || user.role !== "admin") {
+    throw new Error("Dealer administrator access required to delete users.");
+  }
 
   const safeId = sanitizeId(id);
   const target = await pb.collection("users").getOne(safeId);
@@ -1466,11 +1408,6 @@ export const getCurrentDealerDetails = async (): Promise<Dealer | null> => {
   const dealerId = getCurrentDealerId();
   if (!dealerId) return null;
 
-  try {
-    const record = await collections.dealers.getOne(sanitizeId(dealerId));
-    return asType<Dealer>(record);
-  } catch (error) {
-    apiLogger.error("Failed to fetch current dealer details", error);
-    return null;
-  }
+  const record = await collections.dealers.getOne(sanitizeId(dealerId));
+  return asType<Dealer>(record);
 };

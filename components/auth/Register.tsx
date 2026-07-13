@@ -16,7 +16,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
       style={{
         background: "var(--color-bg)",
         border: "1px solid var(--color-border)",
-        borderRadius: 16,
+        borderRadius: 12 /* --radius-xl — 16 sat outside the 8-12px card radius scale */,
         boxShadow: "var(--shadow-md)",
         padding: "28px 28px 30px",
       }}
@@ -24,7 +24,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
         <span
           style={{
-            fontSize: 10,
+            fontSize: 11 /* uppercase mono kicker — 11px readable floor */,
             fontFamily: "var(--mono)",
             letterSpacing: "0.12em",
             color: "var(--color-text-subtle)",
@@ -43,7 +43,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
           style={{
             fontSize: 20,
             fontWeight: 700,
-            letterSpacing: "-0.02em",
+            letterSpacing: 0,
             color: "var(--color-text)",
             margin: "14px 0 0",
           }}

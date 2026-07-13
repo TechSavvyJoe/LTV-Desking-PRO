@@ -8,18 +8,23 @@ export interface DeskShortcutOptions {
   onFocusVin: (vin: string) => void;
   /** "c" — toggle the compare pin on the focused vehicle. */
   onToggleCompare: (vin: string) => void;
-  /** True while the DealSheetModal is open — suppresses all shortcuts but Escape. */
+  /** True while the DealSheetModal is open — the dialog owns all keyboard input. */
   isModalOpen: boolean;
-  onCloseModal: () => void;
+  /** Optional Cmd/Ctrl+S — save the focused deal when available. */
+  onSaveDeal?: () => void;
+  /** Whether the shortcuts cheat sheet overlay is open. */
+  shortcutsHelpOpen?: boolean;
+  onOpenShortcutsHelp?: () => void;
+  onCloseShortcutsHelp?: () => void;
 }
 
 /**
  * Desk keyboard shortcuts, per the dc design contract (mockup componentDidMount
  * key handler): "/" focuses #desk-search, ArrowUp/ArrowDown move the focused
  * row through the current visible order, "c" toggles the compare pin, Escape
- * closes the deal sheet. Skipped while typing in an input/select/textarea and
- * (except Escape) while the modal is open. Modifier chords (⌘C copy etc.) are
- * deliberately ignored — the mockup didn't guard these, we must. [dc-redesign]
+ * closes the deal sheet / shortcuts help. Skipped while typing in an
+ * input/select/textarea and while the modal is open. Modifier chords other
+ * than Cmd/Ctrl+S are deliberately ignored. [dc-redesign]
  */
 export function useDeskShortcuts(options: DeskShortcutOptions): void {
   // Always-fresh options without re-binding the window listener per render.
@@ -28,23 +33,53 @@ export function useDeskShortcuts(options: DeskShortcutOptions): void {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { orderedVins, focusedVin, onFocusVin, onToggleCompare, isModalOpen, onCloseModal } =
-        optionsRef.current;
+      const {
+        orderedVins,
+        focusedVin,
+        onFocusVin,
+        onToggleCompare,
+        isModalOpen,
+        onSaveDeal,
+        shortcutsHelpOpen,
+        onOpenShortcutsHelp,
+        onCloseShortcutsHelp,
+      } = optionsRef.current;
 
-      if (e.key === "Escape") {
-        if (isModalOpen) onCloseModal();
-        return;
-      }
       if (isModalOpen) return;
 
       const target = e.target as HTMLElement | null;
       const tag = (target?.tagName || "").toLowerCase();
-      if (tag === "input" || tag === "select" || tag === "textarea" || target?.isContentEditable)
-        return;
-      // Never hijack browser/OS chords (⌘C, Ctrl+/, …).
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const typing =
+        tag === "input" || tag === "select" || tag === "textarea" || target?.isContentEditable;
 
-      if (e.key === "/") {
+      // Escape closes the shortcuts overlay even while an input is focused.
+      if (e.key === "Escape" && shortcutsHelpOpen) {
+        e.preventDefault();
+        onCloseShortcutsHelp?.();
+        return;
+      }
+
+      // Cmd/Ctrl+S saves the focused deal (allowed even with other modifiers off).
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "s") {
+        if (!onSaveDeal || typing) return;
+        e.preventDefault();
+        onSaveDeal();
+        return;
+      }
+
+      // Never hijack other browser/OS chords (⌘C copy etc.).
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (typing) return;
+
+      if (shortcutsHelpOpen) {
+        // While help is open, only Escape (handled above) is meaningful.
+        return;
+      }
+
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
+        e.preventDefault();
+        onOpenShortcutsHelp?.();
+      } else if (e.key === "/") {
         const el = document.getElementById("desk-search");
         if (el) {
           e.preventDefault();

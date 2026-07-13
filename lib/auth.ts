@@ -1,5 +1,4 @@
-import { pb, User, Dealer, clearSuperadminDealerOverride, asRecord } from "./pocketbase";
-import { validatePassword } from "./passwordPolicy";
+import { pb, User, clearSuperadminDealerOverride, asRecord } from "./pocketbase";
 import { STORAGE_KEYS } from "../constants";
 import { createLogger } from "./logger";
 
@@ -30,66 +29,6 @@ export const login = async (email: string, password: string): Promise<AuthResult
     return {
       success: false,
       error: error instanceof Error ? error.message : "Login failed",
-    };
-  }
-};
-
-/**
- * Register a new user
- */
-export const register = async (
-  email: string,
-  password: string,
-  firstName: string,
-  lastName: string,
-  dealerCode: string
-): Promise<AuthResult> => {
-  try {
-    // Enforce password policy + check against haveibeenpwned breach corpus
-    // before we hit PB. Saves a roundtrip if the password is unacceptable.
-    const policyCheck = await validatePassword(password);
-    if (!policyCheck.ok) {
-      return { success: false, error: policyCheck.error ?? "Password rejected." };
-    }
-
-    // First, find the dealer by code
-    const dealers = await pb.collection("dealers").getList(1, 1, {
-      filter: pb.filter("code = {:code}", { code: dealerCode }),
-    });
-
-    if (dealers.items.length === 0) {
-      return { success: false, error: "Invalid dealer code" };
-    }
-
-    const dealer = asType<Dealer>(dealers.items[0]);
-    if (!dealer) {
-      return { success: false, error: "Dealer not found" };
-    }
-
-    // Create the user. `dealerCode` is not a users field — PocketBase ignores
-    // it on the record — but the users_guard hook reads it from the request
-    // body and rejects the signup unless it resolves to the same dealer as the
-    // `dealer` relation below.
-    const userData = {
-      email,
-      password,
-      passwordConfirm: password,
-      firstName,
-      lastName,
-      dealer: dealer.id,
-      dealerCode,
-      role: "sales", // Default role for new users
-    };
-
-    await pb.collection("users").create(userData);
-
-    // Auto-login after registration
-    return await login(email, password);
-  } catch (error) {
-    authLogger.error("Registration failed", error as Error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Registration failed",
     };
   }
 };

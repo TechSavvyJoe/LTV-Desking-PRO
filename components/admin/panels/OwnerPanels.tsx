@@ -36,9 +36,7 @@ export const KpiTile: React.FC<{
     style={{ ...panelCard, position: "relative", padding: 19 }}
   >
     <div style={kpiLabelStyle}>{label}</div>
-    <div style={{ fontSize: 34, fontWeight: 700, marginTop: 8, letterSpacing: "-0.02em" }}>
-      {value}
-    </div>
+    <div style={{ fontSize: 34, fontWeight: 700, marginTop: 8, letterSpacing: 0 }}>{value}</div>
     <div style={{ fontSize: 12, color: "var(--color-text-subtle)", marginTop: 5, minHeight: 15 }}>
       {sub ?? " "}
     </div>
@@ -67,7 +65,7 @@ export const StatTile: React.FC<{
         fontWeight: 700,
         ...mono,
         marginTop: 8,
-        letterSpacing: "-0.02em",
+        letterSpacing: 0,
         color: color ?? "var(--color-text)",
       }}
     >
