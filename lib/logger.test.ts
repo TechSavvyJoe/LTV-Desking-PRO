@@ -1,10 +1,14 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sentryMocks = vi.hoisted(() => ({
   captureException: vi.fn().mockResolvedValue(undefined),
   captureMessage: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("./sentry.js", () => ({
+  captureException: sentryMocks.captureException,
+  captureMessage: sentryMocks.captureMessage,
+}));
 vi.mock("./sentry", () => ({
   captureException: sentryMocks.captureException,
   captureMessage: sentryMocks.captureMessage,
@@ -13,7 +17,13 @@ vi.mock("./sentry", () => ({
 import { __resetExternalLogRateLimiterForTests, createLogger } from "./logger";
 
 describe("logger external forwarding", () => {
+  beforeEach(() => {
+    // Logger only forwards to Sentry in a browser context (API routes skip).
+    vi.stubGlobal("window", {});
+  });
+
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.clearAllMocks();
     __resetExternalLogRateLimiterForTests();
   });

@@ -8,8 +8,6 @@
  * - Integration points for external logging services (Sentry, etc.)
  */
 
-import { captureException, captureMessage } from "./sentry";
-
 export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
@@ -148,6 +146,9 @@ class Logger {
    * No DSN configured → the helpers no-op without downloading the SDK.
    * A shared rolling-window rate limit keeps a render/retry loop from
    * exhausting the Sentry event quota.
+   *
+   * Browser-only dynamic import: Vercel Node (/api/ai) shares this logger
+   * and must never statically pull `@sentry/react` / `import.meta.env`.
    */
   private sendToExternalService(
     level: "warn" | "error",
@@ -156,17 +157,18 @@ class Logger {
     error?: Error | unknown
   ) {
     if (!externalRateLimitAllows()) return;
-    if (level === "error") {
-      // Prefer the real Error (stack trace); otherwise report the message.
-      const reportable = error instanceof Error ? error : new Error(message);
-      void captureException(reportable, { extra: { message, ...context } }).catch(() => {
+    if (typeof window === "undefined") return;
+    void import("./sentry.js")
+      .then((sentry) => {
+        if (level === "error") {
+          const reportable = error instanceof Error ? error : new Error(message);
+          return sentry.captureException(reportable, { extra: { message, ...context } });
+        }
+        return sentry.captureMessage(message, context);
+      })
+      .catch(() => {
         // Telemetry must never throw back into app code.
       });
-    } else {
-      void captureMessage(message, context).catch(() => {
-        // Telemetry must never throw back into app code.
-      });
-    }
   }
 
   /**
