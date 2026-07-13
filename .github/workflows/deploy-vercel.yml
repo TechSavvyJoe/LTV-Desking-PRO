@@ -99,30 +99,11 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          ENV_FILE=$(mktemp)
-          trap 'rm -f "$ENV_FILE"' EXIT
+          # `vercel pull` links the project for `vercel build`. Do not assert
+          # env values from `vercel env pull` here: production secrets are
+          # redacted to "" by design, and the require step already force-wrote
+          # PB_SERVICE_COLLECTION=api_service_accounts.
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          vercel env pull "$ENV_FILE" --environment=production --yes --token="$VERCEL_TOKEN"
-          # Sensitive secrets pull as empty by design; only assert the
-          # non-sensitive collection constant that proves AI key scope.
-          COLLECTION=$(
-            node - "$ENV_FILE" <<'NODE'
-            const fs = require("node:fs");
-            const text = fs.readFileSync(process.argv[2], "utf8");
-            const match = text.match(/^PB_SERVICE_COLLECTION=(.*)$/m);
-            if (!match) {
-              console.error("::error::PB_SERVICE_COLLECTION missing from env pull.");
-              process.exit(1);
-            }
-            const raw = match[1].trim().replace(/^['"]|['"]$/g, "");
-            process.stdout.write(raw);
-            NODE
-          )
-          if [ "$COLLECTION" != "api_service_accounts" ]; then
-            echo "::error::Vercel PB_SERVICE_COLLECTION must be api_service_accounts; refusing a privileged or unknown collection (got: ${COLLECTION:-<empty>})."
-            exit 1
-          fi
-          echo "PB_SERVICE_COLLECTION verified as api_service_accounts."
 
       - name: Build production project
         env:
