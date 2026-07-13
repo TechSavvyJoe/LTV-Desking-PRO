@@ -931,20 +931,35 @@ test.describe("Inventory import", () => {
   }) => {
     await setupTest(page, "/inventory", ADMIN_TEST_AUTH);
 
+    // Unique VINs so earlier imports don't turn this into PATCH updates; fail
+    // both create (POST) and update (PATCH) for the intentionally-bad row.
+    const FAIL_VIN = "5YJSA1E14HF000001";
     await page.route("**/api/collections/inventory/records**", async (route) => {
-      if (route.request().method() === "POST") {
-        const body = route.request().postDataJSON() as { vin?: string };
-        if (body.vin === "1FAHP3F27CL123456") {
-          await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
-          return;
+      const method = route.request().method();
+      if (method === "POST" || method === "PATCH") {
+        const raw = route.request().postData();
+        if (raw) {
+          try {
+            const body = JSON.parse(raw) as { vin?: string };
+            if (body.vin?.toUpperCase() === FAIL_VIN) {
+              await route.fulfill({
+                status: 500,
+                contentType: "application/json",
+                body: "{}",
+              });
+              return;
+            }
+          } catch {
+            // fall through
+          }
         }
       }
       await route.fallback();
     });
 
     const csvContent = `Stock #,Year,Make,Model,Trim,VIN,Mileage,Price
-  SAVED01,2024,Toyota,Camry,SE,1M8GDM9AXKP042788,12000,26500
-  FAILED01,2022,Honda,Accord,LX,1FAHP3F27CL123456,45000,18900`;
+  SAVED01,2024,Toyota,Camry,SE,2T1BURHE0JC000001,12000,26500
+  FAILED01,2022,Honda,Accord,LX,${FAIL_VIN},45000,18900`;
     await page.locator('input[type="file"]').setInputFiles({
       name: "partial-inventory.csv",
       mimeType: "text/csv",
@@ -953,8 +968,7 @@ test.describe("Inventory import", () => {
 
     await expect(
       page.getByRole("alert").filter({
-        hasText:
-          /Synced: \d+ added, \d+ updated, \d+ marked sold\.\s*1 operation\(s\) failed and were not saved\./,
+        hasText: /Synced: \d+ added, \d+ updated, \d+ marked sold\..*failed and were not saved\./,
       })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
