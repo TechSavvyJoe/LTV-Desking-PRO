@@ -6,11 +6,17 @@ import { DEFAULT_AI_SETTINGS } from "./lib/aiModelRegistry";
 // Centralized storage keys to ensure consistency across the application.
 // Update version suffix when making breaking changes to data structure.
 // ============================================================================
-// Interim support/legal contact until the ltvdeskingpro.com domain is
-// registered and a monitored mailbox exists — the old hardcoded
-// support@ltvdeskingpro.com addresses pointed at an UNREGISTERED domain, so
-// every email sent to them bounced (and the domain was hijackable). [G59]
-export const SUPPORT_EMAIL = "joejgallant@gmail.com";
+// Support/legal contact. Configurable via VITE_SUPPORT_EMAIL so switching to a
+// monitored support@ mailbox is a deploy-time env flip, not a code change. The
+// interim fallback is the founder's mailbox — the old hardcoded
+// support@ltvdeskingpro.com pointed at an UNREGISTERED domain, so every email
+// bounced (and the domain was hijackable). Set VITE_SUPPORT_EMAIL once the
+// domain + mailbox exist. [G59] [takeover-P0 #3]
+const envSupportEmail =
+  typeof import.meta !== "undefined"
+    ? (import.meta.env?.VITE_SUPPORT_EMAIL as string | undefined)?.trim()
+    : undefined;
+export const SUPPORT_EMAIL = envSupportEmail || "joejgallant@gmail.com";
 
 // Michigan's statutory max documentary preparation fee (adjusted for CPI).
 // Used only for a non-blocking Settings warning when the configured doc fee exceeds it.
