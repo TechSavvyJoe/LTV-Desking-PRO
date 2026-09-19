@@ -154,6 +154,12 @@ export interface LenderTier {
   // Extraction metadata
   confidence?: number; // 0.0-1.0 confidence score
   extractionSource?: string; // "table", "text", "inferred"
+  /**
+   * Fields the server DROPPED because the AI-extracted value was implausible
+   * (e.g. "maxLtv=1500 outside 20-200"). Presence means: verify against the
+   * lender's official sheet before desking with this tier. [takeover-P1]
+   */
+  rangeFlags?: string[];
 }
 
 export interface LenderProfile {
