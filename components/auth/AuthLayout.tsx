@@ -61,7 +61,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
           </div>
           <div
             style={{
-              fontSize: 14.5,
+              fontSize: 14,
               color: "var(--color-text-muted)",
               marginTop: 10,
               textAlign: "center",

@@ -494,7 +494,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4"
+      className="fixed inset-0 dc-scrim flex justify-center items-center z-50 p-4"
       // While a batch is running, an accidental backdrop tap must not kill it —
       // cancelling requires an explicit Cancel click.
       onClick={isLoading ? undefined : handleClose}

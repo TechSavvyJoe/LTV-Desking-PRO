@@ -57,6 +57,7 @@
   --radius-md: 8px; /* cards, KPI tiles */
   --radius-lg: 10px; /* modals */
   --radius-full: 9999px;
+  --radius-card: 14px; /* dc.html cards, KPI tiles, drawers */
 
   /* Shadows — neutral, no colored glows */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -2385,4 +2386,62 @@ select.dc-input:focus {
   padding: 2px 6px;
   border-radius: 5px;
   margin-left: auto;
+}
+
+/* ============================================================================
+   TAKEOVER — overlay scrim, skeleton loaders, auth headline
+   One scrim token for every overlay (modals, wizards, sheets) so nothing dims
+   to a different depth; token-driven shimmer skeletons that mirror row
+   geometry; balanced wrapping on the sign-in headline (no orphaned word).
+   ============================================================================ */
+:root {
+  --scrim: rgba(10, 12, 15, 0.55);
+  --scrim-blur: 4px;
+}
+.dark {
+  --scrim: rgba(0, 0, 0, 0.62);
+  --scrim-blur: 6px;
+}
+.dc-scrim {
+  background: var(--scrim);
+  backdrop-filter: blur(var(--scrim-blur));
+  -webkit-backdrop-filter: blur(var(--scrim-blur));
+}
+
+@keyframes dc-shimmer {
+  from {
+    background-position: -600px 0;
+  }
+  to {
+    background-position: 600px 0;
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-bg-muted);
+  color: transparent;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-border-strong) 50%,
+    transparent 100%
+  );
+  background-size: 600px 100%;
+  animation: dc-shimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+.auth-title {
+  text-wrap: balance;
 }

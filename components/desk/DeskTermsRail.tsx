@@ -205,6 +205,20 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
               <option value="IL">IL · 6% recip.</option>
               <option value="FL">FL · 6%</option>
             </select>
+            {/* Geography boundary — stated up front so OTD accuracy is never a
+                surprise in a demo. Remove once the 50-state engine ships. */}
+            <p
+              className="desk-field-hint"
+              style={{
+                fontSize: 11,
+                color: "var(--color-text-subtle)",
+                margin: "6px 0 0",
+                lineHeight: 1.4,
+              }}
+            >
+              Tax &amp; fees model a Michigan dealer (MI reciprocity applied to out-of-state
+              buyers). Other home states aren&apos;t supported yet — verify OTD before quoting.
+            </p>
           </div>
           <div className="desk-field">
             <label htmlFor="desk-trade-value">Trade value</label>
