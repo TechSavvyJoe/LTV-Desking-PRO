@@ -64,3 +64,61 @@ onRecordEnrich((e) => {
 
   return e.next();
 }, "saved_deals");
+
+/**
+ * lender_profiles carries F&I profit data a salesperson must never see: the
+ * dealer reserve/participation % on the profile and each tier's buy rate
+ * (`baseInterestRate`) and rate adder. Sell rate minus buy rate IS the reserve,
+ * so exposing the buy rate to `sales` leaks the store's F&I markup — the same
+ * wall a GM expects around cost/gross. Eligibility rules (FICO, LTV, term,
+ * mileage, backend caps) stay visible so the desk's lender-fit still works for
+ * sales; only the rate-cost fields are stripped. Malformed tiers → hide the
+ * whole blob (fail closed, never leak a buy rate). [takeover-P1 #7]
+ */
+onRecordEnrich((e) => {
+  let role = "";
+  try {
+    const auth = (e.requestInfo && e.requestInfo.auth) || null;
+    role = auth ? String(auth.get("role") || "") : "";
+  } catch (_) {
+    role = "";
+  }
+
+  if (role !== "superadmin" && role !== "admin" && role !== "manager") {
+    e.record.hide("reservePct");
+
+    var rateCostFields = [
+      "baseInterestRate",
+      "buyRate",
+      "rateAdder",
+      "reservePct",
+      "reservePercent",
+      "markupPoints",
+      "dealerReserve",
+    ];
+
+    try {
+      const raw = e.record.get("tiers");
+      let text = raw;
+      if (text && typeof text !== "string") text = JSON.stringify(text);
+      const tiers = JSON.parse(text || "[]");
+      if (Array.isArray(tiers)) {
+        for (var i = 0; i < tiers.length; i++) {
+          var tier = tiers[i];
+          if (tier && typeof tier === "object") {
+            for (var j = 0; j < rateCostFields.length; j++) {
+              delete tier[rateCostFields[j]];
+            }
+          }
+        }
+        e.record.set("tiers", tiers);
+      } else {
+        e.record.hide("tiers");
+      }
+    } catch (_) {
+      e.record.hide("tiers");
+    }
+  }
+
+  return e.next();
+}, "lender_profiles");
