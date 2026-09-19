@@ -91,7 +91,7 @@ const styles = `
     width: 10mm;
     height: 10mm;
     border-radius: 2.6mm;
-    background: #34d399;
+    background: #4f46e5;
     color: #07120e;
     display: inline-flex;
     align-items: center;
@@ -132,7 +132,7 @@ const styles = `
     background: #f8fafc;
   }
   .deal-pdf-page .payment-label {
-    color: #047857;
+    color: #4338ca;
     font-size: 8pt;
     font-weight: 800;
     letter-spacing: 0.7pt;
@@ -255,7 +255,7 @@ const styles = `
     gap: 4mm;
   }
   .deal-pdf-page .callout {
-    border: 1px solid #d1fae5;
+    border: 1px solid #eef2ff;
     border-radius: 2.2mm;
     padding: 2.5mm 3mm;
     background: #ecfdf5;
@@ -330,7 +330,7 @@ const styles = `
     min-width: 12mm;
     padding: 0.55mm 1mm;
     border-radius: 1.2mm;
-    background: #d1fae5;
+    background: #eef2ff;
     color: #065f46;
     font-size: 6.2pt;
     font-weight: 900;

@@ -23,25 +23,27 @@
 :root {
   /* Surfaces */
   --color-bg: #ffffff;
-  --color-bg-subtle: #f8fafc; /* slate-50  — cards, panels */
-  --color-bg-muted: #f1f5f9; /* slate-100 — hover / nested */
-  --color-border: #e2e8f0; /* slate-200 */
-  --color-border-strong: #cbd5e1; /* slate-300 */
+  --color-bg-subtle: #f8f9fb; /* page canvas, panels */
+  --color-bg-muted: #f1f3f6; /* hover / nested */
+  --color-border: #e5e7eb; /* gray-200 — hairline */
+  --color-border-strong: #d1d5db; /* gray-300 */
 
-  /* Text */
-  --color-text: #0f172a; /* slate-900 */
-  --color-text-muted: #475569; /* slate-600 */
-  --color-text-subtle: #64748b; /* slate-500 — 4.76:1 on white (WCAG AA); was slate-400 which failed at ≈2.9:1 */
+  /* Text — cool near-black, never pure #000 */
+  --color-text: #111827; /* gray-900 */
+  --color-text-muted: #4b5563; /* gray-600 — 7.6:1 on white */
+  --color-text-subtle: #6b7280; /* gray-500 — 4.8:1 on white (WCAG AA) */
 
-  /* Brand — black/emerald F&I desk palette */
-  --color-primary: #059669; /* emerald-600 — actions, links, focus */
-  --color-primary-hover: #047857; /* emerald-700 */
-  --color-primary-subtle: #d1fae5; /* emerald-100 — selected row bg, focus tint */
+  /* Brand — one indigo accent, reserved for actions, links, selection and
+     focus. Finance-grade palette (Stripe / Mercury / Ramp): the chrome stays
+     neutral so the accent carries meaning instead of decorating. */
+  --color-primary: #4f46e5; /* indigo-600 — 6.6:1 on white */
+  --color-primary-hover: #4338ca; /* indigo-700 */
+  --color-primary-subtle: #eef2ff; /* indigo-50 — selected row bg, focus tint */
 
-  /* Accent — muted steel for secondary actions */
-  --color-accent: #475569; /* slate-600 */
-  --color-accent-hover: #334155; /* slate-700 */
-  --color-accent-subtle: #e2e8f0; /* slate-200 */
+  /* Accent — neutral steel for secondary actions */
+  --color-accent: #4b5563; /* gray-600 */
+  --color-accent-hover: #374151; /* gray-700 */
+  --color-accent-subtle: #e5e7eb; /* gray-200 */
 
   /* Status — used SPARINGLY, only where state must be communicated */
   --color-success: #15803d; /* green-700 */
@@ -119,48 +121,50 @@
   --transition-spring: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Decorative — film-grain overlay */
-  --grain-op: 0.03;
+  --grain-op: 0; /* film grain off — flat surfaces read as finance-grade */
   --grain-blend: overlay;
   --card-grad: none;
 
   --pay-glow: none;
-  --glow: rgba(5, 150, 105, 0.06);
+  --glow: rgba(79, 70, 229, 0.05);
 }
 
 .dark {
-  --color-bg: #05080b;
-  --color-bg-subtle: #0b0f12;
-  --color-bg-muted: #11161c;
-  --color-border: #202830;
-  --color-border-strong: #2d3843;
+  /* Neutral graphite — never pure black, so borders and cards still read. */
+  --color-bg: #0f1115;
+  --color-bg-subtle: #14171c;
+  --color-bg-muted: #1b1f26;
+  --color-border: #262b33;
+  --color-border-strong: #353b46;
 
-  --color-text: #f5f7f8;
-  --color-text-muted: #a4afbd;
-  --color-text-subtle: #8b96a5; /* was #6e7987 — borderline contrast on #05080b */
+  --color-text: #f3f4f6;
+  --color-text-muted: #a3aab8;
+  --color-text-subtle: #8b94a3; /* 5.9:1 on #0f1115 */
 
-  /* Brand — darker green scheme requested for the desk. */
-  --color-primary: #34d399;
-  --color-primary-hover: #6ee7b7;
-  --color-primary-subtle: #123a2f;
+  /* Brand — lighter indigo so it clears AA on graphite; dark text on the fill. */
+  --color-primary: #8b93f8;
+  --color-primary-hover: #a5acfb;
+  --color-primary-subtle: #1f2240;
+  --on-primary: #0f1115;
 
-  --color-accent: #94a3b8;
-  --color-accent-hover: #cbd5e1;
-  --color-accent-subtle: #1f2933;
+  --color-accent: #9aa3b2;
+  --color-accent-hover: #c3c9d3;
+  --color-accent-subtle: #232831;
 
-  --color-success: #34d399;
-  --color-success-subtle: #123a2f;
+  --color-success: #4ade80; /* green-400 */
+  --color-success-subtle: #14532d; /* green-900 */
   --color-warning: #fbbf24; /* amber-400 */
   --color-warning-subtle: #78350f; /* amber-900 */
   --color-danger: #f87171; /* red-400 */
   --color-danger-subtle: #7f1d1d; /* red-900 */
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
-  --shadow: 0 18px 50px -34px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.02);
-  --shadow-md: 0 24px 70px -40px rgba(0, 0, 0, 0.95);
-  --shadow-lg: 0 28px 90px -42px rgba(0, 0, 0, 0.95);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
   --card-grad: none;
   --pay-glow: none;
-  --glow: rgba(52, 211, 153, 0.07);
+  --glow: rgba(139, 147, 248, 0.06);
 }
 
 /* ============================================================================

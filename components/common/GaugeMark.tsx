@@ -6,20 +6,20 @@ interface GaugeMarkProps {
   /** Tile corner radius in px (defaults to ~29% of size). */
   radius?: number;
   className?: string;
-  /** Green drop-shadow halo behind the tile. */
+  /** Soft tinted halo behind the tile. Off by default — flat reads more professional. */
   glow?: boolean;
 }
 
 /**
- * The LTV Desking logomark — a green tile holding a speedometer needle, the
- * "approval-odds gauge" motif rendered small. Reused by the login surface, the
- * command rail, and anywhere the brand mark appears. [dc-redesign]
+ * The LTV Desking logomark — a brand-colored tile holding a speedometer
+ * needle, the "approval-odds gauge" motif rendered small. Reused by the login
+ * surface, the command rail, the favicon, and anywhere the brand mark appears.
  */
 const GaugeMarkComponent: React.FC<GaugeMarkProps> = ({
   size = 34,
   radius,
   className,
-  glow = true,
+  glow = false,
 }) => {
   const r = radius ?? Math.round(size * 0.29);
   const icon = Math.round(size * 0.55);

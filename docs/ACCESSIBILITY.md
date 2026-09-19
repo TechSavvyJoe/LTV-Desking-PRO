@@ -27,7 +27,7 @@ Automated tooling (axe, linters) reliably catches roughly a third of WCAG succes
 - **24×24 minimum target sizes (WCAG 2.5.8)** — compact controls (e.g. the Toast dismiss affordance) are explicitly sized to meet the ≥24×24px target without inflating the visual pill.
 - **Form labels and `aria-describedby` on errors** — form inputs (`components/common/Input.tsx`, `InputGroup.tsx`) and dialogs link error/help text via `aria-describedby` rather than relying on visual proximity alone.
 
-These are re-checked manually during design/redesign passes (most recently the dark+green redesign) and spot-checked before releases; they are not yet asserted by an automated test, which is the honest gap this document is naming.
+These are re-checked manually during design/redesign passes (most recently the neutral light-first palette) and spot-checked before releases; they are not yet asserted by an automated test, which is the honest gap this document is naming.
 
 ## Known gaps (stated honestly)
 

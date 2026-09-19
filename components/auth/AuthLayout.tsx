@@ -9,7 +9,7 @@ interface AuthLayoutProps {
 const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 
 /**
- * Auth shell for the dark/green redesign — a faint grid + radial glow
+ * Auth shell — a faint grid + radial tint
  * background (.auth-bg), a centered column (.auth-col, staggered entrance), the
  * gauge logomark + "Precision desking, repriced live" lockup, the card, and a
  * mono footer. Mirrors the LOGIN block of LTV Desking PRO.dc.html. [dc-redesign]

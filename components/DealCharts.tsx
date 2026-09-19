@@ -48,15 +48,17 @@ interface ChartPalette {
   surface: string;
 }
 
+// Mirrors the light :root tokens in index.css — only used before the
+// stylesheet has resolved (SSR / very first paint).
 const FALLBACK_PALETTE: ChartPalette = {
-  primary: "#0c8f5d",
-  success: "#0c8f5d",
-  warning: "#b06d12",
-  danger: "#d4452f",
-  text: "#15140f",
-  muted: "#5c5a53",
-  subtle: "#9b988f",
-  border: "rgba(20, 22, 28, 0.18)",
+  primary: "#4f46e5",
+  success: "#15803d",
+  warning: "#b45309",
+  danger: "#b91c1c",
+  text: "#111827",
+  muted: "#4b5563",
+  subtle: "#6b7280",
+  border: "rgba(17, 24, 39, 0.12)",
   surface: "#ffffff",
 };
 

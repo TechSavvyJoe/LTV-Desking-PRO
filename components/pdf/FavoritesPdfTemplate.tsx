@@ -41,7 +41,7 @@ const styles = `
         opacity: 0.04;
         font-size: 72pt;
         font-weight: 800;
-        color: #059669;
+        color: #4338ca;
         letter-spacing: 4px;
         transform: rotate(-18deg);
         pointer-events: none;
@@ -59,7 +59,7 @@ const styles = `
         width: 34px;
         height: 34px;
         border-radius: 9px;
-        background: #34d399;
+        background: #4f46e5;
         color: #07120e;
         display: inline-flex;
         align-items: center;
@@ -79,7 +79,7 @@ const styles = `
     .header h1 { font-size: 18pt; font-weight: 700; margin: 0; color: #111827; }
     .header p { font-size: 9pt; color: #4b5563; margin: 0; text-align: right; }
     .vehicle-counter {
-        background: #d1fae5;
+        background: #eef2ff;
         color: #065f46;
         padding: 4px 10px;
         border-radius: 99px;
@@ -124,11 +124,11 @@ const styles = `
         margin: 0.5cm 0;
         padding: 0.4cm;
         background: #ecfdf5;
-        border: 1px solid #d1fae5;
+        border: 1px solid #eef2ff;
         border-radius: 10px;
         text-align: center;
     }
-    .payment-summary .label { font-size: 10pt; color: #047857; }
+    .payment-summary .label { font-size: 10pt; color: #4338ca; }
     .payment-summary .value { font-size: 20pt; font-weight: 700; color: #064e3b; }
 
     .lender-section { margin-top: 0.5cm; }
@@ -140,7 +140,7 @@ const styles = `
     .lender-item {
         background-color: #f9fafb;
         border: 1px solid #e5e7eb;
-        border-left: 4px solid #10b981;
+        border-left: 4px solid #4f46e5;
         border-radius: 4px;
         padding: 0.35cm;
         page-break-inside: avoid;
@@ -513,7 +513,7 @@ const VehiclePage: React.FC<{
         <div className="payment-summary">
           <div className="label">Estimated Monthly Payment</div>
           <div className="value">{formatCurrencyExact(vehicle?.monthlyPayment)}</div>
-          <div style={{ fontSize: "8pt", color: "#047857", marginTop: "4px" }}>
+          <div style={{ fontSize: "8pt", color: "#4338ca", marginTop: "4px" }}>
             {typeof dealData?.interestRate === "number"
               ? `Estimate at ${dealData.interestRate.toFixed(2)}% APR for ${dealData?.loanTerm} months — not an offer of credit`
               : "Estimate — enter a rate for payment terms; not an offer of credit"}
