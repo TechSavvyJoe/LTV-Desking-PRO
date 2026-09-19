@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -28,9 +28,110 @@ interface LenderComparisonChartProps extends DealChartsProps {
   customerFilters?: FilterData;
 }
 
-const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
+// ---------------------------------------------------------------------------
+// Theme plumbing. Recharts renders SVG and needs literal color strings — it
+// cannot consume `var(--color-*)`. We resolve the design tokens from the
+// document at render time and re-resolve when the theme class on <html>
+// flips, so charts follow dark/light instead of bleeding light-mode hex into
+// dark mode. [takeover-P1 #15]
+// ---------------------------------------------------------------------------
+
+interface ChartPalette {
+  primary: string;
+  success: string;
+  warning: string;
+  danger: string;
+  text: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  surface: string;
+}
+
+const FALLBACK_PALETTE: ChartPalette = {
+  primary: "#0c8f5d",
+  success: "#0c8f5d",
+  warning: "#b06d12",
+  danger: "#d4452f",
+  text: "#15140f",
+  muted: "#5c5a53",
+  subtle: "#9b988f",
+  border: "rgba(20, 22, 28, 0.18)",
+  surface: "#ffffff",
+};
+
+const readPalette = (): ChartPalette => {
+  if (typeof window === "undefined" || typeof document === "undefined") return FALLBACK_PALETTE;
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name: string, fallback: string): string =>
+    cs.getPropertyValue(name).trim() || fallback;
+  return {
+    primary: v("--color-primary", FALLBACK_PALETTE.primary),
+    success: v("--color-success", FALLBACK_PALETTE.success),
+    warning: v("--color-warning", FALLBACK_PALETTE.warning),
+    danger: v("--color-danger", FALLBACK_PALETTE.danger),
+    text: v("--color-text", FALLBACK_PALETTE.text),
+    muted: v("--color-text-muted", FALLBACK_PALETTE.muted),
+    subtle: v("--color-text-subtle", FALLBACK_PALETTE.subtle),
+    border: v("--color-border-strong", FALLBACK_PALETTE.border),
+    surface: v("--color-bg", FALLBACK_PALETTE.surface),
+  };
+};
+
+/** Design tokens resolved to concrete colors; tracks the <html> theme class. */
+const useChartPalette = (): ChartPalette => {
+  const [palette, setPalette] = useState<ChartPalette>(readPalette);
+  useEffect(() => {
+    if (typeof document === "undefined" || typeof MutationObserver === "undefined") return;
+    const observer = new MutationObserver(() => setPalette(readPalette()));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+  return palette;
+};
+
+/** Recharts' JS entrance animations are not covered by the CSS reduced-motion reset. */
+const usePrefersReducedMotion = (): boolean => {
+  const [reduce, setReduce] = useState<boolean>(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = (e: MediaQueryListEvent) => setReduce(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduce;
+};
+
+const formatUsd = (value: unknown): string =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
+    typeof value === "number" ? value : Number(value ?? 0)
+  );
+
+const formatUsdCompact = (value: number): string =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+
+const tooltipStyle = (p: ChartPalette): React.CSSProperties => ({
+  backgroundColor: p.surface,
+  color: p.text,
+  borderRadius: 8,
+  border: `1px solid ${p.border}`,
+  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.18)",
+  fontSize: 12,
+});
 
 const PaymentBreakdownChartBase: React.FC<DealChartsProps> = ({ dealData, activeVehicle }) => {
+  const palette = useChartPalette();
+  const reduceMotion = usePrefersReducedMotion();
+
   const data = useMemo(() => {
     if (!activeVehicle) return [];
 
@@ -51,16 +152,17 @@ const PaymentBreakdownChartBase: React.FC<DealChartsProps> = ({ dealData, active
     const totalCost = monthlyPayment * term;
     const totalInterest = totalCost - principal;
 
-    // Fees are typically included in Amount to Finance, but let's break out "Upfront Fees" if possible
-    // For this simple chart, we'll show Principal vs Interest
-    // We can also add "Taxes" if they are separate, but usually they are rolled in.
-    // Let's stick to Principal vs Interest for the loan itself.
-
+    // Fees/taxes are already rolled into Amount to Finance, so the loan itself
+    // decomposes cleanly into principal vs. interest.
     return [
       { name: "Principal", value: principal },
       { name: "Interest", value: totalInterest > 0 ? totalInterest : 0 },
     ];
   }, [dealData, activeVehicle]);
+
+  // Principal = brand green (the money that becomes the car); interest = amber
+  // (cost of financing). Two hues that remain distinguishable for common CVD.
+  const sliceColors = [palette.primary, palette.warning];
 
   if (!activeVehicle)
     return (
@@ -79,29 +181,27 @@ const PaymentBreakdownChartBase: React.FC<DealChartsProps> = ({ dealData, active
             cy="50%"
             innerRadius={60}
             outerRadius={80}
-            fill="#8884d8"
+            fill={palette.primary}
+            stroke={palette.surface}
             paddingAngle={5}
             dataKey="value"
+            isAnimationActive={!reduceMotion}
           >
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              <Cell key={`cell-${index}`} fill={sliceColors[index % sliceColors.length]} />
             ))}
           </Pie>
           <Tooltip
-            formatter={(value) =>
-              new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-              }).format(typeof value === "number" ? value : Number(value ?? 0))
-            }
-            contentStyle={{
-              backgroundColor: "rgba(255, 255, 255, 0.9)",
-              borderRadius: "8px",
-              border: "none",
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-            }}
+            formatter={(value) => formatUsd(value)}
+            contentStyle={tooltipStyle(palette)}
+            itemStyle={{ color: palette.text }}
+            labelStyle={{ color: palette.muted }}
           />
-          <Legend verticalAlign="bottom" height={36} />
+          <Legend
+            verticalAlign="bottom"
+            height={36}
+            wrapperStyle={{ color: palette.muted, fontSize: 12 }}
+          />
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -133,6 +233,9 @@ const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
   lenderProfiles = NO_PROFILES,
   customerFilters = EMPTY_FILTERS,
 }) => {
+  const palette = useChartPalette();
+  const reduceMotion = usePrefersReducedMotion();
+
   // Real data: run each dealer-entered lender program through the eligibility
   // matcher and chart the estimated payment for programs that actually fit.
   const data = useMemo(() => {
@@ -183,34 +286,38 @@ const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
       ) : (
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} />
-              <YAxis hide />
+            <BarChart data={data} margin={{ top: 5, right: 16, left: 4, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={palette.border} />
+              <XAxis
+                dataKey="name"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: palette.subtle, fontSize: 11 }}
+              />
+              {/* A labeled Y axis so magnitudes are readable without hover
+                  (keyboard/touch users, and length is the most accurately
+                  read encoding). */}
+              <YAxis
+                width={64}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) => formatUsdCompact(v)}
+                tick={{ fill: palette.subtle, fontSize: 11 }}
+              />
               <Tooltip
                 cursor={{ fill: "transparent" }}
-                formatter={(value) =>
-                  new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  }).format(typeof value === "number" ? value : Number(value ?? 0))
-                }
-                contentStyle={{
-                  backgroundColor: "rgba(255, 255, 255, 0.9)",
-                  borderRadius: "8px",
-                  border: "none",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                }}
+                formatter={(value) => formatUsd(value)}
+                contentStyle={tooltipStyle(palette)}
+                itemStyle={{ color: palette.text }}
+                labelStyle={{ color: palette.muted }}
               />
-              <Bar dataKey="payment" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Monthly Payment" />
+              <Bar
+                dataKey="payment"
+                fill={palette.primary}
+                radius={[4, 4, 0, 0]}
+                name="Monthly Payment"
+                isAnimationActive={!reduceMotion}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

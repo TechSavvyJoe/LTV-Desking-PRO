@@ -572,6 +572,11 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Debounce expensive calculation inputs
   const debouncedDealData = useDebouncedValue(dealData, 300);
   const debouncedFilters = useDebouncedValue(filters, 300);
+  // Search was the one input passed through raw, so every keystroke re-ran the
+  // pipeline. Scoring is now memoized on its own inputs (see
+  // useProcessedInventory), so search only re-runs the cheap filter stage; a
+  // short debounce keeps even that off the keystroke path on large lots.
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 150);
 
   const {
     processedInventory,
@@ -585,7 +590,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dealData: debouncedDealData,
     filters: debouncedFilters || INITIAL_FILTER_DATA,
     settings,
-    searchQuery,
+    searchQuery: debouncedSearchQuery,
     inventorySort,
     pagination,
   });
