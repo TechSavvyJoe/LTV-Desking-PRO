@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseInventoryCsv, detectDelimiter, parseNumber } from "./fileParser";
+import { parseInventoryCsv, detectDelimiter, parseNumber, HEADER_ALIASES } from "./fileParser";
 
 describe("fileParser", () => {
   describe("detectDelimiter [B10]", () => {
@@ -45,6 +45,89 @@ describe("fileParser", () => {
       expect(parseNumber("")).toBe("N/A");
       expect(parseNumber(undefined)).toBe("N/A");
       expect(parseNumber("n/a")).toBe("N/A");
+    });
+  });
+
+  describe("header aliases — real DMS exports import on the first try [takeover-P1]", () => {
+    it("parses a vAuto-style export (Stock Number / Internet Price / Odometer / NADA books)", () => {
+      const csv = [
+        "Stock Number,VIN,Year,Make,Model,Trim,Odometer,Internet Price,Cost,NADA Clean Trade,NADA Clean Retail",
+        "A100,1HGCM82633A004352,2020,Honda,Accord,Sport,41200,23900,19500,21000,25500",
+      ].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+      expect(skipped).toBe(0);
+      expect(vehicles).toHaveLength(1);
+      expect(vehicles[0]).toMatchObject({
+        stock: "A100",
+        modelYear: 2020,
+        make: "Honda",
+        model: "Accord",
+        trim: "Sport",
+        mileage: 41200,
+        price: 23900,
+        unitCost: 19500,
+        jdPower: 21000,
+        jdPowerRetail: 25500,
+      });
+    });
+
+    it("parses a Frazer/DealerSocket-style export (stock_no / Yr / Manufacturer / Miles / Asking Price / KBB + Black Book)", () => {
+      const csv = [
+        "stock_no,VIN,Yr,Manufacturer,Model,Miles,Asking Price,Unit Cost,KBB Trade,Black Book Retail",
+        "B7,5NPE24AF1FH123456,2019,Hyundai,Sonata,52000,16995,13800,14500,18900",
+      ].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+      expect(skipped).toBe(0);
+      expect(vehicles[0]).toMatchObject({
+        stock: "B7",
+        modelYear: 2019,
+        make: "Hyundai",
+        model: "Sonata",
+        mileage: 52000,
+        price: 16995,
+        unitCost: 13800,
+        jdPower: 14500,
+        jdPowerRetail: 18900,
+      });
+    });
+
+    it("keeps the legacy exact headers working (backward compatibility)", () => {
+      const csv = [
+        "Vehicle,VIN,Stock #,Price,Mileage,Unit Cost,J.D. Power Trade In,J.D. Power Retail",
+        "2021 Toyota Camry SE,4T1C11AK5MU123456,S1,25000,30000,20000,22000,27000",
+      ].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+      expect(skipped).toBe(0);
+      expect(vehicles[0]).toMatchObject({
+        stock: "S1",
+        price: 25000,
+        mileage: 30000,
+        unitCost: 20000,
+        jdPower: 22000,
+        jdPowerRetail: 27000,
+      });
+    });
+
+    it("prefers 'Price' over 'Retail Price' when both are present (alias priority, not header order)", () => {
+      const csv = [
+        "Vehicle,VIN,Retail Price,Price,Mileage",
+        "2020 Ford Escape SE,1FMCU9GD5LUA12345,29999,24999,38000",
+      ].join("\n");
+      const { vehicles } = parseInventoryCsv(csv, false);
+      expect(vehicles[0]?.price).toBe(24999);
+    });
+
+    it("still fails loudly — with the accepted alias names — when price is truly missing", () => {
+      const csv = ["Vehicle,VIN,Mileage", "2020 Ford Escape SE,1FMCU9GD5LUA12345,38000"].join("\n");
+      expect(() => parseInventoryCsv(csv, false)).toThrow(
+        /Asking \/ List \/ Internet \/ Selling Price/
+      );
+    });
+
+    it("exports the alias table so the import UI can show accepted column names", () => {
+      expect(HEADER_ALIASES.stock).toContain("stocknumber");
+      expect(HEADER_ALIASES.mileage).toContain("miles");
+      expect(HEADER_ALIASES.jdPower).toContain("mmr");
     });
   });
 

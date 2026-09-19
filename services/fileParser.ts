@@ -162,6 +162,138 @@ const parseVehicleDescription = (
   };
 };
 
+type InventoryField =
+  | "vehicle"
+  | "make"
+  | "model"
+  | "trim"
+  | "stock"
+  | "vin"
+  | "price"
+  | "unitCost"
+  | "modelYear"
+  | "mileage"
+  | "jdPower"
+  | "jdPowerRetail";
+
+/** Normalize a header for alias matching: lowercase, keep only a-z0-9. */
+const normalizeHeader = (h: string): string => h.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * Accepted header names per inventory field, in priority order. Real DMS/IMS
+ * exports (vAuto, DealerSocket, Frazer, DealerCenter, CDK, Reynolds, HomeNet)
+ * disagree wildly on naming, and exact-match headers were the #1 reason a
+ * dealer's first real import failed. Matching is on the normalized form, so
+ * "Stock #", "StockNumber", and "stock_no" all resolve to `stock`. Book values
+ * accept NADA / KBB / Black Book / MMR, not only J.D. Power. [takeover-P1]
+ */
+export const HEADER_ALIASES: Record<InventoryField, readonly string[]> = {
+  vehicle: [
+    "vehicle",
+    "vehicledescription",
+    "description",
+    "vehiclename",
+    "unit",
+    "unitdescription",
+    "yearmakemodel",
+    "ymm",
+  ],
+  make: ["make", "manufacturer", "mfg", "brand"],
+  model: ["model", "modelname"],
+  trim: ["trim", "trimlevel", "series", "style", "bodystyle", "package"],
+  stock: [
+    "stock",
+    "stocknumber",
+    "stockno",
+    "stocknum",
+    "stk",
+    "stknum",
+    "stkno",
+    "stockid",
+    "inventoryid",
+    "unitnumber",
+    "unitno",
+  ],
+  vin: ["vin", "vinnumber", "vehicleidentificationnumber", "serial", "serialnumber"],
+  price: [
+    "price",
+    "askingprice",
+    "listprice",
+    "internetprice",
+    "retailprice",
+    "sellingprice",
+    "saleprice",
+    "advertisedprice",
+    "webprice",
+    "onlineprice",
+    "vehicleprice",
+  ],
+  unitCost: [
+    "unitcost",
+    "cost",
+    "dealercost",
+    "invoice",
+    "invoicecost",
+    "acv",
+    "totalcost",
+    "acquisitioncost",
+    "purchaseprice",
+    "costbasis",
+  ],
+  modelYear: ["modelyear", "year", "yr", "modelyr"],
+  mileage: ["odometer", "mileage", "miles", "odo", "odometerreading", "currentmileage"],
+  jdPower: [
+    "jdpowertradein",
+    "jdpowertrade",
+    "jdpowertradeinvalue",
+    "nadatrade",
+    "nadatradein",
+    "nadacleantrade",
+    "kbbtrade",
+    "kbbtradein",
+    "blackbooktrade",
+    "blackbookwholesale",
+    "mmr",
+    "manheimmmr",
+    "tradevalue",
+    "tradeinvalue",
+    "tradebook",
+    "bookvalue",
+    "book",
+    "wholesale",
+    "wholesalevalue",
+  ],
+  jdPowerRetail: [
+    "jdpowerretail",
+    "jdpowerretailvalue",
+    "nadaretail",
+    "nadacleanretail",
+    "kbbretail",
+    "kbbsuggestedretail",
+    "blackbookretail",
+    "retailbook",
+    "retailvalue",
+    "bookretail",
+  ],
+};
+
+/** First header (by alias priority) whose normalized form matches the field. */
+const findColumn = (normalized: string[], field: InventoryField): number => {
+  for (const alias of HEADER_ALIASES[field]) {
+    const i = normalized.indexOf(alias);
+    if (i !== -1) return i;
+  }
+  return -1;
+};
+
+// Fuzzy fallback for book values: any recognized book source combined with a
+// trade/wholesale or retail qualifier ("JD Power Trade-In Clean", "NADA Clean Retail").
+const BOOK_SOURCE = /(jdpower|nada|kbb|kelley|blackbook|mmr|manheim|book)/;
+const findBookColumn = (normalized: string[], kind: "trade" | "retail"): number => {
+  const qualifier = kind === "trade" ? /(trade|wholesale)/ : /retail/;
+  return normalized.findIndex((h) => BOOK_SOURCE.test(h) && qualifier.test(h));
+};
+
 /**
  * Pure CSV/XLSX-as-CSV parser. Separated from file I/O so it can be unit-tested
  * without a browser FileReader.
@@ -179,30 +311,30 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
   const headerLine = lines[0] ?? "";
   const delimiter = isExcel ? "," : detectDelimiter(headerLine);
   const headers = parseCsvRow(headerLine, delimiter).map((h) => h.trim());
-  const headersLower = headers.map((h) => h.toLowerCase());
+  const normalized = headers.map(normalizeHeader);
 
+  // Resolve every column through the alias table so real DMS exports import
+  // on the first try; book values fall back to a fuzzy source+qualifier match.
   const idx = {
-    vehicle: headersLower.indexOf("vehicle"),
-    make: headersLower.indexOf("make"),
-    model: headersLower.indexOf("model"),
-    trim: headersLower.indexOf("trim"),
-    stock: headersLower.indexOf("stock #"),
-    vin: headersLower.indexOf("vin"),
-    price: headersLower.indexOf("price"),
-    jdPower: headers.findIndex(
-      (h) => h.toLowerCase().includes("j.d. power") && h.toLowerCase().includes("trade in")
-    ),
-    jdPowerRetail: headers.findIndex(
-      (h) => h.toLowerCase().includes("j.d. power") && h.toLowerCase().includes("retail")
-    ),
-    unitCost: headersLower.indexOf("unit cost"),
-    modelYear: headersLower.findIndex((h) => h === "model year" || h === "year"),
-    mileage: headersLower.findIndex((h) => h === "odometer" || h === "mileage"),
+    vehicle: findColumn(normalized, "vehicle"),
+    make: findColumn(normalized, "make"),
+    model: findColumn(normalized, "model"),
+    trim: findColumn(normalized, "trim"),
+    stock: findColumn(normalized, "stock"),
+    vin: findColumn(normalized, "vin"),
+    price: findColumn(normalized, "price"),
+    unitCost: findColumn(normalized, "unitCost"),
+    modelYear: findColumn(normalized, "modelYear"),
+    mileage: findColumn(normalized, "mileage"),
+    jdPower: findColumn(normalized, "jdPower"),
+    jdPowerRetail: findColumn(normalized, "jdPowerRetail"),
   };
+  if (idx.jdPower === -1) idx.jdPower = findBookColumn(normalized, "trade");
+  if (idx.jdPowerRetail === -1) idx.jdPowerRetail = findBookColumn(normalized, "retail");
 
   const requiredColumnsMap = {
-    price: "'Price'",
-    mileage: "'Odometer' or 'Mileage'",
+    price: "'Price' (also accepted: Asking / List / Internet / Selling Price)",
+    mileage: "'Odometer' or 'Mileage' (also accepted: Miles)",
   };
 
   // Check for either Vehicle OR (Make + Model)
@@ -210,7 +342,9 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
   const hasMakeModel = idx.make !== -1 && idx.model !== -1;
 
   if (!hasVehicle && !hasMakeModel) {
-    throw new Error("File must contain either a 'Vehicle' column OR 'Make' and 'Model' columns.");
+    throw new Error(
+      "File must contain either a 'Vehicle' (or 'Description') column OR 'Make' and 'Model' columns (Make may be labeled Manufacturer or Brand)."
+    );
   }
 
   const missingColumns = Object.entries(requiredColumnsMap)
@@ -222,7 +356,7 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
       ", "
     )}.`;
     const foundMessage = `The headers found in the file are: [${headers.join(", ")}].`;
-    const suggestion = `Please correct the column headers and try again.`;
+    const suggestion = `Rename the column in your export, or export again with the standard header names, and try again.`;
     throw new Error(`${missingMessage}\n${foundMessage}\n${suggestion}`);
   }
 

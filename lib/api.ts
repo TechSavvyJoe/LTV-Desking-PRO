@@ -225,6 +225,16 @@ export const syncInventory = async (
     // Archiving absent units is available only to an explicit full-feed caller.
     const removeOperations: Promise<unknown>[] = [];
     if (options.markMissingSold) {
+      // An empty or VIN-less feed combined with markMissingSold would archive
+      // the entire lot in one call — the single worst data-loss path in the
+      // app. A genuine full feed always carries VINs, so refuse rather than
+      // sell everything. Nothing is in flight yet at this point (no VINs means
+      // no update/create promises were queued). [takeover-P1 data-loss]
+      if (incomingVins.size === 0) {
+        throw new Error(
+          "Refusing to mark inventory sold: the import contained no vehicles with a VIN. Re-export the full feed and try again."
+        );
+      }
       for (const [vin, existing] of existingByVin) {
         if (!incomingVins.has(vin)) {
           removeOperations.push(collections.inventory.update(existing.id, { status: "sold" }));
