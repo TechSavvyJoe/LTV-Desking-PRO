@@ -13,7 +13,7 @@ export const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 export const panelCard: React.CSSProperties = {
   background: "var(--color-bg)",
   border: "1px solid var(--color-border)",
-  borderRadius: 14,
+  borderRadius: "var(--radius-card)",
   boxShadow: "var(--shadow)",
 };
 
@@ -144,7 +144,7 @@ export const PersonRow: React.FC<{
         style={{
           width: compact ? 33 : 36,
           height: compact ? 33 : 36,
-          borderRadius: 10,
+          borderRadius: "var(--radius-lg)",
           background: highlight ? "var(--color-primary-subtle)" : "var(--color-bg-muted)",
           color: highlight ? "var(--color-primary)" : "var(--color-text-muted)",
           display: "flex",
@@ -332,6 +332,7 @@ export const SearchInput: React.FC<{
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      aria-label={placeholder}
       autoFocus={autoFocus}
       className="pl-9 pr-3 py-2 w-full sm:w-64 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
     />

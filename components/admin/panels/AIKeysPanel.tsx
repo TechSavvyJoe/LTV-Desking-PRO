@@ -151,6 +151,7 @@ export const AIKeysPanel: React.FC = () => {
                   {isEditing ? (
                     <input
                       type="password"
+                      aria-label={`${p.label} API key`}
                       autoComplete="off"
                       autoFocus
                       value={draft}

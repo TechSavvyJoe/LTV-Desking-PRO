@@ -113,10 +113,14 @@ export const SystemSettingsPanel: React.FC = () => {
 
       <div className="max-w-3xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg p-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          <label
+            htmlFor="sys-support-email"
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
             Support email
           </label>
           <input
+            id="sys-support-email"
             type="email"
             value={form.supportEmail || ""}
             onChange={(e) => setForm({ ...form, supportEmail: e.target.value })}
@@ -129,10 +133,14 @@ export const SystemSettingsPanel: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          <label
+            htmlFor="sys-announcement-banner"
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
             Announcement banner
           </label>
           <textarea
+            id="sys-announcement-banner"
             value={form.announcementBanner || ""}
             onChange={(e) => setForm({ ...form, announcementBanner: e.target.value })}
             className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] min-h-[60px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
@@ -155,6 +163,7 @@ export const SystemSettingsPanel: React.FC = () => {
             <input
               type="checkbox"
               className="sr-only peer"
+              aria-label="Allow new dealer signups"
               checked={form.signupsEnabled !== false}
               onChange={(e) => setForm({ ...form, signupsEnabled: e.target.checked })}
             />
@@ -163,10 +172,14 @@ export const SystemSettingsPanel: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          <label
+            htmlFor="sys-default-ltv-thresholds-json"
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
             Default LTV thresholds (JSON)
           </label>
           <textarea
+            id="sys-default-ltv-thresholds-json"
             value={
               typeof form.defaultLtvThresholds === "string"
                 ? form.defaultLtvThresholds

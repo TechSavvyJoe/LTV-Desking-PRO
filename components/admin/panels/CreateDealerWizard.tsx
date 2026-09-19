@@ -117,7 +117,7 @@ const CreateDealerWizard: React.FC<{
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center dc-scrim p-4 animate-fadeIn">
       <div className="w-full max-w-2xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4 bg-[var(--color-bg-subtle)]">
           <div className="flex items-center gap-3">
@@ -165,92 +165,120 @@ const CreateDealerWizard: React.FC<{
           {step === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-name"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Name *
                 </label>
                 <input
+                  id="wizard-name"
                   type="text"
                   value={dealerForm.name}
                   onChange={(e) => setDealerForm({ ...dealerForm, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="Acme Motors"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-code"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Code *
                 </label>
                 <input
+                  id="wizard-code"
                   type="text"
                   value={dealerForm.code}
                   onChange={(e) =>
                     setDealerForm({ ...dealerForm, code: e.target.value.toUpperCase() })
                   }
                   maxLength={10}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] uppercase font-mono"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)] uppercase font-mono"
                   placeholder="ACME01"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-email"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Email
                 </label>
                 <input
+                  id="wizard-email"
                   type="email"
                   value={dealerForm.email}
                   onChange={(e) => setDealerForm({ ...dealerForm, email: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="contact@dealer.com"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-phone"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Phone
                 </label>
                 <input
+                  id="wizard-phone"
                   type="tel"
                   value={dealerForm.phone}
                   onChange={(e) => setDealerForm({ ...dealerForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="(555) 123-4567"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-address"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Address
                 </label>
                 <input
+                  id="wizard-address"
                   type="text"
                   value={dealerForm.address}
                   onChange={(e) => setDealerForm({ ...dealerForm, address: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="123 Auto Drive"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-city"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   City
                 </label>
                 <input
+                  id="wizard-city"
                   type="text"
                   value={dealerForm.city}
                   onChange={(e) => setDealerForm({ ...dealerForm, city: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="Detroit"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-state"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   State
                 </label>
                 <input
+                  id="wizard-state"
                   type="text"
                   value={dealerForm.state}
                   onChange={(e) =>
                     setDealerForm({ ...dealerForm, state: e.target.value.toUpperCase() })
                   }
                   maxLength={2}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] uppercase"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)] uppercase"
                   placeholder="MI"
                 />
               </div>
@@ -260,74 +288,98 @@ const CreateDealerWizard: React.FC<{
           {step === 2 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-first-name"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   First name *
                 </label>
                 <input
+                  id="wizard-first-name"
                   type="text"
                   value={adminForm.firstName}
                   onChange={(e) => setAdminForm({ ...adminForm, firstName: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="Jane"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-last-name"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Last name *
                 </label>
                 <input
+                  id="wizard-last-name"
                   type="text"
                   value={adminForm.lastName}
                   onChange={(e) => setAdminForm({ ...adminForm, lastName: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="Smith"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-email-2"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Email *
                 </label>
                 <input
+                  id="wizard-email-2"
                   type="email"
                   value={adminForm.email}
                   onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="jane@dealer.com"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-phone-2"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Phone
                 </label>
                 <input
+                  id="wizard-phone-2"
                   type="tel"
                   value={adminForm.phone}
                   onChange={(e) => setAdminForm({ ...adminForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="(555) 123-4567"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-password"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Password *
                 </label>
                 <input
+                  id="wizard-password"
                   type="password"
                   value={adminForm.password}
                   onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="12+ chars, upper/lower/number"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                <label
+                  htmlFor="wizard-confirm-password"
+                  className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                >
                   Confirm password *
                 </label>
                 <input
+                  id="wizard-confirm-password"
                   type="password"
                   value={adminForm.passwordConfirm}
                   onChange={(e) => setAdminForm({ ...adminForm, passwordConfirm: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                   placeholder="Re-enter password"
                 />
               </div>

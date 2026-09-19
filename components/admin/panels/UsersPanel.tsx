@@ -261,6 +261,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
         <div className="flex items-center gap-2 flex-wrap">
           <SearchInput value={search} onChange={setSearch} placeholder="Search name, email…" />
           <select
+            aria-label="Filter by dealer"
             value={filterDealer}
             onChange={(e) => setFilterDealer(e.target.value)}
             className="px-3 py-2 bg-[var(--color-bg-muted)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
@@ -273,6 +274,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
             ))}
           </select>
           <select
+            aria-label="Filter by role"
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
             className="px-3 py-2 bg-[var(--color-bg-muted)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
@@ -317,10 +319,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-first-name"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 First Name *
               </label>
               <input
+                id="user-first-name"
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -329,10 +335,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-last-name"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Last Name *
               </label>
               <input
+                id="user-last-name"
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -341,10 +351,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-email"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Email *
               </label>
               <input
+                id="user-email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -353,10 +367,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-phone"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Phone
               </label>
               <input
+                id="user-phone"
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -365,10 +383,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-dealer"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Dealer *
               </label>
               <select
+                id="user-dealer"
                 value={formData.dealer}
                 onChange={(e) => setFormData({ ...formData, dealer: e.target.value })}
                 className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
@@ -382,10 +404,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-role"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Role *
               </label>
               <select
+                id="user-role"
                 value={formData.role}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -407,10 +433,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
             {!editingId && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                  <label
+                    htmlFor="user-password"
+                    className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                  >
                     Password *
                   </label>
                   <input
+                    id="user-password"
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -419,10 +449,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                  <label
+                    htmlFor="user-confirm-password"
+                    className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                  >
                     Confirm Password *
                   </label>
                   <input
+                    id="user-confirm-password"
                     type="password"
                     value={formData.passwordConfirm}
                     onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
@@ -527,6 +561,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                     </td>
                     <td className="px-4 py-3 text-center">
                       <select
+                        aria-label={`Role for ${user.email}`}
                         value={user.role}
                         onChange={(e) => {
                           const val = e.target.value;
