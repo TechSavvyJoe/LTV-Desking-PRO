@@ -17,7 +17,7 @@ const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 const card: React.CSSProperties = {
   background: "var(--color-bg)",
   border: "1px solid var(--color-border)",
-  borderRadius: 14,
+  borderRadius: "var(--radius-card)",
   boxShadow: "var(--shadow)",
 };
 
@@ -551,7 +551,7 @@ const ReportsScreenBase: React.FC = () => {
                       </span>
                       <span
                         style={{
-                          fontSize: 11.5,
+                          fontSize: 11,
                           ...mono,
                           color: "var(--color-text-subtle)",
                           width: 54,

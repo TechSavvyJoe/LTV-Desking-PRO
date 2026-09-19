@@ -10,6 +10,7 @@ import { currentDealerQueryKeys, queryClient, queryKeys } from "../../lib/queryC
 // Lazy: Lender profile editor modal only on demand (avoids pulling its deps into
 // lenders chunk until edit action).
 const LenderProfileModal = lazy(() => import("../LenderProfileModal"));
+import Button from "../common/Button";
 import { EmptyState } from "../common/states";
 import * as Icons from "../common/Icons";
 import type {
@@ -52,7 +53,7 @@ const editInput: React.CSSProperties = {
   width: "100%",
   background: "var(--color-bg)",
   border: "1px solid var(--color-border)",
-  borderRadius: 8,
+  borderRadius: "var(--radius-md)",
   padding: "8px 10px",
   fontSize: 14,
   color: "var(--color-text)",
@@ -378,24 +379,13 @@ export const LendersScreen: React.FC = () => {
             eligibility recalculated against the live deal
           </span>
         </div>
-        <button
+        <Button
+          type="button"
           onClick={openAiUpload}
-          className="transition-colors btn-primary"
+          variant="primary"
           data-lenders-upload
           aria-label="AI Lender Upload"
           title="Upload and parse lender rate sheet with AI"
-          style={{
-            border: "1px solid transparent",
-            borderRadius: 8,
-            padding: "8px 13px",
-            fontSize: 13.5,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-          }}
         >
           <svg
             width="14"
@@ -414,7 +404,7 @@ export const LendersScreen: React.FC = () => {
             <path d="M5 4v3M19 17v3M4 18h2M18 5h2" />
           </svg>
           AI Lender Upload
-        </button>
+        </Button>
       </header>
 
       <div className="lenders-screen-content" style={{ padding: "20px 24px" }}>
@@ -426,7 +416,7 @@ export const LendersScreen: React.FC = () => {
           style={{
             background: "var(--color-bg)",
             border: "1px solid var(--color-border)",
-            borderRadius: 14,
+            borderRadius: "var(--radius-card)",
             boxShadow: "var(--shadow)",
             overflow: "hidden",
           }}
@@ -560,7 +550,7 @@ export const LendersScreen: React.FC = () => {
                       </span>
                       <span
                         style={{
-                          fontSize: 14.5,
+                          fontSize: 14,
                           fontWeight: 600,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
@@ -897,7 +887,7 @@ export const LendersScreen: React.FC = () => {
                       <div
                         style={{
                           border: "1px solid var(--color-border)",
-                          borderRadius: 10,
+                          borderRadius: "var(--radius-lg)",
                           overflow: "hidden",
                           maxWidth: 820,
                           background: "var(--color-bg)",
@@ -978,7 +968,7 @@ export const LendersScreen: React.FC = () => {
                                 </span>
                                 <span
                                   style={{
-                                    fontSize: 13.5,
+                                    fontSize: 13,
                                     fontWeight: 600,
                                     minWidth: 0,
                                     overflow: "hidden",

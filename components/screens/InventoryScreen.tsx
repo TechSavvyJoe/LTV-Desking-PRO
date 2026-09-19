@@ -6,6 +6,7 @@ import { useInventoryImport } from "../../hooks/useInventoryImport";
 import { activeLenderCount } from "../../services/lenderFit";
 import { BAND_META } from "../../services/approvalScorer";
 import { ScoreRing } from "../common/ScoreRing";
+import Button from "../common/Button";
 import { EmptyState, DataLoading } from "../common/states";
 import * as Icons from "../common/Icons";
 import { fmt, fmtN } from "../../utils/format";
@@ -53,19 +54,6 @@ const COLUMNS: {
   { key: "fitCount", label: "Lenders", defaultDir: "desc", right: true },
   { key: "approvalScore", label: "Approval", defaultDir: "desc", right: true },
 ];
-
-const ghostBtnStyle: React.CSSProperties = {
-  background: "transparent",
-  border: "1px solid var(--color-border-strong)",
-  color: "var(--color-text)",
-  borderRadius: 8,
-  padding: "6px 11px",
-  fontSize: 12.5,
-  fontWeight: 600,
-  cursor: "pointer",
-  fontFamily: "inherit",
-  whiteSpace: "nowrap",
-};
 
 /**
  * Inventory screen — the full 9-col sortable table of the INVENTORY block
@@ -278,32 +266,34 @@ const InventoryScreenBase: React.FC = () => {
                 aria-hidden="true"
                 tabIndex={-1}
               />
-              <button
-                className="transition-colors"
-                style={{ ...ghostBtnStyle, opacity: isUploadingInventory ? 0.6 : 1 }}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
                 disabled={isUploadingInventory}
                 onClick={() => fileInputRef.current?.click()}
               >
                 {isUploadingInventory ? "Importing…" : "Import CSV/XLSX"}
-              </button>
+              </Button>
             </>
           )}
 
-          <button className="transition-colors" style={ghostBtnStyle} onClick={downloadSampleCsv}>
+          <Button type="button" variant="secondary" size="sm" onClick={downloadSampleCsv}>
             Sample CSV
-          </button>
+          </Button>
 
           {/* VIN decode popover */}
           <div ref={vinRef} style={{ position: "relative" }}>
-            <button
-              className="transition-colors"
-              style={ghostBtnStyle}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
               aria-haspopup="dialog"
               aria-expanded={vinOpen}
               onClick={() => setVinOpen((v) => !v)}
             >
               VIN decode
-            </button>
+            </Button>
             {vinOpen && (
               <div
                 role="dialog"
@@ -315,7 +305,7 @@ const InventoryScreenBase: React.FC = () => {
                   width: 268,
                   background: "var(--color-bg)",
                   border: "1px solid var(--color-border)",
-                  borderRadius: 10,
+                  borderRadius: "var(--radius-lg)",
                   boxShadow: "var(--shadow-md)",
                   padding: 13,
                   zIndex: 40,
@@ -349,31 +339,23 @@ const InventoryScreenBase: React.FC = () => {
                       minWidth: 0,
                       background: "var(--color-bg-subtle)",
                       border: "1px solid var(--color-border)",
-                      borderRadius: 8,
+                      borderRadius: "var(--radius-md)",
                       padding: "7px 10px",
-                      fontSize: 12.5,
+                      fontSize: 12,
                       color: "var(--color-text)",
                       fontFamily: mono,
                       outline: "none",
                     }}
                   />
-                  <button
-                    className="transition-colors btn-primary"
-                    style={{
-                      border: "1px solid transparent",
-                      borderRadius: 8,
-                      padding: "7px 12px",
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      opacity: isVinLoading ? 0.6 : 1,
-                    }}
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
                     disabled={isVinLoading}
                     onClick={() => void handleVinLookup()}
                   >
                     {isVinLoading ? <DataLoading label="…" variant="inline" /> : "Decode"}
-                  </button>
+                  </Button>
                 </div>
                 {vinLookupResult && (
                   <div
@@ -394,14 +376,15 @@ const InventoryScreenBase: React.FC = () => {
             )}
           </div>
 
-          <button
-            className="transition-colors"
-            style={ghostBtnStyle}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
             title="Export the compared (pinned) vehicles as a PDF"
             onClick={() => void handleDownloadFavorites()}
           >
             Favorites PDF
-          </button>
+          </Button>
 
           {/* Search — bound to the shared context query (mockup line 496) */}
           <div className="inventory-screen-search" style={{ position: "relative" }}>
@@ -428,7 +411,7 @@ const InventoryScreenBase: React.FC = () => {
               style={{
                 background: "var(--color-bg-subtle)",
                 border: "1px solid var(--color-border)",
-                borderRadius: 8,
+                borderRadius: "var(--radius-md)",
                 padding: "7px 11px 7px 30px",
                 fontSize: 13,
                 color: "var(--color-text)",
@@ -450,7 +433,7 @@ const InventoryScreenBase: React.FC = () => {
           style={{
             background: "var(--color-bg)",
             border: "1px solid var(--color-border)",
-            borderRadius: 14,
+            borderRadius: "var(--radius-card)",
             boxShadow: "var(--shadow)",
             overflow: "hidden",
           }}
@@ -594,7 +577,7 @@ const InventoryScreenBase: React.FC = () => {
                         <div role="cell" style={{ minWidth: 0 }}>
                           <div
                             style={{
-                              fontSize: 14.5,
+                              fontSize: 14,
                               fontWeight: 600,
                               letterSpacing: 0,
                               lineHeight: 1.25,
@@ -656,7 +639,7 @@ const InventoryScreenBase: React.FC = () => {
                         <span
                           role="cell"
                           style={{
-                            fontSize: 14.5,
+                            fontSize: 14,
                             textAlign: "right",
                             fontFamily: mono,
                             fontVariantNumeric: "tabular-nums",
@@ -720,7 +703,7 @@ const InventoryScreenBase: React.FC = () => {
                         >
                           <span
                             style={{
-                              fontSize: 14.5,
+                              fontSize: 14,
                               fontWeight: 700,
                               fontFamily: mono,
                               color: ring,
