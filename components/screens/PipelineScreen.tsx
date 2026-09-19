@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDealContext } from "../../context/DealContext";
+import { useOpenDealInDesk } from "../../hooks/useOpenDealInDesk";
 import { updateDeal, logDealEvent } from "../../lib/api";
 import {
   CANONICAL_DEAL_STATUSES,
@@ -12,6 +13,7 @@ import {
 import type { CanonicalDealStatus, PipelineSavedDeal } from "../../lib/dealMappers";
 import { calculateFinancials } from "../../services/calculator";
 import { APPROVAL_CONFIG } from "../../services/approvalScorer";
+import Button from "../common/Button";
 import { EmptyState } from "../common/states";
 import * as Icons from "../common/Icons";
 import { fmt } from "../../utils/format";
@@ -77,7 +79,7 @@ const KpiCard: React.FC<{ label: string; value: number; color?: string }> = ({
     style={{
       background: "var(--color-bg)",
       border: "1px solid var(--color-border)",
-      borderRadius: 14,
+      borderRadius: "var(--radius-card)",
       padding: 18,
       boxShadow: "var(--shadow)",
     }}
@@ -121,15 +123,9 @@ const PipelineScreenBase: React.FC = () => {
     settings,
     savedDeals,
     setSavedDeals,
-    setDealData,
-    setFilters,
-    setCustomerName,
-    setSalespersonName,
-    setScratchPadNotes,
     setActiveVehicle,
     setFocusVin,
     setMessage,
-    processedInventory,
     clearDealAndFilters,
   } = useDealContext();
 
@@ -225,49 +221,8 @@ const PipelineScreenBase: React.FC = () => {
       });
   };
 
-  const handleOpenInDesk = useCallback(
-    (deal: PipelineSavedDeal) => {
-      // Restore the saved structure — legacy SavedDeals.onLoad semantics.
-      setCustomerName(deal.customerName);
-      setSalespersonName(deal.salespersonName || "");
-      setDealData(deal.dealData);
-      setFilters((prev) => ({
-        ...prev,
-        creditScore: deal.customerFilters?.creditScore ?? null,
-        monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
-      }));
-      setScratchPadNotes(deal.notes || "");
-
-      // Focus the saved vehicle only if it still exists in live inventory.
-      const vin = deal.vehicle?.vin;
-      const live = vin ? processedInventory.find((v) => v.vin === vin) : undefined;
-      if (live) {
-        setFocusVin(live.vin);
-        setActiveVehicle(live);
-        setMessage({ type: "success", text: "Deal loaded successfully." });
-      } else {
-        setFocusVin(null);
-        setActiveVehicle(null);
-        setMessage({
-          type: "warning",
-          text: "Vehicle no longer in inventory; deal terms restored",
-        });
-      }
-      navigate("/desk");
-    },
-    [
-      setCustomerName,
-      setSalespersonName,
-      setDealData,
-      setFilters,
-      setScratchPadNotes,
-      setActiveVehicle,
-      setFocusVin,
-      processedInventory,
-      setMessage,
-      navigate,
-    ]
-  );
+  // Restore the saved structure — shared with the ⌘K palette (hooks/useOpenDealInDesk).
+  const handleOpenInDesk = useOpenDealInDesk();
 
   return (
     <div data-screen-label="Pipeline">
@@ -297,23 +252,12 @@ const PipelineScreenBase: React.FC = () => {
           <div style={{ height: 20, width: 1, background: "var(--color-border)" }} />
           <span style={{ fontSize: 15, fontWeight: 600 }}>{counts.total} working deals</span>
         </div>
-        <button
+        <Button
+          type="button"
           onClick={handleNewDeal}
-          className="transition-colors btn-primary"
+          variant="primary"
           aria-label="Start new deal"
           title="Start a new deal on the desk"
-          style={{
-            border: "1px solid transparent",
-            borderRadius: 8,
-            padding: "8px 13px",
-            fontSize: 13.5,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-          }}
         >
           <svg
             width="14"
@@ -327,7 +271,7 @@ const PipelineScreenBase: React.FC = () => {
             <path d="M12 5v14M5 12h14" />
           </svg>
           New deal
-        </button>
+        </Button>
       </header>
 
       <div style={{ padding: "20px 24px" }}>
@@ -357,7 +301,7 @@ const PipelineScreenBase: React.FC = () => {
           style={{
             background: "var(--color-bg)",
             border: "1px solid var(--color-border)",
-            borderRadius: 14,
+            borderRadius: "var(--radius-card)",
             boxShadow: "var(--shadow)",
             overflow: "hidden",
           }}
@@ -499,7 +443,7 @@ const PipelineScreenBase: React.FC = () => {
                     <div role="cell" style={{ minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: 13.5,
+                          fontSize: 13,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -521,7 +465,7 @@ const PipelineScreenBase: React.FC = () => {
                       role="cell"
                       data-label="Term"
                       style={{
-                        fontSize: 13.5,
+                        fontSize: 13,
                         textAlign: "right",
                         fontFamily: mono,
                         color: "var(--color-text-muted)",
@@ -562,7 +506,7 @@ const PipelineScreenBase: React.FC = () => {
                       role="cell"
                       data-label="Lender"
                       style={{
-                        fontSize: 13.5,
+                        fontSize: 13,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -652,7 +596,7 @@ const PipelineScreenBase: React.FC = () => {
                           style={{
                             background: "var(--color-bg)",
                             border: "1px solid var(--color-border)",
-                            borderRadius: 8,
+                            borderRadius: "var(--radius-md)",
                             padding: "7px 10px",
                             fontSize: 14,
                             color: "var(--color-text)",
@@ -667,22 +611,14 @@ const PipelineScreenBase: React.FC = () => {
                             </option>
                           ))}
                         </select>
-                        <button
+                        <Button
+                          type="button"
                           onClick={() => handleOpenInDesk(deal)}
-                          className="transition-colors btn-primary"
-                          style={{
-                            marginLeft: "auto",
-                            border: "1px solid transparent",
-                            borderRadius: 8,
-                            padding: "8px 14px",
-                            fontSize: 14,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                          }}
+                          variant="primary"
+                          className="ml-auto"
                         >
                           Open in desk →
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}

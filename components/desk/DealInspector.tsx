@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useRef, useState } from "react";
 import { calculateFinancials } from "../../services/calculator";
 import { APPROVAL_CONFIG, BAND_META } from "../../services/approvalScorer";
 import { useAnimatedNumber } from "../../hooks/useAnimatedNumber";
+import { useRovingTabs } from "../../hooks/useRovingTabs";
 import { fmtN, splitPay } from "../../utils/format";
 import { DESK_DOWNS, DESK_TERMS, aprLabel, numVal } from "./deskConstants";
 import InspectorSummary from "./InspectorSummary";
@@ -45,6 +46,14 @@ interface DealInspectorProps {
 
 type InspectorTab = "summary" | "lenders" | "addons" | "matrix";
 
+const INSPECTOR_TABS: ReadonlyArray<readonly [InspectorTab, string]> = [
+  ["summary", "Summary"],
+  ["lenders", "Lenders"],
+  ["addons", "Add-ons"],
+  ["matrix", "Matrix"],
+];
+const INSPECTOR_TAB_KEYS: readonly InspectorTab[] = INSPECTOR_TABS.map(([key]) => key);
+
 const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   vehicle: v,
   entries,
@@ -70,6 +79,13 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   onSaveDeal,
 }) => {
   const [tab, setTab] = useState<InspectorTab>("summary");
+  // WAI-ARIA tabs: roving tabindex + arrow keys, panel linked to its tab. [a11y]
+  const tabs = useRovingTabs({
+    keys: INSPECTOR_TAB_KEYS,
+    active: tab,
+    onChange: setTab,
+    idPrefix: "desk-inspector",
+  });
   const panelRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const thresholds = settings.ltvThresholds;
@@ -235,28 +251,24 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
         />
       </div>
 
-      <div className="desk-inspector-tabs" role="tablist" aria-label="Deal inspector sections">
-        {[
-          ["summary", "Summary"],
-          ["lenders", "Lenders"],
-          ["addons", "Add-ons"],
-          ["matrix", "Matrix"],
-        ].map(([key, label]) => (
+      <div
+        className="desk-inspector-tabs"
+        aria-label="Deal inspector sections"
+        {...tabs.getTabListProps()}
+      >
+        {INSPECTOR_TABS.map(([key, label]) => (
           <button
-            type="button"
             key={key}
-            role="tab"
-            aria-selected={tab === key}
+            {...tabs.getTabProps(key)}
             data-active={tab === key}
             className="transition-colors"
-            onClick={() => setTab(key as InspectorTab)}
           >
             {label}
           </button>
         ))}
       </div>
 
-      <div className="desk-inspector-body">
+      <div className="desk-inspector-body" {...tabs.getPanelProps(tab)}>
         {tab === "summary" && (
           <FinancialBreakdown
             price={price}
