@@ -1,7 +1,8 @@
 import type { LenderProfile, SavedDeal, Vehicle } from "../../types";
 
-/** VIN prefix the empty-dealer seed migration stamps on illustrative units. */
-const SAMPLE_VIN = /^SAMPLE/i;
+/** Exact shape the empty-dealer seed migration stamps on illustrative units
+ * (e.g. SAMPLE01AAAA1000) — a real 17-character VIN can never match it. */
+const SAMPLE_VIN = /^SAMPLE\d{2}[A-Z]{4}\d{4}$/i;
 
 /** True for a unit the seed migration created, never for a dealer's own stock. */
 export const isSampleVehicle = (v: Pick<Vehicle, "vin">): boolean => SAMPLE_VIN.test(v.vin ?? "");

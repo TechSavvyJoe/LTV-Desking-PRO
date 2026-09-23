@@ -30,6 +30,8 @@ describe("setupProgress [codex review: seeded samples must not complete setup]",
     expect(isSampleVehicle({ vin: "SAMPLE07AAAA1006" })).toBe(true);
     expect(isSampleVehicle({ vin: "5YJSA1E26MF000000" })).toBe(false);
     expect(isSampleVehicle({ vin: "" })).toBe(false);
+    // A dealer-created unit that merely starts with SAMPLE is still real stock.
+    expect(isSampleVehicle({ vin: "SAMPLE1234567890X" })).toBe(false);
     expect(isSampleLender({ isSample: true })).toBe(true);
     expect(isSampleLender({})).toBe(false);
   });
