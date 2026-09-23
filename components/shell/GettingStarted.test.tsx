@@ -28,7 +28,7 @@ describe("GettingStarted [takeover: activation]", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Import inventory" }));
     expect(base.onImportInventory).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "AI Lender Upload" }));
+    fireEvent.click(screen.getByRole("button", { name: "Upload a rate sheet" }));
     expect(base.onAddLenders).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Go to the desk" }));
     expect(base.onDeskDeal).toHaveBeenCalledTimes(1);
@@ -66,7 +66,7 @@ describe("GettingStarted [takeover: activation]", () => {
   it("hides the import and lender-upload actions and points non-admins to their admin instead", () => {
     render(<GettingStarted {...base} canManageSetup={false} />);
     expect(screen.queryByRole("button", { name: "Import inventory" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "AI Lender Upload" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Upload a rate sheet" })).toBeNull();
     expect(screen.getByText("Ask your admin to import inventory.")).toBeTruthy();
     expect(screen.getByText("Ask your admin to load lender programs.")).toBeTruthy();
     expect(base.onImportInventory).not.toHaveBeenCalled();

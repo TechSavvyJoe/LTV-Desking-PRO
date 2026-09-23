@@ -212,6 +212,60 @@ describe("CommandPalette [takeover-P1 #8]", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("focus-restore survives the opener unmounting in the same commit the palette mounts [WCAG 2.4.3, mechanism-level]", () => {
+    // This is NOT a regression test for AppShell's own fix (AppShell.tsx:832):
+    // it builds its own Host harness that already calls
+    // `accountRef.current?.focus()` before setMenuOpen/setPaletteOpen, so it
+    // cannot fail against a build of AppShell.tsx that omits that call. What
+    // it does verify is the underlying mechanism CommandPalette + useRestoreFocus
+    // rely on: when the element that opened the palette is focused *before* the
+    // state batch that unmounts it and mounts CommandPalette, useRestoreFocus
+    // correctly captures that still-mounted element (not <body>) and Escape
+    // returns focus there. AppShell.tsx's own gating/ordering has no test in
+    // this unit's file set — a real AppShell-level regression test (or a
+    // CommandPalette `returnFocusRef` prop + test) needs a file outside the
+    // allowed set for this unit, so that coverage is reported as blocked, not
+    // claimed here.
+    const { items } = makeItems();
+    const Host: React.FC = () => {
+      const [menuOpen, setMenuOpen] = React.useState(true);
+      const [paletteOpen, setPaletteOpen] = React.useState(false);
+      const accountRef = React.useRef<HTMLButtonElement>(null);
+      return (
+        <>
+          <button ref={accountRef} type="button">
+            Account
+          </button>
+          {menuOpen && (
+            <button
+              type="button"
+              onClick={() => {
+                accountRef.current?.focus();
+                setMenuOpen(false);
+                setPaletteOpen(true);
+              }}
+            >
+              Search
+            </button>
+          )}
+          <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={items} />
+        </>
+      );
+    };
+    render(<Host />);
+    const account = screen.getByRole("button", { name: "Account" });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
+    const input = screen.getByRole("combobox");
+    expect(document.activeElement).toBe(input);
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(account);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
   it("keeps DOM focus on the input: options are not Tab stops and clicks don't steal focus", () => {
     const { items } = makeItems();
     render(<CommandPalette open onClose={() => {}} items={items} />);

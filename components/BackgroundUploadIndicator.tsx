@@ -20,7 +20,7 @@ const BackgroundUploadIndicator: React.FC<BackgroundUploadIndicatorProps> = ({
   return (
     <button
       onClick={onRestore}
-      className="fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded-md shadow-sm transition-colors group"
+      className="fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--on-primary)] rounded-md shadow-sm transition-colors group"
       title="Click to view upload progress"
     >
       <div className="relative w-8 h-8">

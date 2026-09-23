@@ -110,11 +110,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     };
   }, [isOpen]);
 
-  // Close on Escape while open.
+  // Close on Escape while open. ConfirmDialog already consumes Escape before it
+  // reaches this listener (stopImmediatePropagation on the native event), but
+  // guard here too in case some other alert dialog is stacked on top without
+  // that consuming behavior — an open alertdialog should own Escape, not us. [P2]
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (document.querySelector('[role="alertdialog"][aria-modal="true"]')) return;
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

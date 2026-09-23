@@ -227,7 +227,12 @@ describe("desk subcomponents", () => {
       /Estimate, not a credit decision or offer of credit\. Final terms require a lender credit check\./
     );
     expect(disclaimer).toBeTruthy();
-    expect(document.querySelector(`[aria-describedby="${disclaimer.id}"]`)).toBeTruthy();
+    // The describedby must land on the gauge's own role="img" svg (its
+    // accessible name), not an unnamed wrapper a screen reader would skip.
+    // [ship-gate SHOULD-FIX #7]
+    const describedElement = document.querySelector(`[aria-describedby="${disclaimer.id}"]`);
+    expect(describedElement).toBeTruthy();
+    expect(describedElement?.getAttribute("role")).toBe("img");
   });
 
   it("InventoryGrid exposes table/cell ARIA semantics for virtualized rows", () => {

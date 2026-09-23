@@ -101,8 +101,13 @@
   --z-confirm: 150; /* confirm dialogs layer above modals */
   --z-toast: 200;
 
-  /* On-primary — text/icon color when placed on a primary-fill background */
+  /* On-color — text/icon color on a solid role fill. White clears AA on every
+     light-mode fill; the dark fills are pale, so .dark swaps these to ink. */
   --on-primary: #ffffff;
+  --on-accent: #ffffff;
+  --on-success: #ffffff;
+  --on-warning: #ffffff;
+  --on-danger: #ffffff;
 
   /* Extended shadow scale — referenced by modals, toasts, hover-lift, inputs */
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
@@ -145,7 +150,12 @@
   --color-primary: #8b93f8;
   --color-primary-hover: #a5acfb;
   --color-primary-subtle: #1f2240;
+  /* Pale dark fills: ink text (≥ 6.8:1) — white would be 1.7–2.8:1. */
   --on-primary: #0f1115;
+  --on-accent: #0f1115;
+  --on-success: #0f1115;
+  --on-warning: #0f1115;
+  --on-danger: #0f1115;
 
   --color-accent: #9aa3b2;
   --color-accent-hover: #c3c9d3;
@@ -247,6 +257,32 @@ main {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The "Couldn't load dealers" + Retry state: shrinkable like .app-shell-dealer,
+   but Retry itself must stay reachable — only the message text (below) is an
+   ellipsis target, so overflow:hidden here clips the message, never the
+   button that sits before it in DOM order. [review P3 re-fix] */
+.app-shell-dealer-error {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-shell-dealer-error-message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Superadmin-only impersonating pill: below ~900px the ⌘K button, dealer
+   select and this pill's fixed-width children can sum past the available
+   width and push the account menu off-screen, so the label text collapses
+   first, leaving just the dot + Exit control. [review P3] */
+@media (max-width: 900px) {
+  .app-shell-impersonating-label {
+    display: none;
+  }
 }
 
 @media (max-width: 760px) {

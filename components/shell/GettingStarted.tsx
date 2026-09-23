@@ -102,7 +102,7 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
         ? "Drop in a rate sheet and the AI importer drafts the tiers. You review every number before it's saved."
         : "Ask your admin to load lender programs.",
       done: lenderCount > 0,
-      ...(canManageSetup ? { action: "AI Lender Upload", onAction: onAddLenders } : {}),
+      ...(canManageSetup ? { action: "Upload a rate sheet", onAction: onAddLenders } : {}),
     },
     {
       id: "deal",

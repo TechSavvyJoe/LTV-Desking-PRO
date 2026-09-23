@@ -17,6 +17,7 @@ import type { PaletteItem } from "./CommandPalette";
 import { vehiclePaletteItem } from "./paletteItems";
 import { useOpenDealInDesk } from "../../hooks/useOpenDealInDesk";
 import { GettingStarted } from "./GettingStarted";
+import { setupProgress } from "./setupProgress";
 import {
   getCurrentUser,
   getSuperadminDealerOverride,
@@ -332,6 +333,7 @@ export const AppShell: React.FC = () => {
   // --- Avatar popover --------------------------------------------------------
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const accountBtnRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
     const onPointerDown = (e: MouseEvent) => {
@@ -435,14 +437,21 @@ export const AppShell: React.FC = () => {
       });
     }
     const actions: PaletteItem[] = [
-      {
-        id: "act-ai-upload",
-        label: "AI Lender Upload",
-        detail: "Import a rate sheet or program guide",
-        group: "Actions",
-        keywords: ["import", "rate sheet", "lender", "program"],
-        onSelect: openAiUpload,
-      },
+      // lender_profiles create/update are admin-only on the server (see
+      // 1747900000_authorization_lifecycle_hardening.js); offering this to
+      // sales/manager burns a metered extraction on a save that always fails. [P2]
+      ...(isSuperAdmin || isDealerAdmin
+        ? [
+            {
+              id: "act-ai-upload",
+              label: "AI Lender Upload",
+              detail: "Import a rate sheet or program guide",
+              group: "Actions",
+              keywords: ["import", "rate sheet", "lender", "program"],
+              onSelect: openAiUpload,
+            } satisfies PaletteItem,
+          ]
+        : []),
       {
         id: "act-settings",
         label: "Settings",
@@ -554,24 +563,23 @@ export const AppShell: React.FC = () => {
 
           {isSuperAdmin ? (
             dealersError ? (
+              // Its own class, not .app-shell-dealer: the block shrinks like
+              // the dealer select does (so it can't push the account menu
+              // off-screen), but only the message span inside it is a
+              // min-width:0 ellipsis target — Retry keeps its intrinsic
+              // width and stays reachable at any width. [P3]
               <div
-                className="app-shell-dealer"
+                className="app-shell-dealer-error"
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
-                <span
-                  role="alert"
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--color-danger)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Couldn't load dealers
-                </span>
+                {/* Retry renders before the message and is never a shrink
+                    target (no min-width:0), so the flexbox squeezes the
+                    message span first — Retry stays fully reachable at any
+                    width. [review P3 re-fix] */}
                 <button
                   onClick={() => setDealersFetchNonce((n) => n + 1)}
                   style={{
+                    flexShrink: 0,
                     background: "transparent",
                     border: "1px solid var(--color-border-strong)",
                     borderRadius: 8,
@@ -586,6 +594,18 @@ export const AppShell: React.FC = () => {
                 >
                   Retry
                 </button>
+                <span
+                  role="alert"
+                  className="app-shell-dealer-error-message"
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--color-danger)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Couldn't load dealers
+                </span>
               </div>
             ) : (
               <select
@@ -657,7 +677,11 @@ export const AppShell: React.FC = () => {
                 }}
                 aria-hidden
               />
+              {/* Collapses below ~900px, keeping just the dot + Exit: with the
+                  ⌘K button visible (761-~800px) the fixed-width children sum to
+                  ~800px and can still push the avatar off-screen. [P3] */}
               <span
+                className="app-shell-impersonating-label"
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
@@ -669,6 +693,8 @@ export const AppShell: React.FC = () => {
               </span>
               <button
                 onClick={handleExitImpersonation}
+                aria-label="Exit impersonation"
+                title="Exit impersonation"
                 style={{
                   background: "transparent",
                   border: "none",
@@ -698,31 +724,33 @@ export const AppShell: React.FC = () => {
             <SearchIcon />
           </button>
 
-          <button
-            onClick={openAiUpload}
-            className="app-shell-ai-btn"
-            aria-label="AI lender upload"
-            title="AI lender upload"
-            // Background + hover live in index.css (.app-shell-ai-btn) so the
-            // hover state is plain CSS instead of JS style mutation.
-            style={{
-              color: "var(--on-primary, white)",
-              border: "1px solid transparent",
-              borderRadius: 6,
-              padding: "7px 12px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <SparkleIcon />
-            <span className="app-shell-ai-label">AI Lender Upload</span>
-          </button>
+          {(isSuperAdmin || isDealerAdmin) && (
+            <button
+              onClick={openAiUpload}
+              className="app-shell-ai-btn"
+              aria-label="AI lender upload"
+              title="AI lender upload"
+              // Background + hover live in index.css (.app-shell-ai-btn) so the
+              // hover state is plain CSS instead of JS style mutation.
+              style={{
+                color: "var(--on-primary, white)",
+                border: "1px solid transparent",
+                borderRadius: 6,
+                padding: "7px 12px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <SparkleIcon />
+              <span className="app-shell-ai-label">AI Lender Upload</span>
+            </button>
+          )}
 
           <button
             onClick={toggleTheme}
@@ -754,6 +782,7 @@ export const AppShell: React.FC = () => {
 
           <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
             <button
+              ref={accountBtnRef}
               onClick={() => setMenuOpen((v) => !v)}
               className="rail-btn"
               title="Account"
@@ -802,6 +831,13 @@ export const AppShell: React.FC = () => {
                   className="rail-btn"
                   style={menuItemStyle}
                   onClick={() => {
+                    // [WCAG 2.4.3] Focus the Account button *before* the palette
+                    // opens: this menuitem unmounts (setMenuOpen(false)) in the
+                    // same commit CommandPalette mounts, so if we don't move focus
+                    // first, useRestoreFocus captures <body> as "previously
+                    // focused" and Escape drops focus to the document instead of
+                    // returning it here.
+                    accountBtnRef.current?.focus();
                     setMenuOpen(false);
                     openPalette();
                   }}
@@ -928,9 +964,7 @@ export const AppShell: React.FC = () => {
             {location.pathname === "/desk" && (
               <GettingStarted
                 dealerId={overrideId ?? currentUser?.dealer ?? "default"}
-                inventoryCount={inventory.length}
-                lenderCount={lenderProfiles.length}
-                savedDealCount={savedDeals.length}
+                {...setupProgress(inventory, lenderProfiles, savedDeals)}
                 canManageSetup={isSuperAdmin || isDealerAdmin}
                 onImportInventory={() => navigate("/inventory")}
                 onAddLenders={openAiUpload}

@@ -40,9 +40,13 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
   return (
     <section className="desk-inspector-summary pay-glow">
       <div className="desk-score-cell">
-        <div role="group" aria-describedby={disclaimerId}>
-          <ApprovalGauge score={score} colorVar={gaugeColor} label={bandLabel} width={116} />
-        </div>
+        <ApprovalGauge
+          score={score}
+          colorVar={gaugeColor}
+          label={bandLabel}
+          width={116}
+          ariaDescribedBy={disclaimerId}
+        />
         <div className="desk-score-label" style={{ color: gaugeColor }}>
           {bandLabel}
         </div>

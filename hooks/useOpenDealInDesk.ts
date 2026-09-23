@@ -1,7 +1,24 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDealContext } from "../context/DealContext";
-import type { SavedDeal } from "../types";
+import type { FilterData, SavedDeal } from "../types";
+
+/**
+ * Merges a saved deal's customer filters onto the current filter state.
+ * Every field the saved deal carries is replaced outright (not spread from
+ * `prev`) so a stale value from whichever customer was previously on the
+ * desk can never leak onto the newly-opened deal. Exported as a pure
+ * function so the merge can be unit tested without mounting DealContext.
+ * [ship-gate SHOULD-FIX #1]
+ */
+export function mergeFiltersFromDeal(prev: FilterData, deal: SavedDeal): FilterData {
+  return {
+    ...prev,
+    creditScore: deal.customerFilters?.creditScore ?? null,
+    monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
+    monthlyDebt: deal.customerFilters?.monthlyDebt ?? null,
+  };
+}
 
 /**
  * Restores a saved deal onto the desk — customer, salesperson, structure,
@@ -28,11 +45,7 @@ export function useOpenDealInDesk(): (deal: SavedDeal) => void {
       setCustomerName(deal.customerName);
       setSalespersonName(deal.salespersonName || "");
       setDealData(deal.dealData);
-      setFilters((prev) => ({
-        ...prev,
-        creditScore: deal.customerFilters?.creditScore ?? null,
-        monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
-      }));
+      setFilters((prev) => mergeFiltersFromDeal(prev, deal));
       setScratchPadNotes(deal.notes || "");
 
       // Focus the saved vehicle only if it still exists in live inventory.
