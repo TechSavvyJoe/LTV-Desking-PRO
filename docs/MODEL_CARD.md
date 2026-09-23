@@ -10,7 +10,7 @@ This card exists so a dealership's compliance officer, a lender partner, or coun
 
 ## 1. Purpose and scope
 
-The approval-odds score is a **0–100 ranking heuristic** that helps a desk manager sort a lot of vehicles by how _structurally_ well a given deal fits the store's lender programs, and to see at a glance which lever (credit, advance, or affordability) is dragging a structure. It is shown to **dealership staff only**, on the internal desk, and is labeled on every surface as an estimate.
+The approval-odds score is a **0–100 ranking heuristic** that helps a desk manager sort a lot of vehicles by how _structurally_ well a given deal fits the store's lender programs, and to see at a glance which lever (credit, advance, or affordability) is dragging a structure. It is shown to **dealership staff only**, on the internal desk, and is labeled as an estimate on the deal inspector; see §5 for the surfaces that do not carry the caption yet.
 
 It is **not** used to approve, decline, price, or counter-offer any consumer, and it generates no adverse-action, risk-based-pricing, or disclosure artifact. Actual credit decisions are made by the lender after a real application.
 
@@ -57,9 +57,11 @@ The score also returns up to a handful of **principal drag factors** in plain la
 
 ## 5. Outputs and how they are shown
 
-- **Gauge / numeric score** — internal desk only; always accompanied by the caption _"Estimate, not a credit decision or offer of credit. Final terms require a lender credit check."_
+- **Gauge / numeric score (deal inspector)** — the disclaimer caption _"Estimate, not a credit decision or offer of credit. Final terms require a lender credit check."_ is shown directly under the gauge (`components/desk/InspectorSummary.tsx`).
+- **Deal sheet modal and printed PDFs do not display the score.** They compute it only to persist it (`DealSheetModal.tsx:136-140`, `:194-199`) and never render the number, band, or gauge; each surface instead carries its own general estimate-only disclaimer text (`DealSheetModal.tsx:471`, `PdfTemplate.tsx:604-606`, `FavoritesPdfTemplate.tsx:518-519`) — not the caption above, and not tied to any score output.
 - **Band label** — strong / moderate / weak / none.
 - **Fit count** — "N of M lenders fit," derived from the published-rules engine (`lenderMatcher.ts`), which is the single source of truth for eligibility. The score is capped so it can never read better than the rules engine allows.
+- **Open gap** — the inventory grid's score column, the compare strip, the pipeline screen's Approval column (`components/screens/PipelineScreen.tsx:489-503`), the `/inventory` route's score column (`components/screens/InventoryScreen.tsx:537,716` — a separate component from the desk inspector's inventory grid), and the reports screen's score column all render the bare number/band with no disclaimer today. Printed deal paper is also not marked internal-use (see §10). Adding an equivalent caption or footnote to those surfaces, and the internal-use marking, is tracked as follow-up work, not yet shipped.
 
 ## 6. Guardrails (in code)
 
@@ -67,13 +69,13 @@ The score also returns up to a handful of **principal drag factors** in plain la
 2. **Affordability veto** — PTI at or above 20% / 25% caps the score regardless of credit and LTV.
 3. **Neutral unknowns** — missing data never inflates the score.
 4. **Role gating (server-side)** — `sales` users see band and fit count but never lender buy-rate or dealer reserve (`backend/pb_hooks/field_visibility.pb.js`).
-5. **Disclaimer on every surface** — the estimate caption is rendered with the score, and printed deal paper is marked internal-use.
+5. **Disclaimer today, gap elsewhere** — the estimate caption is rendered with the score on the deal inspector gauge only. The deal sheet modal and printed PDFs do not display the score at all; they carry their own general estimate-only disclaimer text instead, unrelated to any rendered score. The caption is **not yet** rendered on the inventory grid, compare strip, pipeline Approval column, `/inventory` route score column, or reports score columns, and printed deal paper is **not yet** marked internal-use per the §10 policy (see §5).
 6. **Single tunable config** — every constant lives in `APPROVAL_CONFIG`; changes are code-reviewed and versioned with this card.
 
 ## 7. Fairness and protected classes
 
 - **No protected-class inputs; no proxies by design.** Inputs are FICO, loan-to-value, payment-to-income, and rules-engine fit. Geography, name, language, and any demographic field are not read.
-- **Residual proxy risk.** FICO, LTV, and PTI are themselves correlated with protected classes in the population. Because the score is advisory, internal, and never a decision, this risk is bounded — but it is the reason the score must **never** be used to steer, price, or discourage a consumer. That policy is stated in the Terms of Service and should be reinforced in dealer onboarding.
+- **Residual proxy risk.** FICO, LTV, and PTI are themselves correlated with protected classes in the population. Because the score is advisory, internal, and never a decision, this risk is bounded — but it is the reason the score must **never** be used to steer, price, or discourage a consumer. That restriction is stated in the Terms of Service, Acceptable Use (`components/legal/TermsOfService.tsx`, §3), and should be reinforced in dealer onboarding.
 - **No disparate-treatment vector.** The same inputs produce the same score for every customer; there is no manual override or per-customer adjustment.
 
 ## 8. Known limitations (read before trusting the number)
