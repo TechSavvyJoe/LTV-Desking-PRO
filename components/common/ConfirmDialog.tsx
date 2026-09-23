@@ -18,8 +18,9 @@ export const ConfirmDialog: React.FC = () => {
 
   // Accessibility: labeled alert dialog, focus trap (auto-focuses the first
   // control = Cancel), focus restore on close, and Escape to cancel. [a11y]
-  useFocusTrap(panelRef as React.RefObject<HTMLElement>, isOpen);
+  // useRestoreFocus first so the opener is captured before the trap moves focus. [review/P2]
   useRestoreFocus(isOpen);
+  useFocusTrap(panelRef as React.RefObject<HTMLElement>, isOpen);
   useKeyboardShortcuts({ escape: () => close(false) }, isOpen);
 
   if (!request) return null;

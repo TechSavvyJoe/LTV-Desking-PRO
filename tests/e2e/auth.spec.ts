@@ -1154,7 +1154,9 @@ test.describe("Deal save", () => {
     ).toBeVisible({ timeout: 8000 });
 
     // Scope to alerts — inventory rows like STK FAILED01 must not trip this.
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    // Toast keeps an always-mounted (empty) sr-only role="alert" live region, so
+    // count only alerts that actually say something.
+    await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveCount(0);
   });
 });
 

@@ -152,22 +152,28 @@ const ToastItem: React.FC<{ entry: ToastEntry; onDismiss: (id: number) => void }
  */
 export const Toast: React.FC = () => {
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
-  const [announce, setAnnounce] = useState<{ polite: string; assertive: string }>({
-    polite: "",
-    assertive: "",
+  // Keyed on the publish id (not just text) so two identical consecutive
+  // messages still mutate the DOM — a <span> re-render with the same string
+  // is a no-op for React, and screen readers announce nothing without a
+  // mutation. [a11y]
+  const [announce, setAnnounce] = useState<{
+    polite: { id: number; text: string };
+    assertive: { id: number; text: string };
+  }>({
+    polite: { id: 0, text: "" },
+    assertive: { id: 0, text: "" },
   });
   const nextId = useRef(1);
 
   useEffect(() => {
     return subscribe((message, type) => {
-      setToasts((prev) =>
-        [...prev, { id: nextId.current++, message, type }].slice(-MAX_VISIBLE_TOASTS)
-      );
+      const id = nextId.current++;
+      setToasts((prev) => [...prev, { id, message, type }].slice(-MAX_VISIBLE_TOASTS));
       const text = `${BADGE[type].name}: ${message}`;
       if (type === "error" || type === "warning") {
-        setAnnounce((a) => ({ ...a, assertive: text }));
+        setAnnounce((a) => ({ ...a, assertive: { id, text } }));
       } else {
-        setAnnounce((a) => ({ ...a, polite: text }));
+        setAnnounce((a) => ({ ...a, polite: { id, text } }));
       }
     });
   }, []);
@@ -179,10 +185,10 @@ export const Toast: React.FC = () => {
   return (
     <>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {announce.polite}
+        <span key={announce.polite.id}>{announce.polite.text}</span>
       </div>
       <div className="sr-only" role="alert" aria-live="assertive" aria-atomic="true">
-        {announce.assertive}
+        <span key={announce.assertive.id}>{announce.assertive.text}</span>
       </div>
       {toasts.length > 0 && (
         <div

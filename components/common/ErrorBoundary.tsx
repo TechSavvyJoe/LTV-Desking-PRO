@@ -100,7 +100,7 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="mt-1 text-sm text-[var(--color-text-muted)] leading-relaxed">
               {scope === "app"
                 ? "The app hit an unexpected error. Your saved deals and inventory are safe — nothing was lost. Try again, or reload the page."
-                : "It hit an unexpected error. The rest of the desk still works — try again, or reload if it keeps happening."}
+                : `${label} hit an unexpected error. The other screens still work — try again, or reload if it keeps happening.`}
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">

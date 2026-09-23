@@ -34,38 +34,49 @@ const Modal: React.FC<ModalProps> = ({
 
   // Accessibility: trap focus inside the dialog, restore it to the trigger on
   // close, and close on Escape. The hooks existed but were wired to nothing. [a11y]
-  useFocusTrap(panelRef as React.RefObject<HTMLElement>, isOpen);
+  // useRestoreFocus is declared FIRST: effects run in declaration order, so it
+  // snapshots the opener before the trap moves focus into the dialog. [review/P2]
   useRestoreFocus(isOpen);
+  useFocusTrap(panelRef as React.RefObject<HTMLElement>, isOpen);
   useKeyboardShortcuts({ escape: () => onClose() }, isOpen);
 
+  // Body scroll lock lives in its own effect, keyed only on isOpen. React
+  // runs an effect's cleanup both when it closes AND when the component
+  // unmounts, so unmounting while open (e.g. the ⌘K palette or a route
+  // error boundary swapping the screen out from under an open modal) still
+  // restores the body instead of leaving the page frozen and scrolled. [a11y]
   useEffect(() => {
-    if (isOpen) {
-      // Save current scroll position BEFORE locking body
-      scrollPositionRef.current = window.scrollY;
-      setIsVisible(true);
-      requestAnimationFrame(() => setIsAnimating(true));
+    if (!isOpen) return;
 
-      // Lock body scroll
-      document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollPositionRef.current}px`;
-      document.body.style.width = "100%";
-      document.body.style.left = "0";
-    } else if (isVisible) {
-      // IMMEDIATELY restore scroll when closing starts
-      setIsAnimating(false);
+    // Save current scroll position BEFORE locking body
+    scrollPositionRef.current = window.scrollY;
 
-      // Restore body styles immediately (don't wait for animation)
+    // Lock body scroll
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollPositionRef.current}px`;
+    document.body.style.width = "100%";
+    document.body.style.left = "0";
+
+    return () => {
       document.body.style.overflow = "";
       document.body.style.position = "";
       document.body.style.top = "";
       document.body.style.width = "";
       document.body.style.left = "";
-
-      // Restore scroll position immediately
       window.scrollTo(0, scrollPositionRef.current);
+    };
+  }, [isOpen]);
 
-      // Only delay the visibility (unmount) for animation
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+      requestAnimationFrame(() => setIsAnimating(true));
+    } else if (isVisible) {
+      // IMMEDIATELY stop the enter animation when closing starts
+      setIsAnimating(false);
+
+      // Only delay the visibility (unmount) for the exit animation
       const timer = setTimeout(() => {
         setIsVisible(false);
       }, 300);
