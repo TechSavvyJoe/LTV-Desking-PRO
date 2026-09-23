@@ -132,7 +132,10 @@ describe("AI response schema validation", () => {
       const result = checkBankEligibility(vehicle, deal, lender);
       expect(result.eligible).toBe(false);
       expect(result.status).toBe("pending");
-      expect(result.reasons[0]).toMatch(/needs review.*minFico=6600 outside 300-850/);
+      expect(result.reasons[0]).toMatch(
+        /needs review - implausible min FICO read from the rate sheet/
+      );
+      expect(result.reasons[0]).not.toMatch(/6600/);
     });
 
     it("leaves plausible values untouched with no flags and preserved confidence", () => {

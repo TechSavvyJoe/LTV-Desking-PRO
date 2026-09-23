@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { checkBankEligibility, tierNeedsReview } from "./lenderMatcher";
+import {
+  checkBankEligibility,
+  flaggedFieldName,
+  markTierVerified,
+  resolveRangeFlag,
+  reviewFieldLabel,
+  reviewFieldLabels,
+  reviewableFieldsIn,
+  tierNeedsReview,
+  unverifiedReviewFields,
+} from "./lenderMatcher";
 import type { CalculatedVehicle, LenderProfile, DealData, FilterData } from "../types";
 
 // Helper to create a mock vehicle
@@ -518,7 +528,7 @@ describe("AI-flagged tiers are held for review, never an approval path [ai-range
     needsReview: true,
   };
 
-  it("resolves a flagged tier that passes its plausible rules to pending, naming the sheet value", () => {
+  it("resolves a flagged tier that passes its plausible rules to pending, naming the flagged field", () => {
     const result = checkBankEligibility(
       mockVehicle({ amountToFinance: 20000, jdPower: 21000 }),
       mockDeal({ creditScore: 520 }),
@@ -529,7 +539,7 @@ describe("AI-flagged tiers are held for review, never an approval path [ai-range
     expect(result.status).toBe("pending");
     expect(result.matchedTier?.name).toBe("Tier A");
     expect(result.reasons).toEqual([
-      'Tier "Tier A" needs review - implausible value read from the rate sheet (minFico=6600 outside 300-850). Verify it against the lender\'s official sheet and correct the tier before using it as an approval path.',
+      'Tier "Tier A" needs review - implausible min FICO read from the rate sheet. Verify it against the lender\'s official sheet and correct the tier before using it as an approval path.',
     ]);
     expect(result.uncheckedConstraints).toEqual([
       "AI-read tier needs review - verify against the lender's sheet",
@@ -620,5 +630,196 @@ describe("AI-flagged tiers are held for review, never an approval path [ai-range
       mockLender({ tiers: [{ name: "Tier A", minFico: 660, maxTerm: 84, maxLtv: 130 }] })
     );
     expect(corrected.status).toBe("eligible");
+  });
+});
+
+describe("review reasons name fields only, never the flagged value [ai-range-guard]", () => {
+  const passingDeal = () =>
+    [
+      mockVehicle({ amountToFinance: 20000, jdPower: 21000 }),
+      mockDeal({ creditScore: 720 }),
+    ] as const;
+
+  it("keeps a misread buy rate and max LTV out of reasons[0] (printed on the customer PDF)", () => {
+    const [vehicle, deal] = passingDeal();
+    const result = checkBankEligibility(
+      vehicle,
+      deal,
+      mockLender({
+        tiers: [
+          {
+            name: "Tier A",
+            maxTerm: 84,
+            rangeFlags: ["baseInterestRate=649 outside 0-40", "maxLtv=1.3 outside 20-200"],
+            needsReview: true,
+          },
+        ],
+      })
+    );
+
+    expect(result.status).toBe("pending");
+    const reason = result.reasons[0] ?? "";
+    expect(reason).toBe(
+      'Tier "Tier A" needs review - implausible buy rate and max LTV read from the rate sheet. Verify it against the lender\'s official sheet and correct the tier before using it as an approval path.'
+    );
+    // No digit from either flag (649, 0-40, 1.3, 20-200) and no raw key survives.
+    expect(reason).not.toMatch(/\d/);
+    expect(reason).not.toMatch(/baseInterestRate|maxLtv|=/);
+  });
+
+  it("never turns a malformed flag into a field name that carries a value", () => {
+    const [vehicle, deal] = passingDeal();
+    const result = checkBankEligibility(
+      vehicle,
+      deal,
+      mockLender({
+        tiers: [{ name: "Tier A", rangeFlags: ["649 outside 0-40"], needsReview: true }],
+      })
+    );
+
+    expect(result.reasons[0]).toBe(
+      'Tier "Tier A" needs review - implausible value read from the rate sheet. Verify it against the lender\'s official sheet and correct the tier before using it as an approval path.'
+    );
+  });
+
+  it("parses field names from value-bearing and value-free flags alike", () => {
+    expect(flaggedFieldName("maxLtv=1500 outside 20-200")).toBe("maxLtv");
+    expect(flaggedFieldName("  rateAdder outside -10-10")).toBe("rateAdder");
+    expect(flaggedFieldName("649 outside 0-40")).toBeNull();
+    expect(flaggedFieldName(42)).toBeNull();
+    expect(
+      reviewFieldLabels({
+        name: "T",
+        rangeFlags: [
+          "baseInterestRate=649 outside 0-40",
+          "rateAdder=25 outside -10-10",
+          "frontEndLtv=1.1 outside 20-200",
+          "minFico=6600 outside 300-850",
+          "minFico=7000 outside 300-850",
+        ],
+      })
+    ).toEqual(["buy rate", "rate adder", "front-end LTV", "min FICO"]);
+    // Object.prototype names are never "known" fields or labels.
+    expect(reviewFieldLabel("constructor")).toBe("constructor");
+    expect(reviewFieldLabel("toString")).toBe("to string");
+    expect(reviewableFieldsIn(["constructor=1 outside 0-1", "valueOf=2 outside 0-1"])).toEqual([]);
+  });
+});
+
+describe("resolveRangeFlag — one field fixed never lifts another field's hold [ai-range-guard]", () => {
+  const twoFlags = {
+    name: "Tier A",
+    maxTerm: 72,
+    rangeFlags: ["minFico=6600 outside 300-850", "maxLtv=1500 outside 20-200"],
+    needsReview: true,
+  };
+
+  it("drops only the fixed field's flag and keeps the tier held while another remains", () => {
+    const fixed = resolveRangeFlag({ ...twoFlags, minFico: 660 }, "minFico", 660);
+
+    expect(fixed.rangeFlags).toEqual(["maxLtv=1500 outside 20-200"]);
+    expect(fixed.needsReview).toBe(true);
+    expect(tierNeedsReview(fixed)).toBe(true);
+
+    // The regression the gate reproduced: a 200% LTV deal must stay pending.
+    const held = checkBankEligibility(
+      mockVehicle({ amountToFinance: 40000, jdPower: 20000 }),
+      mockDeal({ creditScore: 700 }),
+      mockLender({ tiers: [fixed] })
+    );
+    expect(held.status).toBe("pending");
+  });
+
+  it("lifts the hold only once every flagged field holds a number", () => {
+    const first = resolveRangeFlag({ ...twoFlags, minFico: 660 }, "minFico", 660);
+    const both = resolveRangeFlag({ ...first, maxLtv: 130 }, "maxLtv", 130);
+
+    expect(both).not.toHaveProperty("rangeFlags");
+    expect(both).not.toHaveProperty("needsReview");
+    expect(tierNeedsReview(both)).toBe(false);
+  });
+
+  it("re-flags a field that was typed and then cleared (the bound is still missing)", () => {
+    const baseline = twoFlags.rangeFlags;
+    const typed = resolveRangeFlag({ ...twoFlags, maxLtv: 1 }, "maxLtv", 1, baseline);
+    expect(typed.rangeFlags).toEqual(["minFico=6600 outside 300-850"]);
+
+    const cleared = resolveRangeFlag(
+      { ...typed, maxLtv: undefined },
+      "maxLtv",
+      undefined,
+      baseline
+    );
+    expect(cleared.needsReview).toBe(true);
+    expect(cleared.rangeFlags).toEqual(
+      expect.arrayContaining(["minFico=6600 outside 300-850", "maxLtv=1500 outside 20-200"])
+    );
+
+    // Even after the last flag was resolved (hold fully lifted), clearing restores it.
+    const allFixed = resolveRangeFlag({ ...typed, minFico: 660 }, "minFico", 660, baseline);
+    expect(tierNeedsReview(allFixed)).toBe(false);
+    const reopened = resolveRangeFlag(
+      { ...allFixed, minFico: undefined },
+      "minFico",
+      undefined,
+      baseline
+    );
+    expect(reopened.rangeFlags).toEqual(["minFico=6600 outside 300-850"]);
+    expect(reopened.needsReview).toBe(true);
+  });
+
+  it("treats empty, NaN and negative limits as not restoring the bound", () => {
+    for (const value of [undefined, "", Number.NaN, -5]) {
+      const next = resolveRangeFlag({ ...twoFlags }, "maxLtv", value);
+      expect(next.rangeFlags).toEqual(twoFlags.rangeFlags);
+      expect(next.needsReview).toBe(true);
+    }
+    // A negative rate adder is a legitimate discount, not a missing bound.
+    const adder = resolveRangeFlag(
+      { name: "T", rangeFlags: ["rateAdder=-25 outside -10-10"], needsReview: true },
+      "rateAdder",
+      -0.25
+    );
+    expect(tierNeedsReview(adder)).toBe(false);
+  });
+
+  it("leaves the tier untouched when an unflagged field is edited", () => {
+    const tier = { ...twoFlags };
+    expect(resolveRangeFlag(tier, "maxTerm", 84)).toBe(tier);
+    expect(resolveRangeFlag(tier, "name", "Renamed")).toBe(tier);
+    const bare = { name: "Bare", needsReview: true };
+    expect(resolveRangeFlag(bare, "minFico", 660)).toBe(bare);
+  });
+});
+
+describe("markTierVerified — never saves a tier with no limit for a flagged field [ai-range-guard]", () => {
+  it("is a no-op while any flagged field is still empty", () => {
+    const tier = {
+      name: "Tier A",
+      maxLtv: 125,
+      rangeFlags: ["maxLtv=1500 outside 20-200", "minFico=6600 outside 300-850"],
+      needsReview: true,
+    };
+
+    expect(unverifiedReviewFields(tier)).toEqual(["minFico"]);
+    expect(markTierVerified(tier)).toBe(tier);
+
+    const filled = { ...tier, minFico: 660 };
+    expect(unverifiedReviewFields(filled)).toEqual([]);
+    const verified = markTierVerified(filled);
+    expect(verified).not.toHaveProperty("rangeFlags");
+    expect(verified).not.toHaveProperty("needsReview");
+    expect(verified.minFico).toBe(660);
+  });
+
+  it("clears a bare needsReview hold (no field was dropped)", () => {
+    const verified = markTierVerified({ name: "Bare", needsReview: true });
+    expect(tierNeedsReview(verified)).toBe(false);
+  });
+
+  it("does not let a flag naming an unknown field strand the tier", () => {
+    const tier = { name: "T", rangeFlags: ["mysteryField=9 outside 0-1"], needsReview: true };
+    expect(unverifiedReviewFields(tier)).toEqual([]);
+    expect(tierNeedsReview(markTierVerified(tier))).toBe(false);
   });
 });

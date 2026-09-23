@@ -202,7 +202,10 @@ describe("lenderFit", () => {
       const entry = fit.entries.find((e) => e.lenderId === "flagged");
       expect(entry?.status).toBe("pending");
       expect(entry?.eligible).toBe(false);
-      expect(entry?.reasons[0]).toMatch(/needs review.*minFico=6600/);
+      expect(entry?.reasons[0]).toMatch(
+        /needs review - implausible min FICO read from the rate sheet/
+      );
+      expect(entry?.reasons[0]).not.toMatch(/6600/);
       expect(fit.fitCount).toBe(0);
       expect(fit.fitNames).not.toContain("Flagged AI Lender");
     });

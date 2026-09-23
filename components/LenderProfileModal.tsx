@@ -1,6 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import type { LenderProfile, LenderTier } from "../types";
-import { tierNeedsReview } from "../services/lenderMatcher";
+import {
+  joinWithAnd,
+  markTierVerified as clearVerifiedHold,
+  resolveRangeFlag,
+  reviewFieldLabel,
+  reviewableFieldsIn,
+  tierNeedsReview,
+  unverifiedReviewFields,
+} from "../services/lenderMatcher";
 import Modal from "./common/Modal";
 import Button from "./common/Button";
 import Input from "./common/Input";
@@ -21,6 +29,29 @@ const NEW_PROFILE_TEMPLATE: Omit<LenderProfile, "id" | "name"> = {
   maxPti: 0,
   tiers: [{ name: "Default Tier", minFico: 600, maxLtv: 125, maxTerm: 72 }],
 };
+
+/**
+ * Tier fields the expanded card already edits. A flagged field outside this
+ * set (e.g. front-end LTV read as a 1.10 ratio) gets its own input under
+ * "Flagged limits" — otherwise it could never be corrected here and "Mark
+ * verified" (which needs every flagged field filled) would strand the tier.
+ * [ai-range-guard]
+ */
+const CARD_EDITED_FIELDS: ReadonlySet<string> = new Set([
+  "minFico",
+  "maxFico",
+  "maxLtv",
+  "maxTerm",
+  "minYear",
+  "maxYear",
+  "minMileage",
+  "maxMileage",
+  "minAmountFinanced",
+  "maxAmountFinanced",
+  "baseInterestRate",
+  "rateAdder",
+  "maxBackend",
+]);
 
 // Compact field component for tier cards
 const TierField = ({
@@ -96,6 +127,11 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
   const [formData, setFormData] = useState<LenderProfile>(getDefaultFormData());
   const [activeTierIndex, setActiveTierIndex] = useState<number | null>(null);
+  const idPrefix = useId();
+  // Each tier's rangeFlags as they were when editing began, carried across the
+  // copies every edit makes, so a flagged field that is typed into and then
+  // cleared is flagged again instead of silently losing its hold.
+  const reviewBaseline = useRef(new WeakMap<LenderTier, unknown>());
 
   useEffect(() => {
     if (profile) {
@@ -104,7 +140,23 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       setFormData(getDefaultFormData());
     }
     setActiveTierIndex(null);
+    reviewBaseline.current = new WeakMap();
   }, [profile, isOpen]);
+
+  const baselineFlagsOf = (tier: LenderTier): unknown =>
+    reviewBaseline.current.has(tier) ? reviewBaseline.current.get(tier) : tier.rangeFlags;
+
+  // Flagged fields the card has no input for. Taken from the baseline too, so
+  // the input stays mounted after its flag resolves (no focus loss mid-typing).
+  const flaggedOnlyFieldsOf = (tier: LenderTier): string[] =>
+    [
+      ...new Set([
+        ...reviewableFieldsIn(baselineFlagsOf(tier)),
+        ...reviewableFieldsIn(tier.rangeFlags),
+      ]),
+    ].filter((key) => !CARD_EDITED_FIELDS.has(key));
+
+  const verifyHintId = (index: number) => `${idPrefix}-tier-${index}-verify-hint`;
 
   const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -113,10 +165,6 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       [name]: type === "number" ? (value === "" ? undefined : Number(value)) : value,
     }));
   };
-
-  // A rangeFlags entry looks like "maxLtv=1500 outside 20-200" — the field
-  // name is the text before the "=". [ai-range-guard]
-  const flaggedFieldName = (flag: string): string => flag.split("=")[0]?.trim() ?? "";
 
   const handleTierChange = (
     index: number,
@@ -129,18 +177,18 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       // Narrow `name` to a real LenderTier key instead of writing through `any`. [B12]
       const key = name as keyof LenderTier;
       const parsed = type === "number" ? (value === "" ? undefined : Number(value)) : value;
-      let updated: LenderTier = { ...tier, [key]: parsed } as LenderTier;
-      // Editing the specific field the AI flagged means it's been looked at —
-      // clear the hold. Editing an unrelated field (e.g. renaming the tier)
-      // must NOT clear it: the flagged value is still unverified. [ai-range-guard]
-      if (
-        tierNeedsReview(updated) &&
-        Array.isArray(updated.rangeFlags) &&
-        updated.rangeFlags.some((flag) => flaggedFieldName(flag) === key)
-      ) {
-        const { rangeFlags: _rangeFlags, needsReview: _needsReview, ...rest } = updated;
-        updated = rest as LenderTier;
-      }
+      const baseline = baselineFlagsOf(tier);
+      // A number in a flagged field lifts THAT field's flag only; the hold stays
+      // until every flagged field is filled, and clearing a flagged field
+      // re-flags it. Unrelated edits (e.g. renaming) leave the hold alone.
+      // [ai-range-guard]
+      const updated = resolveRangeFlag(
+        { ...tier, [key]: parsed } as LenderTier,
+        key,
+        parsed,
+        baseline
+      );
+      reviewBaseline.current.set(updated, baseline);
       tiers[index] = updated;
     }
     setFormData((prev) => ({ ...prev, tiers }));
@@ -150,8 +198,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     const tiers = [...(formData.tiers || [])];
     const tier = tiers[index];
     if (tier) {
-      const { rangeFlags: _rangeFlags, needsReview: _needsReview, ...rest } = tier;
-      tiers[index] = rest as LenderTier;
+      // No-op while a flagged field is still empty (the button is disabled too).
+      const verified = clearVerifiedHold(tier);
+      reviewBaseline.current.set(verified, baselineFlagsOf(tier));
+      tiers[index] = verified;
     }
     setFormData((prev) => ({ ...prev, tiers }));
   };
@@ -177,6 +227,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
         ...tiers[index],
         name: `${tiers[index].name} (Copy)`,
       };
+      reviewBaseline.current.set(duplicated, baselineFlagsOf(tiers[index]));
       tiers.splice(index + 1, 0, duplicated);
       setFormData((prev) => ({ ...prev, tiers }));
     }
@@ -222,7 +273,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
         {/* General Settings - Premium Card */}
         <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] overflow-hidden shadow-sm">
           <div className="px-5 py-4 bg-[var(--color-primary)]">
-            <h4 className="flex items-center gap-2 text-sm font-bold text-white">
+            <h4 className="flex items-center gap-2 text-sm font-bold text-[var(--on-primary)]">
               <Icons.BuildingLibraryIcon className="w-5 h-5" />
               Lender Settings
             </h4>
@@ -321,12 +372,12 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
                         index === 0
-                          ? "bg-[var(--color-success)] text-white"
+                          ? "bg-[var(--color-success)] text-[var(--on-success)]"
                           : index === 1
-                            ? "bg-[var(--color-primary)] text-white"
+                            ? "bg-[var(--color-primary)] text-[var(--on-primary)]"
                             : index === 2
-                              ? "bg-[var(--color-accent)] text-white"
-                              : "bg-[var(--color-accent)] text-white"
+                              ? "bg-[var(--color-accent)] text-[var(--on-accent)]"
+                              : "bg-[var(--color-accent)] text-[var(--on-accent)]"
                       }`}
                     >
                       {index + 1}
@@ -407,14 +458,24 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                     </p>
                     <button
                       type="button"
+                      disabled={unverifiedReviewFields(tier).length > 0}
+                      aria-describedby={
+                        unverifiedReviewFields(tier).length > 0 ? verifyHintId(index) : undefined
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
                         markTierVerified(index);
                       }}
-                      className="mt-1 font-semibold underline hover:no-underline"
+                      className="mt-1 font-semibold underline hover:no-underline disabled:no-underline disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       Mark verified
                     </button>
+                    {unverifiedReviewFields(tier).length > 0 && (
+                      <p id={verifyHintId(index)} className="mt-0.5">
+                        Enter {joinWithAnd(unverifiedReviewFields(tier).map(reviewFieldLabel))}{" "}
+                        first — a verified tier can&apos;t leave a flagged limit blank.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -546,6 +607,40 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         </TierField>
                       </div>
                     </div>
+
+                    {/* Flagged fields this card has no input for (e.g. front-end
+                        LTV) — without these a flagged tier could never be fixed. */}
+                    {flaggedOnlyFieldsOf(tier).length > 0 && (
+                      <div className="pt-3 border-t border-[var(--color-border)]">
+                        <p className="text-[10px] font-medium text-[var(--color-warning)] mb-2">
+                          Flagged limits · re-enter from the lender&apos;s sheet
+                        </p>
+                        <div className="grid grid-cols-4 gap-3">
+                          {flaggedOnlyFieldsOf(tier).map((key) => {
+                            const label = reviewFieldLabel(key);
+                            const heading = label.charAt(0).toUpperCase() + label.slice(1);
+                            const current = (tier as unknown as Record<string, unknown>)[key];
+                            return (
+                              <TierField key={key} label={heading}>
+                                <Input
+                                  type="number"
+                                  name={key}
+                                  aria-label={heading}
+                                  value={
+                                    typeof current === "number" || typeof current === "string"
+                                      ? current
+                                      : ""
+                                  }
+                                  onChange={(e) => handleTierChange(index, e)}
+                                  step="any"
+                                  className="!px-2 text-center text-xs"
+                                />
+                              </TierField>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

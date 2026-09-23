@@ -2,7 +2,16 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspens
 import { useOutletContext } from "react-router-dom";
 import type { ShellOutletContext } from "../shell/AppShell";
 import { useDealContext } from "../../context/DealContext";
-import { checkBankEligibility, tierNeedsReview } from "../../services/lenderMatcher";
+import {
+  checkBankEligibility,
+  joinWithAnd,
+  markTierVerified,
+  resolveRangeFlag,
+  reviewFieldLabel,
+  reviewFieldLabels,
+  tierNeedsReview,
+  unverifiedReviewFields,
+} from "../../services/lenderMatcher";
 import { updateLenderProfile } from "../../lib/api";
 import { getCurrentUser } from "../../lib/pocketbase";
 import { toast } from "../../lib/toast";
@@ -223,6 +232,8 @@ export const LendersScreen: React.FC = () => {
   } = useDealContext();
 
   const role = getCurrentUser()?.role;
+  // lender_profiles create/update are admin-only (PB rules), so editing and
+  // the AI Lender Upload entry points (which end in a save) are too.
   const canEdit = role === "admin" || role === "superadmin";
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -257,6 +268,16 @@ export const LendersScreen: React.FC = () => {
   /* --- Debounced optimistic persistence ---------------------------------- */
 
   const pendingRef = useRef<Record<string, { timer: number; data: Partial<LenderRow> }>>({});
+  // A tier's rangeFlags when inline editing began ("<lenderId>:<tierIndex>"),
+  // so a flagged field typed into and then cleared is flagged again even after
+  // the debounced save and refetch replace the tier objects. [ai-range-guard]
+  // Deliberately kept for the screen's lifetime, even after the tier saves
+  // clean: dropping it on a successful save would let "type 6, pause past the
+  // debounce, delete" lift the hold with the bound missing. The cost: clearing
+  // a resolved field inline later in the same session re-flags it (fail
+  // closed, never a silent lift); a limit the sheet really lacks is removed
+  // after a reload or in Edit full program, whose baseline starts fresh.
+  const reviewBaselineRef = useRef<Record<string, unknown>>({});
 
   const queueSave = (id: string, patch: Partial<LenderRow>) => {
     if (!canEdit) return;
@@ -315,13 +336,35 @@ export const LendersScreen: React.FC = () => {
   }, [flushPendingSaves]);
 
   const editTier = (lender: LenderRow, idx: number, patch: Partial<LenderTier>) => {
+    const baselineKey = `${lender.id}:${idx}`;
+    const tiers = (Array.isArray(lender.tiers) ? lender.tiers : []).map((t, i) => {
+      if (i !== idx) return t;
+      const baselines = reviewBaselineRef.current;
+      if (!(baselineKey in baselines)) baselines[baselineKey] = t.rangeFlags;
+      // Same rule as the full editor: a number in a flagged field lifts that
+      // field's flag only; the hold ends once no flag remains. [ai-range-guard]
+      return Object.entries(patch).reduce<LenderTier>(
+        (tier, [key, value]) => resolveRangeFlag(tier, key, value, baselines[baselineKey]),
+        { ...t, ...patch }
+      );
+    });
+    queueSave(lender.id, { tiers });
+  };
+
+  const verifyTier = (lender: LenderRow, idx: number) => {
     const tiers = (Array.isArray(lender.tiers) ? lender.tiers : []).map((t, i) =>
-      i === idx ? { ...t, ...patch } : t
+      // No-op while a flagged field is still empty (the button is disabled too).
+      i === idx ? markTierVerified(t) : t
     );
     queueSave(lender.id, { tiers });
   };
 
   const handleModalSave = async (profile: LenderProfile) => {
+    // The full editor may add/remove/reorder tiers; its own review baseline
+    // governed that session, so inline baselines keyed by index are stale.
+    for (const key of Object.keys(reviewBaselineRef.current)) {
+      if (key.startsWith(`${profile.id}:`)) delete reviewBaselineRef.current[key];
+    }
     setLenderProfiles((prev) => prev.map((p) => (p.id === profile.id ? { ...p, ...profile } : p)));
     setModalProfile(null);
     const res = await updateLenderProfile(profile.id, profile as never);
@@ -379,32 +422,34 @@ export const LendersScreen: React.FC = () => {
             eligibility recalculated against the live deal
           </span>
         </div>
-        <Button
-          type="button"
-          onClick={openAiUpload}
-          variant="primary"
-          data-lenders-upload
-          aria-label="AI Lender Upload"
-          title="Upload and parse lender rate sheet with AI"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
+        {canEdit && (
+          <Button
+            type="button"
+            onClick={openAiUpload}
+            variant="primary"
+            data-lenders-upload
+            aria-label="AI Lender Upload"
+            title="Upload and parse lender rate sheet with AI"
           >
-            <path
-              d="M12 8.5 13 11l2.5 1L13 13l-1 2.5L11 13l-2.5-1L11 11z"
-              fill="currentColor"
-              stroke="none"
-            />
-            <path d="M5 4v3M19 17v3M4 18h2M18 5h2" />
-          </svg>
-          AI Lender Upload
-        </Button>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 8.5 13 11l2.5 1L13 13l-1 2.5L11 13l-2.5-1L11 11z"
+                fill="currentColor"
+                stroke="none"
+              />
+              <path d="M5 4v3M19 17v3M4 18h2M18 5h2" />
+            </svg>
+            AI Lender Upload
+          </Button>
+        )}
       </header>
 
       <div className="lenders-screen-content" style={{ padding: "20px 24px" }}>
@@ -468,8 +513,14 @@ export const LendersScreen: React.FC = () => {
             <EmptyState
               icon={<Icons.BuildingLibraryIcon className="w-full h-full" />}
               title="No lender programs yet"
-              description="Use AI Lender Upload to extract programs from a rate sheet, or add them manually via the full program editor."
-              primaryAction={{ label: "AI Lender Upload", onClick: openAiUpload }}
+              description={
+                canEdit
+                  ? "Use AI Lender Upload to extract programs from a rate sheet, or add them manually via the full program editor."
+                  : "Lender programs are added by a dealer admin. Ask your admin to upload a rate sheet."
+              }
+              primaryAction={
+                canEdit ? { label: "AI Lender Upload", onClick: openAiUpload } : undefined
+              }
             />
           )}
 
@@ -484,9 +535,14 @@ export const LendersScreen: React.FC = () => {
                 status.dealEligible && units > 0 ? "var(--color-success)" : "var(--color-warning)";
 
               // Tier matched for the live deal + focused vehicle (rules engine).
-              const matched = focusedVehicle
-                ? checkBankEligibility(focusedVehicle, mergedDeal, l).matchedTier
+              // Only an ELIGIBLE result is a match: a pending one (review hold,
+              // sample program, missing deal input) still names its best
+              // candidate tier, but that tier is not an approval path, so it
+              // gets neither the MATCHED pill nor the row's headline values.
+              const eligibility = focusedVehicle
+                ? checkBankEligibility(focusedVehicle, mergedDeal, l)
                 : null;
+              const matched = eligibility?.status === "eligible" ? eligibility.matchedTier : null;
               const isAggregate = !matched;
               const rowLtv = matched
                 ? (numOf(matched.otdLtv) ?? numOf(matched.maxLtv))
@@ -927,6 +983,14 @@ export const LendersScreen: React.FC = () => {
                           const usesOtd = t.otdLtv !== undefined;
                           const usesYearRange = t.minYear !== undefined || t.maxYear !== undefined;
                           const isMatched = matched === t;
+                          const tierLabel = t.tierName || t.name || `Tier ${idx + 1}`;
+                          const needsReview = tierNeedsReview(t);
+                          // Field NAMES only — rangeFlags can carry the misread
+                          // value (a buy rate off by a decimal) and this screen
+                          // is open to every role. [ai-range-guard]
+                          const reviewFields = needsReview ? reviewFieldLabels(t) : [];
+                          const missingReviewFields = needsReview ? unverifiedReviewFields(t) : [];
+                          const verifyHintId = `tier-verify-hint-${l.id}-${idx}`;
                           return (
                             <div
                               key={idx}
@@ -939,7 +1003,7 @@ export const LendersScreen: React.FC = () => {
                                 role="row"
                                 tabIndex={0}
                                 aria-expanded={tOpen}
-                                aria-label={`${t.tierName || t.name || `Tier ${idx + 1}`} tier details`}
+                                aria-label={`${tierLabel} tier details${isMatched ? ", matched" : ""}${needsReview ? ", needs review" : ""}`}
                                 aria-controls={`tier-panel-${l.id}-${idx}`}
                                 onClick={() => setExpandedTier(tOpen ? null : idx)}
                                 onKeyDown={(e) => {
@@ -976,7 +1040,7 @@ export const LendersScreen: React.FC = () => {
                                     whiteSpace: "nowrap",
                                   }}
                                 >
-                                  {t.tierName || t.name || `Tier ${idx + 1}`}
+                                  {tierLabel}
                                 </span>
                                 {isMatched && (
                                   <span
@@ -993,11 +1057,11 @@ export const LendersScreen: React.FC = () => {
                                     MATCHED
                                   </span>
                                 )}
-                                {tierNeedsReview(t) && (
+                                {needsReview && (
                                   <span
                                     title={
-                                      Array.isArray(t.rangeFlags) && t.rangeFlags.length > 0
-                                        ? `Needs review: ${t.rangeFlags.join("; ")}`
+                                      reviewFields.length > 0
+                                        ? `Needs review: ${reviewFields.join(", ")}`
                                         : "Needs review"
                                     }
                                     style={{
@@ -1041,6 +1105,73 @@ export const LendersScreen: React.FC = () => {
                                   role="group"
                                   aria-label={`Tier ${idx + 1} parameters for ${l.name}`}
                                 >
+                                  {needsReview && (
+                                    <div
+                                      role="note"
+                                      style={{
+                                        gridColumn: "1 / -1",
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        justifyContent: "space-between",
+                                        gap: 12,
+                                        padding: "8px 10px",
+                                        borderRadius: "var(--radius-md)",
+                                        border: "1px solid var(--color-warning)",
+                                        background: "var(--color-warning-subtle)",
+                                        color: "var(--color-warning)",
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontWeight: 600 }}>
+                                          {reviewFields.length > 0
+                                            ? `Needs review: ${joinWithAnd(reviewFields)} read implausibly from the rate sheet.`
+                                            : "Needs review: flagged when the rate sheet was read."}
+                                        </div>
+                                        <div
+                                          id={verifyHintId}
+                                          style={{ marginTop: 2, fontWeight: 400 }}
+                                        >
+                                          {!canEdit
+                                            ? "Held as pending — never counted as a fit until an admin verifies it."
+                                            : missingReviewFields.length > 0
+                                              ? `Enter ${joinWithAnd(missingReviewFields.map(reviewFieldLabel))} from the lender's sheet to lift the hold (Edit full program has every field).`
+                                              : "Check it against the lender's sheet, then mark it verified."}
+                                        </div>
+                                      </div>
+                                      {canEdit && (
+                                        <button
+                                          type="button"
+                                          disabled={missingReviewFields.length > 0}
+                                          aria-describedby={
+                                            missingReviewFields.length > 0
+                                              ? verifyHintId
+                                              : undefined
+                                          }
+                                          onClick={() => verifyTier(l, idx)}
+                                          className="transition-colors"
+                                          style={{
+                                            flexShrink: 0,
+                                            background: "var(--color-bg)",
+                                            color: "var(--color-warning)",
+                                            border: "1px solid var(--color-warning)",
+                                            borderRadius: 7,
+                                            padding: "4px 11px",
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            fontFamily: "inherit",
+                                            cursor:
+                                              missingReviewFields.length > 0
+                                                ? "not-allowed"
+                                                : "pointer",
+                                            opacity: missingReviewFields.length > 0 ? 0.6 : 1,
+                                          }}
+                                        >
+                                          Mark verified
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                   <div>
                                     <label htmlFor={`tier-${l.id}-${idx}-ltv`} style={editLabel}>
                                       {usesOtd ? "Max OTD LTV (%)" : "Max LTV (%)"}
