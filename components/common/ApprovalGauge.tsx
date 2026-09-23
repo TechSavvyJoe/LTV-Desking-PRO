@@ -9,6 +9,11 @@ interface ApprovalGaugeProps {
   label?: string;
   /** Overall SVG width in px. */
   width?: number;
+  /** Id of an element with supplementary text (e.g. the "estimate, not a
+   * credit decision" disclaimer), forwarded to the svg's aria-describedby
+   * so screen readers announce it against the gauge itself rather than an
+   * unnamed wrapper. [ship-gate SHOULD-FIX #7] */
+  ariaDescribedBy?: string;
 }
 
 // Arc length of the r=80 semicircle (M20 100 A80 80 0 0 1 180 100).
@@ -27,6 +32,7 @@ const ApprovalGaugeComponent: React.FC<ApprovalGaugeProps> = ({
   colorVar,
   label = "",
   width = 216,
+  ariaDescribedBy,
 }) => {
   const s = Math.max(0, Math.min(100, Math.round(score)));
   const offset = (ARC_LEN * (1 - s / 100)).toFixed(2);
@@ -39,6 +45,7 @@ const ApprovalGaugeComponent: React.FC<ApprovalGaugeProps> = ({
       style={{ overflow: "visible", position: "relative" }}
       role="img"
       aria-label={`Approval odds ${s} of 100${label ? `, ${label}` : ""}`}
+      aria-describedby={ariaDescribedBy}
     >
       <path
         d="M20 100 A80 80 0 0 1 180 100"

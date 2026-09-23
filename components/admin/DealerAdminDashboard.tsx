@@ -325,7 +325,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setUserFormData({ ...userFormData, firstName: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                       placeholder="Jane"
                     />
                   </div>
@@ -343,7 +343,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setUserFormData({ ...userFormData, lastName: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                       placeholder="Smith"
                     />
                   </div>
@@ -359,7 +359,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       type="email"
                       value={userFormData.email}
                       onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                       placeholder="jane@dealership.com"
                     />
                   </div>
@@ -375,7 +375,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       type="tel"
                       value={userFormData.phone}
                       onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                       placeholder="(555) 123-4567"
                     />
                   </div>
@@ -399,7 +399,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                             : "sales",
                         })
                       }
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                     >
                       <option value="sales">Sales</option>
                       <option value="manager">Manager</option>
@@ -422,7 +422,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                           onChange={(e) =>
                             setUserFormData({ ...userFormData, password: e.target.value })
                           }
-                          className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                          className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                           placeholder="12+ chars, upper/lower/number"
                         />
                       </div>
@@ -440,7 +440,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                           onChange={(e) =>
                             setUserFormData({ ...userFormData, passwordConfirm: e.target.value })
                           }
-                          className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                          className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                           placeholder="Re-enter password"
                         />
                       </div>
@@ -538,6 +538,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                         <td className="px-4 py-4 text-center">
                           <select
                             value={u.role}
+                            aria-label={`Role for ${u.email}`}
                             onChange={(e) => {
                               const val = e.target.value;
                               const role = (["sales", "manager", "admin"] as const).includes(
@@ -653,16 +654,17 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, name: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                     />
                   ) : (
                     <p className="text-[var(--color-text)] font-medium">{dealer.name}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
+                  {/* Read-only value: a <label> with no control is invalid, so this is a plain caption. */}
+                  <span className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
                     Dealer Code
-                  </label>
+                  </span>
                   <p className="text-[var(--color-text-muted)] font-mono bg-[var(--color-bg-subtle)] px-3 py-2 rounded-lg border border-[var(--color-border)] inline-block">
                     {dealer.code}
                   </p>
@@ -685,7 +687,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, email: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                     />
                   ) : (
                     <p className="text-[var(--color-text)]">{dealer.email || "Not provided"}</p>
@@ -706,7 +708,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, phone: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                     />
                   ) : (
                     <p className="text-[var(--color-text)]">{dealer.phone || "Not provided"}</p>
@@ -727,7 +729,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, address: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                     />
                   ) : (
                     <p className="text-[var(--color-text)]">{dealer.address || "Not provided"}</p>
@@ -748,7 +750,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       onChange={(e) =>
                         setDealerFormData({ ...dealerFormData, city: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
                     />
                   ) : (
                     <p className="text-[var(--color-text)]">{dealer.city || "Not provided"}</p>
@@ -773,7 +775,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                         })
                       }
                       maxLength={2}
-                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] uppercase"
+                      className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)] uppercase"
                     />
                   ) : (
                     <p className="text-[var(--color-text)] uppercase">{dealer.state || "--"}</p>

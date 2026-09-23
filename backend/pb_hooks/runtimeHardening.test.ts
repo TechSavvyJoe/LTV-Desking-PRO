@@ -24,6 +24,11 @@ afterEach(() => {
     "routerUse",
     "onRecordCreateRequest",
     "onRecordUpdateRequest",
+    "onRecordEnrich",
+    "onRecordDeleteRequest",
+    "onRecordAuthRequest",
+    "onRecordsListRequest",
+    "onRealtimeSubscribeRequest",
     "ForbiddenError",
   ]) {
     clearRuntimeGlobal(name);
@@ -168,5 +173,823 @@ describe("PocketBase hook runtime hardening", () => {
     updateHandlers.saved_deals?.(updateEvent);
     expect(updateEvent.record.set).toHaveBeenCalledWith("user", "original-owner");
     expect(updateEvent.next).toHaveBeenCalled();
+  });
+
+  describe("field_visibility.pb.js [takeover #7 / review P0]", () => {
+    const loadEnrichHandlers = (): Record<string, HookHandler> => {
+      const enrichHandlers: Record<string, HookHandler> = {};
+      setRuntimeGlobal("onRecordEnrich", (fn: HookHandler, name: string) => {
+        enrichHandlers[name] = fn;
+      });
+      new Function(hookSource("field_visibility.pb.js"))();
+      return enrichHandlers;
+    };
+
+    // Faithful to the PocketBase JSVM: record.get() on a JSON field returns
+    // types.JSONRaw — a Go []byte goja exposes as an Array of byte values
+    // (Array.isArray true, JSON.stringify → "[91,123,…]") whose String() is the
+    // JSON text — and getString() returns the JSON text. A JSON field set() with
+    // a JS value is re-marshalled, so the store always holds JSON text.
+    const jsonRaw = (text: string) =>
+      Object.assign(Array.from(Buffer.from(text)), { toString: () => text });
+    const makeRecord = (
+      fields: Record<string, unknown>,
+      jsonKeys: readonly string[],
+      opts: { getString?: boolean; rawGet?: (text: string) => unknown } = {}
+    ) => {
+      const store: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        store[key] =
+          jsonKeys.includes(key) && typeof value !== "string" ? JSON.stringify(value) : value;
+      }
+      const hidden: string[] = [];
+      const setCalls: string[] = [];
+      const toRaw = opts.rawGet ?? jsonRaw;
+      const record: Record<string, unknown> = {
+        get: (key: string) =>
+          jsonKeys.includes(key) && typeof store[key] === "string"
+            ? toRaw(store[key] as string)
+            : store[key],
+        set: (key: string, value: unknown) => {
+          setCalls.push(key);
+          store[key] = jsonKeys.includes(key) ? JSON.stringify(value) : value;
+        },
+        hide: (key: string) => {
+          hidden.push(key);
+        },
+      };
+      if (opts.getString !== false) {
+        record.getString = (key: string) =>
+          typeof store[key] === "string" ? (store[key] as string) : String(store[key] ?? "");
+      }
+      const json = (key: string): unknown => JSON.parse(String(store[key]));
+      return { store, hidden, setCalls, record, json };
+    };
+    const authFor = (role: string | null, collectionName = "users") => ({
+      get: (key: string) => (key === "role" ? role : null),
+      collection: () => ({ name: collectionName }),
+    });
+    const enrich = (
+      handler: HookHandler | undefined,
+      auth: unknown,
+      record: Record<string, unknown>
+    ) => {
+      const next = vi.fn();
+      handler?.({ requestInfo: { auth }, record, next });
+      expect(next).toHaveBeenCalledOnce();
+    };
+
+    const tier = {
+      name: "Tier 1",
+      minFico: 660,
+      maxLtv: 130,
+      maxTerm: 75,
+      maxMileage: 110000,
+      baseInterestRate: 6.49,
+      rateAdder: 0.25,
+    };
+    const lender = (tiers: unknown = [{ ...tier }, { ...tier, name: "Tier 2", minFico: 600 }]) =>
+      makeRecord({ name: "Ally", reservePct: 2, tiers }, ["tiers"]);
+
+    it("registers an enrich handler for every sensitive collection", () => {
+      const handlers = loadEnrichHandlers();
+      expect(handlers.inventory).toBeTypeOf("function");
+      expect(handlers.saved_deals).toBeTypeOf("function");
+      expect(handlers.lender_profiles).toBeTypeOf("function");
+    });
+
+    it("mock models the JSONRaw contract the hook must not rely on", () => {
+      const { record } = lender();
+      const raw = (record.get as (k: string) => unknown)("tiers");
+      expect(Array.isArray(raw)).toBe(true);
+      expect(typeof (raw as unknown[])[0]).toBe("number");
+      expect(JSON.stringify(raw).startsWith("[91,123,")).toBe(true);
+      expect((record.getString as (k: string) => string)("tiers").startsWith('[{"name"')).toBe(
+        true
+      );
+    });
+
+    it("strips buy rate / adder / reserve from lender_profiles for sales, keeping tier objects", () => {
+      const handlers = loadEnrichHandlers();
+      const sales = lender();
+      enrich(handlers.lender_profiles, authFor("sales"), sales.record);
+
+      expect(sales.hidden).toContain("reservePct");
+      expect(sales.hidden).not.toContain("tiers");
+      const tiers = sales.json("tiers") as Array<Record<string, unknown>>;
+      expect(tiers).toHaveLength(2);
+      for (const t of tiers) {
+        expect(typeof t).toBe("object");
+        expect(t).not.toHaveProperty("baseInterestRate");
+        expect(t).not.toHaveProperty("rateAdder");
+      }
+      expect(tiers[0]).toMatchObject({
+        minFico: 660,
+        maxLtv: 130,
+        maxTerm: 75,
+        maxMileage: 110000,
+      });
+      expect(tiers[1]).toMatchObject({ name: "Tier 2", minFico: 600 });
+    });
+
+    it("falls back to the JSONRaw's text (never its byte values) when getString is unavailable", () => {
+      const handlers = loadEnrichHandlers();
+      const viaToString = makeRecord({ reservePct: 2, tiers: [{ ...tier }] }, ["tiers"], {
+        getString: false,
+      });
+      enrich(handlers.lender_profiles, authFor("sales"), viaToString.record);
+      const stripped = viaToString.json("tiers") as Array<Record<string, unknown>>;
+      expect(stripped[0]).not.toHaveProperty("baseInterestRate");
+      expect(stripped[0]).toMatchObject({ minFico: 660 });
+
+      // goja also exposes JSONRaw.String() as `.string()`.
+      const viaStringMethod = makeRecord({ reservePct: 2, tiers: [{ ...tier }] }, ["tiers"], {
+        getString: false,
+        rawGet: (text) => Object.assign(Array.from(Buffer.from(text)), { string: () => text }),
+      });
+      enrich(handlers.lender_profiles, authFor("sales"), viaStringMethod.record);
+      expect(
+        (viaStringMethod.json("tiers") as Array<Record<string, unknown>>)[0]
+      ).not.toHaveProperty("rateAdder");
+
+      // A bare byte array with no text accessor must fail closed, not re-emit char codes.
+      const bytesOnly = makeRecord({ reservePct: 2, tiers: [{ ...tier }] }, ["tiers"], {
+        getString: false,
+        rawGet: (text) => Array.from(Buffer.from(text)),
+      });
+      enrich(handlers.lender_profiles, authFor("sales"), bytesOnly.record);
+      expect(bytesOnly.hidden).toContain("tiers");
+      expect(bytesOnly.setCalls).not.toContain("tiers");
+    });
+
+    it("fails closed on malformed or non-object tiers for sales", () => {
+      const handlers = loadEnrichHandlers();
+      for (const bad of ["{not json", "[91,123,34]", '{"baseInterestRate":6.49}', '[[{"a":1}]]']) {
+        const rec = lender(bad);
+        enrich(handlers.lender_profiles, authFor("sales"), rec.record);
+        expect(rec.hidden).toContain("tiers");
+        expect(rec.setCalls).not.toContain("tiers");
+      }
+    });
+
+    it("leaves lender_profiles untouched for manager / admin / superadmin", () => {
+      const handlers = loadEnrichHandlers();
+      for (const role of ["manager", "admin", "superadmin"]) {
+        const privileged = lender();
+        const before = privileged.store.tiers;
+        enrich(handlers.lender_profiles, authFor(role), privileged.record);
+        expect(privileged.hidden).toHaveLength(0);
+        expect(privileged.setCalls).toHaveLength(0);
+        expect(privileged.store.tiers).toBe(before);
+        expect((privileged.json("tiers") as Array<Record<string, unknown>>)[0]).toMatchObject({
+          baseInterestRate: 6.49,
+          rateAdder: 0.25,
+        });
+      }
+    });
+
+    it("treats unauthenticated / role-less requesters as least-privileged", () => {
+      const handlers = loadEnrichHandlers();
+      for (const auth of [null, authFor(null), authFor("")]) {
+        const anon = lender();
+        enrich(handlers.lender_profiles, auth, anon.record);
+        expect(anon.hidden).toContain("reservePct");
+        expect((anon.json("tiers") as Array<Record<string, unknown>>)[0]).not.toHaveProperty(
+          "baseInterestRate"
+        );
+      }
+    });
+
+    it("strips unitCost / frontEndGross from saved_deals.vehicleData for sales only", () => {
+      const handlers = loadEnrichHandlers();
+      const vehicle = { vin: "1ABC", price: 20000, unitCost: 15000, frontEndGross: 5000 };
+
+      const sales = makeRecord({ vehicleData: { ...vehicle } }, ["vehicleData"]);
+      enrich(handlers.saved_deals, authFor("sales"), sales.record);
+      expect(sales.hidden).toHaveLength(0);
+      expect(sales.json("vehicleData")).toEqual({ vin: "1ABC", price: 20000 });
+
+      const manager = makeRecord({ vehicleData: { ...vehicle } }, ["vehicleData"]);
+      enrich(handlers.saved_deals, authFor("manager"), manager.record);
+      expect(manager.setCalls).toHaveLength(0);
+      expect(manager.json("vehicleData")).toEqual(vehicle);
+
+      // Unparseable or non-object blobs (incl. the byte-array shape) are hidden, never passed through.
+      for (const bad of ["{not json", "[123,34,117]", '"unitCost"']) {
+        const rec = makeRecord({ vehicleData: bad }, ["vehicleData"]);
+        enrich(handlers.saved_deals, authFor("sales"), rec.record);
+        expect(rec.hidden).toContain("vehicleData");
+        expect(rec.setCalls).not.toContain("vehicleData");
+      }
+    });
+
+    it("hides inventory unitCost for sales but not managers", () => {
+      const handlers = loadEnrichHandlers();
+      const sales = makeRecord({ unitCost: 15000 }, []);
+      enrich(handlers.inventory, authFor("sales"), sales.record);
+      expect(sales.hidden).toEqual(["unitCost"]);
+      const manager = makeRecord({ unitCost: 15000 }, []);
+      enrich(handlers.inventory, authFor("manager"), manager.record);
+      expect(manager.hidden).toHaveLength(0);
+    });
+
+    it("returns platform _superusers the stored data untouched (dashboard save must not persist a stripped blob)", () => {
+      const handlers = loadEnrichHandlers();
+      const superuser = authFor(null, "_superusers");
+
+      const profile = lender();
+      const tiersBefore = profile.store.tiers;
+      enrich(handlers.lender_profiles, superuser, profile.record);
+      expect(profile.hidden).toHaveLength(0);
+      expect(profile.setCalls).toHaveLength(0);
+      expect(profile.store.tiers).toBe(tiersBefore);
+
+      const deal = makeRecord(
+        { vehicleData: { vin: "1ABC", unitCost: 15000, frontEndGross: 5000 } },
+        ["vehicleData"]
+      );
+      enrich(handlers.saved_deals, superuser, deal.record);
+      expect(deal.hidden).toHaveLength(0);
+      expect(deal.setCalls).toHaveLength(0);
+      expect(deal.json("vehicleData")).toMatchObject({ unitCost: 15000, frontEndGross: 5000 });
+
+      const unit = makeRecord({ unitCost: 15000 }, []);
+      enrich(handlers.inventory, superuser, unit.record);
+      expect(unit.hidden).toHaveLength(0);
+    });
+
+    it("reduces rate-cost rangeFlags to the field name for sales and keeps the review hold [ship-gate P1]", () => {
+      const handlers = loadEnrichHandlers();
+      const flagged = lender([
+        {
+          ...tier,
+          rangeFlags: [
+            "rateAdder=25 outside -10-10",
+            "baseInterestRate=649 outside 0-40",
+            "maxLtv=1500 outside 20-200",
+          ],
+          needsReview: true,
+        },
+        // Legacy shape: flags without needsReview are still a hold (tierNeedsReview).
+        { name: "Tier 2", minFico: 600, rangeFlags: ["BuyRate = 6.49 misread"] },
+        // Entries the hook can't vouch for are dropped; the hold stays pinned on.
+        { name: "Tier 3", minFico: 580, rangeFlags: [{ rateAdder: 25 }, 7] },
+        { name: "Tier 4", minFico: 560, rangeFlags: "rateAdder=25 outside -10-10" },
+      ]);
+      enrich(handlers.lender_profiles, authFor("sales"), flagged.record);
+
+      const tiers = flagged.json("tiers") as Array<Record<string, unknown>>;
+      expect(tiers[0]?.rangeFlags).toEqual([
+        "rateAdder",
+        "baseInterestRate",
+        "maxLtv=1500 outside 20-200",
+      ]);
+      expect(tiers[0]?.needsReview).toBe(true);
+      expect(tiers[1]?.rangeFlags).toEqual(["buyRate"]);
+      expect(tiers[1]?.needsReview).toBe(true);
+      expect(tiers[2]?.rangeFlags).toEqual([]);
+      expect(tiers[2]?.needsReview).toBe(true);
+      expect(tiers[3]).not.toHaveProperty("rangeFlags");
+      // No buy-rate / adder digit anywhere in what sales receives.
+      expect(String(flagged.store.tiers)).not.toMatch(/649|6\.49|=25|"rateAdder":25/);
+
+      const manager = lender([
+        { ...tier, rangeFlags: ["rateAdder=25 outside -10-10"], needsReview: true },
+      ]);
+      const before = manager.store.tiers;
+      enrich(handlers.lender_profiles, authFor("manager"), manager.record);
+      expect(manager.store.tiers).toBe(before);
+      expect((manager.json("tiers") as Array<Record<string, unknown>>)[0]?.rangeFlags).toEqual([
+        "rateAdder=25 outside -10-10",
+      ]);
+    });
+
+    it("scrubs quoted rate values and cost keys from saved_deals.calculatedData for sales only [ship-gate P1]", () => {
+      const handlers = loadEnrichHandlers();
+      const calculatedData = {
+        lenderEligibility: [
+          {
+            name: "Ally",
+            eligible: false,
+            status: "pending",
+            reasons: [
+              'Tier "T2" needs review - implausible value read from the rate sheet (rateAdder=25 outside -10-10; baseInterestRate=649 outside 0-40; maxLtv=1500 outside 20-200). Verify it against the lender\'s official sheet.',
+            ],
+            matchedTier: "T2",
+            uncheckedConstraints: [],
+          },
+        ],
+        settings: { docFee: 200, defaultApr: 9.9 },
+        monthlyPayment: 450,
+        // Legacy snapshot keys that carried cost / buy rate.
+        effectiveRate: 6.74,
+        unitCost: 15000,
+      };
+
+      const sales = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData }, [
+        "vehicleData",
+        "calculatedData",
+      ]);
+      enrich(handlers.saved_deals, authFor("sales"), sales.record);
+      expect(sales.hidden).toHaveLength(0);
+      const calc = sales.json("calculatedData") as typeof calculatedData;
+      const reason = calc.lenderEligibility[0]?.reasons[0] ?? "";
+      expect(reason).toContain("(rateAdder outside -10-10; baseInterestRate outside 0-40;");
+      expect(reason).toContain("maxLtv=1500 outside 20-200");
+      expect(reason).not.toMatch(/649|=25/);
+      expect(calc).not.toHaveProperty("effectiveRate");
+      expect(calc).not.toHaveProperty("unitCost");
+      expect(calc.settings).toEqual({ docFee: 200, defaultApr: 9.9 });
+      expect(calc.monthlyPayment).toBe(450);
+
+      const manager = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData }, [
+        "vehicleData",
+        "calculatedData",
+      ]);
+      enrich(handlers.saved_deals, authFor("manager"), manager.record);
+      expect(manager.setCalls).toHaveLength(0);
+      expect(manager.json("calculatedData")).toEqual(calculatedData);
+
+      // A null blob is left alone; anything unparseable or non-object is hidden.
+      const empty = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData: "null" }, [
+        "vehicleData",
+        "calculatedData",
+      ]);
+      enrich(handlers.saved_deals, authFor("sales"), empty.record);
+      expect(empty.hidden).toHaveLength(0);
+      expect(empty.setCalls).not.toContain("calculatedData");
+      for (const bad of ["{not json", "[123,34]", '"rateAdder=25"']) {
+        const rec = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData: bad }, [
+          "vehicleData",
+          "calculatedData",
+        ]);
+        enrich(handlers.saved_deals, authFor("sales"), rec.record);
+        expect(rec.hidden).toContain("calculatedData");
+        expect(rec.setCalls).not.toContain("calculatedData");
+      }
+    });
+  });
+
+  describe("field_filter_guard.pb.js [ship-gate P1 — filter/sort/realtime oracle]", () => {
+    class Forbidden extends Error {
+      constructor(message: string) {
+        super(message);
+        this.name = "ForbiddenError";
+      }
+    }
+    const loadGuards = () => {
+      const list: Array<{ fn: HookHandler; tags: string[] }> = [];
+      const realtime: HookHandler[] = [];
+      setRuntimeGlobal("onRecordsListRequest", (fn: HookHandler, ...tags: string[]) => {
+        list.push({ fn, tags });
+      });
+      setRuntimeGlobal("onRealtimeSubscribeRequest", (fn: HookHandler) => {
+        realtime.push(fn);
+      });
+      setRuntimeGlobal("ForbiddenError", Forbidden);
+      new Function(hookSource("field_filter_guard.pb.js"))();
+      return { list, realtime };
+    };
+    const authFor = (role: string | null, collectionName = "users") => ({
+      get: (key: string) => (key === "role" ? role : null),
+      collection: () => ({ name: collectionName }),
+    });
+    // On request events requestInfo is a METHOD (unlike onRecordEnrich). As in
+    // the JSVM, the event exposes no `request` (undefined on PB 0.39.6).
+    const listEvent = (auth: unknown, query: Record<string, string>) => ({
+      requestInfo: () => ({ auth, query }),
+      next: vi.fn(),
+    });
+    const realtimeEvent = (auth: unknown, subscriptions: unknown) => ({
+      requestInfo: () => ({ auth, query: {} }),
+      subscriptions,
+      next: vi.fn(),
+    });
+    const withOptions = (topic: string, optionsJson: string) =>
+      `${topic}?options=${encodeURIComponent(optionsJson)}`;
+
+    const oracleProbes: Array<Record<string, string>> = [
+      { filter: 'id = "L1" && reservePct > 1' },
+      { filter: `id = "L1" && tiers ~ '"baseInterestRate":6.49'` },
+      { filter: "tiers:length > 0" },
+      { filter: 'id = "U1" && unitCost > 0' },
+      { filter: "UNITCOST>14099" },
+      { filter: 'id = "D1" && vehicleData.unitCost > 14999' },
+      { filter: "calculatedData ~ 'rateAdder=25'" },
+      // Through relations / back-relations from collections that store no cost.
+      { filter: 'id = "D1" && vehicle.unitCost > 14099' },
+      { filter: "inventory_via_dealer.unitCost ?> 14099" },
+      { sort: "-unitCost" },
+      { sort: "name,-reservePct" },
+    ];
+
+    it("registers one list guard for every collection and one realtime guard", () => {
+      const { list, realtime } = loadGuards();
+      expect(list).toHaveLength(1);
+      // Untagged: relation paths reach cost from any collection (saved_deals.vehicle, dealers back-relations).
+      expect(list[0]?.tags).toEqual([]);
+      expect(realtime).toHaveLength(1);
+    });
+
+    it("rejects a sales (or anonymous) filter or sort that names a protected field", () => {
+      const guard = loadGuards().list[0]?.fn;
+      for (const auth of [authFor("sales"), authFor(""), null]) {
+        for (const query of oracleProbes) {
+          const event = listEvent(auth, query);
+          expect(() => guard?.(event), JSON.stringify(query)).toThrow(Forbidden);
+          expect(event.next).not.toHaveBeenCalled();
+        }
+      }
+    });
+
+    it("lets managers, admins, superadmins and platform superusers filter and sort by anything", () => {
+      const guard = loadGuards().list[0]?.fn;
+      for (const auth of [
+        authFor("manager"),
+        authFor("admin"),
+        authFor("superadmin"),
+        authFor(null, "_superusers"),
+      ]) {
+        for (const query of oracleProbes) {
+          const event = listEvent(auth, query);
+          guard?.(event);
+          expect(event.next).toHaveBeenCalledOnce();
+        }
+      }
+    });
+
+    it("lets sales run the app's own list queries", () => {
+      const guard = loadGuards().list[0]?.fn;
+      const appQueries: Array<Record<string, string>> = [
+        { filter: 'dealer = "dealeraid12345x"', sort: "-created" },
+        { filter: 'dealer = "dealeraid12345x"', sort: "name,-updated" },
+        { filter: 'dealer = "dealeraid12345x" && name ~ "Ally Financial"', sort: "-updated" },
+        { filter: 'dealer = "dealeraid12345x"', sort: "firstName" },
+        { filter: "active = true" },
+        { sort: "created" },
+        {},
+      ];
+      for (const query of appQueries) {
+        const event = listEvent(authFor("sales"), query);
+        guard?.(event);
+        expect(event.next, JSON.stringify(query)).toHaveBeenCalledOnce();
+      }
+    });
+
+    it("fails closed for sales when the query can't be read; privileged roles still pass", () => {
+      const guard = loadGuards().list[0]?.fn;
+      const unreadable = (auth: unknown, info: () => unknown) => ({
+        requestInfo: info,
+        auth,
+        next: vi.fn(),
+      });
+      const throws = () => {
+        throw new Error("no request info");
+      };
+      const throwingQuery = () => ({
+        auth: authFor("sales"),
+        query: new Proxy(
+          {},
+          {
+            get: () => {
+              throw new Error("host object");
+            },
+          }
+        ),
+      });
+
+      // requestInfo unavailable: the requester still resolves through e.auth.
+      for (const event of [
+        unreadable(authFor("sales"), throws),
+        unreadable(authFor("sales"), () => ({ auth: authFor("sales") })),
+        unreadable(authFor("sales"), () => ({ auth: authFor("sales"), query: null })),
+        unreadable(null, throwingQuery),
+      ]) {
+        expect(() => guard?.(event)).toThrow(Forbidden);
+        expect(event.next).not.toHaveBeenCalled();
+      }
+      for (const auth of [authFor("manager"), authFor(null, "_superusers")]) {
+        const event = unreadable(auth, throws);
+        guard?.(event);
+        expect(event.next).toHaveBeenCalledOnce();
+      }
+    });
+
+    it("rejects a sales realtime subscription whose options filter names a protected field; managers pass", () => {
+      const guard = loadGuards().realtime[0];
+      const protectedSub = withOptions(
+        "inventory/U1",
+        JSON.stringify({ query: { filter: "unitCost > 14099" } })
+      );
+
+      const sales = realtimeEvent(authFor("sales"), ["inventory/*", protectedSub]);
+      expect(() => guard?.(sales)).toThrow(Forbidden);
+      expect(sales.next).not.toHaveBeenCalled();
+
+      for (const auth of [authFor("manager"), authFor("admin"), authFor(null, "_superusers")]) {
+        const privileged = realtimeEvent(auth, [protectedSub]);
+        guard?.(privileged);
+        expect(privileged.next).toHaveBeenCalledOnce();
+      }
+    });
+
+    it("lets sales subscribe to the app's bare topics and benign option filters", () => {
+      const guard = loadGuards().realtime[0];
+      for (const subscriptions of [
+        ["inventory/*", "saved_deals/*", "lender_profiles/*"],
+        [withOptions("saved_deals/*", JSON.stringify({ query: { filter: 'status = "funded"' } }))],
+        [],
+        null,
+      ]) {
+        const event = realtimeEvent(authFor("sales"), subscriptions);
+        guard?.(event);
+        expect(event.next, JSON.stringify(subscriptions)).toHaveBeenCalledOnce();
+      }
+    });
+
+    it("fails closed on unparseable or obfuscated realtime options for sales", () => {
+      const guard = loadGuards().realtime[0];
+      for (const sub of [
+        "inventory/*?options=%7Bnot-json",
+        "inventory/*?options=%E0%A4%A",
+        "inventory/*?options=",
+        withOptions("inventory/*", "[1,2]"),
+        withOptions("inventory/*", "null"),
+        // Go matches the struct key case-insensitively.
+        withOptions("inventory/*", '{"QUERY":{"filter":"unitCost > 1"}}'),
+        // JSON unicode escape hides the token from a naive text scan.
+        withOptions("inventory/*", '{"query":{"filter":"\\u0075nitCost > 1"}}'),
+        // Duplicate keys: JSON.parse keeps the last, Go merges both maps.
+        withOptions(
+          "inventory/*",
+          '{"query":{"filter":"\\u0075nitCost > 1"},"query":{"sort":"created"}}'
+        ),
+        withOptions("lender_profiles/*", '{"query":{"filter":"tiers ~ \'rateAdder\'"}}'),
+      ]) {
+        const event = realtimeEvent(authFor("sales"), [sub]);
+        expect(() => guard?.(event), sub).toThrow(Forbidden);
+        expect(event.next).not.toHaveBeenCalled();
+      }
+
+      // A list that can't be read (absent, or not array-like) is refused too.
+      for (const subscriptions of [{}, undefined]) {
+        const event = realtimeEvent(authFor("sales"), subscriptions);
+        expect(() => guard?.(event)).toThrow(Forbidden);
+        expect(event.next).not.toHaveBeenCalled();
+      }
+    });
+  });
+
+  describe("tenant isolation & privilege-escalation hooks [takeover #8 — RBAC coverage]", () => {
+    const authFor = (role: string, dealer = "D1", collectionName = "users") => ({
+      id: "u1",
+      get: (key: string) => (key === "role" ? role : key === "dealer" ? dealer : ""),
+      collection: () => ({ name: collectionName }),
+    });
+    const recordWith = (fields: Record<string, unknown>, original?: Record<string, unknown>) => {
+      const store: Record<string, unknown> = { ...fields };
+      const set = vi.fn((key: string, value: unknown) => {
+        store[key] = value;
+      });
+      return {
+        store,
+        set,
+        record: {
+          get: (key: string) => store[key],
+          set,
+          original: () => ({ get: (key: string) => (original ?? fields)[key] }),
+          collection: () => ({ name: "users" }),
+        },
+      };
+    };
+    class Forbidden extends Error {
+      constructor(message: string) {
+        super(message);
+        this.name = "ForbiddenError";
+      }
+    }
+    const withBody = (body: Record<string, unknown>) => () => ({ body });
+
+    it("dealer_guard forces the auth user's dealer onto every dealer-scoped write (Dealer A cannot write into Dealer B)", () => {
+      const create: Record<string, HookHandler> = {};
+      const update: Record<string, HookHandler> = {};
+      setRuntimeGlobal("onRecordCreateRequest", (fn: HookHandler, name: string) => {
+        create[name] = fn;
+      });
+      setRuntimeGlobal("onRecordUpdateRequest", (fn: HookHandler, name: string) => {
+        update[name] = fn;
+      });
+      setRuntimeGlobal("ForbiddenError", Forbidden);
+      new Function(hookSource("dealer_guard.pb.js"))();
+
+      for (const c of ["inventory", "lender_profiles", "saved_deals", "dealer_settings", "deal_events"]) {
+        expect(create[c]).toBeTypeOf("function");
+        expect(update[c]).toBeTypeOf("function");
+      }
+
+      // A sales user in D1 tries to write a record claiming dealer D2 → overwritten to D1.
+      const hop = recordWith({ dealer: "D2", vin: "X" });
+      const next = vi.fn();
+      create.inventory?.({ auth: authFor("sales", "D1"), record: hop.record, next });
+      expect(hop.set).toHaveBeenCalledWith("dealer", "D1");
+      expect(hop.store.dealer).toBe("D1");
+      expect(next).toHaveBeenCalled();
+
+      const hopU = recordWith({ dealer: "D2" });
+      update.saved_deals?.({ auth: authFor("manager", "D1"), record: hopU.record, next: vi.fn() });
+      expect(hopU.store.dealer).toBe("D1");
+
+      // Unauthenticated → fail closed.
+      expect(() =>
+        create.inventory?.({ auth: null, record: recordWith({ dealer: "D2" }).record, next: vi.fn() })
+      ).toThrow(/Authentication is required/);
+
+      // Authenticated but no dealership → fail closed (never trust a client-supplied dealer).
+      expect(() =>
+        create.inventory?.({
+          auth: authFor("sales", ""),
+          record: recordWith({ dealer: "D2" }).record,
+          next: vi.fn(),
+        })
+      ).toThrow(/not associated with a dealership/);
+
+      // App superadmins and platform _superusers may write any dealer (seeding/support).
+      const sa = recordWith({ dealer: "D2" });
+      create.inventory?.({ auth: authFor("superadmin", "D1"), record: sa.record, next: vi.fn() });
+      expect(sa.set).not.toHaveBeenCalled();
+      const su = recordWith({ dealer: "D2" });
+      create.inventory?.({ auth: authFor("sales", "D1", "_superusers"), record: su.record, next: vi.fn() });
+      expect(su.set).not.toHaveBeenCalled();
+    });
+
+    it("users_guard blocks self-promotion to superadmin and tenant-hopping on update", () => {
+      const update: Record<string, HookHandler> = {};
+      setRuntimeGlobal("onRecordCreateRequest", vi.fn());
+      setRuntimeGlobal("onRecordUpdateRequest", (fn: HookHandler, name: string) => {
+        update[name] = fn;
+      });
+      setRuntimeGlobal("onRecordDeleteRequest", vi.fn());
+      setRuntimeGlobal("onRecordAuthRequest", vi.fn());
+      setRuntimeGlobal("ForbiddenError", Forbidden);
+      new Function(hookSource("users_guard.pb.js"))();
+      expect(update.users).toBeTypeOf("function");
+
+      const stored = { role: "sales", dealer: "D1", active: true };
+
+      // A sales user PATCHes their own record to superadmin in another dealer → all reverted.
+      const esc = recordWith({ role: "superadmin", dealer: "D2", active: false }, stored);
+      const next = vi.fn();
+      update.users?.({ auth: authFor("sales", "D1"), record: esc.record, next });
+      expect(esc.store).toMatchObject({ role: "sales", dealer: "D1", active: true });
+      expect(next).toHaveBeenCalled();
+
+      // An admin may set non-privileged roles and toggle active, but never grant superadmin or move dealers.
+      const adm = recordWith({ role: "superadmin", dealer: "D2", active: false }, stored);
+      update.users?.({ auth: authFor("admin", "D1"), record: adm.record, next: vi.fn() });
+      expect(adm.store.role).toBe("sales");
+      expect(adm.store.dealer).toBe("D1");
+      expect(adm.store.active).toBe(false);
+      const admOk = recordWith({ role: "manager", dealer: "D1", active: true }, stored);
+      update.users?.({ auth: authFor("admin", "D1"), record: admOk.record, next: vi.fn() });
+      expect(admOk.store.role).toBe("manager");
+
+      // Nobody but a superadmin may touch a superadmin's record.
+      const target = recordWith({ role: "sales" }, { role: "superadmin", dealer: "D1", active: true });
+      expect(() =>
+        update.users?.({ auth: authFor("admin", "D1"), record: target.record, next: vi.fn() })
+      ).toThrow(/platform owner/);
+
+      // Superadmin is exempt from the clamps.
+      const saEdit = recordWith({ role: "admin", dealer: "D2", active: true }, stored);
+      update.users?.({ auth: authFor("superadmin", "D9"), record: saEdit.record, next: vi.fn() });
+      expect(saEdit.set).not.toHaveBeenCalled();
+    });
+
+    it("users_guard clamps admin-created users, denies sales creates, and validates public signup by dealer code", () => {
+      const create: Record<string, HookHandler> = {};
+      setRuntimeGlobal("onRecordCreateRequest", (fn: HookHandler, name: string) => {
+        create[name] = fn;
+      });
+      setRuntimeGlobal("onRecordUpdateRequest", vi.fn());
+      setRuntimeGlobal("onRecordDeleteRequest", vi.fn());
+      setRuntimeGlobal("onRecordAuthRequest", vi.fn());
+      setRuntimeGlobal("ForbiddenError", Forbidden);
+      const app = {
+        findRecordsByFilter: vi.fn(() => [] as Array<{ getBool: (k: string) => boolean }>),
+        findFirstRecordByFilter: vi.fn(() => ({ id: "DEALER-1" }) as { id: string } | null),
+      };
+      setRuntimeGlobal("$app", app);
+      new Function(hookSource("users_guard.pb.js"))();
+      expect(create.users).toBeTypeOf("function");
+
+      // Admin: cannot mint a superadmin; the new user is pinned to the admin's dealer; active defaults true.
+      const adm = recordWith({ role: "superadmin", dealer: "D2" });
+      create.users?.({
+        auth: authFor("admin", "D1"),
+        record: adm.record,
+        requestInfo: withBody({}),
+        next: vi.fn(),
+      });
+      expect(adm.store).toMatchObject({ role: "sales", dealer: "D1", active: true });
+
+      // An authenticated sales user may not create accounts at all.
+      expect(() =>
+        create.users?.({
+          auth: authFor("sales", "D1"),
+          record: recordWith({}).record,
+          requestInfo: withBody({}),
+          next: vi.fn(),
+        })
+      ).toThrow(/dealership administrator/);
+
+      // Public signup with a code that resolves to the same dealer → lowest-privilege role.
+      const pub = recordWith({ role: "admin", dealer: "DEALER-1" });
+      const next = vi.fn();
+      create.users?.({
+        auth: null,
+        record: pub.record,
+        requestInfo: withBody({ dealerCode: "ABC" }),
+        next,
+      });
+      expect(pub.store.role).toBe("sales");
+      expect(next).toHaveBeenCalled();
+
+      // Public signup whose code resolves to a DIFFERENT dealer than the record claims → rejected.
+      expect(() =>
+        create.users?.({
+          auth: null,
+          record: recordWith({ dealer: "OTHER" }).record,
+          requestInfo: withBody({ dealerCode: "ABC" }),
+          next: vi.fn(),
+        })
+      ).toThrow(/does not match/);
+
+      // Unknown code and missing code → rejected.
+      app.findFirstRecordByFilter.mockReturnValueOnce(null);
+      expect(() =>
+        create.users?.({
+          auth: null,
+          record: recordWith({ dealer: "DEALER-1" }).record,
+          requestInfo: withBody({ dealerCode: "NOPE" }),
+          next: vi.fn(),
+        })
+      ).toThrow(/Invalid dealer code/);
+      expect(() =>
+        create.users?.({
+          auth: null,
+          record: recordWith({ dealer: "DEALER-1" }).record,
+          requestInfo: withBody({}),
+          next: vi.fn(),
+        })
+      ).toThrow(/dealer code is required/);
+
+      // Owner kill-switch: signupsEnabled=false rejects public registration.
+      app.findRecordsByFilter.mockReturnValueOnce([{ getBool: () => false }]);
+      expect(() =>
+        create.users?.({
+          auth: null,
+          record: recordWith({ dealer: "DEALER-1" }).record,
+          requestInfo: withBody({ dealerCode: "ABC" }),
+          next: vi.fn(),
+        })
+      ).toThrow(/currently disabled/);
+    });
+
+    it("users_guard protects superadmin accounts from deletion and blocks deactivated logins", () => {
+      let del: HookHandler | undefined;
+      let authReq: HookHandler | undefined;
+      setRuntimeGlobal("onRecordCreateRequest", vi.fn());
+      setRuntimeGlobal("onRecordUpdateRequest", vi.fn());
+      setRuntimeGlobal("onRecordDeleteRequest", (fn: HookHandler) => {
+        del = fn;
+      });
+      setRuntimeGlobal("onRecordAuthRequest", (fn: HookHandler) => {
+        authReq = fn;
+      });
+      setRuntimeGlobal("ForbiddenError", Forbidden);
+      new Function(hookSource("users_guard.pb.js"))();
+
+      expect(() =>
+        del?.({
+          auth: authFor("admin", "D1"),
+          record: recordWith({ role: "superadmin" }).record,
+          next: vi.fn(),
+        })
+      ).toThrow(/platform owner/);
+      const ok = vi.fn();
+      del?.({
+        auth: authFor("superadmin", "D1"),
+        record: recordWith({ role: "superadmin" }).record,
+        next: ok,
+      });
+      expect(ok).toHaveBeenCalled();
+
+      expect(() => authReq?.({ record: recordWith({ active: false }).record, next: vi.fn() })).toThrow(
+        /deactivated/
+      );
+      const live = vi.fn();
+      authReq?.({ record: recordWith({ active: true }).record, next: live });
+      expect(live).toHaveBeenCalled();
+    });
   });
 });

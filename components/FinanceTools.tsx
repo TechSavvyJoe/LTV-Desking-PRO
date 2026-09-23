@@ -1,9 +1,10 @@
-import React, { useState, useMemo, lazy, Suspense } from "react";
+import React, { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { calculateMonthlyPayment, calculateLoanAmount } from "../services/calculator";
 import { formatCurrency } from "./common/TableCell";
 import * as Icons from "./common/Icons";
 import { DealData, CalculatedVehicle, LenderProfile, FilterData } from "../types";
 import { DocumentScanner } from "./DocumentScanner";
+import { useRovingTabs } from "../hooks/useRovingTabs";
 
 // Lazy load heavy chart components (recharts) so the library is only fetched
 // when the Analytics tab is opened inside the already-lazy FinanceTools.
@@ -148,6 +149,19 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   customerFilters,
 }) => {
   const [activeTab, setActiveTab] = useState<ToolTab>("reserve");
+
+  // Tracks whether .finance-tools-nav is currently the ≤800px horizontal
+  // scrolling row (index.css) so the roving-tabs hook can announce the
+  // layout's actual axis instead of a fixed one. [a11y]
+  const [isNarrowNav, setIsNarrowNav] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 800px)");
+    const syncIsNarrowNav = () => setIsNarrowNav(media.matches);
+    syncIsNarrowNav();
+    media.addEventListener?.("change", syncIsNarrowNav);
+    return () => media.removeEventListener?.("change", syncIsNarrowNav);
+  }, []);
 
   // --- Defaults from Props ---
   const defaultPrice = typeof activeVehicle?.price === "number" ? activeVehicle.price : 30000;
@@ -329,6 +343,21 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
 
   // Use the module-scope navigation items (includes Analytics tab)
   const navItems = NAV_ITEMS;
+  const tabKeys = useMemo(() => navItems.map((n) => n.id), [navItems]);
+  // WAI-ARIA tabs: roving tabindex + arrow keys, panel linked to its tab.
+  // "both" because this tablist is vertical at desktop widths but reflows to
+  // a horizontal scrolling row at <=800px (index.css .finance-tools-nav);
+  // ariaOrientation announces whichever axis is actually drawn right now,
+  // since WAI-ARIA's implicit tablist default ("horizontal") would otherwise
+  // misdescribe the desktop layout. [a11y]
+  const tabs = useRovingTabs({
+    keys: tabKeys,
+    active: activeTab,
+    onChange: setActiveTab,
+    idPrefix: "finance-tools",
+    orientation: "both",
+    ariaOrientation: isNarrowNav ? "horizontal" : "vertical",
+  });
 
   return (
     <div className="finance-tools-shell flex min-h-[600px] rounded-lg overflow-hidden shadow-sm bg-[var(--color-bg)] border border-[var(--color-border)]">
@@ -338,16 +367,19 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
           <h3 className="text-lg font-semibold text-[var(--color-text)]">Finance tools</h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">Calculators & utilities</p>
         </div>
-        <nav className="finance-tools-nav flex-1 p-2 space-y-1" aria-label="Finance tools">
+        <div
+          className="finance-tools-nav flex-1 p-2 space-y-1"
+          aria-label="Finance tools"
+          {...tabs.getTabListProps()}
+        >
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              role="tab"
-              aria-selected={activeTab === item.id}
-              className={`finance-tools-tab w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-[var(--duration-fast)] ${
+              {...tabs.getTabProps(item.id)}
+              className={`finance-tools-tab w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-[var(--duration-fast)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] ${
                 activeTab === item.id
-                  ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
+                  ? /* on-subtle text token, not primary-on-subtle (≈3.3:1) — WCAG 1.4.3 */
+                    "bg-[var(--color-primary-subtle)] text-[var(--color-text)] font-semibold"
                   : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)]"
               }`}
             >
@@ -355,7 +387,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               {item.label}
             </button>
           ))}
-        </nav>
+        </div>
         {dealData && (
           <div className="finance-tools-reset p-4 border-t border-[var(--color-border)]">
             <button
@@ -371,7 +403,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
 
       {/* Main Content */}
       <div className="finance-tools-main flex-1 flex flex-col bg-transparent">
-        <div className="finance-tools-content flex-1 p-6">
+        <div className="finance-tools-content flex-1 p-6" {...tabs.getPanelProps(activeTab)}>
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-semibold text-[var(--color-text)]">

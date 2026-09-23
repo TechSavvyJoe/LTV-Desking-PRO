@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { ApprovalGauge } from "../common/ApprovalGauge";
 import { fmt } from "../../utils/format";
 import type { splitPay } from "../../utils/format";
@@ -35,50 +35,67 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
   otdLtv,
   pti,
   thresholds,
-}) => (
-  <section className="desk-inspector-summary pay-glow">
-    <div className="desk-score-cell">
-      <ApprovalGauge score={score} colorVar={gaugeColor} label={bandLabel} width={116} />
-      <div className="desk-score-label" style={{ color: gaugeColor }}>
-        {bandLabel}
+}) => {
+  const disclaimerId = useId();
+  return (
+    <section className="desk-inspector-summary pay-glow">
+      <div className="desk-score-cell">
+        <ApprovalGauge
+          score={score}
+          colorVar={gaugeColor}
+          label={bandLabel}
+          width={116}
+          ariaDescribedBy={disclaimerId}
+        />
+        <div className="desk-score-label" style={{ color: gaugeColor }}>
+          {bandLabel}
+        </div>
+        <div className="desk-fit-caption">
+          <strong style={{ color: fitCountColor(fitCount) }}>
+            {fitCount}/{totalLenders}
+          </strong>{" "}
+          lenders fit
+        </div>
       </div>
-      <div className="desk-fit-caption">
-        <strong style={{ color: fitCountColor(fitCount) }}>
-          {fitCount}/{totalLenders}
-        </strong>{" "}
-        lenders fit
+      <div className="desk-payment-cell">
+        <div className="desk-payment-label">Est. monthly payment</div>
+        <div className="desk-payment-value">
+          <span>{pay ? pay.whole : "—"}</span>
+          <small>{pay ? pay.frac : ""}</small>
+        </div>
+        <div className="desk-payment-meta">
+          {loanTerm} mo · {apr} APR · estimate
+        </div>
       </div>
-    </div>
-    <div className="desk-payment-cell">
-      <div className="desk-payment-label">Est. monthly payment</div>
-      <div className="desk-payment-value">
-        <span>{pay ? pay.whole : "—"}</span>
-        <small>{pay ? pay.frac : ""}</small>
+      <div
+        id={disclaimerId}
+        className="desk-fit-caption"
+        style={{ gridColumn: "1 / -1", textAlign: "center", lineHeight: 1.3, marginTop: 1 }}
+      >
+        Estimate, not a credit decision or offer of credit. Final terms require a lender credit
+        check.
       </div>
-      <div className="desk-payment-meta">
-        {loanTerm} mo · {apr} APR · estimate
+      <div className="desk-summary-metrics" aria-label="Deal structure metrics">
+        <Metric
+          label="Amount financed"
+          value={financed === null ? "—" : fmt(financed)}
+          tone="primary"
+        />
+        <Metric label="Back-end products" value={fmt(backendProducts)} color="var(--color-text)" />
+        <Metric
+          label="Out-the-door LTV"
+          value={pct(otdLtv)}
+          color={otdColorFor(otdLtv, thresholds)}
+        />
+        <Metric
+          label="Payment-to-income"
+          value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
+          color={ptiColorFor(pti)}
+        />
       </div>
-    </div>
-    <div className="desk-summary-metrics" aria-label="Deal structure metrics">
-      <Metric
-        label="Amount financed"
-        value={financed === null ? "—" : fmt(financed)}
-        tone="primary"
-      />
-      <Metric label="Back-end products" value={fmt(backendProducts)} color="var(--color-text)" />
-      <Metric
-        label="Out-the-door LTV"
-        value={pct(otdLtv)}
-        color={otdColorFor(otdLtv, thresholds)}
-      />
-      <Metric
-        label="Payment-to-income"
-        value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
-        color={ptiColorFor(pti)}
-      />
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 export const Metric: React.FC<{ label: string; value: string; tone?: "primary"; color?: string }> =
   React.memo(({ label, value, tone, color }) => (

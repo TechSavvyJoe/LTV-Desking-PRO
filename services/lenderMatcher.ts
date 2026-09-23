@@ -48,6 +48,190 @@ const SAMPLE_CONSTRAINT = "sample program - verify or convert before use";
 const SAMPLE_REASON =
   "Sample program - illustrative only; verify or convert it before using it as an approval path.";
 
+/**
+ * A tier the AI extraction flagged (implausible value dropped server-side) is
+ * never an approval path: the dropped bound would silently widen it. It stays
+ * "pending" until a human corrects it and clears the flags. Legacy tiers that
+ * carry `rangeFlags` without `needsReview` are held too (fail closed).
+ * [ai-range-guard]
+ */
+export const tierNeedsReview = (tier: LenderTier): boolean =>
+  tier.needsReview === true || (Array.isArray(tier.rangeFlags) && tier.rangeFlags.length > 0);
+
+const REVIEW_CONSTRAINT = "AI-read tier needs review - verify against the lender's sheet";
+
+/**
+ * Plain-English names for the tier fields the AI range guard can flag. A
+ * review reason may use ONLY these words: reasons[0] is printed on the
+ * customer worksheet PDF and persisted into saved_deals, and a flag such as
+ * "baseInterestRate=649 outside 0-40" is the buy rate off by a decimal point.
+ * [ai-range-guard]
+ */
+const REVIEW_FIELD_LABELS: Readonly<Record<string, string>> = {
+  minFico: "min FICO",
+  maxFico: "max FICO",
+  minYear: "min model year",
+  maxYear: "max model year",
+  maxAge: "max vehicle age",
+  minMileage: "min mileage",
+  maxMileage: "max mileage",
+  minTerm: "min term",
+  maxTerm: "max term",
+  maxLtv: "max LTV",
+  minLtv: "min LTV",
+  frontEndLtv: "front-end LTV",
+  otdLtv: "OTD LTV",
+  maxAdvance: "max advance",
+  minAmountFinanced: "min amount financed",
+  maxAmountFinanced: "max amount financed",
+  baseInterestRate: "buy rate",
+  rateAdder: "rate adder",
+  maxRate: "max rate",
+  minIncome: "min income",
+  maxPti: "max PTI",
+  maxDti: "max DTI",
+  maxBackend: "max backend",
+  maxBackendPercent: "max backend percent",
+};
+
+/**
+ * The tier field a rangeFlags entry names: the leading identifier of
+ * "maxLtv=1500 outside 20-200" (or of a value-free "maxLtv outside 20-200").
+ * Letters only, so a malformed flag can never smuggle a value out as a "name".
+ */
+export const flaggedFieldName = (flag: unknown): string | null => {
+  if (typeof flag !== "string") return null;
+  return /^\s*([A-Za-z]+)/.exec(flag)?.[1] ?? null;
+};
+
+/**
+ * Plain-English label for a flaggable tier field (never includes a value).
+ * `Object.hasOwn`, not `in`/`??`: a stored flag such as "constructor=1" must
+ * not resolve to an Object.prototype member.
+ */
+export const reviewFieldLabel = (key: string): string =>
+  Object.hasOwn(REVIEW_FIELD_LABELS, key)
+    ? (REVIEW_FIELD_LABELS[key] ?? key)
+    : key.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+
+const reviewFlags = (flags: unknown): string[] =>
+  Array.isArray(flags)
+    ? flags.filter((flag): flag is string => typeof flag === "string" && flag !== "")
+    : [];
+
+/** Distinct tier fields the AI range guard flagged on this tier, in flag order. */
+export const flaggedReviewFields = (tier: LenderTier): string[] => [
+  ...new Set(
+    reviewFlags(tier.rangeFlags)
+      .map(flaggedFieldName)
+      .filter((key): key is string => key !== null)
+  ),
+];
+
+/**
+ * Known numeric tier fields named in a flag list — what an editor must offer
+ * an input for so every flagged limit can be re-entered from the sheet.
+ */
+export const reviewableFieldsIn = (flags: unknown): string[] => [
+  ...new Set(
+    reviewFlags(flags)
+      .map(flaggedFieldName)
+      .filter((key): key is string => key !== null && Object.hasOwn(REVIEW_FIELD_LABELS, key))
+  ),
+];
+
+/** Flagged fields as plain-English labels (names only — never the flagged value). */
+export const reviewFieldLabels = (tier: LenderTier): string[] =>
+  flaggedReviewFields(tier).map(reviewFieldLabel);
+
+/** "a", "a and b", "a, b and c". */
+export const joinWithAnd = (items: readonly string[]): string =>
+  items.length <= 1
+    ? (items[0] ?? "")
+    : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+
+/**
+ * Does `value` restore the bound the range guard dropped for `key`? Only a
+ * number the rules engine will actually enforce counts: empty/NaN never does,
+ * and a negative limit is ignored by `configuredLimit`, so accepting it would
+ * reopen the fail-open path. The rate adder alone may be negative (a discount)
+ * and is display metadata, not a constraint.
+ */
+const holdsReviewedValue = (key: string, value: unknown): boolean => {
+  const parsed = finiteNumber(value);
+  return parsed !== null && (key === "rateAdder" || parsed >= 0);
+};
+
+const withReviewFlags = (tier: LenderTier, flags: string[]): LenderTier => {
+  const { rangeFlags: _rangeFlags, needsReview: _needsReview, ...rest } = tier;
+  return flags.length > 0 ? { ...rest, rangeFlags: flags, needsReview: true } : rest;
+};
+
+/**
+ * The single rule both tier editors use when a human edits `key`
+ * (LenderProfileModal.handleTierChange, LendersScreen.editTier):
+ *
+ * - `value` restores the bound → drop ONLY that field's flag; the hold
+ *   (`needsReview` + `rangeFlags`) is lifted only once no flag remains. A
+ *   two-flag tier with one field fixed stays pending.
+ * - `value` is empty/not a number → the field is flagged again from
+ *   `baselineFlags` (the tier's flags when editing began), so typing a digit
+ *   and deleting it never clears the hold with the bound still missing.
+ * - `key` was never flagged → the tier is returned untouched.
+ * [ai-range-guard]
+ */
+export const resolveRangeFlag = (
+  tier: LenderTier,
+  key: string,
+  value: unknown,
+  baselineFlags: unknown = tier.rangeFlags
+): LenderTier => {
+  const current = reviewFlags(tier.rangeFlags);
+  const isKeyFlag = (flag: string) => flaggedFieldName(flag) === key;
+  if (holdsReviewedValue(key, value)) {
+    return current.some(isKeyFlag)
+      ? withReviewFlags(
+          tier,
+          current.filter((flag) => !isKeyFlag(flag))
+        )
+      : tier;
+  }
+  if (current.some(isKeyFlag)) return tier;
+  const restored = reviewFlags(baselineFlags).filter(isKeyFlag);
+  return restored.length > 0 ? withReviewFlags(tier, [...current, ...restored]) : tier;
+};
+
+/**
+ * Flagged fields that still hold no enforceable number. "Mark verified" is
+ * allowed only when this is empty — verifying must never save a tier with no
+ * limit where the sheet had one. Flags naming an unknown field cannot be
+ * edited anywhere, so they do not block.
+ */
+export const unverifiedReviewFields = (tier: LenderTier): string[] =>
+  reviewableFieldsIn(tier.rangeFlags).filter(
+    (key) => !holdsReviewedValue(key, (tier as unknown as Record<string, unknown>)[key])
+  );
+
+/**
+ * Clear the review hold after a human checked the tier against the sheet.
+ * A no-op while any flagged field still lacks a number (see
+ * `unverifiedReviewFields`).
+ */
+export const markTierVerified = (tier: LenderTier): LenderTier =>
+  unverifiedReviewFields(tier).length > 0 ? tier : withReviewFlags(tier, []);
+
+const reviewReason = (tier: LenderTier): string => {
+  const label = tier.tierName || tier.name || "Unnamed";
+  const fields = reviewFieldLabels(tier);
+  const detail =
+    fields.length > 0
+      ? ` - implausible ${joinWithAnd(fields)} read from the rate sheet`
+      : reviewFlags(tier.rangeFlags).length > 0
+        ? " - implausible value read from the rate sheet"
+        : "";
+  return `Tier "${label}" needs review${detail}. Verify it against the lender's official sheet and correct the tier before using it as an approval path.`;
+};
+
 export interface EligibilityResult {
   eligible: boolean;
   status: EligibilityStatus;
@@ -97,25 +281,28 @@ const compareCandidates = (left: TierCandidate, right: TierCandidate): number =>
   return compareText(left.tier.name || "", right.tier.name || "");
 };
 
-const pendingResult = (candidate: TierCandidate): EligibilityResult => ({
-  eligible: false,
-  status: "pending",
-  reasons: candidate.unchecked.includes(SAMPLE_CONSTRAINT)
-    ? [
-        SAMPLE_REASON,
-        ...(() => {
-          const otherUnchecked = candidate.unchecked.filter((item) => item !== SAMPLE_CONSTRAINT);
-          return otherUnchecked.length > 0
-            ? [`Pending required information: ${otherUnchecked.join(", ")}.`]
-            : [];
-        })(),
-      ]
-    : [`Pending required information: ${candidate.unchecked.join(", ")}.`],
-  matchedTier: candidate.tier,
-  uncheckedConstraints: candidate.unchecked,
-  effectiveRate: candidate.effectiveRate,
-  evaluatedConstraints: candidate.evaluatedConstraints,
-});
+const pendingResult = (candidate: TierCandidate): EligibilityResult => {
+  // Provenance/review holds get their own sentence (reasons[0] is what the
+  // PDFs print); only genuinely missing deal inputs are "required information".
+  const reasons: string[] = [];
+  if (candidate.unchecked.includes(SAMPLE_CONSTRAINT)) reasons.push(SAMPLE_REASON);
+  if (candidate.unchecked.includes(REVIEW_CONSTRAINT)) reasons.push(reviewReason(candidate.tier));
+  const otherUnchecked = candidate.unchecked.filter(
+    (item) => item !== SAMPLE_CONSTRAINT && item !== REVIEW_CONSTRAINT
+  );
+  if (otherUnchecked.length > 0) {
+    reasons.push(`Pending required information: ${otherUnchecked.join(", ")}.`);
+  }
+  return {
+    eligible: false,
+    status: "pending",
+    reasons,
+    matchedTier: candidate.tier,
+    uncheckedConstraints: candidate.unchecked,
+    effectiveRate: candidate.effectiveRate,
+    evaluatedConstraints: candidate.evaluatedConstraints,
+  };
+};
 
 const samplePendingResult = (
   unchecked: Iterable<string>,
@@ -499,6 +686,10 @@ export const checkBankEligibility = (
     if (configuredLimit(tier.maxAdvance) !== null) {
       unchecked.add("max advance (verify lender-specific calculation)");
     }
+
+    // A tier that fails its plausible rules is still rejected (restoring the
+    // dropped bound could only reject more); one that passes is held pending.
+    if (tierNeedsReview(tier)) unchecked.add(REVIEW_CONSTRAINT);
 
     if (rejected) continue;
     const candidate: TierCandidate = {

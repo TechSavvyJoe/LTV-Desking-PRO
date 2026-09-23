@@ -198,6 +198,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
               className="dc-input"
               value={buyerState}
               onChange={(e) => setDeal({ buyerState: e.target.value as AppState })}
+              aria-describedby="desk-buyer-state-hint"
             >
               <option value="MI">MI · 6%</option>
               <option value="OH">OH · 5.75%</option>
@@ -359,6 +360,25 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           >
             Clear filters
           </button>
+          {/* Geography boundary — stated up front so OTD accuracy is never a
+              surprise in a demo. Remove once the 50-state engine ships. A
+              full-row grid item (grid-column: 1 / -1) rather than a child of
+              a .desk-field cell, so it can't stretch the Buyer state cell
+              and misalign the row (align-items: end). */}
+          <p
+            id="desk-buyer-state-hint"
+            className="desk-field-hint"
+            style={{
+              gridColumn: "1 / -1",
+              fontSize: 11,
+              color: "var(--color-text-subtle)",
+              margin: "4px 0 0",
+              lineHeight: 1.4,
+            }}
+          >
+            Models a Michigan dealership (MI reciprocity for out-of-state buyers) — verify OTD
+            before quoting.
+          </p>
         </div>
       )}
     </section>

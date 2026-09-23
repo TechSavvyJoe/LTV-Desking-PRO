@@ -33,7 +33,7 @@ const styles = `
         justify-content: space-between;
         align-items: center;
         padding-bottom: 4mm;
-        border-bottom: 2px solid #34d399;
+        border-bottom: 2px solid #4f46e5;
         margin-bottom: 3mm;
     }
     .brand {
@@ -95,7 +95,7 @@ const styles = `
         text-overflow: ellipsis;
     }
     .highlight { 
-        color: #059669; 
+        color: #4338ca; 
         font-weight: 600; 
     }
     .badge {

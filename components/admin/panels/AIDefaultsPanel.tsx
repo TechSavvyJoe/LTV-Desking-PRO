@@ -94,10 +94,14 @@ export const AIDefaultsPanel: React.FC = () => {
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          <label
+            htmlFor="ai-default-provider"
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
             Provider
           </label>
           <select
+            id="ai-default-provider"
             value={provider}
             onChange={(e) => {
               const val = e.target.value;
@@ -127,10 +131,14 @@ export const AIDefaultsPanel: React.FC = () => {
           ] as const
         ).map(([label, value, setter, task]) => (
           <div key={task}>
-            <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+            <label
+              htmlFor={`ai-model-${task}`}
+              className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+            >
               {label}
             </label>
             <select
+              id={`ai-model-${task}`}
               value={value}
               onChange={(e) => setter(e.target.value)}
               className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"

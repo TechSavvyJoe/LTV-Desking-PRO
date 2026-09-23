@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useDealContext } from "../../context/DealContext";
 import { useTheme } from "../../hooks/useTheme";
 import { GaugeMark } from "../common/GaugeMark";
@@ -10,7 +10,14 @@ import SkipNavLink from "../common/SkipNavLink";
 const SettingsModal = lazy(() => import("../SettingsModal"));
 const AiLenderManagerModal = lazy(() => import("../AiLenderManagerModal"));
 import BackgroundUploadIndicator from "../BackgroundUploadIndicator";
-import { DataLoading, DataError } from "../common/states";
+import { SkeletonRows, DataError } from "../common/states";
+import { SectionErrorBoundary } from "../common/ErrorBoundary";
+import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
+import type { PaletteItem } from "./CommandPalette";
+import { vehiclePaletteItem } from "./paletteItems";
+import { useOpenDealInDesk } from "../../hooks/useOpenDealInDesk";
+import { GettingStarted } from "./GettingStarted";
+import { setupProgress } from "./setupProgress";
 import {
   getCurrentUser,
   getSuperadminDealerOverride,
@@ -100,6 +107,21 @@ const WrenchIcon = () => (
   </svg>
 );
 
+const SearchIcon = () => (
+  <svg
+    width="17"
+    height="17"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+  >
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.8-3.8" />
+  </svg>
+);
+
 const ShieldIcon = () => (
   <svg
     width="13"
@@ -177,6 +199,8 @@ export const AppShell: React.FC = () => {
     lenderProfiles,
     setLenderProfiles,
     savedDeals,
+    setFocusVin,
+    setSearchQuery,
     message,
     setMessage,
     dataLoading,
@@ -186,6 +210,7 @@ export const AppShell: React.FC = () => {
 
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const currentUser = getCurrentUser();
   const isSuperAdmin = currentUser?.role === "superadmin";
@@ -295,21 +320,20 @@ export const AppShell: React.FC = () => {
   // --- AI Lender Upload modal state (moved from legacy MainLayout) ----------
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isAiMinimized, setIsAiMinimized] = useState(false);
-  // Real progress state (was dead `const [aiUploadProgress] = useState({0,""})`).
-  // Now wired to modal's onProgress so the minimized BackgroundUploadIndicator
-  // can show actual %/stage instead of always 0. This is the first step toward
-  // integrating (or removing) the dead stores/backgroundUploadStore.
+  // Progress reported by the AI importer, shown by the minimized
+  // BackgroundUploadIndicator while the user keeps working.
   const [aiUploadProgress, setAiUploadProgress] = useState({ progress: 0, stage: "" });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const openAiUpload = () => {
+  const openAiUpload = useCallback(() => {
     setIsAiModalOpen(true);
     setIsAiMinimized(false);
-  };
+  }, []);
 
   // --- Avatar popover --------------------------------------------------------
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const accountBtnRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
     const onPointerDown = (e: MouseEvent) => {
@@ -343,7 +367,7 @@ export const AppShell: React.FC = () => {
     border: "none",
     borderRadius: 7,
     padding: "8px 10px",
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: 500,
     color: "var(--color-text)",
     cursor: "pointer",
@@ -352,6 +376,127 @@ export const AppShell: React.FC = () => {
   };
 
   const outletContext: ShellOutletContext = { openAiUpload };
+
+  // --- Command palette (⌘K) --------------------------------------------------
+  // One keyboard-first entry point for every screen, action, saved deal and
+  // unit in stock — the switching pattern F&I managers expect from DMS-class
+  // tools. Items are rebuilt only when the underlying lists change. [takeover-P1 #8]
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+  useCommandPaletteHotkey(openPalette);
+  const openDealInDesk = useOpenDealInDesk();
+
+  const paletteItems = useMemo<PaletteItem[]>(() => {
+    const go = (to: string) => () => navigate(to);
+    const screens: PaletteItem[] = [
+      {
+        id: "nav-desk",
+        label: "The Desk",
+        detail: "Structure a deal",
+        group: "Go to",
+        onSelect: go("/desk"),
+      },
+      {
+        id: "nav-pipeline",
+        label: "Pipeline",
+        detail: `${savedDeals.length} saved deals`,
+        group: "Go to",
+        onSelect: go("/pipeline"),
+      },
+      {
+        id: "nav-inventory",
+        label: "Inventory",
+        detail: `${inventory.length} vehicles`,
+        group: "Go to",
+        onSelect: go("/inventory"),
+      },
+      {
+        id: "nav-lenders",
+        label: "Lenders",
+        detail: `${lenderProfiles.length} lender profiles`,
+        group: "Go to",
+        onSelect: go("/lenders"),
+      },
+      { id: "nav-reports", label: "Reports", group: "Go to", onSelect: go("/reports") },
+      {
+        id: "nav-tools",
+        label: "Finance tools",
+        detail: "Payment, LTV and reserve calculators",
+        group: "Go to",
+        onSelect: go("/tools"),
+      },
+    ];
+    if (isSuperAdmin || isDealerAdmin) {
+      screens.push({
+        id: "nav-admin",
+        label: isSuperAdmin ? "Owner Console" : "Admin",
+        detail: "Users, dealers, settings",
+        group: "Go to",
+        onSelect: go("/admin"),
+      });
+    }
+    const actions: PaletteItem[] = [
+      // lender_profiles create/update are admin-only on the server (see
+      // 1747900000_authorization_lifecycle_hardening.js); offering this to
+      // sales/manager burns a metered extraction on a save that always fails. [P2]
+      ...(isSuperAdmin || isDealerAdmin
+        ? [
+            {
+              id: "act-ai-upload",
+              label: "AI Lender Upload",
+              detail: "Import a rate sheet or program guide",
+              group: "Actions",
+              keywords: ["import", "rate sheet", "lender", "program"],
+              onSelect: openAiUpload,
+            } satisfies PaletteItem,
+          ]
+        : []),
+      {
+        id: "act-settings",
+        label: "Settings",
+        detail: "Dealer defaults, fees, taxes",
+        group: "Actions",
+        keywords: ["preferences", "defaults", "fees", "tax"],
+        onSelect: () => setIsSettingsOpen(true),
+      },
+      {
+        id: "act-theme",
+        label: theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+        group: "Actions",
+        keywords: ["theme", "dark", "light", "appearance"],
+        onSelect: toggleTheme,
+      },
+      { id: "act-signout", label: "Sign out", group: "Account", onSelect: logout },
+    ];
+    const deals: PaletteItem[] = savedDeals.map((deal) => ({
+      id: `deal-${deal.id}`,
+      label: deal.customerName || "Unnamed deal",
+      detail: [deal.vehicle?.vehicle, deal.vehicle?.stock && `STK ${deal.vehicle.stock}`]
+        .filter(Boolean)
+        .join(" · "),
+      group: "Saved deals",
+      keywords: [deal.vehicle?.vin ?? "", deal.vehicle?.stock ?? "", deal.salespersonName ?? ""],
+      onSelect: () => openDealInDesk(deal),
+    }));
+    const vehicles: PaletteItem[] = inventory.map((v, i) =>
+      vehiclePaletteItem(v, i, { setSearchQuery, setFocusVin, navigate })
+    );
+    return [...screens, ...actions, ...deals, ...vehicles];
+  }, [
+    navigate,
+    savedDeals,
+    inventory,
+    lenderProfiles.length,
+    isSuperAdmin,
+    isDealerAdmin,
+    theme,
+    toggleTheme,
+    openAiUpload,
+    openDealInDesk,
+    setSearchQuery,
+    setFocusVin,
+  ]);
 
   return (
     <div
@@ -418,24 +563,23 @@ export const AppShell: React.FC = () => {
 
           {isSuperAdmin ? (
             dealersError ? (
+              // Its own class, not .app-shell-dealer: the block shrinks like
+              // the dealer select does (so it can't push the account menu
+              // off-screen), but only the message span inside it is a
+              // min-width:0 ellipsis target — Retry keeps its intrinsic
+              // width and stays reachable at any width. [P3]
               <div
-                className="app-shell-dealer"
+                className="app-shell-dealer-error"
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
-                <span
-                  role="alert"
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--color-danger)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Couldn't load dealers
-                </span>
+                {/* Retry renders before the message and is never a shrink
+                    target (no min-width:0), so the flexbox squeezes the
+                    message span first — Retry stays fully reachable at any
+                    width. [review P3 re-fix] */}
                 <button
                   onClick={() => setDealersFetchNonce((n) => n + 1)}
                   style={{
+                    flexShrink: 0,
                     background: "transparent",
                     border: "1px solid var(--color-border-strong)",
                     borderRadius: 8,
@@ -450,6 +594,18 @@ export const AppShell: React.FC = () => {
                 >
                   Retry
                 </button>
+                <span
+                  role="alert"
+                  className="app-shell-dealer-error-message"
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--color-danger)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Couldn't load dealers
+                </span>
               </div>
             ) : (
               <select
@@ -463,7 +619,7 @@ export const AppShell: React.FC = () => {
                   border: "1px solid var(--color-border)",
                   borderRadius: 8,
                   padding: "6px 11px",
-                  fontSize: 13.5,
+                  fontSize: 13,
                   fontWeight: 600,
                   color: "var(--color-text)",
                   fontFamily: "inherit",
@@ -486,7 +642,7 @@ export const AppShell: React.FC = () => {
             <span
               className="app-shell-dealer"
               style={{
-                fontSize: 13.5,
+                fontSize: 13,
                 fontWeight: 600,
                 color: "var(--color-text)",
                 padding: "6px 0",
@@ -521,7 +677,11 @@ export const AppShell: React.FC = () => {
                 }}
                 aria-hidden
               />
+              {/* Collapses below ~900px, keeping just the dot + Exit: with the
+                  ⌘K button visible (761-~800px) the fixed-width children sum to
+                  ~800px and can still push the avatar off-screen. [P3] */}
               <span
+                className="app-shell-impersonating-label"
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
@@ -533,6 +693,8 @@ export const AppShell: React.FC = () => {
               </span>
               <button
                 onClick={handleExitImpersonation}
+                aria-label="Exit impersonation"
+                title="Exit impersonation"
                 style={{
                   background: "transparent",
                   border: "none",
@@ -551,30 +713,44 @@ export const AppShell: React.FC = () => {
           )}
 
           <button
-            onClick={openAiUpload}
-            className="app-shell-ai-btn"
-            aria-label="AI lender upload"
-            title="AI lender upload"
-            // Background + hover live in index.css (.app-shell-ai-btn) so the
-            // hover state is plain CSS instead of JS style mutation.
-            style={{
-              color: "var(--on-primary, white)",
-              border: "1px solid transparent",
-              borderRadius: 6,
-              padding: "7px 12px",
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              whiteSpace: "nowrap",
-            }}
+            type="button"
+            onClick={openPalette}
+            className="rail-btn app-shell-secondary-action"
+            aria-label="Search and commands"
+            aria-keyshortcuts="Meta+K Control+K"
+            title="Search and commands (⌘K)"
+            style={railBtnStyle}
           >
-            <SparkleIcon />
-            <span className="app-shell-ai-label">AI Lender Upload</span>
+            <SearchIcon />
           </button>
+
+          {(isSuperAdmin || isDealerAdmin) && (
+            <button
+              onClick={openAiUpload}
+              className="app-shell-ai-btn"
+              aria-label="AI lender upload"
+              title="AI lender upload"
+              // Background + hover live in index.css (.app-shell-ai-btn) so the
+              // hover state is plain CSS instead of JS style mutation.
+              style={{
+                color: "var(--on-primary, white)",
+                border: "1px solid transparent",
+                borderRadius: 6,
+                padding: "7px 12px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <SparkleIcon />
+              <span className="app-shell-ai-label">AI Lender Upload</span>
+            </button>
+          )}
 
           <button
             onClick={toggleTheme}
@@ -606,6 +782,7 @@ export const AppShell: React.FC = () => {
 
           <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
             <button
+              ref={accountBtnRef}
               onClick={() => setMenuOpen((v) => !v)}
               className="rail-btn"
               title="Account"
@@ -640,12 +817,34 @@ export const AppShell: React.FC = () => {
                   minWidth: 180,
                   background: "var(--color-bg)",
                   border: "1px solid var(--color-border)",
-                  borderRadius: 10,
+                  borderRadius: "var(--radius-lg)",
                   boxShadow: "var(--shadow-md)",
                   padding: 6,
                   zIndex: 50,
                 }}
               >
+                {/* Touch entry point for the command palette: the ⌘K header
+                    button hides at phone widths (.app-shell-secondary-action),
+                    so the avatar menu is the only remaining path to it there. */}
+                <button
+                  role="menuitem"
+                  className="rail-btn"
+                  style={menuItemStyle}
+                  onClick={() => {
+                    // [WCAG 2.4.3] Focus the Account button *before* the palette
+                    // opens: this menuitem unmounts (setMenuOpen(false)) in the
+                    // same commit CommandPalette mounts, so if we don't move focus
+                    // first, useRestoreFocus captures <body> as "previously
+                    // focused" and Escape drops focus to the document instead of
+                    // returning it here.
+                    accountBtnRef.current?.focus();
+                    setMenuOpen(false);
+                    openPalette();
+                  }}
+                >
+                  <SearchIcon />
+                  Search
+                </button>
                 {(isSuperAdmin || isDealerAdmin) && (
                   <button
                     role="menuitem"
@@ -757,41 +956,59 @@ export const AppShell: React.FC = () => {
             />
           </div>
         ) : dataLoading ? (
-          <DataLoading label="Loading your dealership data…" />
+          <div style={{ padding: "20px 24px" }}>
+            <SkeletonRows rows={8} label="Loading your dealership data" />
+          </div>
         ) : (
-          <Outlet context={outletContext} />
+          <>
+            {location.pathname === "/desk" && (
+              <GettingStarted
+                dealerId={overrideId ?? currentUser?.dealer ?? "default"}
+                {...setupProgress(inventory, lenderProfiles, savedDeals)}
+                canManageSetup={isSuperAdmin || isDealerAdmin}
+                onImportInventory={() => navigate("/inventory")}
+                onAddLenders={openAiUpload}
+                onDeskDeal={() => document.getElementById("desk-search")?.focus()}
+              />
+            )}
+            <Outlet context={outletContext} />
+          </>
         )}
       </main>
 
       {/* Modals (moved from legacy MainLayout) — wrapped for lazy */}
-      <Suspense fallback={null}>
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          settings={settings}
-          onSave={setSettings}
-        />
-      </Suspense>
+      {/* Each heavy modal gets its own boundary so a crash inside Settings or the
+          AI importer closes that dialog instead of taking the whole desk down. */}
+      <SectionErrorBoundary label="Settings" onReset={() => setIsSettingsOpen(false)}>
+        <Suspense fallback={null}>
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            settings={settings}
+            onSave={setSettings}
+          />
+        </Suspense>
+      </SectionErrorBoundary>
 
-      <Suspense fallback={null}>
-        <AiLenderManagerModal
-          isOpen={isAiModalOpen && !isAiMinimized}
-          onClose={() => setIsAiModalOpen(false)}
-          currentProfiles={lenderProfiles}
-          onUpdateProfiles={setLenderProfiles}
-          onMinimize={() => setIsAiMinimized(true)}
-          isMinimized={isAiMinimized}
-          settings={settings}
-          // Wire progress so indicator reflects real AI processing (was dead/0 before).
-          // BackgroundUploadStore remains unused; this is direct state bridge.
-          onProgress={(progress, stage) => setAiUploadProgress({ progress, stage })}
-        />
-      </Suspense>
+      <SectionErrorBoundary label="AI Lender Upload" onReset={() => setIsAiModalOpen(false)}>
+        <Suspense fallback={null}>
+          <AiLenderManagerModal
+            isOpen={isAiModalOpen && !isAiMinimized}
+            onClose={() => setIsAiModalOpen(false)}
+            currentProfiles={lenderProfiles}
+            onUpdateProfiles={setLenderProfiles}
+            onMinimize={() => setIsAiMinimized(true)}
+            isMinimized={isAiMinimized}
+            settings={settings}
+            onProgress={(progress, stage) => setAiUploadProgress({ progress, stage })}
+          />
+        </Suspense>
+      </SectionErrorBoundary>
 
+      <CommandPalette open={paletteOpen} onClose={closePalette} items={paletteItems} />
+
+      {/* Visible only while the importer is open and minimized. */}
       <BackgroundUploadIndicator
-        // isProcessing uses isAiModalOpen (crude proxy). When the modal is doing
-        // work it calls onProgress above; progress now flows. BackgroundUploadStore
-        // kept for future true background AI uploads (currently direct state bridge).
         isProcessing={isAiModalOpen}
         isMinimized={isAiMinimized}
         overallProgress={aiUploadProgress.progress}

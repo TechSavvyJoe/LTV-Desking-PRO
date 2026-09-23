@@ -284,7 +284,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                   style={{
                     width: 34,
                     height: 34,
-                    borderRadius: 10,
+                    borderRadius: "var(--radius-lg)",
                     background: "var(--color-bg-muted)",
                     color: "var(--color-text-muted)",
                     display: "flex",
@@ -300,7 +300,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                 </div>
                 <span
                   style={{
-                    fontSize: 14.5,
+                    fontSize: 14,
                     fontWeight: 600,
                     whiteSpace: "nowrap",
                     overflow: "hidden",

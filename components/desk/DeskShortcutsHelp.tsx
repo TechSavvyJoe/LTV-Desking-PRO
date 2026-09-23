@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 
 const SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
+  { keys: "⌘/Ctrl+K", action: "Search deals and vehicles, or jump to any screen" },
   { keys: "/", action: "Focus inventory search" },
   { keys: "↑ / ↓", action: "Move focus through ranked inventory" },
   { keys: "C", action: "Pin or unpin focused vehicle to compare" },

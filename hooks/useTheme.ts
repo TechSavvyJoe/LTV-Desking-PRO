@@ -3,12 +3,15 @@ import { STORAGE_KEYS } from "../constants";
 
 type Theme = "light" | "dark";
 
+// Light is the default — dealership software runs in bright showrooms and a
+// light, neutral UI reads as conventional finance-grade tooling. Dark stays a
+// first-class, user-chosen option (mirrored by the bootstrap in index.html).
 const getInitialTheme = (): Theme => {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(STORAGE_KEYS.THEME);
   if (stored === "light" || stored === "dark") return stored;
 
-  return "dark";
+  return "light";
 };
 
 export function useTheme() {

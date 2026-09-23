@@ -154,6 +154,20 @@ export interface LenderTier {
   // Extraction metadata
   confidence?: number; // 0.0-1.0 confidence score
   extractionSource?: string; // "table", "text", "inferred"
+  /**
+   * Fields the server DROPPED because the AI-extracted value was implausible
+   * (e.g. "maxLtv=1500 outside 20-200"). Presence means: verify against the
+   * lender's official sheet before desking with this tier. [takeover-P1]
+   */
+  rangeFlags?: string[];
+  /**
+   * Set by the server whenever it dropped an implausible value (see
+   * `rangeFlags`). A dropped bound WIDENS the program (minFico 6600 dropped
+   * matches every score), so the rules engine holds a flagged tier as
+   * "pending" — never "eligible" — until a human corrects it and clears both
+   * this and `rangeFlags`. [ai-range-guard]
+   */
+  needsReview?: boolean;
 }
 
 export interface LenderProfile {

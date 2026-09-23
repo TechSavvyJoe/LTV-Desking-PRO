@@ -1,4 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
+import { SectionErrorBoundary } from "./components/common/ErrorBoundary";
 import {
   Navigate,
   Route,
@@ -272,45 +273,72 @@ const App: React.FC = () => {
         />
 
         {/* Owner console */}
-        <Route path="/admin" element={adminElement} />
+        <Route
+          path="/admin"
+          element={
+            <SectionErrorBoundary label="The owner console">{adminElement}</SectionErrorBoundary>
+          }
+        />
         <Route path="/owner" element={<Navigate to="/admin" replace />} />
 
         {/* Authed dealer app — AppShell hosts the routed screens */}
         <Route element={dealerShellElement}>
-          <Route path="/desk" element={<DeskRoute />} />
+          <Route
+            path="/desk"
+            element={
+              <SectionErrorBoundary label="The desk">
+                <DeskRoute />
+              </SectionErrorBoundary>
+            }
+          />
           <Route
             path="/pipeline"
             element={
-              <Suspense fallback={PageFallback}>
-                <PipelineScreen />
-              </Suspense>
+              <SectionErrorBoundary label="The pipeline">
+                <Suspense fallback={PageFallback}>
+                  <PipelineScreen />
+                </Suspense>
+              </SectionErrorBoundary>
             }
           />
           <Route
             path="/inventory"
             element={
-              <Suspense fallback={PageFallback}>
-                <InventoryScreen />
-              </Suspense>
+              <SectionErrorBoundary label="Inventory">
+                <Suspense fallback={PageFallback}>
+                  <InventoryScreen />
+                </Suspense>
+              </SectionErrorBoundary>
             }
           />
           <Route
             path="/lenders"
             element={
-              <Suspense fallback={PageFallback}>
-                <LendersScreen />
-              </Suspense>
+              <SectionErrorBoundary label="Lenders">
+                <Suspense fallback={PageFallback}>
+                  <LendersScreen />
+                </Suspense>
+              </SectionErrorBoundary>
             }
           />
           <Route
             path="/reports"
             element={
-              <Suspense fallback={PageFallback}>
-                <ReportsScreen />
-              </Suspense>
+              <SectionErrorBoundary label="Reports">
+                <Suspense fallback={PageFallback}>
+                  <ReportsScreen />
+                </Suspense>
+              </SectionErrorBoundary>
             }
           />
-          <Route path="/tools" element={<ToolsRoute />} />
+          <Route
+            path="/tools"
+            element={
+              <SectionErrorBoundary label="Finance tools">
+                <ToolsRoute />
+              </SectionErrorBoundary>
+            }
+          />
           <Route path="/" element={<LegacyTabRedirect />} />
           <Route path="*" element={<Navigate to="/desk" replace />} />
         </Route>

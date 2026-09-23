@@ -462,7 +462,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
 
           <div
             style={{
-              fontSize: 11.5,
+              fontSize: 11,
               color: "var(--color-text-subtle)",
               marginTop: 14,
               lineHeight: 1.5,
@@ -486,9 +486,9 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
                   pdfState.status === "error"
                     ? "var(--color-danger-subtle)"
                     : "var(--color-bg-subtle)",
-                borderRadius: 10,
+                borderRadius: "var(--radius-lg)",
                 padding: "10px 12px",
-                fontSize: 12.5,
+                fontSize: 12,
                 lineHeight: 1.45,
               }}
             >

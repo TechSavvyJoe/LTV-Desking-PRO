@@ -51,9 +51,16 @@ export const useKeyboardShortcuts = (keyMap: KeyMap, enabled: boolean = true) =>
 /**
  * Hook for trapping focus within a modal or dialog
  * Essential for accessibility - keeps keyboard focus inside the modal
+ *
+ * Every clause excludes tabindex="-1": those elements are programmatically
+ * focusable but deliberately out of the Tab sequence (e.g. combobox options
+ * driven by aria-activedescendant), so the trap must not auto-focus or cycle
+ * onto them.
  */
-const FOCUSABLE_SELECTOR =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const NOT_UNTABBABLE = ':not([tabindex="-1"])';
+const FOCUSABLE_SELECTOR = ["button", "[href]", "input", "select", "textarea", "[tabindex]"]
+  .map((s) => `${s}${NOT_UNTABBABLE}`)
+  .join(", ");
 
 export const useFocusTrap = (
   containerRef: React.RefObject<HTMLElement>,

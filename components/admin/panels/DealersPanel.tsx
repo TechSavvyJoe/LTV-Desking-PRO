@@ -236,10 +236,14 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="dealer-name"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Name *
               </label>
               <input
+                id="dealer-name"
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -248,10 +252,14 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="dealer-code"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Code *
               </label>
               <input
+                id="dealer-code"
                 type="text"
                 value={formData.code}
                 onChange={(e) =>
@@ -266,10 +274,14 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="dealer-email"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Email
               </label>
               <input
+                id="dealer-email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -278,10 +290,14 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="dealer-phone"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Phone
               </label>
               <input
+                id="dealer-phone"
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -290,10 +306,14 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="dealer-city"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 City
               </label>
               <input
+                id="dealer-city"
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
@@ -302,10 +322,14 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="dealer-state"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 State
               </label>
               <input
+                id="dealer-state"
                 type="text"
                 value={formData.state}
                 onChange={(e) =>
@@ -320,10 +344,14 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
               />
             </div>
             <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="dealer-address"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Address
               </label>
               <input
+                id="dealer-address"
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}

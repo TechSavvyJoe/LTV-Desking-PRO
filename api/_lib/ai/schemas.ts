@@ -293,11 +293,84 @@ const stripUndefined = <T extends Record<string, unknown>>(value: T): T => {
   return value;
 };
 
+/**
+ * Plausibility ranges for AI-extracted tier fields. An OCR/LLM misread (a
+ * "150%" LTV read as 1500, a FICO of 6600, a 720-month term) must never become
+ * a "verified" approval path: out-of-range values are DROPPED (an unknown beats
+ * a wrong number), recorded in `rangeFlags`, and the tier's confidence is
+ * capped so the review UI demands human verification before the program is
+ * used to desk a deal. This runs server-side — the trust boundary. [takeover-P1]
+ *
+ * Dropping alone fails OPEN: a dropped bound widens the program (minFico 6600
+ * dropped → the tier matches a 520 score; maxTerm 2 dropped → any term). So any
+ * flagged tier is also marked `needsReview`, which the rules engine resolves to
+ * "pending" — never "eligible" — until a human corrects it. [ai-range-guard]
+ */
+const CURRENT_YEAR = new Date().getFullYear();
+const TIER_RANGES: Partial<Record<keyof LenderTier, readonly [number, number]>> = {
+  minFico: [300, 850],
+  maxFico: [300, 850],
+  minYear: [1980, CURRENT_YEAR + 1],
+  maxYear: [1980, CURRENT_YEAR + 1],
+  maxAge: [0, 30],
+  minMileage: [0, 500_000],
+  maxMileage: [0, 500_000],
+  minTerm: [6, 96],
+  maxTerm: [6, 96],
+  maxLtv: [20, 200],
+  minLtv: [0, 200],
+  frontEndLtv: [20, 200],
+  otdLtv: [20, 200],
+  maxAdvance: [0, 250_000],
+  minAmountFinanced: [0, 500_000],
+  maxAmountFinanced: [0, 500_000],
+  baseInterestRate: [0, 40],
+  rateAdder: [-10, 10],
+  maxRate: [0, 40],
+  minIncome: [0, 100_000],
+  maxPti: [0, 100],
+  maxDti: [0, 100],
+  maxBackend: [0, 50_000],
+  maxBackendPercent: [0, 100],
+};
+
+/** Confidence is capped here whenever any field was dropped as implausible. */
+const FLAGGED_CONFIDENCE_CAP = 0.4;
+
+export const applyRangeChecks = (tier: LenderTier): LenderTier => {
+  // Confidence is a 0-1 fraction; models sometimes emit it as a percentage.
+  if (typeof tier.confidence === "number") {
+    if (tier.confidence > 1 && tier.confidence <= 100) tier.confidence = tier.confidence / 100;
+    if (tier.confidence < 0 || tier.confidence > 1) delete tier.confidence;
+  }
+
+  const flags: string[] = [];
+  for (const [key, range] of Object.entries(TIER_RANGES) as Array<
+    [keyof LenderTier, readonly [number, number]]
+  >) {
+    const value = tier[key];
+    if (typeof value === "number" && (value < range[0] || value > range[1])) {
+      flags.push(`${key}=${value} outside ${range[0]}-${range[1]}`);
+      delete (tier as unknown as Record<string, unknown>)[key];
+    }
+  }
+
+  if (flags.length > 0) {
+    tier.rangeFlags = flags;
+    tier.needsReview = true;
+    tier.confidence = Math.min(
+      typeof tier.confidence === "number" ? tier.confidence : 1,
+      FLAGGED_CONFIDENCE_CAP
+    );
+  }
+  return tier;
+};
+
 export const normalizeTier = (tier: z.infer<typeof AiLenderTierSchema>): LenderTier => {
   const maxAge = normalizeNumber(tier.maxAge);
   const minYear = normalizeNumber(tier.minYear) ?? calculateMinYearFromAge(maxAge);
 
-  return stripUndefined({
+  const draft: LenderTier = stripUndefined({
     name: tier.name,
     tierName: tier.tierName,
     minFico: normalizeNumber(tier.minFico),
@@ -330,6 +403,7 @@ export const normalizeTier = (tier: z.infer<typeof AiLenderTierSchema>): LenderT
     confidence: normalizeNumber(tier.confidence),
     extractionSource: tier.extractionSource === "header" ? "text" : tier.extractionSource,
   });
+  return applyRangeChecks(draft);
 };
 
 export const normalizeLender = (

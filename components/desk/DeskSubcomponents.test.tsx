@@ -6,12 +6,13 @@ import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
-import type { CalculatedVehicle, DealData, LenderProfile, Settings } from "../../types";
+import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../../types";
 import type { LenderFitEntry } from "../../services/lenderFit";
 import BackendAddons from "./BackendAddons";
 import { DealInspector } from "./DealInspector";
 import { InventoryGrid } from "./InventoryGrid";
 import StructureMatrix from "./StructureMatrix";
+import { DeskTermsRail } from "./DeskTermsRail";
 
 const settings: Settings = {
   defaultTerm: 72,
@@ -194,6 +195,46 @@ describe("desk subcomponents", () => {
     expect(screen.getByRole("tab", { name: "Add-ons" })).toBeTruthy();
   });
 
+  it("shows the model-card disclaimer under the approval-odds gauge, described via aria-describedby", () => {
+    render(
+      <DealInspector
+        vehicle={vehicle}
+        entries={entries}
+        profilesById={new Map(lenderProfiles.map((profile) => [profile.id, profile]))}
+        totalLenders={2}
+        dealData={dealData}
+        settings={settings}
+        pinned={false}
+        onPin={vi.fn()}
+        onSetTermDown={vi.fn()}
+        compactMode={false}
+        compactOpen={false}
+        onCloseCompact={vi.fn()}
+        vscAmount={2495}
+        gapAmount={895}
+        otherBackend={0}
+        onToggleVsc={vi.fn()}
+        onToggleGap={vi.fn()}
+        onVscAmountChange={vi.fn()}
+        onGapAmountChange={vi.fn()}
+        onOtherBackendChange={vi.fn()}
+        onDealSheet={vi.fn()}
+        onSaveDeal={vi.fn()}
+      />
+    );
+
+    const disclaimer = screen.getByText(
+      /Estimate, not a credit decision or offer of credit\. Final terms require a lender credit check\./
+    );
+    expect(disclaimer).toBeTruthy();
+    // The describedby must land on the gauge's own role="img" svg (its
+    // accessible name), not an unnamed wrapper a screen reader would skip.
+    // [ship-gate SHOULD-FIX #7]
+    const describedElement = document.querySelector(`[aria-describedby="${disclaimer.id}"]`);
+    expect(describedElement).toBeTruthy();
+    expect(describedElement?.getAttribute("role")).toBe("img");
+  });
+
   it("InventoryGrid exposes table/cell ARIA semantics for virtualized rows", () => {
     const { container } = render(
       <InventoryGrid
@@ -246,5 +287,60 @@ describe("desk subcomponents", () => {
       />
     );
     expect(screen.getAllByText("$0").length).toBeGreaterThan(0);
+  });
+
+  it("keeps the buyer-state hint out of the grid cell so it doesn't stretch the state select", () => {
+    const filters: FilterData = {
+      creditScore: null,
+      monthlyIncome: null,
+      monthlyDebt: null,
+      vehicle: "",
+      maxPrice: null,
+      maxPayment: null,
+      maxMiles: null,
+      maxOtdLtv: null,
+      vin: "",
+      minScore: null,
+    };
+
+    const { container } = render(
+      <DeskTermsRail
+        customerName=""
+        setCustomerName={vi.fn()}
+        filters={filters}
+        setFilter={vi.fn()}
+        dealData={dealData}
+        setDeal={vi.fn()}
+        buyerState="MI"
+        aprText="8.9"
+        onAprChange={vi.fn()}
+        buyRate={null}
+        applyBuyRate={vi.fn()}
+        advancedOpen={true}
+        onToggleAdvanced={vi.fn()}
+        onReset={vi.fn()}
+        onClearFilters={vi.fn()}
+        onScanIncome={vi.fn()}
+      />
+    );
+
+    const hint = container.querySelector(".desk-field-hint");
+    expect(hint).toBeTruthy();
+    expect(hint?.closest(".desk-field")).toBeNull();
+
+    const advanced = container.querySelector(".desk-terms-advanced");
+    expect(advanced).toBeTruthy();
+    const fields = advanced?.querySelectorAll(".desk-field") ?? [];
+    const lastField = fields[fields.length - 1];
+    expect(lastField).toBeTruthy();
+    // The hint must appear after every .desk-field cell in the advanced grid,
+    // i.e. it is not nested inside one and doesn't precede the grid's fields.
+    expect(
+      Boolean(
+        lastField &&
+        hint &&
+        lastField.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING
+      )
+    ).toBe(true);
   });
 });
