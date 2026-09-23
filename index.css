@@ -235,6 +235,20 @@ main {
   min-width: 8px;
 }
 
+/* Every other topbar child is flex-shrink:0 (icon buttons, the AI pill, the
+   account menu) so there is exactly one place the bar can give up space
+   before the account menu — the only mobile route to Settings/Sign out —
+   gets pushed off-screen. Applies at every width, not just the ≤760px tier,
+   because a bar this tight can overflow well above that breakpoint (adding
+   the ⌘K button pushed the avatar off between ~761-850px even though it
+   hides at ≤760px alongside Settings/Tools). [takeover-P1 review] */
+.app-shell-dealer {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 760px) {
   .app-shell-nav {
     overflow-x: auto;
@@ -1858,6 +1872,15 @@ select.dc-input:focus {
 @media (max-width: 1199px) {
   .desk-body {
     padding: 12px;
+  }
+
+  /* The getting-started card's inset mirrors .desk-body's padding so its
+     edges stay flush with the desk cards beneath it; .desk-body itself
+     drops to 12px here, so the card's fixed 16px margin needs to match.
+     !important overrides the component's inline margin, matching the
+     pattern already used above for .app-shell-topbar's inline padding. */
+  .getting-started-card {
+    margin: 12px 12px 0 !important;
   }
 
   .desk-workspace {

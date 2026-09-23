@@ -8,6 +8,15 @@ export interface GettingStartedProps {
   inventoryCount: number;
   lenderCount: number;
   savedDealCount: number;
+  /**
+   * Whether this user can perform dealership setup actions — import
+   * inventory (Inventory screen is admin-gated) and upload lender programs
+   * (lender_profiles createRule is SAME_DEALER_ADMIN_CREATE) — i.e.
+   * superadmin or dealer admin. Required rather than defaulted: a caller
+   * that forgets to pass it should fail closed (no admin-only action shown),
+   * not fail open to every role.
+   */
+  canManageSetup: boolean;
   onImportInventory: () => void;
   onAddLenders: () => void;
   onDeskDeal: () => void;
@@ -18,8 +27,8 @@ interface Step {
   title: string;
   body: string;
   done: boolean;
-  action: string;
-  onAction: () => void;
+  action?: string;
+  onAction?: () => void;
 }
 
 const CheckGlyph: React.FC<{ done: boolean }> = ({ done }) => (
@@ -66,6 +75,7 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
   inventoryCount,
   lenderCount,
   savedDealCount,
+  canManageSetup,
   onImportInventory,
   onAddLenders,
   onDeskDeal,
@@ -79,18 +89,20 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
     {
       id: "inventory",
       title: "Import your inventory",
-      body: "Upload the CSV your DMS exports — vAuto, DealerSocket, CDK and Frazer headers are recognized automatically.",
+      body: canManageSetup
+        ? "Upload the CSV your DMS exports — vAuto, DealerSocket, CDK and Frazer headers are recognized automatically."
+        : "Ask your admin to import inventory.",
       done: inventoryCount > 0,
-      action: "Import inventory",
-      onAction: onImportInventory,
+      ...(canManageSetup ? { action: "Import inventory", onAction: onImportInventory } : {}),
     },
     {
       id: "lenders",
       title: "Load your lender programs",
-      body: "Drop in a rate sheet and the AI importer drafts the tiers. You review every number before it's saved.",
+      body: canManageSetup
+        ? "Drop in a rate sheet and the AI importer drafts the tiers. You review every number before it's saved."
+        : "Ask your admin to load lender programs.",
       done: lenderCount > 0,
-      action: "AI Lender Upload",
-      onAction: onAddLenders,
+      ...(canManageSetup ? { action: "AI Lender Upload", onAction: onAddLenders } : {}),
     },
     {
       id: "deal",
@@ -109,11 +121,12 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
   return (
     <section
       aria-labelledby="getting-started-title"
+      className="getting-started-card"
       style={{
-        margin: "20px 24px 0",
+        margin: "16px 16px 0",
         background: "var(--color-bg)",
         border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-card)",
+        borderRadius: "var(--radius-md)",
         boxShadow: "var(--shadow)",
         padding: "16px 18px",
       }}
@@ -191,7 +204,7 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
               >
                 {s.body}
               </p>
-              {!s.done && (
+              {!s.done && s.action && s.onAction && (
                 <Button variant="secondary" size="sm" onClick={s.onAction}>
                   {s.action}
                 </Button>

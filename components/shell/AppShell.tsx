@@ -14,6 +14,7 @@ import { SkeletonRows, DataError } from "../common/states";
 import { SectionErrorBoundary } from "../common/ErrorBoundary";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
 import type { PaletteItem } from "./CommandPalette";
+import { vehiclePaletteItem } from "./paletteItems";
 import { useOpenDealInDesk } from "../../hooks/useOpenDealInDesk";
 import { GettingStarted } from "./GettingStarted";
 import {
@@ -469,20 +470,9 @@ export const AppShell: React.FC = () => {
       keywords: [deal.vehicle?.vin ?? "", deal.vehicle?.stock ?? "", deal.salespersonName ?? ""],
       onSelect: () => openDealInDesk(deal),
     }));
-    const vehicles: PaletteItem[] = inventory.map((v, i) => ({
-      id: `veh-${i}-${v.vin || v.stock}`,
-      label: v.vehicle,
-      detail: [v.stock && `STK ${v.stock}`, v.vin && `VIN ${v.vin}`].filter(Boolean).join(" · "),
-      group: "Inventory",
-      keywords: [v.vin, v.stock, v.make ?? "", v.model ?? ""],
-      onSelect: () => {
-        // Narrow the desk to this unit and focus it. The term lands in the
-        // desk's own search box so the user can see and clear it.
-        setSearchQuery(v.stock || v.vin);
-        setFocusVin(v.vin || null);
-        navigate("/desk");
-      },
-    }));
+    const vehicles: PaletteItem[] = inventory.map((v, i) =>
+      vehiclePaletteItem(v, i, { setSearchQuery, setFocusVin, navigate })
+    );
     return [...screens, ...actions, ...deals, ...vehicles];
   }, [
     navigate,
@@ -699,7 +689,7 @@ export const AppShell: React.FC = () => {
           <button
             type="button"
             onClick={openPalette}
-            className="rail-btn"
+            className="rail-btn app-shell-secondary-action"
             aria-label="Search and commands"
             aria-keyshortcuts="Meta+K Control+K"
             title="Search and commands (⌘K)"
@@ -804,6 +794,21 @@ export const AppShell: React.FC = () => {
                   zIndex: 50,
                 }}
               >
+                {/* Touch entry point for the command palette: the ⌘K header
+                    button hides at phone widths (.app-shell-secondary-action),
+                    so the avatar menu is the only remaining path to it there. */}
+                <button
+                  role="menuitem"
+                  className="rail-btn"
+                  style={menuItemStyle}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openPalette();
+                  }}
+                >
+                  <SearchIcon />
+                  Search
+                </button>
                 {(isSuperAdmin || isDealerAdmin) && (
                   <button
                     role="menuitem"
@@ -926,6 +931,7 @@ export const AppShell: React.FC = () => {
                 inventoryCount={inventory.length}
                 lenderCount={lenderProfiles.length}
                 savedDealCount={savedDeals.length}
+                canManageSetup={isSuperAdmin || isDealerAdmin}
                 onImportInventory={() => navigate("/inventory")}
                 onAddLenders={openAiUpload}
                 onDeskDeal={() => document.getElementById("desk-search")?.focus()}

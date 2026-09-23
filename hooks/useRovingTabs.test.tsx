@@ -8,7 +8,10 @@ afterEach(cleanup);
 const KEYS = ["summary", "lenders", "addons"] as const;
 type Key = (typeof KEYS)[number];
 
-const Harness: React.FC<{ orientation?: "horizontal" | "vertical" }> = ({ orientation }) => {
+const Harness: React.FC<{
+  orientation?: "horizontal" | "vertical" | "both";
+  ariaOrientation?: "horizontal" | "vertical";
+}> = ({ orientation, ariaOrientation }) => {
   const [active, setActive] = useState<Key>("summary");
   const tabs = useRovingTabs({
     keys: KEYS,
@@ -16,6 +19,7 @@ const Harness: React.FC<{ orientation?: "horizontal" | "vertical" }> = ({ orient
     onChange: setActive,
     idPrefix: "t",
     orientation,
+    ariaOrientation,
   });
   return (
     <div>
@@ -87,6 +91,40 @@ describe("useRovingTabs [a11y]", () => {
 
     fireEvent.keyDown(tabAt(1), { key: "ArrowUp" });
     expect(document.activeElement).toBe(tabAt(0));
+  });
+
+  it("'both' orientation accepts all four arrow keys and omits aria-orientation", () => {
+    render(<Harness orientation="both" />);
+    expect(screen.getByRole("tablist").hasAttribute("aria-orientation")).toBe(false);
+    tabAt(0).focus();
+
+    fireEvent.keyDown(tabAt(0), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(tabAt(1));
+
+    fireEvent.keyDown(tabAt(1), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(tabAt(2));
+
+    fireEvent.keyDown(tabAt(2), { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(tabAt(1));
+
+    fireEvent.keyDown(tabAt(1), { key: "ArrowUp" });
+    expect(document.activeElement).toBe(tabAt(0));
+  });
+
+  it("'both' orientation announces the caller's ariaOrientation instead of omitting it", () => {
+    // A tablist that is actually laid out vertically (e.g. a sidebar nav
+    // that reflows to a horizontal row at narrow widths) must not rely on
+    // WAI-ARIA's implicit "horizontal" default for tablist — it has to say
+    // "vertical" explicitly while still accepting all four arrow keys.
+    render(<Harness orientation="both" ariaOrientation="vertical" />);
+    expect(screen.getByRole("tablist").getAttribute("aria-orientation")).toBe("vertical");
+    tabAt(0).focus();
+
+    fireEvent.keyDown(tabAt(0), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(tabAt(1));
+
+    fireEvent.keyDown(tabAt(1), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(tabAt(2));
   });
 
   it("clicking a tab selects it", () => {

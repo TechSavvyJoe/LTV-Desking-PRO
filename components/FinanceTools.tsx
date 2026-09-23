@@ -1,4 +1,4 @@
-import React, { useState, useMemo, lazy, Suspense } from "react";
+import React, { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { calculateMonthlyPayment, calculateLoanAmount } from "../services/calculator";
 import { formatCurrency } from "./common/TableCell";
 import * as Icons from "./common/Icons";
@@ -149,6 +149,19 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   customerFilters,
 }) => {
   const [activeTab, setActiveTab] = useState<ToolTab>("reserve");
+
+  // Tracks whether .finance-tools-nav is currently the ≤800px horizontal
+  // scrolling row (index.css) so the roving-tabs hook can announce the
+  // layout's actual axis instead of a fixed one. [a11y]
+  const [isNarrowNav, setIsNarrowNav] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 800px)");
+    const syncIsNarrowNav = () => setIsNarrowNav(media.matches);
+    syncIsNarrowNav();
+    media.addEventListener?.("change", syncIsNarrowNav);
+    return () => media.removeEventListener?.("change", syncIsNarrowNav);
+  }, []);
 
   // --- Defaults from Props ---
   const defaultPrice = typeof activeVehicle?.price === "number" ? activeVehicle.price : 30000;
@@ -331,13 +344,19 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   // Use the module-scope navigation items (includes Analytics tab)
   const navItems = NAV_ITEMS;
   const tabKeys = useMemo(() => navItems.map((n) => n.id), [navItems]);
-  // WAI-ARIA tabs: roving tabindex + arrow keys, panel linked to its tab. [a11y]
+  // WAI-ARIA tabs: roving tabindex + arrow keys, panel linked to its tab.
+  // "both" because this tablist is vertical at desktop widths but reflows to
+  // a horizontal scrolling row at <=800px (index.css .finance-tools-nav);
+  // ariaOrientation announces whichever axis is actually drawn right now,
+  // since WAI-ARIA's implicit tablist default ("horizontal") would otherwise
+  // misdescribe the desktop layout. [a11y]
   const tabs = useRovingTabs({
     keys: tabKeys,
     active: activeTab,
     onChange: setActiveTab,
     idPrefix: "finance-tools",
-    orientation: "vertical",
+    orientation: "both",
+    ariaOrientation: isNarrowNav ? "horizontal" : "vertical",
   });
 
   return (

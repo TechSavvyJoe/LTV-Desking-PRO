@@ -8,6 +8,7 @@ const base = {
   inventoryCount: 0,
   lenderCount: 0,
   savedDealCount: 0,
+  canManageSetup: true,
   onImportInventory: vi.fn(),
   onAddLenders: vi.fn(),
   onDeskDeal: vi.fn(),
@@ -60,5 +61,15 @@ describe("GettingStarted [takeover: activation]", () => {
 
     render(<GettingStarted {...base} dealerId="d2" />);
     expect(screen.getByRole("region", { name: "Set up your dealership" })).toBeTruthy();
+  });
+
+  it("hides the import and lender-upload actions and points non-admins to their admin instead", () => {
+    render(<GettingStarted {...base} canManageSetup={false} />);
+    expect(screen.queryByRole("button", { name: "Import inventory" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "AI Lender Upload" })).toBeNull();
+    expect(screen.getByText("Ask your admin to import inventory.")).toBeTruthy();
+    expect(screen.getByText("Ask your admin to load lender programs.")).toBeTruthy();
+    expect(base.onImportInventory).not.toHaveBeenCalled();
+    expect(base.onAddLenders).not.toHaveBeenCalled();
   });
 });

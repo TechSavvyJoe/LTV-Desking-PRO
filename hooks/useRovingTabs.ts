@@ -8,7 +8,26 @@ export interface RovingTabsOptions<K extends string> {
   onChange: (key: K) => void;
   /** Stable id prefix; tabs render as `${prefix}-tab-${key}`, panels as `${prefix}-panel-${key}`. */
   idPrefix: string;
-  orientation?: "horizontal" | "vertical";
+  /**
+   * "both" is for a tablist that reflows between a vertical and a horizontal
+   * layout at different widths: all four arrow keys move focus. Pass
+   * `ariaOrientation` alongside it so `aria-orientation` still announces the
+   * layout's *actual* current axis — WAI-ARIA 1.2 gives tablist an implicit
+   * orientation of "horizontal", so omitting the attribute is not neutral,
+   * it's wrong for any list that is currently laid out vertically.
+   */
+  orientation?: "horizontal" | "vertical" | "both";
+  /**
+   * The layout axis to announce via `aria-orientation`, for callers whose
+   * `orientation` is "both" (arrow-key handling already matches "horizontal"
+   * or "vertical" for the other two values, so this is only consulted when
+   * both axes are live and the caller must say which one is currently drawn,
+   * e.g. from a `matchMedia` breakpoint check). If omitted with
+   * `orientation: "both"`, `aria-orientation` is left off entirely, which
+   * assistive tech then reads as WAI-ARIA's implicit "horizontal" default —
+   * so every "both" caller whose list can render vertically should pass this.
+   */
+  ariaOrientation?: "horizontal" | "vertical";
 }
 
 /**
@@ -24,18 +43,29 @@ export function useRovingTabs<K extends string>({
   onChange,
   idPrefix,
   orientation = "horizontal",
+  ariaOrientation,
 }: RovingTabsOptions<K>) {
   const tabId = (k: K) => `${idPrefix}-tab-${k}`;
   const panelId = (k: K) => `${idPrefix}-panel-${k}`;
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
-      const prevKey = orientation === "vertical" ? "ArrowUp" : "ArrowLeft";
-      const nextKey = orientation === "vertical" ? "ArrowDown" : "ArrowRight";
+      const prevKeys =
+        orientation === "vertical"
+          ? ["ArrowUp"]
+          : orientation === "both"
+            ? ["ArrowUp", "ArrowLeft"]
+            : ["ArrowLeft"];
+      const nextKeys =
+        orientation === "vertical"
+          ? ["ArrowDown"]
+          : orientation === "both"
+            ? ["ArrowDown", "ArrowRight"]
+            : ["ArrowRight"];
       const i = keys.indexOf(active);
       let target: number | null = null;
-      if (e.key === nextKey) target = (i + 1) % keys.length;
-      else if (e.key === prevKey) target = (i - 1 + keys.length) % keys.length;
+      if (nextKeys.includes(e.key)) target = (i + 1) % keys.length;
+      else if (prevKeys.includes(e.key)) target = (i - 1 + keys.length) % keys.length;
       else if (e.key === "Home") target = 0;
       else if (e.key === "End") target = keys.length - 1;
       if (target === null) return;
@@ -48,10 +78,16 @@ export function useRovingTabs<K extends string>({
     [keys, active, onChange, idPrefix, orientation]
   );
 
-  const getTabListProps = () => ({
-    role: "tablist" as const,
-    "aria-orientation": orientation,
-  });
+  const getTabListProps = () => {
+    // "both" has no single fixed axis, so the announced orientation comes
+    // from the caller's ariaOrientation (the layout's current axis) instead
+    // of the key-handling `orientation` value.
+    const emitted = orientation === "both" ? ariaOrientation : orientation;
+    return {
+      role: "tablist" as const,
+      ...(emitted ? { "aria-orientation": emitted } : {}),
+    };
+  };
 
   const getTabProps = (k: K) => ({
     id: tabId(k),
