@@ -159,6 +159,49 @@ describe("fileParser", () => {
       });
     });
 
+    it("does not treat a 'Body Style' column as trim [P3-regression]", () => {
+      const bodyStyleHeader = "Stock #,Year,Make,Model,Body Style,VIN,Mileage,Price";
+      const csv = [
+        bodyStyleHeader,
+        "S1,2020,Ford,F-150,Crew Cab Pickup,1FTEW1E50LFA12345,31000,38995",
+      ].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+
+      expect(skipped).toBe(0);
+      expect(vehicles[0]?.trim).toBeUndefined();
+      expect(vehicles[0]?.vehicle).not.toContain("Crew Cab Pickup");
+    });
+
+    it.each([
+      ["Style", "4D Sedan"],
+      ["Package", "302A Luxury"],
+    ])(
+      "does not treat a '%s' column as trim [P3-regression: removed alias]",
+      (headerName, value) => {
+        const csv = [
+          `Stock #,Year,Make,Model,${headerName},VIN,Mileage,Price`,
+          `S1,2020,Ford,F-150,${value},1FTEW1E50LFA12345,31000,38995`,
+        ].join("\n");
+        const { vehicles, skipped } = parseInventoryCsv(csv, false);
+
+        expect(skipped).toBe(0);
+        expect(vehicles[0]?.trim).toBeUndefined();
+        expect(vehicles[0]?.vehicle).not.toContain(value);
+      }
+    );
+
+    it("treats a 'Trim Name' column as trim [P3-regression: new alias]", () => {
+      const csv = [
+        "Stock #,Year,Make,Model,Trim Name,VIN,Mileage,Price",
+        "S1,2020,Ford,F-150,Lariat,1FTEW1E50LFA12345,31000,38995",
+      ].join("\n");
+      const { vehicles, skipped } = parseInventoryCsv(csv, false);
+
+      expect(skipped).toBe(0);
+      expect(vehicles[0]?.trim).toBe("Lariat");
+      expect(vehicles[0]?.vehicle).toContain("Lariat");
+    });
+
     it("skips vehicle-only rows that cannot provide required make and model fields", () => {
       const csv = [
         header,

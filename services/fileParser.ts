@@ -200,7 +200,7 @@ export const HEADER_ALIASES: Record<InventoryField, readonly string[]> = {
   ],
   make: ["make", "manufacturer", "mfg", "brand"],
   model: ["model", "modelname"],
-  trim: ["trim", "trimlevel", "series", "style", "bodystyle", "package"],
+  trim: ["trim", "trimlevel", "trimname", "series"],
   stock: [
     "stock",
     "stocknumber",

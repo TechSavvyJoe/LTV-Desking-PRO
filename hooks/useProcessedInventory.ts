@@ -41,6 +41,7 @@ interface ScoreInput {
   dealData: DealData;
   creditScore: number | null;
   monthlyIncome: number | null;
+  monthlyDebt: number | null;
   settings: Settings;
 }
 
@@ -62,16 +63,19 @@ interface ScoreResult {
 
 /** Stage 1 (expensive): financials + lender fit + approval odds per unit. */
 export function scoreInventory(input: ScoreInput): ScoreResult {
-  const { inventory, lenderProfiles, dealData, creditScore, monthlyIncome, settings } = input;
+  const { inventory, lenderProfiles, dealData, creditScore, monthlyIncome, monthlyDebt, settings } =
+    input;
 
-  // The rules engine only reads creditScore / monthlyIncome (plus the deal), so
-  // scoring is keyed on those two primitives rather than the whole filter
-  // object — changing a price or mileage filter must not trigger a rescore.
+  // The rules engine only reads creditScore / monthlyIncome / monthlyDebt
+  // (plus the deal), so scoring is keyed on those primitives rather than the
+  // whole filter object — changing a price or mileage filter must not
+  // trigger a rescore.
   const mergedDeal = {
     ...dealData,
     ...INITIAL_FILTER_DATA,
     creditScore,
     monthlyIncome,
+    monthlyDebt,
   } as DealData & FilterData;
   const credit = { creditScore, monthlyIncome };
 
@@ -191,6 +195,7 @@ export function computeProcessedInventory(
     dealData,
     creditScore: safeFilters.creditScore ?? null,
     monthlyIncome: safeFilters.monthlyIncome ?? null,
+    monthlyDebt: safeFilters.monthlyDebt ?? null,
     settings,
   });
   const filteredInventory = filterInventory(processedInventory, safeFilters, searchQuery);
@@ -218,11 +223,20 @@ export function useProcessedInventory(input: ProcessedInventoryInput): Processed
   const safeFilters = filters || INITIAL_FILTER_DATA;
   const creditScore = safeFilters.creditScore ?? null;
   const monthlyIncome = safeFilters.monthlyIncome ?? null;
+  const monthlyDebt = safeFilters.monthlyDebt ?? null;
 
   const scored = useMemo(
     () =>
-      scoreInventory({ inventory, lenderProfiles, dealData, creditScore, monthlyIncome, settings }),
-    [inventory, lenderProfiles, dealData, creditScore, monthlyIncome, settings]
+      scoreInventory({
+        inventory,
+        lenderProfiles,
+        dealData,
+        creditScore,
+        monthlyIncome,
+        monthlyDebt,
+        settings,
+      }),
+    [inventory, lenderProfiles, dealData, creditScore, monthlyIncome, monthlyDebt, settings]
   );
 
   const filteredInventory = useMemo(
