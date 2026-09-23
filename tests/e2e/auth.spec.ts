@@ -816,18 +816,22 @@ test.describe("Administrative console login", () => {
       await page.getByLabel(/Last Name/i).fill("Lifecycle");
       await page.getByLabel(/^Email/i).fill(email);
       await page.getByLabel(/^Phone/i).fill("555-0109");
-      await page.getByLabel(/^Role/i).selectOption("manager");
+      await page.getByLabel(/^Role\s*\*/).selectOption("manager");
       await page.getByLabel(/^Password/i).fill(password);
       await page.getByLabel(/Confirm Password/i).fill(password);
       await page.getByRole("button", { name: "Create User", exact: true }).click();
 
-      await expect(page.getByText("User created successfully")).toBeVisible({ timeout: 15_000 });
+      // Toasts are mirrored into a persistent sr-only role="status" live region, so
+      // plain getByText would match both the pill and the region — assert on the
+      // region, as the rest of this suite does.
+      const toast = (text: string) => page.getByRole("status").filter({ hasText: text });
+      await expect(toast("User created successfully")).toBeVisible({ timeout: 15_000 });
       const teamRow = () => page.getByRole("row").filter({ hasText: email });
       await expect(teamRow()).toBeVisible();
       await expect(teamRow().getByRole("combobox")).toHaveValue("manager");
 
       await teamRow().getByRole("button", { name: "Deactivate", exact: true }).click();
-      await expect(page.getByText("User deactivated")).toBeVisible();
+      await expect(toast("User deactivated")).toBeVisible();
       await expect(teamRow().getByText("Inactive", { exact: true })).toBeVisible();
 
       const blockedLogin = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
@@ -836,7 +840,7 @@ test.describe("Administrative console login", () => {
       expect(blockedLogin.ok()).toBeFalsy();
 
       await teamRow().getByRole("button", { name: "Activate", exact: true }).click();
-      await expect(page.getByText("User reactivated")).toBeVisible();
+      await expect(toast("User reactivated")).toBeVisible();
       await expect(teamRow().getByText("Inactive", { exact: true })).toHaveCount(0);
 
       const restoredLogin = await request.post(
@@ -851,7 +855,7 @@ test.describe("Administrative console login", () => {
       const dialog = page.getByRole("alertdialog", { name: "Delete user?" });
       await expect(dialog).toBeVisible();
       await dialog.getByRole("button", { name: "Delete", exact: true }).click();
-      await expect(page.getByText("User deleted", { exact: true })).toBeVisible();
+      await expect(toast("User deleted")).toBeVisible();
       await expect(teamRow()).toHaveCount(0);
     } finally {
       const adminAuth = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
@@ -993,7 +997,8 @@ test.describe("AI lender upload", () => {
   test("opens AI Lender Upload modal, uploads PDF, analyzes, and confirms save", async ({
     page,
   }) => {
-    await setupTest(page, "/desk"); // Shell header AI button visible on all authed routes
+    // AI Lender Upload is admin-only (lender_profiles create/update rules).
+    await setupTest(page, "/desk", ADMIN_TEST_AUTH);
     await waitForDeskReady(page);
 
     if (USE_REAL_BACKEND) {
