@@ -27,6 +27,8 @@ afterEach(() => {
     "onRecordEnrich",
     "onRecordDeleteRequest",
     "onRecordAuthRequest",
+    "onRecordsListRequest",
+    "onRealtimeSubscribeRequest",
     "ForbiddenError",
   ]) {
     clearRuntimeGlobal(name);
@@ -414,6 +416,327 @@ describe("PocketBase hook runtime hardening", () => {
       const unit = makeRecord({ unitCost: 15000 }, []);
       enrich(handlers.inventory, superuser, unit.record);
       expect(unit.hidden).toHaveLength(0);
+    });
+
+    it("reduces rate-cost rangeFlags to the field name for sales and keeps the review hold [ship-gate P1]", () => {
+      const handlers = loadEnrichHandlers();
+      const flagged = lender([
+        {
+          ...tier,
+          rangeFlags: [
+            "rateAdder=25 outside -10-10",
+            "baseInterestRate=649 outside 0-40",
+            "maxLtv=1500 outside 20-200",
+          ],
+          needsReview: true,
+        },
+        // Legacy shape: flags without needsReview are still a hold (tierNeedsReview).
+        { name: "Tier 2", minFico: 600, rangeFlags: ["BuyRate = 6.49 misread"] },
+        // Entries the hook can't vouch for are dropped; the hold stays pinned on.
+        { name: "Tier 3", minFico: 580, rangeFlags: [{ rateAdder: 25 }, 7] },
+        { name: "Tier 4", minFico: 560, rangeFlags: "rateAdder=25 outside -10-10" },
+      ]);
+      enrich(handlers.lender_profiles, authFor("sales"), flagged.record);
+
+      const tiers = flagged.json("tiers") as Array<Record<string, unknown>>;
+      expect(tiers[0]?.rangeFlags).toEqual([
+        "rateAdder",
+        "baseInterestRate",
+        "maxLtv=1500 outside 20-200",
+      ]);
+      expect(tiers[0]?.needsReview).toBe(true);
+      expect(tiers[1]?.rangeFlags).toEqual(["buyRate"]);
+      expect(tiers[1]?.needsReview).toBe(true);
+      expect(tiers[2]?.rangeFlags).toEqual([]);
+      expect(tiers[2]?.needsReview).toBe(true);
+      expect(tiers[3]).not.toHaveProperty("rangeFlags");
+      // No buy-rate / adder digit anywhere in what sales receives.
+      expect(String(flagged.store.tiers)).not.toMatch(/649|6\.49|=25|"rateAdder":25/);
+
+      const manager = lender([
+        { ...tier, rangeFlags: ["rateAdder=25 outside -10-10"], needsReview: true },
+      ]);
+      const before = manager.store.tiers;
+      enrich(handlers.lender_profiles, authFor("manager"), manager.record);
+      expect(manager.store.tiers).toBe(before);
+      expect((manager.json("tiers") as Array<Record<string, unknown>>)[0]?.rangeFlags).toEqual([
+        "rateAdder=25 outside -10-10",
+      ]);
+    });
+
+    it("scrubs quoted rate values and cost keys from saved_deals.calculatedData for sales only [ship-gate P1]", () => {
+      const handlers = loadEnrichHandlers();
+      const calculatedData = {
+        lenderEligibility: [
+          {
+            name: "Ally",
+            eligible: false,
+            status: "pending",
+            reasons: [
+              'Tier "T2" needs review - implausible value read from the rate sheet (rateAdder=25 outside -10-10; baseInterestRate=649 outside 0-40; maxLtv=1500 outside 20-200). Verify it against the lender\'s official sheet.',
+            ],
+            matchedTier: "T2",
+            uncheckedConstraints: [],
+          },
+        ],
+        settings: { docFee: 200, defaultApr: 9.9 },
+        monthlyPayment: 450,
+        // Legacy snapshot keys that carried cost / buy rate.
+        effectiveRate: 6.74,
+        unitCost: 15000,
+      };
+
+      const sales = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData }, [
+        "vehicleData",
+        "calculatedData",
+      ]);
+      enrich(handlers.saved_deals, authFor("sales"), sales.record);
+      expect(sales.hidden).toHaveLength(0);
+      const calc = sales.json("calculatedData") as typeof calculatedData;
+      const reason = calc.lenderEligibility[0]?.reasons[0] ?? "";
+      expect(reason).toContain("(rateAdder outside -10-10; baseInterestRate outside 0-40;");
+      expect(reason).toContain("maxLtv=1500 outside 20-200");
+      expect(reason).not.toMatch(/649|=25/);
+      expect(calc).not.toHaveProperty("effectiveRate");
+      expect(calc).not.toHaveProperty("unitCost");
+      expect(calc.settings).toEqual({ docFee: 200, defaultApr: 9.9 });
+      expect(calc.monthlyPayment).toBe(450);
+
+      const manager = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData }, [
+        "vehicleData",
+        "calculatedData",
+      ]);
+      enrich(handlers.saved_deals, authFor("manager"), manager.record);
+      expect(manager.setCalls).toHaveLength(0);
+      expect(manager.json("calculatedData")).toEqual(calculatedData);
+
+      // A null blob is left alone; anything unparseable or non-object is hidden.
+      const empty = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData: "null" }, [
+        "vehicleData",
+        "calculatedData",
+      ]);
+      enrich(handlers.saved_deals, authFor("sales"), empty.record);
+      expect(empty.hidden).toHaveLength(0);
+      expect(empty.setCalls).not.toContain("calculatedData");
+      for (const bad of ["{not json", "[123,34]", '"rateAdder=25"']) {
+        const rec = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData: bad }, [
+          "vehicleData",
+          "calculatedData",
+        ]);
+        enrich(handlers.saved_deals, authFor("sales"), rec.record);
+        expect(rec.hidden).toContain("calculatedData");
+        expect(rec.setCalls).not.toContain("calculatedData");
+      }
+    });
+  });
+
+  describe("field_filter_guard.pb.js [ship-gate P1 — filter/sort/realtime oracle]", () => {
+    class Forbidden extends Error {
+      constructor(message: string) {
+        super(message);
+        this.name = "ForbiddenError";
+      }
+    }
+    const loadGuards = () => {
+      const list: Array<{ fn: HookHandler; tags: string[] }> = [];
+      const realtime: HookHandler[] = [];
+      setRuntimeGlobal("onRecordsListRequest", (fn: HookHandler, ...tags: string[]) => {
+        list.push({ fn, tags });
+      });
+      setRuntimeGlobal("onRealtimeSubscribeRequest", (fn: HookHandler) => {
+        realtime.push(fn);
+      });
+      setRuntimeGlobal("ForbiddenError", Forbidden);
+      new Function(hookSource("field_filter_guard.pb.js"))();
+      return { list, realtime };
+    };
+    const authFor = (role: string | null, collectionName = "users") => ({
+      get: (key: string) => (key === "role" ? role : null),
+      collection: () => ({ name: collectionName }),
+    });
+    // On request events requestInfo is a METHOD (unlike onRecordEnrich). As in
+    // the JSVM, the event exposes no `request` (undefined on PB 0.39.6).
+    const listEvent = (auth: unknown, query: Record<string, string>) => ({
+      requestInfo: () => ({ auth, query }),
+      next: vi.fn(),
+    });
+    const realtimeEvent = (auth: unknown, subscriptions: unknown) => ({
+      requestInfo: () => ({ auth, query: {} }),
+      subscriptions,
+      next: vi.fn(),
+    });
+    const withOptions = (topic: string, optionsJson: string) =>
+      `${topic}?options=${encodeURIComponent(optionsJson)}`;
+
+    const oracleProbes: Array<Record<string, string>> = [
+      { filter: 'id = "L1" && reservePct > 1' },
+      { filter: `id = "L1" && tiers ~ '"baseInterestRate":6.49'` },
+      { filter: "tiers:length > 0" },
+      { filter: 'id = "U1" && unitCost > 0' },
+      { filter: "UNITCOST>14099" },
+      { filter: 'id = "D1" && vehicleData.unitCost > 14999' },
+      { filter: "calculatedData ~ 'rateAdder=25'" },
+      // Through relations / back-relations from collections that store no cost.
+      { filter: 'id = "D1" && vehicle.unitCost > 14099' },
+      { filter: "inventory_via_dealer.unitCost ?> 14099" },
+      { sort: "-unitCost" },
+      { sort: "name,-reservePct" },
+    ];
+
+    it("registers one list guard for every collection and one realtime guard", () => {
+      const { list, realtime } = loadGuards();
+      expect(list).toHaveLength(1);
+      // Untagged: relation paths reach cost from any collection (saved_deals.vehicle, dealers back-relations).
+      expect(list[0]?.tags).toEqual([]);
+      expect(realtime).toHaveLength(1);
+    });
+
+    it("rejects a sales (or anonymous) filter or sort that names a protected field", () => {
+      const guard = loadGuards().list[0]?.fn;
+      for (const auth of [authFor("sales"), authFor(""), null]) {
+        for (const query of oracleProbes) {
+          const event = listEvent(auth, query);
+          expect(() => guard?.(event), JSON.stringify(query)).toThrow(Forbidden);
+          expect(event.next).not.toHaveBeenCalled();
+        }
+      }
+    });
+
+    it("lets managers, admins, superadmins and platform superusers filter and sort by anything", () => {
+      const guard = loadGuards().list[0]?.fn;
+      for (const auth of [
+        authFor("manager"),
+        authFor("admin"),
+        authFor("superadmin"),
+        authFor(null, "_superusers"),
+      ]) {
+        for (const query of oracleProbes) {
+          const event = listEvent(auth, query);
+          guard?.(event);
+          expect(event.next).toHaveBeenCalledOnce();
+        }
+      }
+    });
+
+    it("lets sales run the app's own list queries", () => {
+      const guard = loadGuards().list[0]?.fn;
+      const appQueries: Array<Record<string, string>> = [
+        { filter: 'dealer = "dealeraid12345x"', sort: "-created" },
+        { filter: 'dealer = "dealeraid12345x"', sort: "name,-updated" },
+        { filter: 'dealer = "dealeraid12345x" && name ~ "Ally Financial"', sort: "-updated" },
+        { filter: 'dealer = "dealeraid12345x"', sort: "firstName" },
+        { filter: "active = true" },
+        { sort: "created" },
+        {},
+      ];
+      for (const query of appQueries) {
+        const event = listEvent(authFor("sales"), query);
+        guard?.(event);
+        expect(event.next, JSON.stringify(query)).toHaveBeenCalledOnce();
+      }
+    });
+
+    it("fails closed for sales when the query can't be read; privileged roles still pass", () => {
+      const guard = loadGuards().list[0]?.fn;
+      const unreadable = (auth: unknown, info: () => unknown) => ({
+        requestInfo: info,
+        auth,
+        next: vi.fn(),
+      });
+      const throws = () => {
+        throw new Error("no request info");
+      };
+      const throwingQuery = () => ({
+        auth: authFor("sales"),
+        query: new Proxy(
+          {},
+          {
+            get: () => {
+              throw new Error("host object");
+            },
+          }
+        ),
+      });
+
+      // requestInfo unavailable: the requester still resolves through e.auth.
+      for (const event of [
+        unreadable(authFor("sales"), throws),
+        unreadable(authFor("sales"), () => ({ auth: authFor("sales") })),
+        unreadable(authFor("sales"), () => ({ auth: authFor("sales"), query: null })),
+        unreadable(null, throwingQuery),
+      ]) {
+        expect(() => guard?.(event)).toThrow(Forbidden);
+        expect(event.next).not.toHaveBeenCalled();
+      }
+      for (const auth of [authFor("manager"), authFor(null, "_superusers")]) {
+        const event = unreadable(auth, throws);
+        guard?.(event);
+        expect(event.next).toHaveBeenCalledOnce();
+      }
+    });
+
+    it("rejects a sales realtime subscription whose options filter names a protected field; managers pass", () => {
+      const guard = loadGuards().realtime[0];
+      const protectedSub = withOptions(
+        "inventory/U1",
+        JSON.stringify({ query: { filter: "unitCost > 14099" } })
+      );
+
+      const sales = realtimeEvent(authFor("sales"), ["inventory/*", protectedSub]);
+      expect(() => guard?.(sales)).toThrow(Forbidden);
+      expect(sales.next).not.toHaveBeenCalled();
+
+      for (const auth of [authFor("manager"), authFor("admin"), authFor(null, "_superusers")]) {
+        const privileged = realtimeEvent(auth, [protectedSub]);
+        guard?.(privileged);
+        expect(privileged.next).toHaveBeenCalledOnce();
+      }
+    });
+
+    it("lets sales subscribe to the app's bare topics and benign option filters", () => {
+      const guard = loadGuards().realtime[0];
+      for (const subscriptions of [
+        ["inventory/*", "saved_deals/*", "lender_profiles/*"],
+        [withOptions("saved_deals/*", JSON.stringify({ query: { filter: 'status = "funded"' } }))],
+        [],
+        null,
+      ]) {
+        const event = realtimeEvent(authFor("sales"), subscriptions);
+        guard?.(event);
+        expect(event.next, JSON.stringify(subscriptions)).toHaveBeenCalledOnce();
+      }
+    });
+
+    it("fails closed on unparseable or obfuscated realtime options for sales", () => {
+      const guard = loadGuards().realtime[0];
+      for (const sub of [
+        "inventory/*?options=%7Bnot-json",
+        "inventory/*?options=%E0%A4%A",
+        "inventory/*?options=",
+        withOptions("inventory/*", "[1,2]"),
+        withOptions("inventory/*", "null"),
+        // Go matches the struct key case-insensitively.
+        withOptions("inventory/*", '{"QUERY":{"filter":"unitCost > 1"}}'),
+        // JSON unicode escape hides the token from a naive text scan.
+        withOptions("inventory/*", '{"query":{"filter":"\\u0075nitCost > 1"}}'),
+        // Duplicate keys: JSON.parse keeps the last, Go merges both maps.
+        withOptions(
+          "inventory/*",
+          '{"query":{"filter":"\\u0075nitCost > 1"},"query":{"sort":"created"}}'
+        ),
+        withOptions("lender_profiles/*", '{"query":{"filter":"tiers ~ \'rateAdder\'"}}'),
+      ]) {
+        const event = realtimeEvent(authFor("sales"), [sub]);
+        expect(() => guard?.(event), sub).toThrow(Forbidden);
+        expect(event.next).not.toHaveBeenCalled();
+      }
+
+      // A list that can't be read (absent, or not array-like) is refused too.
+      for (const subscriptions of [{}, undefined]) {
+        const event = realtimeEvent(authFor("sales"), subscriptions);
+        expect(() => guard?.(event)).toThrow(Forbidden);
+        expect(event.next).not.toHaveBeenCalled();
+      }
     });
   });
 

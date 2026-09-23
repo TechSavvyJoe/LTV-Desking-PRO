@@ -68,7 +68,7 @@ The score also returns up to a handful of **principal drag factors** in plain la
 1. **Eligibility floor** — a structure that fits no active lender program cannot read above 45 or show any band but "none." The heuristic cannot contradict the rules engine.
 2. **Affordability veto** — PTI at or above 20% / 25% caps the score regardless of credit and LTV.
 3. **Neutral unknowns** — missing data never inflates the score.
-4. **Role gating (server-side)** — `sales` users see band and fit count but never lender buy-rate or dealer reserve (`backend/pb_hooks/field_visibility.pb.js`).
+4. **Role gating (server-side)** — `sales` users see band and fit count but never lender buy-rate or dealer reserve (`backend/pb_hooks/field_visibility.pb.js`, with `backend/pb_hooks/field_filter_guard.pb.js` rejecting sales `?filter=` / `?sort=` / realtime filters that name those fields so they cannot be recovered by probing).
 5. **Disclaimer today, gap elsewhere** — the estimate caption is rendered with the score on the deal inspector gauge only. The deal sheet modal and printed PDFs do not display the score at all; they carry their own general estimate-only disclaimer text instead, unrelated to any rendered score. The caption is **not yet** rendered on the inventory grid, compare strip, pipeline Approval column, `/inventory` route score column, or reports score columns, and printed deal paper is **not yet** marked internal-use per the §10 policy (see §5).
 6. **Single tunable config** — every constant lives in `APPROVAL_CONFIG`; changes are code-reviewed and versioned with this card.
 

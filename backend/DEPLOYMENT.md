@@ -219,15 +219,16 @@ Every `/api/ai/*` request except `GET /api/ai/models` requires a PocketBase bear
 
 JS hook files in `backend/pb_hooks/` are loaded by PocketBase on boot. Current hooks:
 
-| File                        | What it does                                                                      |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| `dealer_guard.pb.js`        | Force-stamps the authenticated dealer on tenant-scoped writes.                    |
-| `deal_attribution.pb.js`    | Forces `user` to the auth actor on create; blocks sales re-attribution on update. |
-| `users_guard.pb.js`         | Blocks role/dealer escalation and deactivated-user authentication.                |
-| `field_visibility.pb.js`    | Removes dealer cost/gross fields from sales-role responses.                       |
-| `authorization_rules.pb.js` | Idempotently reasserts the full collection-rule contract (incl. `deal_events`).   |
-| `ai_rate_limit.pb.js`       | Atomic cross-instance AI quota endpoint (`/api/ltv/ai-rate-limit`).               |
-| `log.pb.js`                 | Structured slow-request and 5xx logging.                                          |
+| File                        | What it does                                                                                                                                         |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dealer_guard.pb.js`        | Force-stamps the authenticated dealer on tenant-scoped writes.                                                                                       |
+| `deal_attribution.pb.js`    | Forces `user` to the auth actor on create; blocks sales re-attribution on update.                                                                    |
+| `users_guard.pb.js`         | Blocks role/dealer escalation and deactivated-user authentication.                                                                                   |
+| `field_visibility.pb.js`    | Removes dealer cost/gross fields from sales-role responses.                                                                                          |
+| `field_filter_guard.pb.js`  | Rejects (403) sales/anonymous `?filter=`, `?sort=` and realtime subscription filters that name a cost or rate field, closing the hide()-only oracle. |
+| `authorization_rules.pb.js` | Idempotently reasserts the full collection-rule contract (incl. `deal_events`).                                                                      |
+| `ai_rate_limit.pb.js`       | Atomic cross-instance AI quota endpoint (`/api/ltv/ai-rate-limit`).                                                                                  |
+| `log.pb.js`                 | Structured slow-request and 5xx logging.                                                                                                             |
 
 ### Single-machine deploy outage window
 

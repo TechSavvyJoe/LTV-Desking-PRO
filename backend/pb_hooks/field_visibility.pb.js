@@ -109,6 +109,59 @@ onRecordEnrich((e) => {
     } catch (_) {
       e.record.hide("vehicleData");
     }
+
+    // calculatedData holds no cost fields by design (lenderEligibility, the
+    // settings snapshot, payment/LTV/amount-financed/approval metrics), but
+    // each lenderEligibility row's `reasons` quotes the tier's rangeFlags —
+    // "rateAdder=25 outside -10-10" when a manager's session saved it. Reduce
+    // rate-cost `key=value` pairs to the key, and drop cost/rate keys at any
+    // depth (legacy snapshots). Malformed → hide, like vehicleData. [ship-gate P1]
+    try {
+      let text = "";
+      if (typeof e.record.getString === "function") {
+        text = e.record.getString("calculatedData");
+      } else {
+        const raw = e.record.get("calculatedData");
+        if (typeof raw === "string") text = raw;
+        else if (raw && typeof raw.string === "function") text = raw.string();
+        else if (raw != null) text = String(raw);
+      }
+      const calc = JSON.parse(text || "null");
+      if (calc && typeof calc === "object" && !Array.isArray(calc)) {
+        var costKeys = [
+          "unitCost",
+          "frontEndGross",
+          "effectiveRate",
+          "baseInterestRate",
+          "buyRate",
+          "rateAdder",
+          "reservePct",
+          "reservePercent",
+          "markupPoints",
+          "dealerReserve",
+        ];
+        var rateValue =
+          /(baseInterestRate|buyRate|rateAdder|reservePct|reservePercent|markupPoints|dealerReserve)\s*[=:]\s*[^\s;,)]*/gi;
+        var scrub = function (node, depth) {
+          if (depth > 32) throw new Error("calculatedData nested too deeply");
+          if (typeof node === "string") return node.replace(rateValue, "$1");
+          if (node === null || typeof node !== "object") return node;
+          if (Array.isArray(node)) {
+            for (var a = 0; a < node.length; a++) node[a] = scrub(node[a], depth + 1);
+            return node;
+          }
+          for (var c = 0; c < costKeys.length; c++) delete node[costKeys[c]];
+          var keys = Object.keys(node);
+          for (var k = 0; k < keys.length; k++) node[keys[k]] = scrub(node[keys[k]], depth + 1);
+          return node;
+        };
+        e.record.set("calculatedData", scrub(calc, 0));
+      } else if (calc !== null) {
+        e.record.hide("calculatedData");
+      }
+    } catch (_) {
+      e.record.hide("calculatedData");
+    }
   }
 
   return e.next();
@@ -184,6 +237,36 @@ onRecordEnrich((e) => {
         } else {
           for (var j = 0; j < rateCostFields.length; j++) {
             delete tier[rateCostFields[j]];
+          }
+          // The AI range guard records what it dropped as "key=value outside
+          // lo-hi"; for a rate-cost key that value IS a (misread) buy rate or
+          // adder, and it reaches sales screens and the customer PDF through
+          // the review reason. Reduce any flag naming a rate-cost field to the
+          // bare field name; eligibility flags (maxLtv, minFico, …) are values
+          // sales already sees. A non-empty list still holds the tier as
+          // pending, so needsReview is pinned on. Non-string entries and a
+          // non-array value are dropped (can't vouch for them). [ship-gate P1]
+          if (Object.prototype.hasOwnProperty.call(tier, "rangeFlags")) {
+            var flags = tier.rangeFlags;
+            if (Array.isArray(flags)) {
+              var safeFlags = [];
+              for (var f = 0; f < flags.length; f++) {
+                if (typeof flags[f] !== "string") continue;
+                var rateKey = "";
+                for (var r = 0; r < rateCostFields.length && !rateKey; r++) {
+                  var named = new RegExp(
+                    "(^|[^A-Za-z0-9_])" + rateCostFields[r] + "($|[^A-Za-z0-9_])",
+                    "i"
+                  );
+                  if (named.test(flags[f])) rateKey = rateCostFields[r];
+                }
+                safeFlags.push(rateKey || flags[f]);
+              }
+              tier.rangeFlags = safeFlags;
+              if (flags.length > 0) tier.needsReview = true;
+            } else {
+              delete tier.rangeFlags;
+            }
           }
         }
       }
