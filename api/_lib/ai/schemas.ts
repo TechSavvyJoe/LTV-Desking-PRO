@@ -300,6 +300,11 @@ const stripUndefined = <T extends Record<string, unknown>>(value: T): T => {
  * a wrong number), recorded in `rangeFlags`, and the tier's confidence is
  * capped so the review UI demands human verification before the program is
  * used to desk a deal. This runs server-side — the trust boundary. [takeover-P1]
+ *
+ * Dropping alone fails OPEN: a dropped bound widens the program (minFico 6600
+ * dropped → the tier matches a 520 score; maxTerm 2 dropped → any term). So any
+ * flagged tier is also marked `needsReview`, which the rules engine resolves to
+ * "pending" — never "eligible" — until a human corrects it. [ai-range-guard]
  */
 const CURRENT_YEAR = new Date().getFullYear();
 const TIER_RANGES: Partial<Record<keyof LenderTier, readonly [number, number]>> = {
@@ -352,6 +357,7 @@ export const applyRangeChecks = (tier: LenderTier): LenderTier => {
 
   if (flags.length > 0) {
     tier.rangeFlags = flags;
+    tier.needsReview = true;
     tier.confidence = Math.min(
       typeof tier.confidence === "number" ? tier.confidence : 1,
       FLAGGED_CONFIDENCE_CAP

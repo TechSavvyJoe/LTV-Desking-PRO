@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkBankEligibility } from "./lenderMatcher";
+import { checkBankEligibility, tierNeedsReview } from "./lenderMatcher";
 import type { CalculatedVehicle, LenderProfile, DealData, FilterData } from "../types";
 
 // Helper to create a mock vehicle
@@ -503,5 +503,122 @@ describe("conservative lender-wide constraints and pending inputs", () => {
         expect.stringMatching(/greater than \$0/i),
       ])
     );
+  });
+});
+
+describe("AI-flagged tiers are held for review, never an approval path [ai-range-guard]", () => {
+  // Server output for "Tier A: 660+ FICO" misread as 6600: the implausible
+  // minFico was dropped, so without the hold this tier would match everyone.
+  const flaggedTier = {
+    name: "Tier A",
+    maxTerm: 84,
+    maxLtv: 130,
+    confidence: 0.4,
+    rangeFlags: ["minFico=6600 outside 300-850"],
+    needsReview: true,
+  };
+
+  it("resolves a flagged tier that passes its plausible rules to pending, naming the sheet value", () => {
+    const result = checkBankEligibility(
+      mockVehicle({ amountToFinance: 20000, jdPower: 21000 }),
+      mockDeal({ creditScore: 520 }),
+      mockLender({ tiers: [flaggedTier] })
+    );
+
+    expect(result.eligible).toBe(false);
+    expect(result.status).toBe("pending");
+    expect(result.matchedTier?.name).toBe("Tier A");
+    expect(result.reasons).toEqual([
+      'Tier "Tier A" needs review - implausible value read from the rate sheet (minFico=6600 outside 300-850). Verify it against the lender\'s official sheet and correct the tier before using it as an approval path.',
+    ]);
+    expect(result.uncheckedConstraints).toEqual([
+      "AI-read tier needs review - verify against the lender's sheet",
+    ]);
+  });
+
+  it("still rejects a flagged tier that fails a rule it does carry", () => {
+    // 27000 / 20000 book = 135% LTV fails maxLtv 130 → restoring the dropped
+    // minimum could only reject more, so this is an honest "ineligible".
+    const result = checkBankEligibility(
+      mockVehicle({ amountToFinance: 27000, jdPower: 20000 }),
+      mockDeal({ creditScore: 720 }),
+      mockLender({ tiers: [flaggedTier] })
+    );
+
+    expect(result.status).toBe("ineligible");
+    expect(result.reasons).toContain(
+      "No fitting lending tier found for this deal structure and vehicle."
+    );
+  });
+
+  it("prefers a clean passing tier from the same lender over the held one", () => {
+    const result = checkBankEligibility(
+      mockVehicle({ amountToFinance: 20000, jdPower: 21000 }),
+      mockDeal({ creditScore: 720 }),
+      mockLender({ tiers: [flaggedTier, { name: "Clean", minFico: 700, maxLtv: 120 }] })
+    );
+
+    expect(result.eligible).toBe(true);
+    expect(result.status).toBe("eligible");
+    expect(result.matchedTier?.name).toBe("Clean");
+  });
+
+  it("lists missing deal inputs after the review reason", () => {
+    const result = checkBankEligibility(
+      mockVehicle(),
+      mockDeal({ loanTerm: "" as unknown as number }),
+      mockLender({ tiers: [flaggedTier] })
+    );
+
+    expect(result.status).toBe("pending");
+    expect(result.reasons[0]).toMatch(/^Tier "Tier A" needs review/);
+    expect(result.reasons[1]).toBe("Pending required information: loan term.");
+  });
+
+  it("keeps sample provenance first when a sample program is also flagged", () => {
+    const result = checkBankEligibility(
+      mockVehicle({ amountToFinance: 20000, jdPower: 21000 }),
+      mockDeal(),
+      mockLender({ isSample: true, tiers: [flaggedTier] })
+    );
+
+    expect(result.status).toBe("pending");
+    expect(result.reasons[0]).toMatch(/illustrative only/i);
+    expect(result.reasons[1]).toMatch(/needs review/);
+    expect(result.reasons).toHaveLength(2);
+  });
+
+  it("holds legacy tiers that carry rangeFlags without needsReview, and needsReview without flags", () => {
+    const { needsReview: _dropped, ...legacy } = flaggedTier;
+    const legacyResult = checkBankEligibility(
+      mockVehicle({ amountToFinance: 20000, jdPower: 21000 }),
+      mockDeal(),
+      mockLender({ tiers: [legacy] })
+    );
+    expect(legacyResult.status).toBe("pending");
+
+    const bare = checkBankEligibility(
+      mockVehicle({ amountToFinance: 20000, jdPower: 21000 }),
+      mockDeal(),
+      mockLender({ tiers: [{ name: "Bare", needsReview: true }] })
+    );
+    expect(bare.status).toBe("pending");
+    expect(bare.reasons[0]).toBe(
+      'Tier "Bare" needs review. Verify it against the lender\'s official sheet and correct the tier before using it as an approval path.'
+    );
+  });
+
+  it("tierNeedsReview is false once a human clears both flags", () => {
+    expect(tierNeedsReview(flaggedTier)).toBe(true);
+    expect(tierNeedsReview({ ...flaggedTier, needsReview: false })).toBe(true);
+    expect(tierNeedsReview({ ...flaggedTier, needsReview: false, rangeFlags: [] })).toBe(false);
+    expect(tierNeedsReview({ name: "Clean", minFico: 660 })).toBe(false);
+
+    const corrected = checkBankEligibility(
+      mockVehicle({ amountToFinance: 20000, jdPower: 21000 }),
+      mockDeal({ creditScore: 700 }),
+      mockLender({ tiers: [{ name: "Tier A", minFico: 660, maxTerm: 84, maxLtv: 130 }] })
+    );
+    expect(corrected.status).toBe("eligible");
   });
 });

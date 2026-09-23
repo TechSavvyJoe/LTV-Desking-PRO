@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspens
 import { useOutletContext } from "react-router-dom";
 import type { ShellOutletContext } from "../shell/AppShell";
 import { useDealContext } from "../../context/DealContext";
-import { checkBankEligibility } from "../../services/lenderMatcher";
+import { checkBankEligibility, tierNeedsReview } from "../../services/lenderMatcher";
 import { updateLenderProfile } from "../../lib/api";
 import { getCurrentUser } from "../../lib/pocketbase";
 import { toast } from "../../lib/toast";
@@ -991,6 +991,26 @@ export const LendersScreen: React.FC = () => {
                                     }}
                                   >
                                     MATCHED
+                                  </span>
+                                )}
+                                {tierNeedsReview(t) && (
+                                  <span
+                                    title={
+                                      Array.isArray(t.rangeFlags) && t.rangeFlags.length > 0
+                                        ? `Needs review: ${t.rangeFlags.join("; ")}`
+                                        : "Needs review"
+                                    }
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      ...mono,
+                                      background: "var(--color-warning-subtle)",
+                                      color: "var(--color-warning)",
+                                      padding: "2px 7px",
+                                      borderRadius: 5,
+                                    }}
+                                  >
+                                    NEEDS REVIEW
                                   </span>
                                 )}
                                 <span

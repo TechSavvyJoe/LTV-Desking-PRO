@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import type { LenderProfile, Settings } from "../types";
 import { processLenderSheet, type ProcessingProgress } from "../services/aiProcessor";
+import { tierNeedsReview } from "../services/lenderMatcher";
 import { saveLenderProfile, updateLenderProfile } from "../lib/api";
 import { createLogger } from "../lib/logger";
 import Button from "./common/Button";
@@ -623,6 +624,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                           const matchedExisting = lenderName
                             ? existingNames.find((n) => n.trim().toLowerCase() === lenderName)
                             : undefined;
+                          const reviewTierCount = lender.tiers?.filter(tierNeedsReview).length ?? 0;
 
                           return (
                             <div
@@ -748,6 +750,13 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                   <p className="text-xs text-[var(--color-text-muted)]">
                                     {lender.tiers.length} credit tier(s) extracted:
                                   </p>
+                                  {reviewTierCount > 0 && (
+                                    <p className="text-xs font-medium text-[var(--color-warning)]">
+                                      ⚠️ {reviewTierCount} tier(s) need review — the AI read
+                                      implausible values that were dropped. Those tiers stay pending
+                                      (never counted as a fit) until corrected.
+                                    </p>
+                                  )}
                                   <div className="grid gap-2 max-h-64 overflow-y-auto pr-1">
                                     {lender.tiers.map((tier, k) => {
                                       // Calculate data completeness
@@ -768,11 +777,16 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                       const completeness = Math.round(
                                         (filledFields / fields.length) * 100
                                       );
+                                      const needsReview = tierNeedsReview(tier);
 
                                       return (
                                         <div
                                           key={k}
-                                          className="bg-[var(--color-bg-muted)] rounded p-2 text-xs"
+                                          className={`bg-[var(--color-bg-muted)] rounded p-2 text-xs ${
+                                            needsReview
+                                              ? "border border-[var(--color-warning)]/60"
+                                              : ""
+                                          }`}
                                         >
                                           <div className="flex justify-between items-center mb-1">
                                             <span className="font-medium text-[var(--color-primary)]">
@@ -821,6 +835,30 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                               </span>
                                             )}
                                           </div>
+                                          {needsReview && (
+                                            <div
+                                              role="note"
+                                              className="mt-2 rounded-sm px-2 py-1.5 bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border border-[var(--color-warning)]/40"
+                                            >
+                                              <p className="font-semibold">
+                                                ⚠️ Needs review — verify against the lender's
+                                                official sheet
+                                              </p>
+                                              {tier.rangeFlags && tier.rangeFlags.length > 0 && (
+                                                <ul className="mt-1 space-y-0.5">
+                                                  {tier.rangeFlags.map((flag) => (
+                                                    <li key={flag}>
+                                                      Dropped implausible sheet value: {flag}
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              )}
+                                              <p className="mt-1">
+                                                Saved as pending — never counted as a lender fit
+                                                until the tier is corrected.
+                                              </p>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}

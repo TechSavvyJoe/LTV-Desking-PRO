@@ -48,6 +48,28 @@ const SAMPLE_CONSTRAINT = "sample program - verify or convert before use";
 const SAMPLE_REASON =
   "Sample program - illustrative only; verify or convert it before using it as an approval path.";
 
+/**
+ * A tier the AI extraction flagged (implausible value dropped server-side) is
+ * never an approval path: the dropped bound would silently widen it. It stays
+ * "pending" until a human corrects it and clears the flags. Legacy tiers that
+ * carry `rangeFlags` without `needsReview` are held too (fail closed).
+ * [ai-range-guard]
+ */
+export const tierNeedsReview = (tier: LenderTier): boolean =>
+  tier.needsReview === true || (Array.isArray(tier.rangeFlags) && tier.rangeFlags.length > 0);
+
+const REVIEW_CONSTRAINT = "AI-read tier needs review - verify against the lender's sheet";
+
+const reviewReason = (tier: LenderTier): string => {
+  const flags = Array.isArray(tier.rangeFlags)
+    ? tier.rangeFlags.filter((flag): flag is string => typeof flag === "string" && flag !== "")
+    : [];
+  const label = tier.tierName || tier.name || "Unnamed";
+  const detail =
+    flags.length > 0 ? ` - implausible value read from the rate sheet (${flags.join("; ")})` : "";
+  return `Tier "${label}" needs review${detail}. Verify it against the lender's official sheet and correct the tier before using it as an approval path.`;
+};
+
 export interface EligibilityResult {
   eligible: boolean;
   status: EligibilityStatus;
@@ -97,25 +119,28 @@ const compareCandidates = (left: TierCandidate, right: TierCandidate): number =>
   return compareText(left.tier.name || "", right.tier.name || "");
 };
 
-const pendingResult = (candidate: TierCandidate): EligibilityResult => ({
-  eligible: false,
-  status: "pending",
-  reasons: candidate.unchecked.includes(SAMPLE_CONSTRAINT)
-    ? [
-        SAMPLE_REASON,
-        ...(() => {
-          const otherUnchecked = candidate.unchecked.filter((item) => item !== SAMPLE_CONSTRAINT);
-          return otherUnchecked.length > 0
-            ? [`Pending required information: ${otherUnchecked.join(", ")}.`]
-            : [];
-        })(),
-      ]
-    : [`Pending required information: ${candidate.unchecked.join(", ")}.`],
-  matchedTier: candidate.tier,
-  uncheckedConstraints: candidate.unchecked,
-  effectiveRate: candidate.effectiveRate,
-  evaluatedConstraints: candidate.evaluatedConstraints,
-});
+const pendingResult = (candidate: TierCandidate): EligibilityResult => {
+  // Provenance/review holds get their own sentence (reasons[0] is what the
+  // PDFs print); only genuinely missing deal inputs are "required information".
+  const reasons: string[] = [];
+  if (candidate.unchecked.includes(SAMPLE_CONSTRAINT)) reasons.push(SAMPLE_REASON);
+  if (candidate.unchecked.includes(REVIEW_CONSTRAINT)) reasons.push(reviewReason(candidate.tier));
+  const otherUnchecked = candidate.unchecked.filter(
+    (item) => item !== SAMPLE_CONSTRAINT && item !== REVIEW_CONSTRAINT
+  );
+  if (otherUnchecked.length > 0) {
+    reasons.push(`Pending required information: ${otherUnchecked.join(", ")}.`);
+  }
+  return {
+    eligible: false,
+    status: "pending",
+    reasons,
+    matchedTier: candidate.tier,
+    uncheckedConstraints: candidate.unchecked,
+    effectiveRate: candidate.effectiveRate,
+    evaluatedConstraints: candidate.evaluatedConstraints,
+  };
+};
 
 const samplePendingResult = (
   unchecked: Iterable<string>,
@@ -499,6 +524,10 @@ export const checkBankEligibility = (
     if (configuredLimit(tier.maxAdvance) !== null) {
       unchecked.add("max advance (verify lender-specific calculation)");
     }
+
+    // A tier that fails its plausible rules is still rejected (restoring the
+    // dropped bound could only reject more); one that passes is held pending.
+    if (tierNeedsReview(tier)) unchecked.add(REVIEW_CONSTRAINT);
 
     if (rejected) continue;
     const candidate: TierCandidate = {

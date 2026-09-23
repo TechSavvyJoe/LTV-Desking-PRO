@@ -160,6 +160,14 @@ export interface LenderTier {
    * lender's official sheet before desking with this tier. [takeover-P1]
    */
   rangeFlags?: string[];
+  /**
+   * Set by the server whenever it dropped an implausible value (see
+   * `rangeFlags`). A dropped bound WIDENS the program (minFico 6600 dropped
+   * matches every score), so the rules engine holds a flagged tier as
+   * "pending" — never "eligible" — until a human corrects it and clears both
+   * this and `rangeFlags`. [ai-range-guard]
+   */
+  needsReview?: boolean;
 }
 
 export interface LenderProfile {

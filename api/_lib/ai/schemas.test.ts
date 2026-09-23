@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { checkBankEligibility } from "../../../services/lenderMatcher";
+import type { CalculatedVehicle, DealData, FilterData, LenderProfile } from "../../../types";
 import {
   applyRangeChecks,
   parseDealSuggestionResponse,
@@ -44,6 +46,7 @@ describe("AI response schema validation", () => {
       expect(tier?.minFico).toBe(660);
       expect(tier?.rangeFlags).toEqual(["maxLtv=1500 outside 20-200"]);
       expect(tier?.confidence).toBeLessThanOrEqual(0.4);
+      expect(tier?.needsReview).toBe(true);
     });
 
     it("drops an implausible FICO (660 misread as 6600) and a 720-month term", () => {
@@ -52,18 +55,84 @@ describe("AI response schema validation", () => {
       expect(tier).not.toHaveProperty("maxTerm");
       expect(tier?.maxLtv).toBe(130);
       expect(tier?.rangeFlags).toHaveLength(2);
+      expect(tier?.needsReview).toBe(true);
     });
 
     it("drops an implausible buy rate (65%) so the desk cannot quote it", () => {
       const tier = extractTier({ baseInterestRate: 65, minFico: 600 });
       expect(tier).not.toHaveProperty("baseInterestRate");
       expect(tier?.rangeFlags?.[0]).toMatch(/baseInterestRate=65/);
+      expect(tier?.needsReview).toBe(true);
     });
 
     it("drops an implausible vehicle age together with the year it would have derived", () => {
       const tier = extractTier({ maxAge: 300, minFico: 640 });
       expect(tier).not.toHaveProperty("maxAge");
       expect(tier).not.toHaveProperty("minYear");
+      expect(tier?.needsReview).toBe(true);
+    });
+
+    it("keeps a tier whose gating minimum was implausible but marks it needsReview with the sheet value [ai-range-guard]", () => {
+      const tier = extractTier({ minFico: 6600, maxTerm: 84, maxLtv: 130, confidence: 0.95 });
+      expect(tier).toMatchObject({
+        name: "T1",
+        maxTerm: 84,
+        maxLtv: 130,
+        needsReview: true,
+        rangeFlags: ["minFico=6600 outside 300-850"],
+      });
+      expect(tier).not.toHaveProperty("minFico");
+    });
+
+    it("derives the review verdict from the values alone — AI-supplied flags are ignored", () => {
+      const forgedClear = extractTier({
+        minFico: 6600,
+        needsReview: false,
+        rangeFlags: [],
+      });
+      expect(forgedClear?.needsReview).toBe(true);
+      expect(forgedClear?.rangeFlags).toEqual(["minFico=6600 outside 300-850"]);
+
+      const clean = extractTier({ minFico: 660, needsReview: true, rangeFlags: ["x"] });
+      expect(clean).not.toHaveProperty("needsReview");
+      expect(clean).not.toHaveProperty("rangeFlags");
+    });
+
+    it("a misread minimum never turns into an approval path downstream (fail closed) [ai-range-guard]", () => {
+      // The reviewer's probe: "Tier A: 660+ FICO" misread as 6600, desked for a
+      // 520-FICO buyer. Dropping minFico alone made this tier match everyone.
+      const tier = extractTier({ minFico: 6600, maxTerm: 84, maxLtv: 130, confidence: 0.95 });
+      const lender: LenderProfile = { id: "ai", name: "AI Lender", tiers: tier ? [tier] : [] };
+      const vehicle = {
+        vehicle: "2021 Test",
+        stock: "S1",
+        vin: "VIN1",
+        modelYear: 2021,
+        mileage: 30000,
+        price: 21000,
+        jdPower: 21000,
+        jdPowerRetail: 23000,
+        unitCost: 18000,
+        baseOutTheDoorPrice: 22000,
+        salesTax: 1200,
+        frontEndLtv: 100,
+        frontEndGross: 3000,
+        amountToFinance: 20000,
+        otdLtv: 95,
+        monthlyPayment: 400,
+      } as CalculatedVehicle;
+      const deal = {
+        creditScore: 520,
+        loanTerm: 72,
+        monthlyIncome: 4000,
+        backendProducts: 0,
+        interestRate: 12,
+      } as unknown as DealData & FilterData;
+
+      const result = checkBankEligibility(vehicle, deal, lender);
+      expect(result.eligible).toBe(false);
+      expect(result.status).toBe("pending");
+      expect(result.reasons[0]).toMatch(/needs review.*minFico=6600 outside 300-850/);
     });
 
     it("leaves plausible values untouched with no flags and preserved confidence", () => {
@@ -88,6 +157,7 @@ describe("AI response schema validation", () => {
         confidence: 0.9,
       });
       expect(tier).not.toHaveProperty("rangeFlags");
+      expect(tier).not.toHaveProperty("needsReview");
     });
 
     it("normalizes a confidence emitted as a percentage (85 → 0.85)", () => {
@@ -101,6 +171,7 @@ describe("AI response schema validation", () => {
       expect(checked).not.toHaveProperty("maxLtv");
       expect(checked.otdLtv).toBe(120);
       expect(checked.confidence).toBe(0.4);
+      expect(checked.needsReview).toBe(true);
     });
   });
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import type { LenderProfile, LenderTier } from "../types";
+import { tierNeedsReview } from "../services/lenderMatcher";
 import Modal from "./common/Modal";
 import Button from "./common/Button";
 import Input from "./common/Input";
@@ -113,6 +114,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     }));
   };
 
+  // A rangeFlags entry looks like "maxLtv=1500 outside 20-200" — the field
+  // name is the text before the "=". [ai-range-guard]
+  const flaggedFieldName = (flag: string): string => flag.split("=")[0]?.trim() ?? "";
+
   const handleTierChange = (
     index: number,
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -124,7 +129,29 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       // Narrow `name` to a real LenderTier key instead of writing through `any`. [B12]
       const key = name as keyof LenderTier;
       const parsed = type === "number" ? (value === "" ? undefined : Number(value)) : value;
-      tiers[index] = { ...tier, [key]: parsed } as LenderTier;
+      let updated: LenderTier = { ...tier, [key]: parsed } as LenderTier;
+      // Editing the specific field the AI flagged means it's been looked at —
+      // clear the hold. Editing an unrelated field (e.g. renaming the tier)
+      // must NOT clear it: the flagged value is still unverified. [ai-range-guard]
+      if (
+        tierNeedsReview(updated) &&
+        Array.isArray(updated.rangeFlags) &&
+        updated.rangeFlags.some((flag) => flaggedFieldName(flag) === key)
+      ) {
+        const { rangeFlags: _rangeFlags, needsReview: _needsReview, ...rest } = updated;
+        updated = rest as LenderTier;
+      }
+      tiers[index] = updated;
+    }
+    setFormData((prev) => ({ ...prev, tiers }));
+  };
+
+  const markTierVerified = (index: number) => {
+    const tiers = [...(formData.tiers || [])];
+    const tier = tiers[index];
+    if (tier) {
+      const { rangeFlags: _rangeFlags, needsReview: _needsReview, ...rest } = tier;
+      tiers[index] = rest as LenderTier;
     }
     setFormData((prev) => ({ ...prev, tiers }));
   };
@@ -364,6 +391,32 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                     />
                   </div>
                 </div>
+
+                {/* Needs-review warning (AI-flagged tier held pending until corrected) */}
+                {tierNeedsReview(tier) && (
+                  <div
+                    role="note"
+                    className="mx-4 mt-3 rounded-sm px-2 py-1.5 text-xs bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border border-[var(--color-warning)]/40"
+                  >
+                    <p>
+                      Needs review:{" "}
+                      {tier.rangeFlags && tier.rangeFlags.length > 0
+                        ? tier.rangeFlags.join(", ")
+                        : "flagged for review"}
+                      . Edit the flagged field or mark it verified.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markTierVerified(index);
+                      }}
+                      className="mt-1 font-semibold underline hover:no-underline"
+                    >
+                      Mark verified
+                    </button>
+                  </div>
+                )}
 
                 {/* Expanded Tier Details */}
                 {activeTierIndex === index && (
