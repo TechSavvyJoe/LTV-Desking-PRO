@@ -388,9 +388,13 @@ describe("Milestone 2 Security & Cost Control Verification", () => {
   describe("B4: Request payload size limits and MIME type validation", () => {
     beforeEach(() => {
       vi.restoreAllMocks();
+      // lender-extract now requires admin/superadmin (ship-gate SHOULD-FIX
+      // #3), so these payload-shape tests use an admin role to reach the
+      // body-size/MIME checks under test; the role gate itself is covered
+      // separately below.
       const mockAuthContext = {
         userId: "user-b4-test",
-        role: "user",
+        role: "admin",
         dealerId: "dealer-b4-test",
       };
       vi.mocked(authLib.requireAuth).mockResolvedValue(mockAuthContext);
@@ -464,6 +468,144 @@ describe("Milestone 2 Security & Cost Control Verification", () => {
       const body = JSON.parse(state.body);
       expect(body.ok).toBe(false);
       expect(body.error).toContain("Request validation failed.");
+    });
+  });
+
+  describe("lender-extract requires admin/superadmin [ship-gate SHOULD-FIX #3]", () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const pdfPayload = JSON.stringify({
+      file: { name: "rates.pdf", mimeType: "application/pdf", base64Data: "dGVzdA==" },
+      aiSettings: {},
+    });
+
+    it("rejects a sales/user-role request with 403 before spending a metered extraction call", async () => {
+      vi.mocked(authLib.requireAuth).mockResolvedValue({
+        userId: "user-sales",
+        role: "user",
+        dealerId: "dealer-1",
+      });
+
+      const req = createMockReq({ url: "/api/ai/lender-extract", body: pdfPayload });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).toBe(403);
+      const body = JSON.parse(state.body);
+      expect(body.ok).toBe(false);
+      expect(body.error).toContain("admin");
+      // The provider client must never be reached for a rejected role.
+      expect(providerClients.callAiJson).not.toHaveBeenCalled();
+    });
+
+    it("rejects a manager role the same way", async () => {
+      vi.mocked(authLib.requireAuth).mockResolvedValue({
+        userId: "user-manager",
+        role: "manager",
+        dealerId: "dealer-1",
+      });
+
+      const req = createMockReq({ url: "/api/ai/lender-extract", body: pdfPayload });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).toBe(403);
+    });
+
+    it("allows an admin role through to the extraction handler", async () => {
+      vi.mocked(authLib.requireAuth).mockResolvedValue({
+        userId: "user-admin",
+        role: "admin",
+        dealerId: "dealer-1",
+      });
+
+      const req = createMockReq({ url: "/api/ai/lender-extract", body: pdfPayload });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).not.toBe(403);
+    });
+
+    it("allows a superadmin role through to the extraction handler", async () => {
+      vi.mocked(authLib.requireAuth).mockResolvedValue({
+        userId: "user-super",
+        role: "superadmin",
+        dealerId: null,
+      });
+
+      const req = createMockReq({ url: "/api/ai/lender-extract", body: pdfPayload });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).not.toBe(403);
+    });
+  });
+
+  describe("lender-enrich requires admin/superadmin [ship-gate follow-up]", () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const enrichPayload = JSON.stringify({ lenders: [], aiSettings: {} });
+
+    it("rejects a sales role with 403 before spending a metered enrich call", async () => {
+      vi.mocked(authLib.requireAuth).mockResolvedValue({
+        userId: "user-sales",
+        role: "sales",
+        dealerId: "dealer-1",
+      });
+
+      const req = createMockReq({ url: "/api/ai/lender-enrich", body: enrichPayload });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).toBe(403);
+      expect(JSON.parse(state.body).error).toContain("admin");
+      expect(providerClients.callAiJson).not.toHaveBeenCalled();
+    });
+
+    it("rejects a manager role the same way", async () => {
+      vi.mocked(authLib.requireAuth).mockResolvedValue({
+        userId: "user-manager",
+        role: "manager",
+        dealerId: "dealer-1",
+      });
+
+      const req = createMockReq({ url: "/api/ai/lender-enrich", body: enrichPayload });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).toBe(403);
+    });
+
+    it("lets an admin role reach the enrich handler", async () => {
+      vi.mocked(authLib.requireAuth).mockResolvedValue({
+        userId: "user-admin",
+        role: "admin",
+        dealerId: "dealer-1",
+      });
+
+      const req = createMockReq({ url: "/api/ai/lender-enrich", body: enrichPayload });
+      const { res, promise } = createMockRes();
+
+      await handleAiRequest(req, res);
+      const state = await promise;
+
+      expect(state.statusCode).not.toBe(403);
     });
   });
 
