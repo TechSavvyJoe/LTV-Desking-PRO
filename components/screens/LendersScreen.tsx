@@ -195,6 +195,24 @@ const statusFor = (
       dealEligible: false,
     };
   }
+  // A held check is authoritative and is never shown as a decline, even when a
+  // lender-wide shortcut below would reject the deal: the rules engine holds an
+  // unverified sample pending whatever the mismatch, and holds a real program
+  // pending only when no definite failure was found.
+  const pendingPill = (label: string): StatusInfo => ({
+    label,
+    color: "var(--color-text-muted)",
+    bg: "var(--color-bg-muted)",
+    dealEligible: true,
+    pending: true,
+  });
+  if (focusedEligibility?.status === "pending") {
+    return pendingPill(
+      PENDING_CAUSE_META[pendingCauseOf(focusedEligibility.uncheckedConstraints)].short
+    );
+  }
+  if (lender.isSample) return pendingPill(PENDING_CAUSE_META.sample.short);
+
   const fico = deal.creditScore;
   if (fico != null && agg.minFico !== null && fico < agg.minFico) {
     return { label: "FICO below min", ...danger, dealEligible: false };
@@ -219,26 +237,9 @@ const statusFor = (
       dealEligible: true,
     };
   }
-  // Unknown, not a fail: name what unblocks it ("Needs FICO", "Verify
-  // sample"…) in a neutral pill. "No vehicle fit" stays for a genuine fail.
-  if (focusedEligibility === null) {
-    return {
-      label: "Pick a unit on the desk",
-      color: "var(--color-text-muted)",
-      bg: "var(--color-bg-muted)",
-      dealEligible: true,
-      pending: true,
-    };
-  }
-  if (focusedEligibility?.status === "pending") {
-    return {
-      label: PENDING_CAUSE_META[pendingCauseOf(focusedEligibility.uncheckedConstraints)].short,
-      color: "var(--color-text-muted)",
-      bg: "var(--color-bg-muted)",
-      dealEligible: true,
-      pending: true,
-    };
-  }
+  // Nothing to check against yet: neutral, not a fail. "No vehicle fit"
+  // stays for a genuine fail.
+  if (focusedEligibility === null) return pendingPill("Pick a unit on the desk");
   return {
     label: "No vehicle fit",
     color: "var(--color-warning)",

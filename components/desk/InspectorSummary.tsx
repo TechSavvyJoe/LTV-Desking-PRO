@@ -60,11 +60,18 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
           {bandLabel}
         </div>
         {pending ? (
-          <div className="desk-fit-caption" title={pendingReason ?? undefined}>
-            <strong style={{ ...sansNum, color: "var(--color-text-muted)" }}>{fitCount} fit</strong>
-            {", "}
-            <span style={sansNum}>{pendingCount} pending</span>
-          </div>
+          <>
+            <div className="desk-fit-caption">
+              <strong style={{ ...sansNum, color: "var(--color-text-muted)" }}>
+                {fitCount} fit
+              </strong>
+              {", "}
+              <span style={sansNum}>{pendingCount} pending</span>
+            </div>
+            {/* What unblocks the checks, as text — not a hover-only tooltip, so
+                touch, keyboard and screen-reader users get it too. */}
+            {pendingReason && <p className="desk-pending-reason">{pendingReason}</p>}
+          </>
         ) : (
           <div className="desk-fit-caption">
             <strong style={{ ...sansNum, color: fitCountColor(fitCount) }}>

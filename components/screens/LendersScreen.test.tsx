@@ -268,6 +268,22 @@ describe("LendersScreen", () => {
       expect(pill("No vehicle fit")).toBeNull();
     });
 
+    it("never shows a sample as a decline, even when its FICO floor is above the deal's [PR #25 review]", () => {
+      mocks.role = "sales";
+      mocks.focusVin = "V1";
+      mocks.filters = { creditScore: 720, monthlyIncome: 5000 };
+      mocks.profiles = [
+        ficoLender({
+          isSample: true,
+          tiers: [{ name: "Super prime", minFico: 800, maxLtv: 130, maxTerm: 84 }],
+        }),
+      ];
+      render(<LendersScreen />);
+
+      expect(pill("Verify sample")).toBeTruthy();
+      expect(pill("FICO below min")).toBeNull();
+    });
+
     it("keeps the warning 'No vehicle fit' for a genuine fail", () => {
       mocks.role = "sales";
       mocks.focusVin = "V1";

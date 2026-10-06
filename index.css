@@ -1542,6 +1542,14 @@ select.dc-input:focus {
   font-size: var(--text-xs);
 }
 
+/* The pending unblock hint under "0 fit, N pending" — readable, not a tooltip. */
+.desk-pending-reason {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
 .desk-payment-cell {
   align-self: center;
   min-width: 0;

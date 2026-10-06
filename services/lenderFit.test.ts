@@ -248,8 +248,19 @@ describe("lenderFit", () => {
       expect(fit.fitCount).toBe(0);
       expect(fit.pendingCount).toBe(3);
       expect(fit.pendingCause).toBe("fico");
-      // Only the lenders a FICO would actually check are counted.
-      expect(fit.pendingReason).toBe("Add a FICO score to check 2 lenders");
+      // Only lenders a FICO would actually get a verdict from are counted: the
+      // sample that also needs a FICO stays held until it is verified.
+      expect(fit.pendingReason).toBe("Add a FICO score to check 1 lender");
+    });
+
+    it("names sample verification, not a FICO, when every pending lender is a sample", () => {
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ creditScore: null }), [
+        sampleFico,
+        sampleNoFico,
+      ]);
+      expect(fit.pendingCount).toBe(2);
+      expect(fit.pendingCause).toBe("sample");
+      expect(fit.pendingReason).toBe("Sample programs must be verified before they count");
     });
 
     it("moves on to sample verification once the FICO is in", () => {

@@ -124,7 +124,9 @@ describe("computeProcessedInventory", () => {
     expect(unit?.fitCount).toBe(0);
     expect(unit?.pendingCount).toBe(DEFAULT_LENDER_PROFILES.length);
     expect(unit?.approvalBand).toBe("pending");
-    expect(unit?.pendingCause).toBe("fico");
+    // Every default program is an unverified sample, so a FICO would rank
+    // nothing: the honest unblock is verifying the samples, not adding a FICO.
+    expect(unit?.pendingCause).toBe("sample");
     // Sort and persistence still see a number (capped exactly as before).
     expect(typeof unit?.approvalScore).toBe("number");
   });

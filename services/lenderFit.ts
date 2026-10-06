@@ -192,10 +192,19 @@ export const entryStatus = (e: LenderFitEntry): EligibilityStatus =>
  * actionable cause across them, and a one-line reason that counts only the
  * lenders that cause actually blocks ("Add a FICO score to check 11 lenders").
  */
+const PROVENANCE_HOLDS: ReadonlySet<PendingCause> = new Set<PendingCause>(["sample", "review"]);
+
 export const summarizePending = (entries: readonly LenderFitEntry[]): PendingSummary => {
   const pending = entries.filter((e) => entryStatus(e) === "pending");
   if (pending.length === 0) return { pendingCount: 0, pendingCause: null, pendingReason: null };
-  const perEntry = pending.map((e) => causesOf(e.uncheckedConstraints));
+  // A provenance hold (an unverified sample, a range under review) isn't lifted
+  // by any desk input, so a held lender only counts toward its hold — never
+  // toward "Add a FICO score to check N lenders": a FICO gets it no verdict.
+  const perEntry = pending.map((e) => {
+    const causes = causesOf(e.uncheckedConstraints);
+    const holds = [...causes].filter((c) => PROVENANCE_HOLDS.has(c));
+    return holds.length > 0 ? new Set(holds) : causes;
+  });
   const cause =
     CAUSE_PRIORITY.find((c) => perEntry.some((causes) => causes.has(c))) ??
     ("other" as PendingCause);

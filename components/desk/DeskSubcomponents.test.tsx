@@ -388,7 +388,10 @@ describe("desk subcomponents", () => {
 
     const caption = container.querySelector(".desk-score-cell .desk-fit-caption") as HTMLElement;
     expect(caption.textContent).toBe("0 fit, 2 pending");
-    expect(caption.getAttribute("title")).toBe("Add a FICO score to check 2 lenders");
+    // The unblock hint is visible text, not a hover-only title [PR #25 review].
+    expect(caption.getAttribute("title")).toBeNull();
+    const reason = container.querySelector(".desk-score-cell .desk-pending-reason");
+    expect(reason?.textContent).toBe("Add a FICO score to check 2 lenders");
   });
 
   it("InspectorSummary keeps the X/Y fit caption (and its color) when not pending", () => {
