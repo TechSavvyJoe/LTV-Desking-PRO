@@ -129,14 +129,22 @@ describe("LendersScreen", () => {
     expect(screen.getAllByRole("button", { name: /AI Lender Upload/i })).toHaveLength(2);
   });
 
+  it("renders the empty state without a table when there are no programs", () => {
+    mocks.role = "admin";
+    mocks.profiles = [];
+    render(<LendersScreen />);
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByRole("heading", { name: "No lender programs yet" })).toBeTruthy();
+  });
+
   it("names flagged fields only (never values) and says 'needs review' in the row name", () => {
     mocks.role = "sales";
     mocks.profiles = [flaggedLender()];
     render(<LendersScreen />);
     openLender("Bank A");
 
-    const tierRow = screen.getByRole("row", { name: "Tier A tier details, needs review" });
-    expect(screen.getByText("NEEDS REVIEW").getAttribute("title")).toBe(
+    const tierRow = screen.getByRole("button", { name: "Show details for Tier A, needs review" });
+    expect(screen.getByText("Needs review").getAttribute("title")).toBe(
       "Needs review: min FICO, buy rate"
     );
     fireEvent.click(tierRow);
@@ -149,18 +157,20 @@ describe("LendersScreen", () => {
     expect(screen.queryByRole("button", { name: "Mark verified" })).toBeNull();
   });
 
-  it("never shows MATCHED for a review-held best candidate", () => {
+  it("never shows Matched for a review-held best candidate", () => {
     mocks.role = "sales";
     mocks.focusVin = "V1";
     mocks.profiles = [flaggedLender()];
     render(<LendersScreen />);
     openLender("Bank A");
 
-    expect(screen.queryByText("MATCHED")).toBeNull();
-    expect(screen.getByRole("row", { name: "Tier A tier details, needs review" })).toBeTruthy();
+    expect(screen.queryByText("Matched")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Show details for Tier A, needs review" })
+    ).toBeTruthy();
   });
 
-  it("still shows MATCHED for an eligible tier", () => {
+  it("still shows Matched for an eligible tier", () => {
     mocks.role = "sales";
     mocks.focusVin = "V1";
     mocks.profiles = [
@@ -174,8 +184,8 @@ describe("LendersScreen", () => {
     render(<LendersScreen />);
     openLender("Bank B");
 
-    expect(screen.getByText("MATCHED")).toBeTruthy();
-    expect(screen.getByRole("row", { name: "Clean tier details, matched" })).toBeTruthy();
+    expect(screen.getByText("Matched")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show details for Clean, matched" })).toBeTruthy();
   });
 
   it("inline edits lift only the edited field's flag; type-then-delete re-flags it", () => {
@@ -183,7 +193,7 @@ describe("LendersScreen", () => {
     mocks.profiles = [flaggedLender()];
     render(<LendersScreen />);
     openLender("Bank A");
-    fireEvent.click(screen.getByRole("row", { name: /Tier A tier details/ }));
+    fireEvent.click(screen.getByRole("button", { name: /details for Tier A/ }));
 
     const verify = () => screen.getByRole("button", { name: "Mark verified" }) as HTMLButtonElement;
     expect(verify().disabled).toBe(true);
@@ -208,7 +218,7 @@ describe("LendersScreen", () => {
     fireEvent.change(rate, { target: { value: "6.49" } });
     expect(lastWrittenTier()?.rangeFlags).toBeUndefined();
     expect(lastWrittenTier()?.needsReview).toBeUndefined();
-    expect(screen.queryByText("NEEDS REVIEW")).toBeNull();
+    expect(screen.queryByText("Needs review")).toBeNull();
   });
 
   describe("status pill: pending vs. genuine fail", () => {
@@ -232,6 +242,18 @@ describe("LendersScreen", () => {
       expect(needsFico).toBeTruthy();
       expect(needsFico?.style.color).toBe("var(--color-text-muted)");
       expect(needsFico?.style.background).toBe("var(--color-bg-muted)");
+      expect(pill("No vehicle fit")).toBeNull();
+    });
+
+    it("shows a muted 'Pick a unit on the desk' pill when no vehicle is focused", () => {
+      mocks.role = "sales";
+      mocks.focusVin = null;
+      mocks.filters = { creditScore: 700, monthlyIncome: 5000 };
+      mocks.profiles = [ficoLender()];
+      render(<LendersScreen />);
+
+      const pick = pill("Pick a unit on the desk");
+      expect(pick?.style.color).toBe("var(--color-text-muted)");
       expect(pill("No vehicle fit")).toBeNull();
     });
 
@@ -300,6 +322,56 @@ describe("LendersScreen", () => {
     });
   });
 
+  describe("disclosure buttons and buy-rate field", () => {
+    it("carries aria-expanded on a real button (not the row) and toggles it", () => {
+      mocks.role = "sales";
+      mocks.profiles = [flaggedLender()];
+      render(<LendersScreen />);
+
+      const row = screen.getByRole("row", { name: /Bank A program details/ });
+      expect(row.hasAttribute("aria-expanded")).toBe(false);
+      expect(row.hasAttribute("aria-controls")).toBe(false);
+
+      const toggle = screen.getByRole("button", { name: "Show tiers for Bank A" });
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      fireEvent.click(toggle);
+      const hide = screen.getByRole("button", { name: "Hide tiers for Bank A" });
+      expect(hide.getAttribute("aria-expanded")).toBe("true");
+      expect(document.getElementById("lender-panel-L1")).toBeTruthy();
+
+      const tierToggle = screen.getByRole("button", { name: /Show details for Tier A/ });
+      expect(tierToggle.getAttribute("aria-expanded")).toBe("false");
+      fireEvent.click(tierToggle);
+      expect(
+        screen
+          .getByRole("button", { name: /Hide details for Tier A/ })
+          .getAttribute("aria-expanded")
+      ).toBe("true");
+
+      fireEvent.click(hide);
+      expect(document.getElementById("lender-panel-L1")).toBeNull();
+    });
+
+    it("shows no Buy rate field in the tier editor for sales, but does for admin", () => {
+      mocks.role = "sales";
+      mocks.profiles = [flaggedLender()];
+      render(<LendersScreen />);
+      openLender("Bank A");
+      fireEvent.click(screen.getByRole("button", { name: /details for Tier A/ }));
+      expect(screen.queryByLabelText(/Buy rate/)).toBeNull();
+      expect(document.getElementById("tier-L1-0-rate")).toBeNull();
+      expect(screen.queryByLabelText(/Reserve/)).toBeNull();
+      cleanup();
+
+      mocks.role = "admin";
+      render(<LendersScreen />);
+      openLender("Bank A");
+      fireEvent.click(screen.getByRole("button", { name: /details for Tier A/ }));
+      expect(document.getElementById("tier-L1-0-rate")).toBeTruthy();
+      expect(screen.queryByLabelText(/Reserve/)).not.toBeNull();
+    });
+  });
+
   it("Mark verified clears a bare needsReview hold with no flagged fields", () => {
     mocks.role = "admin";
     mocks.profiles = [
@@ -312,12 +384,12 @@ describe("LendersScreen", () => {
     ];
     render(<LendersScreen />);
     openLender("Bank C");
-    fireEvent.click(screen.getByRole("row", { name: /Bare tier details/ }));
+    fireEvent.click(screen.getByRole("button", { name: /details for Bare/ }));
 
     const verify = screen.getByRole("button", { name: "Mark verified" }) as HTMLButtonElement;
     expect(verify.disabled).toBe(false);
     fireEvent.click(verify);
     expect(lastWrittenTier()?.needsReview).toBeUndefined();
-    expect(screen.queryByText("NEEDS REVIEW")).toBeNull();
+    expect(screen.queryByText("Needs review")).toBeNull();
   });
 });

@@ -32,8 +32,6 @@ import type {
   LenderTier,
 } from "../../types";
 
-const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
-
 /**
  * lender_profiles now carry reservePct/fundingDays (migration 1747810001) but
  * the frozen app-level LenderProfile type doesn't declare them yet — widen
@@ -52,11 +50,17 @@ const gridFor = (showBuyRate: boolean): string =>
     : "1.7fr 0.95fr 0.8fr 0.85fr 0.8fr 1.5fr 1fr";
 
 const headCell: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 12,
+  fontWeight: 500,
+  color: "var(--color-text-muted)",
+};
+
+const tabular: React.CSSProperties = { fontVariantNumeric: "tabular-nums" };
+
+const sectionHeading: React.CSSProperties = {
+  fontSize: 13,
   fontWeight: 600,
-  letterSpacing: "0.08em",
-  ...mono,
-  color: "var(--color-text-subtle)",
+  color: "var(--color-text-muted)",
 };
 
 const editLabel: React.CSSProperties = {
@@ -75,7 +79,7 @@ const editInput: React.CSSProperties = {
   padding: "8px 10px",
   fontSize: 14,
   color: "var(--color-text)",
-  ...mono,
+  ...tabular,
   outline: "none",
 };
 
@@ -184,7 +188,12 @@ const statusFor = (
 ): StatusInfo => {
   const danger = { color: "var(--color-danger)", bg: "var(--color-danger-subtle)" };
   if (lender.active === false) {
-    return { label: "Disabled", ...danger, dealEligible: false };
+    return {
+      label: "Disabled",
+      color: "var(--color-text-muted)",
+      bg: "var(--color-bg-subtle)",
+      dealEligible: false,
+    };
   }
   const fico = deal.creditScore;
   if (fico != null && agg.minFico !== null && fico < agg.minFico) {
@@ -212,6 +221,15 @@ const statusFor = (
   }
   // Unknown, not a fail: name what unblocks it ("Needs FICO", "Verify
   // sample"…) in a neutral pill. "No vehicle fit" stays for a genuine fail.
+  if (focusedEligibility === null) {
+    return {
+      label: "Pick a unit on the desk",
+      color: "var(--color-text-muted)",
+      bg: "var(--color-bg-muted)",
+      dealEligible: true,
+      pending: true,
+    };
+  }
   if (focusedEligibility?.status === "pending") {
     return {
       label: PENDING_CAUSE_META[pendingCauseOf(focusedEligibility.uncheckedConstraints)].short,
@@ -426,26 +444,10 @@ export const LendersScreen: React.FC = () => {
           className="lenders-screen-summary"
           style={{ display: "flex", alignItems: "center", gap: 14 }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              ...mono,
-              letterSpacing: "0.18em",
-              color: "var(--color-text-subtle)",
-            }}
-          >
-            LENDER NETWORK
-          </span>
-          <div
-            className="lenders-screen-divider"
-            style={{ height: 20, width: 1, background: "var(--color-border)" }}
-          />
-          <span style={{ fontSize: 15, fontWeight: 600 }}>{activeCount} active programs</span>
-          <span
-            className="lenders-screen-description"
-            style={{ fontSize: 13, color: "var(--color-text-subtle)" }}
-          >
-            eligibility recalculated against the live deal
+          <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Lenders</h1>
+          <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+            {activeCount} active programs
+            <span className="lenders-screen-description">, recalculated against the live deal</span>
           </span>
         </div>
         {canEdit && (
@@ -479,919 +481,950 @@ export const LendersScreen: React.FC = () => {
       </header>
 
       <div className="lenders-screen-content" style={{ padding: "20px 24px" }}>
-        <div
-          className="dc-card lenders-screen-table"
-          role="table"
-          aria-label="Lender network programs and eligibility"
-          aria-rowcount={lenders.length + 1}
-          style={{
-            background: "var(--color-bg)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--shadow)",
-            overflow: "hidden",
-          }}
-        >
-          {/* Column header */}
-          <div role="rowgroup">
-            <div
-              className="lenders-screen-table-row"
-              role="row"
-              aria-rowindex={1}
-              style={{
-                display: "grid",
-                gridTemplateColumns: grid,
-                columnGap: 13,
-                alignItems: "center",
-                padding: "11px 20px",
-                background: "var(--color-bg-subtle)",
-                borderBottom: "1px solid var(--color-border)",
-              }}
-            >
-              <span role="columnheader" style={headCell}>
-                Lender
-              </span>
-              <span role="columnheader" style={headCell}>
-                Tier
-              </span>
-              <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
-                Max LTV
-              </span>
-              <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
-                Max term
-              </span>
-              <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
-                Min FICO
-              </span>
-              {showBuyRate && (
-                <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
-                  Buy rate
+        {lenders.length === 0 ? (
+          <EmptyState
+            icon={<Icons.BuildingLibraryIcon className="w-full h-full" />}
+            title="No lender programs yet"
+            description={
+              canEdit
+                ? "Use AI Lender Upload to extract programs from a rate sheet, or add them manually via the full program editor."
+                : "Lender programs are added by a dealer admin. Ask your admin to upload a rate sheet."
+            }
+            primaryAction={
+              canEdit ? { label: "AI Lender Upload", onClick: openAiUpload } : undefined
+            }
+          />
+        ) : (
+          <div
+            className="dc-card lenders-screen-table"
+            role="table"
+            aria-label="Lender network programs and eligibility"
+            style={{
+              background: "var(--color-bg)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)",
+              overflow: "hidden",
+            }}
+          >
+            {/* Column header */}
+            <div role="rowgroup">
+              <div
+                className="lenders-screen-table-row"
+                role="row"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: grid,
+                  columnGap: 13,
+                  alignItems: "center",
+                  padding: "11px 20px",
+                  background: "var(--color-bg-subtle)",
+                  borderBottom: "1px solid var(--color-border)",
+                }}
+              >
+                <span role="columnheader" style={headCell}>
+                  Lender
                 </span>
-              )}
-              <span role="columnheader" style={headCell}>
-                Units fitting
-              </span>
-              <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
-                Status
-              </span>
+                <span role="columnheader" style={headCell}>
+                  Tier
+                </span>
+                <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
+                  Max LTV
+                </span>
+                <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
+                  Max term
+                </span>
+                <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
+                  Min FICO
+                </span>
+                {showBuyRate && (
+                  <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
+                    Buy rate
+                  </span>
+                )}
+                <span role="columnheader" style={headCell}>
+                  Units fitting
+                </span>
+                <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
+                  Status
+                </span>
+              </div>
             </div>
-          </div>
 
-          {lenders.length === 0 && (
-            <EmptyState
-              icon={<Icons.BuildingLibraryIcon className="w-full h-full" />}
-              title="No lender programs yet"
-              description={
-                canEdit
-                  ? "Use AI Lender Upload to extract programs from a rate sheet, or add them manually via the full program editor."
-                  : "Lender programs are added by a dealer admin. Ask your admin to upload a rate sheet."
-              }
-              primaryAction={
-                canEdit ? { label: "AI Lender Upload", onClick: openAiUpload } : undefined
-              }
-            />
-          )}
+            <div role="rowgroup">
+              {lenders.map((l) => {
+                const badge = deriveTierBadge(l);
+                const agg = aggregatesFor(l);
+                const units = unitsPerLender[l.id] ?? 0;
 
-          <div role="rowgroup">
-            {lenders.map((l, lenderIndex) => {
-              const badge = deriveTierBadge(l);
-              const agg = aggregatesFor(l);
-              const units = unitsPerLender[l.id] ?? 0;
+                // Tier matched for the live deal + focused vehicle (rules engine).
+                // Only an ELIGIBLE result is a match: a pending one (review hold,
+                // sample program, missing deal input) still names its best
+                // candidate tier, but that tier is not an approval path, so it
+                // gets neither the MATCHED pill nor the row's headline values.
+                const eligibility = focusedVehicle
+                  ? checkBankEligibility(focusedVehicle, mergedDeal, l)
+                  : null;
+                const status = statusFor(l, agg, mergedDeal, units, eligibility);
+                const barPct = shownCount > 0 ? Math.round((units / shownCount) * 100) : 0;
+                const barColor = status.pending
+                  ? "var(--color-text-subtle)"
+                  : status.dealEligible && units > 0
+                    ? "var(--color-success)"
+                    : "var(--color-warning)";
+                const matched = eligibility?.status === "eligible" ? eligibility.matchedTier : null;
+                const isAggregate = !matched;
+                const rowLtv = matched
+                  ? (numOf(matched.otdLtv) ?? numOf(matched.maxLtv))
+                  : agg.maxLtv;
+                const rowTerm = matched ? (numOf(matched.maxTerm) ?? agg.maxTerm) : agg.maxTerm;
+                const rowFico = matched ? (numOf(matched.minFico) ?? agg.minFico) : agg.minFico;
+                const rowRate = matched
+                  ? (numOf(matched.baseInterestRate) ?? agg.buyRate)
+                  : agg.buyRate;
+                const valColor = isAggregate ? "var(--color-text-subtle)" : undefined;
 
-              // Tier matched for the live deal + focused vehicle (rules engine).
-              // Only an ELIGIBLE result is a match: a pending one (review hold,
-              // sample program, missing deal input) still names its best
-              // candidate tier, but that tier is not an approval path, so it
-              // gets neither the MATCHED pill nor the row's headline values.
-              const eligibility = focusedVehicle
-                ? checkBankEligibility(focusedVehicle, mergedDeal, l)
-                : null;
-              const status = statusFor(l, agg, mergedDeal, units, eligibility);
-              const barPct = shownCount > 0 ? Math.round((units / shownCount) * 100) : 0;
-              const barColor = status.pending
-                ? "var(--color-text-subtle)"
-                : status.dealEligible && units > 0
-                  ? "var(--color-success)"
-                  : "var(--color-warning)";
-              const matched = eligibility?.status === "eligible" ? eligibility.matchedTier : null;
-              const isAggregate = !matched;
-              const rowLtv = matched
-                ? (numOf(matched.otdLtv) ?? numOf(matched.maxLtv))
-                : agg.maxLtv;
-              const rowTerm = matched ? (numOf(matched.maxTerm) ?? agg.maxTerm) : agg.maxTerm;
-              const rowFico = matched ? (numOf(matched.minFico) ?? agg.minFico) : agg.minFico;
-              const rowRate = matched
-                ? (numOf(matched.baseInterestRate) ?? agg.buyRate)
-                : agg.buyRate;
-              const valColor = isAggregate ? "var(--color-text-subtle)" : undefined;
+                const tiers = Array.isArray(l.tiers) ? l.tiers : [];
+                const expanded = expandedId === l.id;
+                const isActive = l.active !== false;
+                const toggleExpanded = () => {
+                  setExpandedId(expanded ? null : l.id);
+                  setExpandedTier(null);
+                };
 
-              const tiers = Array.isArray(l.tiers) ? l.tiers : [];
-              const expanded = expandedId === l.id;
-              const isActive = l.active !== false;
-              const toggleExpanded = () => {
-                setExpandedId(expanded ? null : l.id);
-                setExpandedTier(null);
-              };
-
-              return (
-                <div key={l.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
-                  {/* Matrix row */}
-                  <div
-                    className="inv-row lenders-screen-table-row"
-                    role="row"
-                    aria-rowindex={lenderIndex + 2}
-                    tabIndex={0}
-                    aria-expanded={expanded}
-                    aria-label={`${l.name} program details`}
-                    aria-controls={`lender-panel-${l.id}`}
-                    onClick={toggleExpanded}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleExpanded();
-                      }
-                    }}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: grid,
-                      columnGap: 13,
-                      alignItems: "center",
-                      padding: "13px 20px",
-                      cursor: "pointer",
-                    }}
-                  >
+                return (
+                  <div key={l.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
+                    {/* Matrix row */}
                     <div
-                      role="cell"
-                      style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}
+                      className="inv-row lenders-screen-table-row"
+                      role="row"
+                      aria-label={`${l.name} program details`}
+                      onClick={toggleExpanded}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: grid,
+                        columnGap: 13,
+                        alignItems: "center",
+                        padding: "13px 20px",
+                        cursor: "pointer",
+                      }}
                     >
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: "var(--color-text-subtle)",
-                          width: 8,
-                          flexShrink: 0,
-                        }}
-                        aria-hidden="true"
+                      <div
+                        role="cell"
+                        style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}
                       >
-                        {expanded ? "▾" : "▸"}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {l.name}
-                      </span>
-                      {tiers.length > 1 && (
-                        <span
+                        <button
+                          type="button"
+                          aria-expanded={expanded}
+                          aria-controls={`lender-panel-${l.id}`}
+                          aria-label={`${expanded ? "Hide" : "Show"} tiers for ${l.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpanded();
+                          }}
                           style={{
                             fontSize: 10,
-                            ...mono,
-                            background: "var(--color-bg-muted)",
-                            color: "var(--color-text-muted)",
-                            padding: "1px 6px",
-                            borderRadius: 5,
+                            color: "var(--color-text-subtle)",
+                            width: 8,
                             flexShrink: 0,
+                            background: "transparent",
+                            border: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
                           }}
                         >
-                          {tiers.length} tiers
+                          <span aria-hidden="true">{expanded ? "▾" : "▸"}</span>
+                        </button>
+                        <span
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {l.name}
                         </span>
-                      )}
-                    </div>
-                    <span role="cell">
-                      <span
-                        title="derived from program tiers"
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          ...mono,
-                          padding: "2px 7px",
-                          borderRadius: 5,
-                          color: badge.color,
-                          background: badge.bg,
-                        }}
-                      >
-                        {badge.label}
+                        {tiers.length > 1 && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              ...tabular,
+                              background: "var(--color-bg-muted)",
+                              color: "var(--color-text-muted)",
+                              padding: "1px 6px",
+                              borderRadius: 5,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {tiers.length} tiers
+                          </span>
+                        )}
+                      </div>
+                      <span role="cell">
+                        <span
+                          title="Derived from program tiers"
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 7px",
+                            borderRadius: 5,
+                            color: badge.color,
+                            background: badge.bg,
+                          }}
+                        >
+                          {badge.label}
+                        </span>
                       </span>
-                    </span>
-                    <span
-                      role="cell"
-                      style={{
-                        fontSize: 14,
-                        textAlign: "right",
-                        ...mono,
-                        fontVariantNumeric: "tabular-nums",
-                        color: valColor,
-                      }}
-                    >
-                      {rowLtv === null ? "—" : `${Math.round(rowLtv)}%`}
-                    </span>
-                    <span
-                      role="cell"
-                      style={{
-                        fontSize: 14,
-                        textAlign: "right",
-                        ...mono,
-                        color: valColor ?? "var(--color-text-muted)",
-                      }}
-                    >
-                      {rowTerm === null ? "—" : `${rowTerm} mo`}
-                    </span>
-                    <span
-                      role="cell"
-                      style={{
-                        fontSize: 14,
-                        textAlign: "right",
-                        ...mono,
-                        color: valColor ?? "var(--color-text-muted)",
-                      }}
-                    >
-                      {rowFico === null ? "—" : rowFico}
-                    </span>
-                    {showBuyRate && (
                       <span
                         role="cell"
                         style={{
                           fontSize: 14,
                           textAlign: "right",
-                          ...mono,
-                          fontVariantNumeric: "tabular-nums",
+                          ...tabular,
                           color: valColor,
                         }}
                       >
-                        {rowRate === null ? "—" : `${rowRate}%`}
+                        {rowLtv === null ? "—" : `${Math.round(rowLtv)}%`}
                       </span>
-                    )}
-                    <div role="cell" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div
-                        style={{
-                          flex: 1,
-                          height: 6,
-                          borderRadius: 3,
-                          background: "var(--color-bg-muted)",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          className="ring-anim"
-                          style={{
-                            height: "100%",
-                            width: `${barPct}%`,
-                            background: barColor,
-                            borderRadius: 3,
-                          }}
-                        />
-                      </div>
                       <span
+                        role="cell"
                         style={{
-                          fontSize: 13,
-                          ...mono,
-                          color: "var(--color-text-muted)",
-                          minWidth: 30,
+                          fontSize: 14,
                           textAlign: "right",
+                          ...tabular,
+                          color: valColor ?? "var(--color-text-muted)",
                         }}
                       >
-                        {units}/{shownCount}
+                        {rowTerm === null ? "—" : `${rowTerm} mo`}
                       </span>
-                    </div>
-                    <span role="cell" style={{ textAlign: "right" }}>
                       <span
+                        role="cell"
                         style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          ...mono,
-                          padding: "3px 9px",
-                          borderRadius: 6,
-                          color: status.color,
-                          background: status.bg,
-                          whiteSpace: "nowrap",
+                          fontSize: 14,
+                          textAlign: "right",
+                          ...tabular,
+                          color: valColor ?? "var(--color-text-muted)",
                         }}
                       >
-                        {status.label}
+                        {rowFico === null ? "—" : rowFico}
                       </span>
-                    </span>
-                  </div>
-
-                  {/* Expansion — program parameter editor */}
-                  {expanded && (
-                    <div
-                      id={`lender-panel-${l.id}`}
-                      style={{
-                        padding: "4px 20px 18px 37px",
-                        background: "var(--color-bg-subtle)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          margin: "10px 0 12px",
-                        }}
-                      >
+                      {showBuyRate && (
                         <span
+                          role="cell"
                           style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: "0.1em",
-                            ...mono,
-                            color: "var(--color-text-subtle)",
+                            fontSize: 14,
+                            textAlign: "right",
+                            ...tabular,
+                            color: valColor,
                           }}
                         >
-                          PROGRAM PARAMETERS · ADJUST TO RESCORE INVENTORY
-                          {!canEdit && (
-                            <span style={{ marginLeft: 10, color: "var(--color-text-muted)" }}>
-                              · READ-ONLY FOR YOUR ROLE
-                            </span>
-                          )}
+                          {rowRate === null ? "—" : `${rowRate}%`}
                         </span>
-                        {canEdit && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              queueSave(l.id, { active: !isActive });
-                            }}
-                            className="transition-colors"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                              background: isActive
-                                ? "var(--color-success-subtle)"
-                                : "var(--color-bg-muted)",
-                              color: isActive ? "var(--color-success)" : "var(--color-text-subtle)",
-                              border: `1px solid ${isActive ? "var(--color-success)" : "var(--color-text-subtle)"}`,
-                              borderRadius: 7,
-                              padding: "4px 11px",
-                              fontSize: 12,
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <span
-                              style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
-                                background: isActive
-                                  ? "var(--color-success)"
-                                  : "var(--color-text-subtle)",
-                              }}
-                            />
-                            {isActive ? "Active" : "Disabled"}
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Lender-level program block */}
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(4, 1fr)",
-                          gap: 12,
-                          marginBottom: 14,
-                          maxWidth: 820,
-                        }}
-                        role="group"
-                        aria-label={`Program parameters for ${l.name}`}
-                      >
-                        <div>
-                          <label htmlFor={`lender-${l.id}-min-income`} style={editLabel}>
-                            Min income ($/mo)
-                          </label>
-                          <input
-                            id={`lender-${l.id}-min-income`}
-                            className="dc-input"
-                            inputMode="numeric"
-                            disabled={!canEdit}
-                            value={l.minIncome ?? ""}
-                            onChange={(e) => queueSave(l.id, { minIncome: num(e) })}
-                            style={editInput}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor={`lender-${l.id}-max-pti`} style={editLabel}>
-                            Max PTI (%)
-                          </label>
-                          <input
-                            id={`lender-${l.id}-max-pti`}
-                            className="dc-input"
-                            inputMode="numeric"
-                            disabled={!canEdit}
-                            value={l.maxPti ?? ""}
-                            onChange={(e) => queueSave(l.id, { maxPti: num(e) })}
-                            style={editInput}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor={`lender-${l.id}-max-backend`} style={editLabel}>
-                            Max backend ($)
-                          </label>
-                          <input
-                            id={`lender-${l.id}-max-backend`}
-                            className="dc-input"
-                            inputMode="numeric"
-                            disabled={!canEdit}
-                            value={l.maxBackend ?? ""}
-                            onChange={(e) => queueSave(l.id, { maxBackend: num(e) })}
-                            style={editInput}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor={`lender-${l.id}-book-source`} style={editLabel}>
-                            Book source
-                          </label>
-                          <select
-                            id={`lender-${l.id}-book-source`}
-                            className="dc-input"
-                            disabled={!canEdit}
-                            value={l.bookValueSource ?? "Trade"}
-                            onChange={(e) =>
-                              queueSave(l.id, {
-                                bookValueSource: e.target.value as "Trade" | "Retail",
-                              })
-                            }
-                            style={{
-                              ...editInput,
-                              fontFamily: "inherit",
-                              cursor: canEdit ? "pointer" : "default",
-                            }}
-                            aria-label="Book source"
-                          >
-                            <option value="Trade">Trade</option>
-                            <option value="Retail">Retail</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label htmlFor={`lender-${l.id}-reserve`} style={editLabel}>
-                            Reserve (%)
-                          </label>
-                          <input
-                            id={`lender-${l.id}-reserve`}
-                            className="dc-input"
-                            inputMode="decimal"
-                            disabled={!canEdit}
-                            value={l.reservePct ?? ""}
-                            onChange={(e) => queueSave(l.id, { reservePct: num(e) })}
-                            style={editInput}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor={`lender-${l.id}-funding-days`} style={editLabel}>
-                            Funding days
-                          </label>
-                          <input
-                            id={`lender-${l.id}-funding-days`}
-                            className="dc-input"
-                            disabled={!canEdit}
-                            value={l.fundingDays ?? ""}
-                            placeholder="e.g. 1–2 days"
-                            onChange={(e) => queueSave(l.id, { fundingDays: e.target.value })}
-                            style={editInput}
-                          />
-                        </div>
-                        <div style={{ gridColumn: "span 2" }}>
-                          <label htmlFor={`lender-${l.id}-contact-email`} style={editLabel}>
-                            Contact email
-                          </label>
-                          <input
-                            id={`lender-${l.id}-contact-email`}
-                            className="dc-input"
-                            type="email"
-                            disabled={!canEdit}
-                            value={l.contactEmail ?? ""}
-                            placeholder="dealerdesk@lender.com"
-                            onChange={(e) => queueSave(l.id, { contactEmail: e.target.value })}
-                            style={editInput}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Tier accordion */}
-                      <div
-                        style={{
-                          border: "1px solid var(--color-border)",
-                          borderRadius: "var(--radius-lg)",
-                          overflow: "hidden",
-                          maxWidth: 820,
-                          background: "var(--color-bg)",
-                          marginBottom: 12,
-                        }}
-                      >
+                      )}
+                      <div role="cell" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div
                           style={{
-                            padding: "9px 14px",
-                            borderBottom: "1px solid var(--color-border)",
-                            fontSize: 11,
+                            flex: 1,
+                            height: 6,
+                            borderRadius: 3,
+                            background: "var(--color-bg-muted)",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            className="ring-anim"
+                            style={{
+                              height: "100%",
+                              width: `${barPct}%`,
+                              background: barColor,
+                              borderRadius: 3,
+                            }}
+                          />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            ...tabular,
+                            color: "var(--color-text-muted)",
+                            minWidth: 30,
+                            textAlign: "right",
+                          }}
+                        >
+                          {units}/{shownCount}
+                        </span>
+                      </div>
+                      <span role="cell" style={{ textAlign: "right" }}>
+                        <span
+                          style={{
+                            fontSize: 12,
                             fontWeight: 600,
-                            letterSpacing: "0.1em",
-                            ...mono,
-                            color: "var(--color-text-subtle)",
+                            padding: "3px 9px",
+                            borderRadius: 6,
+                            color: status.color,
+                            background: status.bg,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {status.label}
+                        </span>
+                      </span>
+                    </div>
+
+                    {/* Expansion — program parameter editor */}
+                    {expanded && (
+                      <div role="row">
+                        <div
+                          role="cell"
+                          id={`lender-panel-${l.id}`}
+                          style={{
+                            padding: "4px 20px 18px 37px",
                             background: "var(--color-bg-subtle)",
                           }}
                         >
-                          PROGRAM TIERS · {tiers.length}
-                        </div>
-                        {tiers.length === 0 && (
                           <div
                             style={{
-                              padding: "14px",
-                              fontSize: 13,
-                              color: "var(--color-text-muted)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              margin: "10px 0 12px",
                             }}
-                            role="status"
-                            aria-live="polite"
                           >
-                            No tiers on this program yet — use “Edit full program” to add one.
-                          </div>
-                        )}
-                        {tiers.map((t, idx) => {
-                          const tOpen = expandedTier === idx;
-                          const tLtv = numOf(t.otdLtv) ?? numOf(t.maxLtv);
-                          const usesOtd = t.otdLtv !== undefined;
-                          const usesYearRange = t.minYear !== undefined || t.maxYear !== undefined;
-                          const isMatched = matched === t;
-                          const tierLabel = t.tierName || t.name || `Tier ${idx + 1}`;
-                          const needsReview = tierNeedsReview(t);
-                          // Field NAMES only — rangeFlags can carry the misread
-                          // value (a buy rate off by a decimal) and this screen
-                          // is open to every role. [ai-range-guard]
-                          const reviewFields = needsReview ? reviewFieldLabels(t) : [];
-                          const missingReviewFields = needsReview ? unverifiedReviewFields(t) : [];
-                          const verifyHintId = `tier-verify-hint-${l.id}-${idx}`;
-                          return (
-                            <div
-                              key={idx}
-                              style={{
-                                borderTop: idx > 0 ? "1px solid var(--color-border)" : "none",
-                              }}
-                            >
-                              <div
-                                className="inv-row"
-                                role="row"
-                                tabIndex={0}
-                                aria-expanded={tOpen}
-                                aria-label={`${tierLabel} tier details${isMatched ? ", matched" : ""}${needsReview ? ", needs review" : ""}`}
-                                aria-controls={`tier-panel-${l.id}-${idx}`}
-                                onClick={() => setExpandedTier(tOpen ? null : idx)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    setExpandedTier(tOpen ? null : idx);
-                                  }
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                              <h2 style={{ ...sectionHeading, margin: 0 }}>
+                                Program parameters — adjust to rescore inventory
+                              </h2>
+                              {!canEdit && (
+                                <span style={{ ...sectionHeading, fontWeight: 400 }}>
+                                  Read-only for your role
+                                </span>
+                              )}
+                            </div>
+                            {canEdit && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  queueSave(l.id, { active: !isActive });
                                 }}
+                                className="transition-colors"
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: 10,
-                                  padding: "10px 14px",
+                                  gap: 6,
+                                  background: isActive
+                                    ? "var(--color-success-subtle)"
+                                    : "var(--color-bg-muted)",
+                                  color: isActive
+                                    ? "var(--color-success)"
+                                    : "var(--color-text-subtle)",
+                                  border: `1px solid ${isActive ? "var(--color-success)" : "var(--color-text-subtle)"}`,
+                                  borderRadius: 7,
+                                  padding: "4px 11px",
+                                  fontSize: 12,
+                                  fontWeight: 600,
                                   cursor: "pointer",
+                                  fontFamily: "inherit",
                                 }}
                               >
                                 <span
                                   style={{
-                                    fontSize: 10,
-                                    color: "var(--color-text-subtle)",
-                                    width: 8,
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    background: isActive
+                                      ? "var(--color-success)"
+                                      : "var(--color-text-subtle)",
                                   }}
-                                  aria-hidden="true"
-                                >
-                                  {tOpen ? "▾" : "▸"}
-                                </span>
-                                <span
-                                  style={{
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    minWidth: 0,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {tierLabel}
-                                </span>
-                                {isMatched && (
-                                  <span
-                                    style={{
-                                      fontSize: 10,
-                                      fontWeight: 700,
-                                      ...mono,
-                                      background: "var(--color-success-subtle)",
-                                      color: "var(--color-success)",
-                                      padding: "2px 7px",
-                                      borderRadius: 5,
-                                    }}
-                                  >
-                                    MATCHED
-                                  </span>
-                                )}
-                                {needsReview && (
-                                  <span
-                                    title={
-                                      reviewFields.length > 0
-                                        ? `Needs review: ${reviewFields.join(", ")}`
-                                        : "Needs review"
-                                    }
-                                    style={{
-                                      fontSize: 10,
-                                      fontWeight: 700,
-                                      ...mono,
-                                      background: "var(--color-warning-subtle)",
-                                      color: "var(--color-warning)",
-                                      padding: "2px 7px",
-                                      borderRadius: 5,
-                                    }}
-                                  >
-                                    NEEDS REVIEW
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    marginLeft: "auto",
-                                    fontSize: 12,
-                                    ...mono,
-                                    color: "var(--color-text-subtle)",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {t.minFico !== undefined ? `FICO ${t.minFico}+` : "any FICO"}
-                                  {" · "}
-                                  {tLtv !== null ? `${Math.round(tLtv)}% LTV` : "no LTV cap"}
-                                  {" · "}
-                                  {t.maxTerm !== undefined ? `${t.maxTerm} mo` : "any term"}
-                                </span>
+                                />
+                                {isActive ? "Active" : "Disabled"}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Lender-level program block */}
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(4, 1fr)",
+                              gap: 12,
+                              marginBottom: 14,
+                              maxWidth: 820,
+                            }}
+                            role="group"
+                            aria-label={`Program parameters for ${l.name}`}
+                          >
+                            <div>
+                              <label htmlFor={`lender-${l.id}-min-income`} style={editLabel}>
+                                Min income ($/mo)
+                              </label>
+                              <input
+                                id={`lender-${l.id}-min-income`}
+                                className="dc-input"
+                                inputMode="numeric"
+                                disabled={!canEdit}
+                                value={l.minIncome ?? ""}
+                                onChange={(e) => queueSave(l.id, { minIncome: num(e) })}
+                                style={editInput}
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor={`lender-${l.id}-max-pti`} style={editLabel}>
+                                Max PTI (%)
+                              </label>
+                              <input
+                                id={`lender-${l.id}-max-pti`}
+                                className="dc-input"
+                                inputMode="numeric"
+                                disabled={!canEdit}
+                                value={l.maxPti ?? ""}
+                                onChange={(e) => queueSave(l.id, { maxPti: num(e) })}
+                                style={editInput}
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor={`lender-${l.id}-max-backend`} style={editLabel}>
+                                Max backend ($)
+                              </label>
+                              <input
+                                id={`lender-${l.id}-max-backend`}
+                                className="dc-input"
+                                inputMode="numeric"
+                                disabled={!canEdit}
+                                value={l.maxBackend ?? ""}
+                                onChange={(e) => queueSave(l.id, { maxBackend: num(e) })}
+                                style={editInput}
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor={`lender-${l.id}-book-source`} style={editLabel}>
+                                Book source
+                              </label>
+                              <select
+                                id={`lender-${l.id}-book-source`}
+                                className="dc-input"
+                                disabled={!canEdit}
+                                value={l.bookValueSource ?? "Trade"}
+                                onChange={(e) =>
+                                  queueSave(l.id, {
+                                    bookValueSource: e.target.value as "Trade" | "Retail",
+                                  })
+                                }
+                                style={{
+                                  ...editInput,
+                                  fontFamily: "inherit",
+                                  cursor: canEdit ? "pointer" : "default",
+                                }}
+                                aria-label="Book source"
+                              >
+                                <option value="Trade">Trade</option>
+                                <option value="Retail">Retail</option>
+                              </select>
+                            </div>
+                            {/* Dealer reserve is manager-and-up only, like buy rate: the
+                              field is not rendered at all for sales (the server strips
+                              the value anyway; an empty disabled box would still leak
+                              that the field exists). */}
+                            {showBuyRate && (
+                              <div>
+                                <label htmlFor={`lender-${l.id}-reserve`} style={editLabel}>
+                                  Reserve (%)
+                                </label>
+                                <input
+                                  id={`lender-${l.id}-reserve`}
+                                  className="dc-input"
+                                  inputMode="decimal"
+                                  disabled={!canEdit}
+                                  value={l.reservePct ?? ""}
+                                  onChange={(e) => queueSave(l.id, { reservePct: num(e) })}
+                                  style={editInput}
+                                />
                               </div>
-                              {tOpen && (
+                            )}
+                            <div>
+                              <label htmlFor={`lender-${l.id}-funding-days`} style={editLabel}>
+                                Funding days
+                              </label>
+                              <input
+                                id={`lender-${l.id}-funding-days`}
+                                className="dc-input"
+                                disabled={!canEdit}
+                                value={l.fundingDays ?? ""}
+                                placeholder="e.g. 1–2 days"
+                                onChange={(e) => queueSave(l.id, { fundingDays: e.target.value })}
+                                style={editInput}
+                              />
+                            </div>
+                            <div style={{ gridColumn: "span 2" }}>
+                              <label htmlFor={`lender-${l.id}-contact-email`} style={editLabel}>
+                                Contact email
+                              </label>
+                              <input
+                                id={`lender-${l.id}-contact-email`}
+                                className="dc-input"
+                                type="email"
+                                disabled={!canEdit}
+                                value={l.contactEmail ?? ""}
+                                placeholder="dealerdesk@lender.com"
+                                onChange={(e) => queueSave(l.id, { contactEmail: e.target.value })}
+                                style={editInput}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Tier accordion */}
+                          <div
+                            style={{
+                              border: "1px solid var(--color-border)",
+                              borderRadius: "var(--radius-md)",
+                              overflow: "hidden",
+                              maxWidth: 820,
+                              background: "var(--color-bg)",
+                              marginBottom: 12,
+                            }}
+                          >
+                            <h3
+                              style={{
+                                margin: 0,
+                                padding: "9px 14px",
+                                borderBottom: "1px solid var(--color-border)",
+                                ...sectionHeading,
+                                background: "var(--color-bg-subtle)",
+                              }}
+                            >
+                              Program tiers — {tiers.length}
+                            </h3>
+                            {tiers.length === 0 && (
+                              <div
+                                style={{
+                                  padding: "14px",
+                                  fontSize: 13,
+                                  color: "var(--color-text-muted)",
+                                }}
+                                role="status"
+                                aria-live="polite"
+                              >
+                                No tiers on this program yet — use “Edit full program” to add one.
+                              </div>
+                            )}
+                            {tiers.map((t, idx) => {
+                              const tOpen = expandedTier === idx;
+                              const tLtv = numOf(t.otdLtv) ?? numOf(t.maxLtv);
+                              const usesOtd = t.otdLtv !== undefined;
+                              const usesYearRange =
+                                t.minYear !== undefined || t.maxYear !== undefined;
+                              const isMatched = matched === t;
+                              const tierLabel = t.tierName || t.name || `Tier ${idx + 1}`;
+                              const needsReview = tierNeedsReview(t);
+                              // Field NAMES only — rangeFlags can carry the misread
+                              // value (a buy rate off by a decimal) and this screen
+                              // is open to every role. [ai-range-guard]
+                              const reviewFields = needsReview ? reviewFieldLabels(t) : [];
+                              const missingReviewFields = needsReview
+                                ? unverifiedReviewFields(t)
+                                : [];
+                              const verifyHintId = `tier-verify-hint-${l.id}-${idx}`;
+                              return (
                                 <div
-                                  id={`tier-panel-${l.id}-${idx}`}
+                                  key={idx}
                                   style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "repeat(4, 1fr)",
-                                    gap: 12,
-                                    padding: "4px 14px 14px 32px",
+                                    borderTop: idx > 0 ? "1px solid var(--color-border)" : "none",
                                   }}
-                                  role="group"
-                                  aria-label={`Tier ${idx + 1} parameters for ${l.name}`}
                                 >
-                                  {needsReview && (
-                                    <div
-                                      role="note"
+                                  <div
+                                    className="inv-row"
+                                    onClick={() => setExpandedTier(tOpen ? null : idx)}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 10,
+                                      padding: "10px 14px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    <button
+                                      type="button"
+                                      aria-expanded={tOpen}
+                                      aria-controls={`tier-panel-${l.id}-${idx}`}
+                                      aria-label={`${tOpen ? "Hide" : "Show"} details for ${tierLabel}${isMatched ? ", matched" : ""}${needsReview ? ", needs review" : ""}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedTier(tOpen ? null : idx);
+                                      }}
                                       style={{
-                                        gridColumn: "1 / -1",
-                                        display: "flex",
-                                        alignItems: "flex-start",
-                                        justifyContent: "space-between",
-                                        gap: 12,
-                                        padding: "8px 10px",
-                                        borderRadius: "var(--radius-md)",
-                                        border: "1px solid var(--color-warning)",
-                                        background: "var(--color-warning-subtle)",
-                                        color: "var(--color-warning)",
-                                        fontSize: 12,
+                                        fontSize: 10,
+                                        color: "var(--color-text-subtle)",
+                                        width: 8,
+                                        background: "transparent",
+                                        border: "none",
+                                        padding: 0,
+                                        cursor: "pointer",
+                                        fontFamily: "inherit",
                                       }}
                                     >
-                                      <div style={{ minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600 }}>
-                                          {reviewFields.length > 0
-                                            ? `Needs review: ${joinWithAnd(reviewFields)} read implausibly from the rate sheet.`
-                                            : "Needs review: flagged when the rate sheet was read."}
-                                        </div>
+                                      <span aria-hidden="true">{tOpen ? "▾" : "▸"}</span>
+                                    </button>
+                                    <span
+                                      style={{
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        minWidth: 0,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {tierLabel}
+                                    </span>
+                                    {isMatched && (
+                                      <span
+                                        style={{
+                                          fontSize: 10,
+                                          fontWeight: 700,
+                                          background: "var(--color-success-subtle)",
+                                          color: "var(--color-success)",
+                                          padding: "2px 7px",
+                                          borderRadius: 5,
+                                        }}
+                                      >
+                                        Matched
+                                      </span>
+                                    )}
+                                    {needsReview && (
+                                      <span
+                                        title={
+                                          reviewFields.length > 0
+                                            ? `Needs review: ${reviewFields.join(", ")}`
+                                            : "Needs review"
+                                        }
+                                        style={{
+                                          fontSize: 10,
+                                          fontWeight: 700,
+                                          background: "var(--color-warning-subtle)",
+                                          color: "var(--color-warning)",
+                                          padding: "2px 7px",
+                                          borderRadius: 5,
+                                        }}
+                                      >
+                                        Needs review
+                                      </span>
+                                    )}
+                                    <span
+                                      style={{
+                                        marginLeft: "auto",
+                                        display: "flex",
+                                        gap: 10,
+                                        fontSize: 12,
+                                        ...tabular,
+                                        color: "var(--color-text-subtle)",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      <span>
+                                        {t.minFico !== undefined
+                                          ? `FICO ${t.minFico}+`
+                                          : "any FICO"}
+                                      </span>
+                                      <span>
+                                        {tLtv !== null ? `${Math.round(tLtv)}% LTV` : "no LTV cap"}
+                                      </span>
+                                      <span>
+                                        {t.maxTerm !== undefined ? `${t.maxTerm} mo` : "any term"}
+                                      </span>
+                                    </span>
+                                  </div>
+                                  {tOpen && (
+                                    <div
+                                      id={`tier-panel-${l.id}-${idx}`}
+                                      style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "repeat(4, 1fr)",
+                                        gap: 12,
+                                        padding: "4px 14px 14px 32px",
+                                      }}
+                                      role="group"
+                                      aria-label={`Tier ${idx + 1} parameters for ${l.name}`}
+                                    >
+                                      {needsReview && (
                                         <div
-                                          id={verifyHintId}
-                                          style={{ marginTop: 2, fontWeight: 400 }}
-                                        >
-                                          {!canEdit
-                                            ? "Held as pending — never counted as a fit until an admin verifies it."
-                                            : missingReviewFields.length > 0
-                                              ? `Enter ${joinWithAnd(missingReviewFields.map(reviewFieldLabel))} from the lender's sheet to lift the hold (Edit full program has every field).`
-                                              : "Check it against the lender's sheet, then mark it verified."}
-                                        </div>
-                                      </div>
-                                      {canEdit && (
-                                        <button
-                                          type="button"
-                                          disabled={missingReviewFields.length > 0}
-                                          aria-describedby={
-                                            missingReviewFields.length > 0
-                                              ? verifyHintId
-                                              : undefined
-                                          }
-                                          onClick={() => verifyTier(l, idx)}
-                                          className="transition-colors"
+                                          role="note"
                                           style={{
-                                            flexShrink: 0,
-                                            background: "var(--color-bg)",
-                                            color: "var(--color-warning)",
+                                            gridColumn: "1 / -1",
+                                            display: "flex",
+                                            alignItems: "flex-start",
+                                            justifyContent: "space-between",
+                                            gap: 12,
+                                            padding: "8px 10px",
+                                            borderRadius: "var(--radius-md)",
                                             border: "1px solid var(--color-warning)",
-                                            borderRadius: 7,
-                                            padding: "4px 11px",
+                                            background: "var(--color-warning-subtle)",
+                                            color: "var(--color-warning)",
                                             fontSize: 12,
-                                            fontWeight: 600,
-                                            fontFamily: "inherit",
-                                            cursor:
-                                              missingReviewFields.length > 0
-                                                ? "not-allowed"
-                                                : "pointer",
-                                            opacity: missingReviewFields.length > 0 ? 0.6 : 1,
                                           }}
                                         >
-                                          Mark verified
-                                        </button>
+                                          <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600 }}>
+                                              {reviewFields.length > 0
+                                                ? `Needs review: ${joinWithAnd(reviewFields)} read implausibly from the rate sheet.`
+                                                : "Needs review: flagged when the rate sheet was read."}
+                                            </div>
+                                            <div
+                                              id={verifyHintId}
+                                              style={{ marginTop: 2, fontWeight: 400 }}
+                                            >
+                                              {!canEdit
+                                                ? "Held as pending — never counted as a fit until an admin verifies it."
+                                                : missingReviewFields.length > 0
+                                                  ? `Enter ${joinWithAnd(missingReviewFields.map(reviewFieldLabel))} from the lender's sheet to lift the hold (Edit full program has every field).`
+                                                  : "Check it against the lender's sheet, then mark it verified."}
+                                            </div>
+                                          </div>
+                                          {canEdit && (
+                                            <button
+                                              type="button"
+                                              disabled={missingReviewFields.length > 0}
+                                              aria-describedby={
+                                                missingReviewFields.length > 0
+                                                  ? verifyHintId
+                                                  : undefined
+                                              }
+                                              onClick={() => verifyTier(l, idx)}
+                                              className="transition-colors"
+                                              style={{
+                                                flexShrink: 0,
+                                                background: "var(--color-bg)",
+                                                color: "var(--color-warning)",
+                                                border: "1px solid var(--color-warning)",
+                                                borderRadius: 7,
+                                                padding: "4px 11px",
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                fontFamily: "inherit",
+                                                cursor:
+                                                  missingReviewFields.length > 0
+                                                    ? "not-allowed"
+                                                    : "pointer",
+                                                opacity: missingReviewFields.length > 0 ? 0.6 : 1,
+                                              }}
+                                            >
+                                              Mark verified
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                      <div>
+                                        <label
+                                          htmlFor={`tier-${l.id}-${idx}-ltv`}
+                                          style={editLabel}
+                                        >
+                                          {usesOtd ? "Max OTD LTV (%)" : "Max LTV (%)"}
+                                        </label>
+                                        <input
+                                          id={`tier-${l.id}-${idx}-ltv`}
+                                          className="dc-input"
+                                          inputMode="numeric"
+                                          disabled={!canEdit}
+                                          value={(usesOtd ? t.otdLtv : t.maxLtv) ?? ""}
+                                          onChange={(e) =>
+                                            editTier(
+                                              l,
+                                              idx,
+                                              usesOtd ? { otdLtv: num(e) } : { maxLtv: num(e) }
+                                            )
+                                          }
+                                          style={editInput}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label
+                                          htmlFor={`tier-${l.id}-${idx}-term`}
+                                          style={editLabel}
+                                        >
+                                          Max term (mo)
+                                        </label>
+                                        <input
+                                          id={`tier-${l.id}-${idx}-term`}
+                                          className="dc-input"
+                                          inputMode="numeric"
+                                          disabled={!canEdit}
+                                          value={t.maxTerm ?? ""}
+                                          onChange={(e) => editTier(l, idx, { maxTerm: num(e) })}
+                                          style={editInput}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label
+                                          htmlFor={`tier-${l.id}-${idx}-fico`}
+                                          style={editLabel}
+                                        >
+                                          Min FICO
+                                        </label>
+                                        <input
+                                          id={`tier-${l.id}-${idx}-fico`}
+                                          className="dc-input"
+                                          inputMode="numeric"
+                                          disabled={!canEdit}
+                                          value={t.minFico ?? ""}
+                                          onChange={(e) => editTier(l, idx, { minFico: num(e) })}
+                                          style={editInput}
+                                        />
+                                      </div>
+                                      {showBuyRate && (
+                                        <div>
+                                          <label
+                                            htmlFor={`tier-${l.id}-${idx}-rate`}
+                                            style={editLabel}
+                                          >
+                                            Buy rate (%)
+                                          </label>
+                                          <input
+                                            id={`tier-${l.id}-${idx}-rate`}
+                                            className="dc-input"
+                                            inputMode="decimal"
+                                            disabled={!canEdit}
+                                            value={t.baseInterestRate ?? ""}
+                                            onChange={(e) =>
+                                              editTier(l, idx, { baseInterestRate: num(e) })
+                                            }
+                                            style={editInput}
+                                          />
+                                        </div>
+                                      )}
+                                      <div>
+                                        <label
+                                          htmlFor={`tier-${l.id}-${idx}-mileage`}
+                                          style={editLabel}
+                                        >
+                                          Max mileage
+                                        </label>
+                                        <input
+                                          id={`tier-${l.id}-${idx}-mileage`}
+                                          className="dc-input"
+                                          inputMode="numeric"
+                                          disabled={!canEdit}
+                                          value={t.maxMileage ?? ""}
+                                          onChange={(e) => editTier(l, idx, { maxMileage: num(e) })}
+                                          style={editInput}
+                                        />
+                                      </div>
+                                      {usesYearRange ? (
+                                        <>
+                                          <div>
+                                            <label
+                                              htmlFor={`tier-${l.id}-${idx}-min-year`}
+                                              style={editLabel}
+                                            >
+                                              Min year
+                                            </label>
+                                            <input
+                                              id={`tier-${l.id}-${idx}-min-year`}
+                                              className="dc-input"
+                                              inputMode="numeric"
+                                              disabled={!canEdit}
+                                              value={t.minYear ?? ""}
+                                              onChange={(e) =>
+                                                editTier(l, idx, { minYear: num(e) })
+                                              }
+                                              style={editInput}
+                                            />
+                                          </div>
+                                          <div>
+                                            <label
+                                              htmlFor={`tier-${l.id}-${idx}-max-year`}
+                                              style={editLabel}
+                                            >
+                                              Max year
+                                            </label>
+                                            <input
+                                              id={`tier-${l.id}-${idx}-max-year`}
+                                              className="dc-input"
+                                              inputMode="numeric"
+                                              disabled={!canEdit}
+                                              value={t.maxYear ?? ""}
+                                              onChange={(e) =>
+                                                editTier(l, idx, { maxYear: num(e) })
+                                              }
+                                              style={editInput}
+                                            />
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div>
+                                          <label
+                                            htmlFor={`tier-${l.id}-${idx}-max-age`}
+                                            style={editLabel}
+                                          >
+                                            Max age (yrs)
+                                          </label>
+                                          <input
+                                            id={`tier-${l.id}-${idx}-max-age`}
+                                            className="dc-input"
+                                            inputMode="numeric"
+                                            disabled={!canEdit}
+                                            value={t.maxAge ?? ""}
+                                            onChange={(e) => editTier(l, idx, { maxAge: num(e) })}
+                                            style={editInput}
+                                          />
+                                        </div>
                                       )}
                                     </div>
                                   )}
-                                  <div>
-                                    <label htmlFor={`tier-${l.id}-${idx}-ltv`} style={editLabel}>
-                                      {usesOtd ? "Max OTD LTV (%)" : "Max LTV (%)"}
-                                    </label>
-                                    <input
-                                      id={`tier-${l.id}-${idx}-ltv`}
-                                      className="dc-input"
-                                      inputMode="numeric"
-                                      disabled={!canEdit}
-                                      value={(usesOtd ? t.otdLtv : t.maxLtv) ?? ""}
-                                      onChange={(e) =>
-                                        editTier(
-                                          l,
-                                          idx,
-                                          usesOtd ? { otdLtv: num(e) } : { maxLtv: num(e) }
-                                        )
-                                      }
-                                      style={editInput}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label htmlFor={`tier-${l.id}-${idx}-term`} style={editLabel}>
-                                      Max term (mo)
-                                    </label>
-                                    <input
-                                      id={`tier-${l.id}-${idx}-term`}
-                                      className="dc-input"
-                                      inputMode="numeric"
-                                      disabled={!canEdit}
-                                      value={t.maxTerm ?? ""}
-                                      onChange={(e) => editTier(l, idx, { maxTerm: num(e) })}
-                                      style={editInput}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label htmlFor={`tier-${l.id}-${idx}-fico`} style={editLabel}>
-                                      Min FICO
-                                    </label>
-                                    <input
-                                      id={`tier-${l.id}-${idx}-fico`}
-                                      className="dc-input"
-                                      inputMode="numeric"
-                                      disabled={!canEdit}
-                                      value={t.minFico ?? ""}
-                                      onChange={(e) => editTier(l, idx, { minFico: num(e) })}
-                                      style={editInput}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label htmlFor={`tier-${l.id}-${idx}-rate`} style={editLabel}>
-                                      Buy rate (%)
-                                    </label>
-                                    <input
-                                      id={`tier-${l.id}-${idx}-rate`}
-                                      className="dc-input"
-                                      inputMode="decimal"
-                                      disabled={!canEdit}
-                                      value={t.baseInterestRate ?? ""}
-                                      onChange={(e) =>
-                                        editTier(l, idx, { baseInterestRate: num(e) })
-                                      }
-                                      style={editInput}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label
-                                      htmlFor={`tier-${l.id}-${idx}-mileage`}
-                                      style={editLabel}
-                                    >
-                                      Max mileage
-                                    </label>
-                                    <input
-                                      id={`tier-${l.id}-${idx}-mileage`}
-                                      className="dc-input"
-                                      inputMode="numeric"
-                                      disabled={!canEdit}
-                                      value={t.maxMileage ?? ""}
-                                      onChange={(e) => editTier(l, idx, { maxMileage: num(e) })}
-                                      style={editInput}
-                                    />
-                                  </div>
-                                  {usesYearRange ? (
-                                    <>
-                                      <div>
-                                        <label
-                                          htmlFor={`tier-${l.id}-${idx}-min-year`}
-                                          style={editLabel}
-                                        >
-                                          Min year
-                                        </label>
-                                        <input
-                                          id={`tier-${l.id}-${idx}-min-year`}
-                                          className="dc-input"
-                                          inputMode="numeric"
-                                          disabled={!canEdit}
-                                          value={t.minYear ?? ""}
-                                          onChange={(e) => editTier(l, idx, { minYear: num(e) })}
-                                          style={editInput}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label
-                                          htmlFor={`tier-${l.id}-${idx}-max-year`}
-                                          style={editLabel}
-                                        >
-                                          Max year
-                                        </label>
-                                        <input
-                                          id={`tier-${l.id}-${idx}-max-year`}
-                                          className="dc-input"
-                                          inputMode="numeric"
-                                          disabled={!canEdit}
-                                          value={t.maxYear ?? ""}
-                                          onChange={(e) => editTier(l, idx, { maxYear: num(e) })}
-                                          style={editInput}
-                                        />
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <div>
-                                      <label
-                                        htmlFor={`tier-${l.id}-${idx}-max-age`}
-                                        style={editLabel}
-                                      >
-                                        Max age (yrs)
-                                      </label>
-                                      <input
-                                        id={`tier-${l.id}-${idx}-max-age`}
-                                        className="dc-input"
-                                        inputMode="numeric"
-                                        disabled={!canEdit}
-                                        value={t.maxAge ?? ""}
-                                        onChange={(e) => editTier(l, idx, { maxAge: num(e) })}
-                                        style={editInput}
-                                      />
-                                    </div>
-                                  )}
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                              );
+                            })}
+                          </div>
 
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          maxWidth: 820,
-                        }}
-                      >
-                        <div style={{ fontSize: 12, color: "var(--color-text-subtle)" }}>
-                          Buyer contact ·{" "}
-                          <span style={{ ...mono, color: "var(--color-text-muted)" }}>
-                            {l.contactEmail || l.contactPhone || "—"}
-                          </span>
-                        </div>
-                        {canEdit && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setModalProfile(l);
-                            }}
-                            className="transition-colors"
+                          <div
                             style={{
-                              background: "transparent",
-                              border: "none",
-                              color: "var(--color-primary)",
-                              fontSize: 13,
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              fontFamily: "inherit",
-                              padding: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              maxWidth: 820,
                             }}
                           >
-                            Edit full program →
-                          </button>
-                        )}
+                            <div style={{ fontSize: 12, color: "var(--color-text-subtle)" }}>
+                              Buyer contact
+                              <span
+                                style={{
+                                  color: "var(--color-text-muted)",
+                                  marginLeft: 10,
+                                  fontVariantNumeric: "tabular-nums",
+                                }}
+                              >
+                                {l.contactEmail || l.contactPhone || "—"}
+                              </span>
+                            </div>
+                            {canEdit && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setModalProfile(l);
+                                }}
+                                className="transition-colors"
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  color: "var(--color-primary)",
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  fontFamily: "inherit",
+                                  padding: 0,
+                                }}
+                              >
+                                Edit full program →
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Full program editor (existing modal, kept as-is) */}
