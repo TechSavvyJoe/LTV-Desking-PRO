@@ -360,7 +360,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   });
 
   return (
-    <div className="finance-tools-shell flex min-h-[600px] rounded-lg overflow-hidden shadow-sm bg-[var(--color-bg)] border border-[var(--color-border)]">
+    <div
+      className="finance-tools-shell flex min-h-[600px] overflow-hidden bg-[var(--color-bg)] border border-[var(--color-border)]"
+      style={{ borderRadius: "var(--radius-card)" }}
+    >
       {/* Sidebar */}
       <div className="finance-tools-sidebar w-64 bg-[var(--color-bg-subtle)] border-r border-[var(--color-border)] flex flex-col">
         <div className="finance-tools-heading p-4 border-b border-[var(--color-border)]">
@@ -462,7 +465,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             {activeTab === "reserve" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <InputGroup label="Amount Financed ($)" htmlFor="reserve-amount">
+                  <InputGroup label="Amount financed ($)" htmlFor="reserve-amount">
                     <StyledInput
                       id="reserve-amount"
                       aria-label="Reserve amount financed"
@@ -473,7 +476,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       }
                     />
                   </InputGroup>
-                  <InputGroup label="Term (Mo)" htmlFor="reserve-term">
+                  <InputGroup label="Term (mo)" htmlFor="reserve-term">
                     <StyledSelect
                       id="reserve-term"
                       aria-label="Reserve term"
@@ -487,7 +490,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       ))}
                     </StyledSelect>
                   </InputGroup>
-                  <InputGroup label="Buy Rate (%)" htmlFor="reserve-buy-rate">
+                  <InputGroup label="Buy rate (%)" htmlFor="reserve-buy-rate">
                     <StyledInput
                       id="reserve-buy-rate"
                       aria-label="Reserve buy rate"
@@ -499,7 +502,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       }
                     />
                   </InputGroup>
-                  <InputGroup label="Sell Rate (%)" htmlFor="reserve-sell-rate">
+                  <InputGroup label="Sell rate (%)" htmlFor="reserve-sell-rate">
                     <StyledInput
                       id="reserve-sell-rate"
                       aria-label="Reserve sell rate"
@@ -522,7 +525,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       }
                     />
                   </InputGroup>
-                  <InputGroup label="Flat Fee Comparison (%)" htmlFor="reserve-flat-percent">
+                  <InputGroup label="Flat fee comparison (%)" htmlFor="reserve-flat-percent">
                     <StyledInput
                       id="reserve-flat-percent"
                       aria-label="Reserve flat fee comparison percent"
@@ -556,7 +559,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                           : "bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                       }`}
                     >
-                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
+                      <p className="text-xs font-medium text-[var(--color-success)] mb-1">
                         Split ({splitPercent}%)
                       </p>
                       <p
@@ -576,7 +579,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                           : "bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                       }`}
                     >
-                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
+                      <p className="text-xs font-medium text-[var(--color-success)] mb-1">
                         Flat ({flatPercent}%)
                       </p>
                       <p
@@ -596,7 +599,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             {activeTab === "payment" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-1 gap-6">
-                  <InputGroup label="Loan Amount ($)" htmlFor="payment-loan-amount">
+                  <InputGroup label="Loan amount ($)" htmlFor="payment-loan-amount">
                     <StyledInput
                       id="payment-loan-amount"
                       aria-label="Payment loan amount"
@@ -608,7 +611,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     />
                   </InputGroup>
                   <div className="grid grid-cols-2 gap-6">
-                    <InputGroup label="Interest Rate (%)" htmlFor="payment-interest-rate">
+                    <InputGroup label="Interest rate (%)" htmlFor="payment-interest-rate">
                       <StyledInput
                         id="payment-interest-rate"
                         aria-label="Payment interest rate"
@@ -620,7 +623,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                         }
                       />
                     </InputGroup>
-                    <InputGroup label="Term (Mo)" htmlFor="payment-term">
+                    <InputGroup label="Term (mo)" htmlFor="payment-term">
                       <StyledSelect
                         id="payment-term"
                         aria-label="Payment term"
@@ -647,10 +650,9 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             )}
             {activeTab === "budget" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <InputGroup label="Max Monthly Payment ($)" htmlFor="budget-max-payment">
+                <InputGroup label="Max monthly payment ($)" htmlFor="budget-max-payment">
                   <StyledInput
                     id="budget-max-payment"
-                    aria-label="Budget maximum monthly payment"
                     type="number"
                     value={budgetPmt}
                     onChange={(e) =>
@@ -659,7 +661,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   />
                 </InputGroup>
                 <div className="grid grid-cols-2 gap-6">
-                  <InputGroup label="Interest Rate (%)" htmlFor="budget-interest-rate">
+                  <InputGroup label="Interest rate (%)" htmlFor="budget-interest-rate">
                     <StyledInput
                       id="budget-interest-rate"
                       aria-label="Budget interest rate"
@@ -671,7 +673,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       }
                     />
                   </InputGroup>
-                  <InputGroup label="Term (Mo)" htmlFor="budget-term">
+                  <InputGroup label="Term (mo)" htmlFor="budget-term">
                     <StyledSelect
                       id="budget-term"
                       aria-label="Budget term"
@@ -686,7 +688,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     </StyledSelect>
                   </InputGroup>
                 </div>
-                <InputGroup label="Cash Down ($)" htmlFor="budget-cash-down">
+                <InputGroup label="Cash down ($)" htmlFor="budget-cash-down">
                   <StyledInput
                     id="budget-cash-down"
                     aria-label="Budget cash down"
@@ -715,7 +717,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             {activeTab === "compare" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <InputGroup label="Loan Amount ($)" htmlFor="compare-loan-amount">
+                  <InputGroup label="Loan amount ($)" htmlFor="compare-loan-amount">
                     <StyledInput
                       id="compare-loan-amount"
                       aria-label="Compare loan amount"
@@ -726,7 +728,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       }
                     />
                   </InputGroup>
-                  <InputGroup label="Interest Rate (%)" htmlFor="compare-interest-rate">
+                  <InputGroup label="Interest rate (%)" htmlFor="compare-interest-rate">
                     <StyledInput
                       id="compare-interest-rate"
                       aria-label="Compare interest rate"
@@ -758,7 +760,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             )}
             {activeTab === "qualify" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <InputGroup label="Monthly Payment ($)" htmlFor="qualify-payment">
+                <InputGroup label="Monthly payment ($)" htmlFor="qualify-payment">
                   <StyledInput
                     id="qualify-payment"
                     aria-label="Qualify monthly payment"
@@ -769,7 +771,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     }
                   />
                 </InputGroup>
-                <InputGroup label="Monthly Income ($)" htmlFor="qualify-income">
+                <InputGroup label="Monthly income ($)" htmlFor="qualify-income">
                   <div className="flex gap-2">
                     <StyledInput
                       id="qualify-income"
@@ -799,7 +801,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     onClose={() => setIsScannerOpen(false)}
                   />
                 )}
-                <InputGroup label="Max PTI Limit (%)" htmlFor="qualify-pti-limit">
+                <InputGroup label="Max PTI limit (%)" htmlFor="qualify-pti-limit">
                   <StyledInput
                     id="qualify-pti-limit"
                     aria-label="Qualify max PTI limit"
@@ -826,10 +828,9 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             )}
             {activeTab === "max" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <InputGroup label="Bank Approval Amount ($)" htmlFor="max-approval-amount">
+                <InputGroup label="Bank approval amount ($)" htmlFor="max-approval-amount">
                   <StyledInput
                     id="max-approval-amount"
-                    aria-label="Maximum approval amount"
                     type="number"
                     value={maxAppAmount}
                     onChange={(e) =>
@@ -838,7 +839,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   />
                 </InputGroup>
                 <div className="grid grid-cols-2 gap-6">
-                  <InputGroup label="Tax Rate (%)" htmlFor="max-tax-rate">
+                  <InputGroup label="Tax rate (%)" htmlFor="max-tax-rate">
                     <StyledInput
                       id="max-tax-rate"
                       aria-label="Maximum approval tax rate"
@@ -850,10 +851,9 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       }
                     />
                   </InputGroup>
-                  <InputGroup label="Est. Fees ($)" htmlFor="max-fees">
+                  <InputGroup label="Est. fees ($)" htmlFor="max-fees">
                     <StyledInput
                       id="max-fees"
-                      aria-label="Maximum approval estimated fees"
                       type="number"
                       value={maxAppFees}
                       onChange={(e) =>
@@ -863,7 +863,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   </InputGroup>
                 </div>
                 <div className="grid grid-cols-2 gap-6">
-                  <InputGroup label="Cash Down ($)" htmlFor="max-cash-down">
+                  <InputGroup label="Cash down ($)" htmlFor="max-cash-down">
                     <StyledInput
                       id="max-cash-down"
                       aria-label="Maximum approval cash down"
@@ -874,7 +874,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       }
                     />
                   </InputGroup>
-                  <InputGroup label="Trade Equity ($)" htmlFor="max-trade-equity">
+                  <InputGroup label="Trade equity ($)" htmlFor="max-trade-equity">
                     <StyledInput
                       id="max-trade-equity"
                       aria-label="Maximum approval trade equity"
@@ -899,7 +899,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             {activeTab === "warranty" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-2 gap-6">
-                  <InputGroup label="Warranty Cost / Month ($)" htmlFor="warranty-cost-month">
+                  <InputGroup label="Warranty cost / month ($)" htmlFor="warranty-cost-month">
                     <StyledInput
                       id="warranty-cost-month"
                       aria-label="Warranty cost per month"
@@ -910,7 +910,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       }
                     />
                   </InputGroup>
-                  <InputGroup label="Loan Term (Mo)" htmlFor="warranty-term">
+                  <InputGroup label="Loan term (mo)" htmlFor="warranty-term">
                     <StyledSelect
                       id="warranty-term"
                       aria-label="Warranty loan term"
@@ -925,7 +925,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                     </StyledSelect>
                   </InputGroup>
                 </div>
-                <InputGroup label="Est. Total Repair Cost ($)" htmlFor="warranty-repair-cost">
+                <InputGroup label="Est. total repair cost ($)" htmlFor="warranty-repair-cost">
                   <StyledInput
                     id="warranty-repair-cost"
                     aria-label="Estimated total repair cost"
@@ -1016,7 +1016,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 <textarea
                   id="finance-tools-notes"
                   aria-label="Finance tools notes"
-                  className="flex-1 w-full p-3 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)] resize-none font-mono text-sm text-[var(--color-text)] placeholder-[var(--color-text-subtle)] min-h-[400px] transition-colors duration-[var(--duration-fast)]"
+                  className="flex-1 w-full p-3 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)] resize-none text-sm text-[var(--color-text)] placeholder-[var(--color-text-subtle)] min-h-[400px] transition-colors duration-[var(--duration-fast)]"
                   placeholder="Type your notes here..."
                   value={scratchPadNotes}
                   onChange={(e) => setScratchPadNotes(e.target.value)}

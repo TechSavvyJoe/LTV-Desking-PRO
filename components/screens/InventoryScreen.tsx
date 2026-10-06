@@ -220,20 +220,8 @@ const InventoryScreenBase: React.FC = () => {
           className="inventory-screen-summary"
           style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              fontFamily: mono,
-              color: "var(--color-text-subtle)",
-            }}
-          >
-            Inventory
-          </span>
-          <div
-            className="inventory-screen-divider"
-            style={{ height: 20, width: 1, background: "var(--color-border)" }}
-          />
-          <span style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap" }}>
+          <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Inventory</h1>
+          <span style={{ fontSize: 13, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
             {sortedInventory.length} of {inventory.length} units
           </span>
           <span
@@ -241,12 +229,9 @@ const InventoryScreenBase: React.FC = () => {
             style={{
               fontSize: 13,
               color: "var(--color-text-subtle)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
             }}
           >
-            priced against the live deal · click any row to structure
+            Priced against the live deal. Click any row to structure.
           </span>
         </div>
 
@@ -406,7 +391,7 @@ const InventoryScreenBase: React.FC = () => {
               className="dc-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search inventory · press /"
+              placeholder="Search inventory (press /)"
               aria-label="Search inventory"
               style={{
                 background: "var(--color-bg-subtle)",
@@ -425,310 +410,307 @@ const InventoryScreenBase: React.FC = () => {
       </header>
 
       <div className="inventory-screen-content" style={{ padding: "20px 24px" }}>
-        <div
-          className="inventory-screen-table"
-          role="table"
-          aria-label="Inventory priced against live deal"
-          aria-rowcount={sortedInventory.length + 1}
-          style={{
-            background: "var(--color-bg)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--shadow)",
-            overflow: "hidden",
-          }}
-        >
-          {/* Column headers — sortable with per-key default directions */}
-          <div role="rowgroup">
-            <div
-              className="inventory-screen-table-row"
-              role="row"
-              aria-rowindex={1}
-              style={{
-                display: "grid",
-                gridTemplateColumns: GRID,
-                columnGap: 14,
-                alignItems: "center",
-                padding: "11px 20px",
-                background: "var(--color-bg-subtle)",
-                borderBottom: "1px solid var(--color-border)",
-              }}
-            >
-              {COLUMNS.map((col) => (
-                <button
-                  key={col.key as string}
-                  type="button"
-                  onClick={() => handleSort(col.key, col.defaultDir)}
-                  title={col.title}
-                  role="columnheader"
-                  aria-label={
-                    inventorySort.key === col.key
-                      ? `Sort by ${col.label}, sorted ${inventorySort.direction === "asc" ? "ascending" : "descending"}`
-                      : `Sort by ${col.label}`
-                  }
-                  aria-sort={
-                    inventorySort.key === col.key
-                      ? inventorySort.direction === "asc"
-                        ? "ascending"
-                        : "descending"
-                      : "none"
-                  }
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: "0.1em",
-                    fontFamily: mono,
-                    color: "var(--color-text-subtle)",
-                    textAlign: col.right ? "right" : "left",
-                    cursor: "pointer",
-                    userSelect: "none",
-                    whiteSpace: "nowrap",
-                    background: "transparent",
-                    border: "none",
-                    padding: 0,
-                    margin: 0,
-                  }}
-                >
-                  {col.label}
-                  {sortArrow(col.key)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Import-first empty state — no inventory at all */}
-          {!hasInventory && (
-            <EmptyState
-              icon={<Icons.CarIcon className="w-full h-full" />}
-              title="No inventory yet"
-              description="Import your dealership's CSV or Excel feed and every unit gets priced against the live deal — payment, LTV, lender fit and approval odds."
-              primaryAction={{
-                label: "Import CSV/XLSX",
-                onClick: () => fileInputRef.current?.click(),
-              }}
-              secondaryAction={{ label: "Download sample CSV", onClick: downloadSampleCsv }}
-            />
-          )}
-
-          {/* No matches — mockup lines 530-535 */}
-          {noResults && (
-            <EmptyState
-              title="No vehicles match"
-              description="No vehicles match the current filters or search."
-              primaryAction={{ label: "Clear filters", onClick: clearFilters }}
-            />
-          )}
-
-          {/* Rows — window-virtualized (no pager, per the mockup) */}
-          {sortedInventory.length > 0 && (
-            <div role="rowgroup" ref={listRef}>
+        {sortedInventory.length > 0 && (
+          <div
+            className="inventory-screen-table"
+            role="table"
+            aria-label="Inventory priced against live deal"
+            aria-rowcount={sortedInventory.length + 1}
+            style={{
+              background: "var(--color-bg)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)",
+              overflow: "hidden",
+            }}
+          >
+            {/* Column headers — sortable with per-key default directions */}
+            <div role="rowgroup">
               <div
+                className="inventory-screen-table-row"
+                role="row"
+                aria-rowindex={1}
                 style={{
-                  height: virtualizer.getTotalSize(),
-                  width: "100%",
-                  position: "relative",
+                  display: "grid",
+                  gridTemplateColumns: GRID,
+                  columnGap: 14,
+                  alignItems: "center",
+                  padding: "11px 20px",
+                  background: "var(--color-bg-subtle)",
+                  borderBottom: "1px solid var(--color-border)",
                 }}
               >
-                {virtualizer.getVirtualItems().map((item) => {
-                  const v = sortedInventory[item.index];
-                  if (!v) return null;
-                  const isFocused = focusVin === v.vin;
-                  const fitCount = v.fitCount ?? 0;
-                  const score = v.approvalScore ?? 0;
-                  const ring = BAND_META[v.approvalBand ?? "none"].colorVar;
-                  // Pending lender checks: odds unknown — "—", empty ring.
-                  const pending = v.approvalBand === "pending";
-                  return (
-                    <div
-                      key={v.vin}
-                      data-index={item.index}
-                      ref={virtualizer.measureElement}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
-                      }}
-                    >
-                      <div
-                        className="inv-row inventory-screen-table-row"
-                        onClick={() => openOnDesk(v)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            openOnDesk(v);
-                          }
-                        }}
-                        role="row"
-                        aria-rowindex={item.index + 2}
-                        tabIndex={0}
-                        aria-label={`Structure ${v.vehicle} on the desk`}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: GRID,
-                          columnGap: 14,
-                          alignItems: "center",
-                          padding: "12px 20px",
-                          borderBottom: "1px solid var(--color-border)",
-                          cursor: "pointer",
-                          borderLeft: `3px solid ${isFocused ? "var(--color-primary)" : "transparent"}`,
-                          background: isFocused ? "var(--color-primary-subtle)" : "transparent",
-                        }}
-                      >
-                        <div role="cell" style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 600,
-                              letterSpacing: 0,
-                              lineHeight: 1.25,
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {v.vehicle}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color: "var(--color-text-subtle)",
-                              fontFamily: mono,
-                              marginTop: 3,
-                            }}
-                          >
-                            STK {v.stock} · {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"}{" "}
-                            mi
-                          </div>
-                        </div>
-                        <span
-                          role="cell"
-                          style={{
-                            fontSize: 14,
-                            textAlign: "right",
-                            fontFamily: mono,
-                            fontVariantNumeric: "tabular-nums",
-                          }}
-                        >
-                          {numVal(v.price) === null ? "—" : fmt(v.price as number)}
-                        </span>
-                        <span
-                          role="cell"
-                          style={{
-                            fontSize: 14,
-                            textAlign: "right",
-                            fontFamily: mono,
-                            fontVariantNumeric: "tabular-nums",
-                            color: "var(--color-text-muted)",
-                          }}
-                        >
-                          {numVal(v.jdPower) === null ? "—" : fmt(v.jdPower as number)}
-                        </span>
-                        <span
-                          role="cell"
-                          style={{
-                            fontSize: 14,
-                            textAlign: "right",
-                            fontFamily: mono,
-                            fontVariantNumeric: "tabular-nums",
-                            color: "var(--color-text-muted)",
-                          }}
-                        >
-                          {pctOrDash(v.frontEndLtv)}
-                        </span>
-                        <span
-                          role="cell"
-                          style={{
-                            fontSize: 14,
-                            textAlign: "right",
-                            fontFamily: mono,
-                            fontVariantNumeric: "tabular-nums",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {numVal(v.amountToFinance) === null
-                            ? "—"
-                            : fmt(v.amountToFinance as number)}
-                        </span>
-                        <span role="cell" style={{ textAlign: "right" }}>
-                          <span
-                            style={{
-                              fontSize: 13,
-                              fontFamily: mono,
-                              fontVariantNumeric: "tabular-nums",
-                              fontWeight: 600,
-                              color: otdColor(v.otdLtv),
-                              background: otdBg(v.otdLtv),
-                              padding: "3px 8px",
-                              borderRadius: 6,
-                            }}
-                          >
-                            {pctOrDash(v.otdLtv)}
-                          </span>
-                        </span>
-                        <span
-                          role="cell"
-                          style={{
-                            fontSize: 14,
-                            textAlign: "right",
-                            fontFamily: mono,
-                            fontVariantNumeric: "tabular-nums",
-                            color: "var(--color-text-muted)",
-                          }}
-                        >
-                          {numVal(v.monthlyPayment) === null
-                            ? "—"
-                            : `${fmt(v.monthlyPayment as number)}/mo`}
-                        </span>
-                        <span
-                          role="cell"
-                          style={{
-                            fontSize: 13,
-                            textAlign: "right",
-                            fontFamily: mono,
-                            fontWeight: 600,
-                            color: pending ? "var(--color-text-muted)" : lendersColor(fitCount),
-                          }}
-                        >
-                          {fitCount}/{totalLenders}
-                        </span>
-                        <span
-                          role="cell"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "flex-end",
-                            gap: 9,
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 700,
-                              fontFamily: mono,
-                              color: ring,
-                              minWidth: 20,
-                              textAlign: "right",
-                            }}
-                          >
-                            {pending ? "—" : score}
-                          </span>
-                          <ScoreRing
-                            score={pending ? 0 : score}
-                            size={22}
-                            colorVar={pending ? "transparent" : ring}
-                          />
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                {COLUMNS.map((col) => (
+                  <button
+                    key={col.key as string}
+                    type="button"
+                    onClick={() => handleSort(col.key, col.defaultDir)}
+                    title={col.title}
+                    role="columnheader"
+                    aria-label={
+                      inventorySort.key === col.key
+                        ? `Sort by ${col.label}, sorted ${inventorySort.direction === "asc" ? "ascending" : "descending"}`
+                        : `Sort by ${col.label}`
+                    }
+                    aria-sort={
+                      inventorySort.key === col.key
+                        ? inventorySort.direction === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      letterSpacing: 0,
+                      color: "var(--color-text-muted)",
+                      textAlign: col.right ? "right" : "left",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      whiteSpace: "nowrap",
+                      background: "transparent",
+                      border: "none",
+                      padding: 0,
+                      margin: 0,
+                    }}
+                  >
+                    {col.label}
+                    {sortArrow(col.key)}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Rows — window-virtualized (no pager, per the mockup) */}
+            {sortedInventory.length > 0 && (
+              <div role="rowgroup" ref={listRef}>
+                <div
+                  style={{
+                    height: virtualizer.getTotalSize(),
+                    width: "100%",
+                    position: "relative",
+                  }}
+                >
+                  {virtualizer.getVirtualItems().map((item) => {
+                    const v = sortedInventory[item.index];
+                    if (!v) return null;
+                    const isFocused = focusVin === v.vin;
+                    const fitCount = v.fitCount ?? 0;
+                    const score = v.approvalScore ?? 0;
+                    const ring = BAND_META[v.approvalBand ?? "none"].colorVar;
+                    // Pending lender checks: odds unknown — "—", empty ring.
+                    const pending = v.approvalBand === "pending";
+                    return (
+                      <div
+                        key={v.vin}
+                        data-index={item.index}
+                        ref={virtualizer.measureElement}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
+                        }}
+                      >
+                        <div
+                          className="inv-row inventory-screen-table-row"
+                          onClick={() => openOnDesk(v)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              openOnDesk(v);
+                            }
+                          }}
+                          role="row"
+                          aria-rowindex={item.index + 2}
+                          tabIndex={0}
+                          aria-label={`Structure ${v.vehicle} on the desk`}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: GRID,
+                            columnGap: 14,
+                            alignItems: "center",
+                            padding: "12px 20px",
+                            borderBottom: "1px solid var(--color-border)",
+                            cursor: "pointer",
+                            borderLeft: `3px solid ${isFocused ? "var(--color-primary)" : "transparent"}`,
+                            background: isFocused ? "var(--color-primary-subtle)" : "transparent",
+                          }}
+                        >
+                          <div role="cell" style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 600,
+                                letterSpacing: 0,
+                                lineHeight: 1.25,
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {v.vehicle}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: "var(--color-text-subtle)",
+                                marginTop: 3,
+                                display: "flex",
+                                flexWrap: "wrap",
+                                columnGap: 10,
+                              }}
+                            >
+                              <span style={{ fontFamily: mono }}>STK {v.stock}</span>
+                              <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                                {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi
+                              </span>
+                            </div>
+                          </div>
+                          <span
+                            role="cell"
+                            style={{
+                              fontSize: 14,
+                              textAlign: "right",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {numVal(v.price) === null ? "—" : fmt(v.price as number)}
+                          </span>
+                          <span
+                            role="cell"
+                            style={{
+                              fontSize: 14,
+                              textAlign: "right",
+                              fontVariantNumeric: "tabular-nums",
+                              color: "var(--color-text-muted)",
+                            }}
+                          >
+                            {numVal(v.jdPower) === null ? "—" : fmt(v.jdPower as number)}
+                          </span>
+                          <span
+                            role="cell"
+                            style={{
+                              fontSize: 14,
+                              textAlign: "right",
+                              fontVariantNumeric: "tabular-nums",
+                              color: "var(--color-text-muted)",
+                            }}
+                          >
+                            {pctOrDash(v.frontEndLtv)}
+                          </span>
+                          <span
+                            role="cell"
+                            style={{
+                              fontSize: 14,
+                              textAlign: "right",
+                              fontVariantNumeric: "tabular-nums",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {numVal(v.amountToFinance) === null
+                              ? "—"
+                              : fmt(v.amountToFinance as number)}
+                          </span>
+                          <span role="cell" style={{ textAlign: "right" }}>
+                            <span
+                              style={{
+                                fontSize: 13,
+                                fontVariantNumeric: "tabular-nums",
+                                fontWeight: 600,
+                                color: otdColor(v.otdLtv),
+                                background: otdBg(v.otdLtv),
+                                padding: "3px 8px",
+                                borderRadius: 6,
+                              }}
+                            >
+                              {pctOrDash(v.otdLtv)}
+                            </span>
+                          </span>
+                          <span
+                            role="cell"
+                            style={{
+                              fontSize: 14,
+                              textAlign: "right",
+                              fontVariantNumeric: "tabular-nums",
+                              color: "var(--color-text-muted)",
+                            }}
+                          >
+                            {numVal(v.monthlyPayment) === null
+                              ? "—"
+                              : `${fmt(v.monthlyPayment as number)}/mo`}
+                          </span>
+                          <span
+                            role="cell"
+                            style={{
+                              fontSize: 13,
+                              textAlign: "right",
+                              fontVariantNumeric: "tabular-nums",
+                              fontWeight: 600,
+                              color: pending ? "var(--color-text-muted)" : lendersColor(fitCount),
+                            }}
+                          >
+                            {fitCount}/{totalLenders}
+                          </span>
+                          <span
+                            role="cell"
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
+                              gap: 9,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 700,
+                                fontVariantNumeric: "tabular-nums",
+                                color: ring,
+                                minWidth: 20,
+                                textAlign: "right",
+                              }}
+                            >
+                              {pending ? "—" : score}
+                            </span>
+                            <ScoreRing
+                              score={pending ? 0 : score}
+                              size={22}
+                              colorVar={pending ? "transparent" : ring}
+                            />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Import-first empty state — no inventory at all */}
+        {!hasInventory && (
+          <EmptyState
+            icon={<Icons.CarIcon className="w-full h-full" />}
+            title="No inventory yet"
+            description="Import your dealership's CSV or Excel feed and every unit gets priced against the live deal — payment, LTV, lender fit and approval odds."
+            primaryAction={{
+              label: "Import CSV/XLSX",
+              onClick: () => fileInputRef.current?.click(),
+            }}
+            secondaryAction={{ label: "Download sample CSV", onClick: downloadSampleCsv }}
+          />
+        )}
+
+        {/* No matches — mockup lines 530-535 */}
+        {noResults && (
+          <EmptyState
+            title="No vehicles match"
+            description="No vehicles match the current filters or search."
+            primaryAction={{ label: "Clear filters", onClick: clearFilters }}
+          />
+        )}
       </div>
     </div>
   );
