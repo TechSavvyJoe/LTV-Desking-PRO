@@ -31,6 +31,17 @@ const PB_DATA_DIR = path.resolve(PB_DATA_OVERRIDE || "backend/pb_data");
  * fixtures and the dev server on one port. CI leaves it unset (8090).
  */
 const PB_PORT = process.env.PB_PORT || "8090";
+
+/**
+ * Dealer A programs seeded as verified (isSample: false). Sample programs are
+ * held pending by design until an admin verifies them, so an all-sample seed
+ * can never rank a unit. These three still wait for a FICO on a fresh desk
+ * (every unit pending), and with FICO 720 / $6,500 income they fit most of the
+ * seeded inventory; Alliance CCU also needs income (20% PTI cap), so the
+ * "Needs income" path is exercised. Dealer B keeps every program a sample.
+ * tests/e2e/pending-ranking.spec.ts depends on this split (3 verified, 10 sample).
+ */
+const VERIFIED_FOR_DEALER_A = new Set(["TD Auto Finance", "Lake Trust CU", "Alliance CCU"]);
 const DEFAULT_DEALER_A_ID = "dealeraid12345x";
 const DEFAULT_DEALER_B_ID = "dealerbid45678x";
 
@@ -315,9 +326,14 @@ export async function seedData(
   for (const profile of DEFAULT_LENDER_PROFILES) {
     const { id: _profileId, ...profileData } = profile;
     try {
-      await pb
-        .collection("lender_profiles")
-        .create({ ...profileData, dealer: dealerA, active: true });
+      // Dealer A gets VERIFIED_FOR_DEALER_A as verified programs so real-backend
+      // e2e can exercise the ranked path; everything else stays a sample.
+      await pb.collection("lender_profiles").create({
+        ...profileData,
+        dealer: dealerA,
+        active: true,
+        isSample: VERIFIED_FOR_DEALER_A.has(profile.name) ? false : profileData.isSample,
+      });
       await pb
         .collection("lender_profiles")
         .create({ ...profileData, dealer: dealerB, active: true });

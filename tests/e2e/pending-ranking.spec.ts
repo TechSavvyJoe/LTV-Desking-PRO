@@ -6,19 +6,17 @@ import { USE_REAL_BACKEND } from "./fixtures/backend";
  * Pins the product's core state transition against the real seeded backend:
  * with no FICO/income on the desk every unit is PENDING (unknown, not failed);
  * entering FICO + income lets lenders fit or decline and units get ranked.
+ *
+ * Depends on the seed's lender split for Dealer A (tests/helpers/seed-test-db.ts
+ * VERIFIED_FOR_DEALER_A): 3 verified programs that need a FICO and fit most of
+ * the seeded inventory at FICO 720 / $6,500, and 10 sample programs that stay
+ * pending by design until an admin verifies them.
  */
 
 const REAL_BACKEND_SKIP_REASON =
   "Needs the seeded PocketBase stack (E2E_REAL_BACKEND=1 or USE_SEED_BACKEND=1); the mocked-auth run has no lender data.";
 
-// The seed currently marks every lender program isSample: true, and sample
-// programs are held pending by design (lenderMatcher) until an admin verifies
-// them — so nothing can rank on this fixture. The ranked half of the flow is
-// pinned as fixme until tests/helpers/seed-test-db.ts seeds at least one
-// verified (non-sample, no review holds) program with permissive tiers.
-const SEED_HAS_NO_VERIFIED_LENDER =
-  "Seed has only sample lender programs (isSample: true), which stay pending by design; " +
-  "add a verified lender to the seed helper before enabling the ranked assertions.";
+const SAMPLE_PROGRAMS = 10;
 
 const PENDING_GAUGE = /Approval odds pending/;
 const RANKED_GAUGE = /Approval odds \d+ of 100/;
@@ -30,6 +28,12 @@ async function openRoute(page: Page, route: string) {
     timeout: 20000,
   });
   await expect(page.locator("main, [role='main']").first()).toBeVisible();
+}
+
+// In-app navigation keeps the desk's FICO and income; a full reload would not.
+async function goInApp(page: Page, link: RegExp, screen: string) {
+  await page.getByRole("link", { name: link }).first().click();
+  await expect(page.locator(`[data-screen-label="${screen}"]`)).toBeVisible({ timeout: 20000 });
 }
 
 const gauge = (page: Page) => page.getByRole("img", { name: /^Approval odds/ }).first();
@@ -87,35 +91,31 @@ test.describe("Pending vs ranked (real backend)", () => {
   });
 
   test("entering FICO and income ranks the inventory", async ({ page }) => {
-    test.fixme(true, SEED_HAS_NO_VERIFIED_LENDER);
     await openRoute(page, "/desk");
     await enterCredit(page);
 
     await expect(gauge(page)).toHaveAccessibleName(RANKED_GAUGE);
     await expect(page.getByText("Pending lender checks")).toHaveCount(0);
+    await expect(page.locator(".desk-fit-caption").first()).toHaveText(
+      /\b[1-9]\d*\/13\s*lenders fit/
+    );
+    await expect(chips(page, "Fit").first()).toBeVisible();
 
-    const fit = await chips(page, "Fit").count();
-    const noFit = await chips(page, "No fit").count();
-    const pending = await chips(page, "Pending").count();
-    expect(fit + noFit).toBeGreaterThan(0);
-    // Sample programs stay pending by design, so only assert pending shrank.
-    expect(pending).toBeLessThan(fit + noFit + pending);
-
-    await openRoute(page, "/lenders");
+    await goInApp(page, /^Lenders/, "Lenders");
     const pills = await lenderPills(page);
     expect(pills).not.toContain("Needs FICO");
     expect(pills).not.toContain("Needs income");
+    // Unverified samples stay pending whatever the deal — never a decline.
+    expect(pills.filter((pill) => pill === "Verify sample")).toHaveLength(SAMPLE_PROGRAMS);
 
-    await openRoute(page, "/reports");
-    const note = page.getByText(/units? (are|is) pending/);
-    if (await note.count()) {
-      const [, ranked, total] = (await note.first().innerText()).match(/(\d+) of (\d+)/) ?? [];
-      expect(Number(ranked)).toBeLessThan(Number(total));
-    }
+    await goInApp(page, /^Reports/, "Reports");
+    const heading = page.getByText(/Approval distribution — \d+ of \d+ units?/).first();
+    const [, ranked, total] = (await heading.innerText()).match(/(\d+) of (\d+)/) ?? [];
+    expect(Number(ranked)).toBeGreaterThan(0);
+    expect(Number(ranked)).toBeLessThanOrEqual(Number(total));
   });
 
   test("clearing the FICO returns the desk to pending", async ({ page }) => {
-    test.fixme(true, SEED_HAS_NO_VERIFIED_LENDER);
     await openRoute(page, "/desk");
     await enterCredit(page);
     await expect(gauge(page)).toHaveAccessibleName(RANKED_GAUGE);

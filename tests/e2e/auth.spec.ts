@@ -160,6 +160,15 @@ const ADMIN_TEST_AUTH: TestCredentials = {
   role: "admin",
 };
 
+// Tests that WRITE dealer data on the real backend (inventory imports, rate-sheet
+// saves) run as Dealer B's admin so they never change Dealer A — the dealer
+// the accessibility, ranking and lender-ladder tests read. Same role in mocks.
+const ADMIN_B_TEST_AUTH: TestCredentials = {
+  identity: "admin.b@dealerb.com",
+  password: "AdminPassword123!",
+  role: "admin",
+};
+
 const mockAuthForRole = (role: TestRole) =>
   role === "admin"
     ? {
@@ -905,7 +914,7 @@ test.describe("Administrative console login", () => {
 // ---------------------------------------------------------------------------
 test.describe("Inventory import", () => {
   test("imports CSV via hidden input and shows success state", async ({ page }) => {
-    await setupTest(page, "/inventory", ADMIN_TEST_AUTH);
+    await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
 
     // Toolbar buttons from InventoryScreen + useInventoryImport
     await expect(page.getByRole("button", { name: "Import inventory" }).first()).toBeVisible();
@@ -936,7 +945,7 @@ test.describe("Inventory import", () => {
   test("shows only server-persisted rows when part of a replacement import fails", async ({
     page,
   }) => {
-    await setupTest(page, "/inventory", ADMIN_TEST_AUTH);
+    await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
 
     // Unique VINs so earlier imports don't turn this into PATCH updates; fail
     // both create (POST) and update (PATCH) for the intentionally-bad row.
@@ -1002,7 +1011,7 @@ test.describe("AI lender upload", () => {
     page,
   }) => {
     // Rate-sheet upload is admin-only (lender_profiles create/update rules).
-    await setupTest(page, "/desk", ADMIN_TEST_AUTH);
+    await setupTest(page, "/desk", ADMIN_B_TEST_AUTH);
     await waitForDeskReady(page);
 
     if (USE_REAL_BACKEND) {
@@ -1125,13 +1134,9 @@ test.describe("Lender match", () => {
       page.locator(".desk-lender-row, [data-fit], .desk-lender-badge").first()
     ).toBeVisible({ timeout: 8000 });
 
-    // The caption reports the lender count either way. Mocked lender profiles
-    // are verified programs, so they fit ("N/M lenders fit"); the seeded real
-    // backend has only sample programs, which stay pending until an admin
-    // verifies them ("0 fit, N pending") — pending is not a decline.
-    await expect(page.locator(".desk-fit-caption").first()).toContainText(
-      USE_REAL_BACKEND ? /\d+ fit, \d+ pending/i : /lenders fit/i
-    );
+    // Mocked profiles and the seed's verified programs (VERIFIED_FOR_DEALER_A in
+    // tests/helpers/seed-test-db.ts) both fit this profile: "N/M lenders fit".
+    await expect(page.locator(".desk-fit-caption").first()).toContainText(/lenders fit/i);
 
     // Lower profile -> fewer fits (still renders)
     await page.locator("#desk-fico").fill("500");
