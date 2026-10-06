@@ -53,13 +53,14 @@
   --color-danger: #b91c1c; /* red-700 */
   --color-danger-subtle: #fee2e2; /* red-100 */
 
-  /* Geometry — tighter corners */
+  /* Geometry — card chrome tiers. Only overlays (tier 3) carry a shadow;
+     static cards separate from the canvas with a 1px var(--color-border). */
   --radius-sm: 4px; /* badges, pills */
   --radius: 6px; /* inputs, buttons */
-  --radius-md: 8px; /* cards, KPI tiles */
-  --radius-lg: 10px; /* modals */
+  --radius-md: 8px; /* tier 2: inner tiles, KPI tiles, stat cells — no shadow */
+  --radius-lg: 10px; /* tier 3: modals, popovers, menus, command palette, toasts — shadow-md/lg */
   --radius-full: 9999px;
-  --radius-card: 14px; /* dc.html cards, KPI tiles, drawers */
+  --radius-card: 14px; /* tier 1: page-level panels, screen/report cards, table wrappers, drawers — 1px border, no shadow */
 
   /* Shadows — neutral, no colored glows */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -78,8 +79,8 @@
      over time, inline styles in components) should reference these tokens
      instead of hardcoded px sizes. Half-pixel legacy values snap to the
      nearest step (13.5px → --text-sm, 12.5px → --text-xs, 11.5px → --text-2xs).
-     --text-2xs is the floor for readable content; reserve it for uppercase
-     mono kickers and data labels. */
+     --text-2xs is the floor for readable content; reserve it for step
+     numerals and identifiers. Column headers and labels use --text-xs. */
   --text-2xs: 0.6875rem; /* 11px */
   --text-xs: 0.75rem; /* 12px */
   --text-sm: 0.8125rem; /* 13px */
@@ -166,7 +167,7 @@
   --color-warning: #fbbf24; /* amber-400 */
   --color-warning-subtle: #78350f; /* amber-900 */
   --color-danger: #f87171; /* red-400 */
-  --color-danger-subtle: #7f1d1d; /* red-900 */
+  --color-danger-subtle: #3f1416; /* deep red — danger text on it clears AA */
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
@@ -473,10 +474,6 @@ main {
     flex-wrap: wrap;
     gap: 8px !important;
   }
-
-  .inventory-screen-divider,
-  .lenders-screen-divider,
-  .reports-screen-divider,
   .inventory-screen-description,
   .lenders-screen-description,
   .reports-screen-description {
@@ -523,7 +520,7 @@ main {
   .lenders-screen-table {
     overflow-x: auto !important;
     overflow-y: hidden !important;
-    border-radius: var(--radius-md) !important;
+    border-radius: var(--radius-card) !important;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -618,12 +615,12 @@ main {
 
 .legal-eyebrow {
   margin: 0 0 12px;
-  color: var(--color-primary);
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
   letter-spacing: 0;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .legal-heading h1 {
@@ -666,12 +663,12 @@ main {
 }
 
 .legal-meta dt {
-  color: var(--color-text-subtle);
-  font-family: var(--mono);
-  font-size: 11px; /* was 10px — below the readable floor */
-  font-weight: 700;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
   letter-spacing: 0;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .legal-meta dd {
@@ -1020,15 +1017,13 @@ select.dc-input:focus {
 .desk-card {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-card);
 }
 
 .desk-terms-card {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-card);
   padding: 14px 16px;
 }
 
@@ -1202,7 +1197,8 @@ select.dc-input:focus {
   border: 1px solid var(--color-border);
   background: var(--color-bg-subtle);
   color: var(--color-text-muted);
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   font-weight: 800;
   cursor: pointer;
@@ -1331,12 +1327,13 @@ select.dc-input:focus {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-text-subtle);
+  color: var(--color-text-muted);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 700;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
   letter-spacing: 0;
+  text-transform: none;
   user-select: none;
 }
 
@@ -1346,6 +1343,7 @@ select.dc-input:focus {
 
 .desk-inventory-columns button[data-align="right"] {
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .desk-inventory-scroll {
@@ -1402,8 +1400,9 @@ select.dc-input:focus {
 .desk-inventory-vehicle-meta {
   margin-top: 2px;
   overflow: hidden;
-  color: var(--color-text-subtle);
-  font-family: var(--mono);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-2xs);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1412,9 +1411,9 @@ select.dc-input:focus {
 .desk-inventory-cell {
   min-width: 0;
   text-align: right;
-  font-family: var(--mono);
-  font-size: var(--text-sm);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
 }
 
 .desk-inventory-cell-muted {
@@ -1443,7 +1442,8 @@ select.dc-input:focus {
 .desk-inventory-odds strong {
   min-width: 18px;
   text-align: right;
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-base);
 }
 
@@ -1467,9 +1467,8 @@ select.dc-input:focus {
   top: 78px;
   align-self: start;
   background: var(--color-bg);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   height: calc(100vh - 132px);
   max-height: calc(100vh - 132px);
   overflow: hidden;
@@ -1549,10 +1548,12 @@ select.dc-input:focus {
 }
 
 .desk-payment-label {
-  color: var(--color-text-subtle);
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 800;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .desk-payment-value {
@@ -1561,7 +1562,8 @@ select.dc-input:focus {
   gap: 3px;
   margin-top: 4px;
   color: var(--color-text);
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 44px;
   font-weight: 800;
   line-height: 0.95;
@@ -1584,7 +1586,7 @@ select.dc-input:focus {
 
 .desk-summary-metrics div {
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-subtle);
   padding: 7px 9px;
   min-width: 0;
@@ -1603,7 +1605,8 @@ select.dc-input:focus {
 
 .desk-summary-metrics strong {
   margin-top: 3px;
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   line-height: 1.15;
   overflow-wrap: anywhere;
@@ -1672,10 +1675,12 @@ select.dc-input:focus {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
-  color: var(--color-text-subtle);
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 800;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .desk-panel-heading strong {
@@ -1724,16 +1729,29 @@ select.dc-input:focus {
 .desk-lender-badge {
   border-radius: 6px;
   background: var(--color-bg-muted);
-  color: var(--color-text-subtle);
-  font-family: var(--mono);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-2xs); /* was 10px — below the 11px readable floor */
-  font-weight: 800;
+  font-weight: 600;
   padding: 4px 6px;
 }
 
 .desk-lender-badge[data-fit="true"] {
   background: var(--color-primary-subtle);
   color: var(--color-primary);
+}
+
+/* Not fitting has two distinct states: "Pending" = not yet checked (neutral,
+   never red) and "No fit" = a real decline (plain ink — definite, not alarming;
+   the ladder already shows the decline reason). */
+.desk-lender-badge[data-fit="false"] {
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+}
+
+.desk-lender-badge[data-status="ineligible"] {
+  color: var(--color-text);
 }
 
 .desk-lender-name {
@@ -1746,7 +1764,8 @@ select.dc-input:focus {
 
 .desk-lender-meta {
   color: var(--color-text-subtle);
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   white-space: nowrap;
 }
@@ -1787,7 +1806,8 @@ select.dc-input:focus {
   justify-content: center;
   background: var(--color-primary-subtle);
   color: var(--color-primary);
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-weight: 900;
 }
 
@@ -1799,7 +1819,8 @@ select.dc-input:focus {
 .desk-backend-input {
   flex: 0 0 96px;
   text-align: right;
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 
 .desk-backend-total {
@@ -1813,7 +1834,8 @@ select.dc-input:focus {
 
 .desk-backend-total strong {
   color: var(--color-primary);
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 
 .desk-matrix {
@@ -1831,9 +1853,13 @@ select.dc-input:focus {
 
 .desk-matrix-head span,
 .desk-matrix-row > span {
-  color: var(--color-text-subtle);
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: right;
 }
 
@@ -1844,7 +1870,8 @@ select.dc-input:focus {
   background: var(--color-bg-subtle);
   color: var(--color-text);
   cursor: pointer;
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   font-weight: 800;
   padding: 0 4px;
@@ -2023,7 +2050,7 @@ select.dc-input:focus {
     gap: 8px;
     min-width: 0;
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-subtle);
     padding: 7px 8px;
     text-align: right !important;
@@ -2031,10 +2058,10 @@ select.dc-input:focus {
 
   .desk-inventory-row > span::before {
     content: attr(data-label);
-    color: var(--color-text-subtle);
+    color: var(--color-text-muted);
     font-family: var(--font-sans);
-    font-size: var(--text-2xs); /* was 10.5px — below the 11px readable floor */
-    font-weight: 800;
+    font-size: var(--text-xs);
+    font-weight: 500;
   }
 
   .desk-inventory-row > span:nth-child(3) {
@@ -2076,10 +2103,10 @@ select.dc-input:focus {
 
   .pipeline-screen-row > span::before {
     content: attr(data-label);
-    color: var(--color-text-subtle);
+    color: var(--color-text-muted);
     font-family: var(--font-sans);
-    font-size: var(--text-2xs); /* was 10.5px — below the 11px readable floor */
-    font-weight: 700;
+    font-size: var(--text-xs);
+    font-weight: 500;
   }
 
   .pipeline-screen-columns {
@@ -2311,7 +2338,7 @@ select.dc-input:focus {
   flex: 0 0 196px;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-subtle);
 }
 
@@ -2353,7 +2380,8 @@ select.dc-input:focus {
 .desk-compare-meta {
   margin-top: 2px;
   color: var(--color-text-subtle);
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-2xs);
 }
 
@@ -2365,7 +2393,8 @@ select.dc-input:focus {
 }
 
 .desk-compare-payment strong {
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 0;
@@ -2385,7 +2414,8 @@ select.dc-input:focus {
 }
 
 .desk-compare-metrics > strong {
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
 }
 
@@ -2444,7 +2474,8 @@ select.dc-input:focus {
 
 .desk-compare-odds-pill {
   font-size: var(--text-xs);
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 5px;
