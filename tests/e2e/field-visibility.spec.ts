@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { LOCAL_PB_URL } from "./fixtures/backend";
+import { LOCAL_PB_URL, USE_REAL_BACKEND } from "./fixtures/backend";
 
 /**
  * Real-backend proof of backend/pb_hooks/field_visibility.pb.js.
@@ -22,7 +22,6 @@ import { LOCAL_PB_URL } from "./fixtures/backend";
  * which .env.local points at production.
  */
 
-const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND;
 const PB_URL = process.env.E2E_PB_URL || LOCAL_PB_URL;
 const DEALER_A = "dealeraid12345x";
 

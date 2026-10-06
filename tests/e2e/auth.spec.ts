@@ -1122,8 +1122,13 @@ test.describe("Lender match", () => {
       page.locator(".desk-lender-row, [data-fit], .desk-lender-badge").first()
     ).toBeVisible({ timeout: 8000 });
 
-    // FIT count text like "2/2 lenders fit" or similar (from InspectorSummary + LenderLadder)
-    await expect(page.locator(".desk-fit-caption").first()).toContainText(/lenders fit/i);
+    // The caption reports the lender count either way. Mocked lender profiles
+    // are verified programs, so they fit ("N/M lenders fit"); the seeded real
+    // backend has only sample programs, which stay pending until an admin
+    // verifies them ("0 fit, N pending") — pending is not a decline.
+    await expect(page.locator(".desk-fit-caption").first()).toContainText(
+      USE_REAL_BACKEND ? /\d+ fit, \d+ pending/i : /lenders fit/i
+    );
 
     // Lower profile -> fewer fits (still renders)
     await page.locator("#desk-fico").fill("500");

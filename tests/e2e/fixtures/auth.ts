@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { LOCAL_PB_URL } from "./backend";
+import { appBackendUrl } from "./backend";
 
 /**
  * Reusable real-backend auth fixture.
@@ -9,12 +9,12 @@ import { LOCAL_PB_URL } from "./backend";
  * shape the PocketBase JS SDK's LocalAuthStore reads) before the first
  * navigation, so `page.goto("/desk")` lands authenticated without the login UI.
  *
- * Targets E2E_PB_URL (default: LOCAL_PB_URL, which honors PB_PORT) — the same
- * variable tests/e2e/field-visibility.spec.ts uses, never VITE_POCKETBASE_URL.
+ * Authenticates against appBackendUrl() — the same backend the app under test
+ * uses (playwright.config.ts precedence, E2E_PB_URL as an explicit override),
+ * so the injected token is valid for the app. Non-local hosts are refused
+ * unless E2E_ALLOW_REMOTE_PB=1.
  * Seeded accounts come from tests/helpers/seed-test-db.ts.
  */
-
-export const PB_URL = process.env.E2E_PB_URL || LOCAL_PB_URL;
 
 export const SEEDED_ACCOUNTS = {
   sales: { identity: "sales.a@dealera.com", password: "SalesPassword123!" },
@@ -33,10 +33,13 @@ export async function loginViaApi(
   request: APIRequestContext,
   role: SeededRole
 ): Promise<PocketBaseAuthResponse> {
-  const response = await request.post(`${PB_URL}/api/collections/users/auth-with-password`, {
-    data: SEEDED_ACCOUNTS[role],
-    headers: { "Content-Type": "application/json" },
-  });
+  const response = await request.post(
+    `${appBackendUrl()}/api/collections/users/auth-with-password`,
+    {
+      data: SEEDED_ACCOUNTS[role],
+      headers: { "Content-Type": "application/json" },
+    }
+  );
   if (!response.ok()) {
     throw new Error(`PocketBase auth failed for ${role}: ${await response.text()}`);
   }

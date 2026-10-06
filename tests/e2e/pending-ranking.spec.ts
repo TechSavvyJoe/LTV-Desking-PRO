@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { authenticateAs } from "./fixtures/auth";
+import { USE_REAL_BACKEND } from "./fixtures/backend";
 
 /**
  * Pins the product's core state transition against the real seeded backend:
@@ -8,7 +9,7 @@ import { authenticateAs } from "./fixtures/auth";
  */
 
 const REAL_BACKEND_SKIP_REASON =
-  "Needs the seeded PocketBase stack (E2E_REAL_BACKEND=1); the mocked-auth run has no lender data.";
+  "Needs the seeded PocketBase stack (E2E_REAL_BACKEND=1 or USE_SEED_BACKEND=1); the mocked-auth run has no lender data.";
 
 // The seed currently marks every lender program isSample: true, and sample
 // programs are held pending by design (lenderMatcher) until an admin verifies
@@ -18,8 +19,6 @@ const REAL_BACKEND_SKIP_REASON =
 const SEED_HAS_NO_VERIFIED_LENDER =
   "Seed has only sample lender programs (isSample: true), which stay pending by design; " +
   "add a verified lender to the seed helper before enabling the ranked assertions.";
-
-const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND;
 
 const PENDING_GAUGE = /Approval odds pending/;
 const RANKED_GAUGE = /Approval odds \d+ of 100/;

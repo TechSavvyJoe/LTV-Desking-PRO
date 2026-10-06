@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, type Page, type TestInfo } from "@playwright/test";
+import { test, expect, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { authenticateAs, type SeededRole } from "./fixtures/auth";
+import { USE_REAL_BACKEND } from "./fixtures/backend";
 
 /**
  * Automated accessibility gate (axe-core) for LTV-Desking-PRO.
@@ -13,7 +14,7 @@ import { authenticateAs, type SeededRole } from "./fixtures/auth";
  * Scope: the public login page (always) plus the authenticated app routes
  * (/desk, /pipeline, /inventory, /lenders, /reports, /tools as a sales user;
  * /lenders and /admin as an admin) when the real seeded backend is available
- * (E2E_REAL_BACKEND). Authentication goes through the PocketBase API via
+ * (E2E_REAL_BACKEND or USE_SEED_BACKEND). Authentication goes through the PocketBase API via
  * tests/e2e/fixtures/auth.ts, not the login form.
  *
  * See docs/ACCESSIBILITY.md for the conformance summary this gate backs.
@@ -30,9 +31,26 @@ const ADMIN_ROUTES = ["/lenders", "/admin"];
 // The API-login fixture (./fixtures/auth) only works against the seeded
 // PocketBase stack; the mocked-auth run has no real session to scan with.
 const AUTH_SKIP_REASON =
-  "Authenticated-route scans need the seeded PocketBase stack (E2E_REAL_BACKEND=1).";
+  "Authenticated-route scans need the seeded PocketBase stack (E2E_REAL_BACKEND=1 or USE_SEED_BACKEND=1).";
 
-const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND;
+// What proves each route's own screen has rendered — not the shell, and not a
+// lazy route's Suspense spinner, which sits inside the same <main>. Axe must
+// never scan the fallback and report the route as covered.
+const ROUTE_READY: Record<string, (page: Page) => Locator> = {
+  "/desk": (p) => p.locator('[data-screen-label="Dealer desk"]'),
+  "/pipeline": (p) => p.locator('[data-screen-label="Pipeline"]'),
+  "/inventory": (p) => p.locator('[data-screen-label="Inventory"]'),
+  "/lenders": (p) => p.locator('[data-screen-label="Lenders"]'),
+  "/reports": (p) => p.locator('[data-screen-label="Reports"]'),
+  "/tools": (p) => p.getByRole("heading", { name: /finance tools/i }),
+  "/admin": (p) => p.getByRole("heading", { name: /team members/i }),
+};
+
+function routeReady(page: Page, route: string): Locator {
+  const ready = ROUTE_READY[route];
+  if (!ready) throw new Error(`No readiness marker for ${route} — add one to ROUTE_READY.`);
+  return ready(page).first();
+}
 
 type ColorScheme = "light" | "dark";
 
@@ -104,9 +122,10 @@ test.describe("Accessibility (axe-core, WCAG 2.2 AA)", () => {
               timeout: 20000,
             });
             await expect(page.locator("main, [role='main']").first()).toBeVisible();
+            await expect(routeReady(page, route)).toBeVisible({ timeout: 20000 });
             await setColorScheme(page, scheme);
-            // Let lazy-route chunks settle and colour transitions (<=240ms,
-            // see --transition-* in index.css) finish so axe samples final colours.
+            // Let colour transitions (<=240ms, see --transition-* in index.css)
+            // finish so axe samples final colours.
             await page.waitForTimeout(800);
 
             await runAxeScan(page, testInfo, `${role}-${route.slice(1)}-${scheme}`);
