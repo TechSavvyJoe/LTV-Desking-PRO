@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { lenderFitForVehicle, unitsForEachLender, activeLenderCount } from "./lenderFit";
+import {
+  PENDING_CAUSE_META,
+  activeLenderCount,
+  lenderFitForVehicle,
+  pendingCauseOf,
+  summarizePending,
+  unitsForEachLender,
+} from "./lenderFit";
 import { DEFAULT_LENDER_PROFILES, INITIAL_DEAL_DATA, INITIAL_FILTER_DATA } from "../constants";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile } from "../types";
 
@@ -215,6 +222,75 @@ describe("lenderFit", () => {
         flagged,
       ]);
       expect(counts).toEqual({ flagged: 0 });
+    });
+  });
+
+  describe("pending summary", () => {
+    const sampleFico: LenderProfile = {
+      id: "s1",
+      name: "Sample FICO",
+      isSample: true,
+      tiers: [{ name: "T", minFico: 640, maxLtv: 130, maxTerm: 84 }],
+    };
+    const sampleNoFico: LenderProfile = {
+      id: "s2",
+      name: "Sample Open",
+      isSample: true,
+      tiers: [{ name: "T", maxLtv: 130, maxTerm: 84 }],
+    };
+
+    it("counts pending lenders and names the most actionable cause (FICO first)", () => {
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ creditScore: null }), [
+        sampleFico,
+        sampleNoFico,
+        alpha,
+      ]);
+      expect(fit.fitCount).toBe(0);
+      expect(fit.pendingCount).toBe(3);
+      expect(fit.pendingCause).toBe("fico");
+      // Only the lenders a FICO would actually check are counted.
+      expect(fit.pendingReason).toBe("Add a FICO score to check 2 lenders");
+    });
+
+    it("moves on to sample verification once the FICO is in", () => {
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ creditScore: 700 }), [
+        sampleFico,
+        sampleNoFico,
+      ]);
+      expect(fit.pendingCount).toBe(2);
+      expect(fit.pendingCause).toBe("sample");
+      expect(fit.pendingReason).toBe("Sample programs must be verified before they count");
+    });
+
+    it("reports nothing pending for a genuine fail", () => {
+      const fit = lenderFitForVehicle(
+        mkVehicle({ amountToFinance: 26000, otdLtv: 130 }),
+        mkDeal({ creditScore: 720 }),
+        [alpha, beta]
+      );
+      expect(fit.pendingCount).toBe(0);
+      expect(fit.pendingCause).toBeNull();
+      expect(fit.pendingReason).toBeNull();
+    });
+
+    it("pendingCauseOf classifies field names, never values", () => {
+      expect(pendingCauseOf(["credit score", "vehicle mileage"])).toBe("fico");
+      expect(pendingCauseOf(["monthly income for tier max PTI"])).toBe("income");
+      expect(pendingCauseOf(["vehicle mileage"])).toBe("mileage");
+      expect(pendingCauseOf(["something new"])).toBe("other");
+      expect(pendingCauseOf([])).toBe("other");
+      // Every pill label fits the ≤ 3-word Lenders status column.
+      for (const meta of Object.values(PENDING_CAUSE_META)) {
+        expect(meta.short.split(/\s+/).length).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it("summarizePending is empty for no pending entries", () => {
+      expect(summarizePending([])).toEqual({
+        pendingCount: 0,
+        pendingCause: null,
+        pendingReason: null,
+      });
     });
   });
 

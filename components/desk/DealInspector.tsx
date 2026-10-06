@@ -17,6 +17,7 @@ import type {
   LenderProfile,
   Settings,
 } from "../../types";
+import { summarizePending } from "../../services/lenderFit";
 import type { LenderFitEntry } from "../../services/lenderFit";
 
 interface DealInspectorProps {
@@ -91,7 +92,9 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   const thresholds = settings.ltvThresholds;
   const band = v.approvalBand ?? "none";
   const fitCount = v.fitCount ?? 0;
+  const pendingCount = v.pendingCount ?? 0;
   const fitNames = v.fitNames ?? [];
+  const pendingReason = useMemo(() => summarizePending(entries).pendingReason, [entries]);
 
   // Tweens — arc + numeral + color + payment move together off the SAME
   // animated values (600ms easeOutCubic; reduced-motion snaps).
@@ -101,11 +104,12 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   const dispPay = useAnimatedNumber(payN ?? 0);
 
   // Color AND zone label follow the tweened score through the mockup's bands
-  // so arc/number/color/label all move together; "none" (no lender fit) stays
-  // authoritative regardless of the animated number.
+  // so arc/number/color/label all move together; "none" (no lender fit) and
+  // "pending" (checks held, odds unknown) stay authoritative regardless of the
+  // animated number.
   const dispBand: ApprovalBand =
-    band === "none"
-      ? "none"
+    band === "none" || band === "pending"
+      ? band
       : dispScore >= APPROVAL_CONFIG.bands.strong
         ? "strong"
         : dispScore >= APPROVAL_CONFIG.bands.moderate
@@ -233,6 +237,9 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
         apr={aprLabel(dealData.interestRate)}
         fitCount={fitCount}
         totalLenders={totalLenders}
+        pending={dispBand === "pending"}
+        pendingCount={pendingCount}
+        pendingReason={pendingReason}
         financed={financed}
         backendProducts={dealData.backendProducts || 0}
         otdLtv={v.otdLtv}
@@ -247,6 +254,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
           profilesById={profilesById}
           fitCount={fitCount}
           totalLenders={totalLenders}
+          pendingCount={pendingCount}
           limit={3}
         />
       </div>
@@ -287,6 +295,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
             profilesById={profilesById}
             fitCount={fitCount}
             totalLenders={totalLenders}
+            pendingCount={pendingCount}
           />
         )}
         {tab === "addons" && (

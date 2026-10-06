@@ -53,8 +53,18 @@ export const ptiColorFor = (pti: number | undefined): string =>
         ? "var(--color-warning)"
         : "var(--color-danger)";
 
-export const fitCountColor = (n: number): string =>
-  n >= 4 ? "var(--color-success)" : n >= 1 ? "var(--color-warning)" : "var(--color-danger)";
+/**
+ * Color for an "N fit" count. A zero while lender checks are still pending is
+ * unknown, not a decline, so it reads neutral rather than danger.
+ */
+export const fitCountColor = (n: number, pending = false): string =>
+  n >= 4
+    ? "var(--color-success)"
+    : n >= 1
+      ? "var(--color-warning)"
+      : pending
+        ? "var(--color-text-muted)"
+        : "var(--color-danger)";
 
 export const bandColor = (v: CalculatedVehicle): string =>
   BAND_META[v.approvalBand ?? "none"].colorVar;

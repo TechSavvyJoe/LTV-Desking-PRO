@@ -1,7 +1,7 @@
 import React, { useMemo, useCallback } from "react";
 import { useDealContext } from "../../context/DealContext";
 import { APPROVAL_CONFIG } from "../../services/approvalScorer";
-import { activeLenderCount } from "../../services/lenderFit";
+import { PENDING_CAUSE_META, activeLenderCount } from "../../services/lenderFit";
 import {
   asPipelineDeal,
   pipelineMetricsFromCalculatedData,
@@ -10,7 +10,7 @@ import {
 import { fmt } from "../../utils/format";
 import { EmptyState } from "../common/states";
 import * as Icons from "../common/Icons";
-import type { CalculatedVehicle } from "../../types";
+import type { CalculatedVehicle, PendingCause } from "../../types";
 
 const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 
@@ -106,6 +106,7 @@ const BarRowComponent: React.FC<BarRowProps> = ({
         fontWeight: 600,
         width: rightWidth,
         textAlign: "right",
+        whiteSpace: "nowrap",
         flexShrink: 0,
       }}
     >
@@ -132,36 +133,50 @@ const ReportsScreenBase: React.FC = () => {
   const stats = useMemo(() => {
     const rows = processedInventory;
     const n = rows.length;
+    // Units whose lender checks are all held pending have UNKNOWN odds, not
+    // weak ones: they stay out of the distribution and the approval KPIs.
+    const ranked = rows.filter((v) => v.approvalBand !== "pending");
+    const rankedN = ranked.length;
+    const pendingRows = rows.filter((v) => v.approvalBand === "pending");
 
-    const scores = rows.map((v) => v.approvalScore ?? 0);
+    // Most common cause across pending units drives the note's call to action.
+    const causeCounts = new Map<PendingCause, number>();
+    for (const v of pendingRows) {
+      const cause = v.pendingCause ?? "other";
+      causeCounts.set(cause, (causeCounts.get(cause) ?? 0) + 1);
+    }
+    const pendingCause =
+      [...causeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ("other" as PendingCause);
+
+    const scores = ranked.map((v) => v.approvalScore ?? 0);
     const otds = rows.map((v) => numVal(v.otdLtv)).filter((x): x is number => x !== null);
     const pays = rows.map((v) => numVal(v.monthlyPayment)).filter((x): x is number => x !== null);
     const prices = rows.map((v) => numVal(v.price)).filter((x): x is number => x !== null);
 
-    const avgScore = n ? Math.round(scores.reduce((a, b) => a + b, 0) / n) : null;
+    const avgScore = rankedN ? Math.round(scores.reduce((a, b) => a + b, 0) / rankedN) : null;
     const avgOtd = otds.length ? Math.round(otds.reduce((a, b) => a + b, 0) / otds.length) : null;
     const avgPay = pays.length ? pays.reduce((a, b) => a + b, 0) / pays.length : null;
     const totalValue = prices.reduce((a, b) => a + b, 0);
 
-    const strong = rows.filter(
+    const strong = ranked.filter(
       (v) => (v.approvalScore ?? 0) >= APPROVAL_CONFIG.bands.strong
     ).length;
-    const moderate = rows.filter((v) => {
+    const moderate = ranked.filter((v) => {
       const s = v.approvalScore ?? 0;
       return s >= APPROVAL_CONFIG.bands.moderate && s < APPROVAL_CONFIG.bands.strong;
     }).length;
-    const weak = n - strong - moderate;
+    const weak = rankedN - strong - moderate;
 
-    const best = rows.reduce<CalculatedVehicle | null>(
+    const best = ranked.reduce<CalculatedVehicle | null>(
       (a, v) => (a === null || (v.approvalScore ?? 0) > (a.approvalScore ?? 0) ? v : a),
       null
     );
 
     const avgLenders = n ? rows.reduce((a, v) => a + (v.fitCount ?? 0), 0) / n : null;
 
-    // Approval by make — unparseable makes land in an "Other" bucket.
+    // Approval by make (ranked units only) — unparseable makes land in "Other".
     const makeMap = new Map<string, { n: number; sum: number }>();
-    for (const v of rows) {
+    for (const v of ranked) {
       let mk = (v.make || "").trim();
       if (!mk) {
         // vehicle strings are "YYYY Make Model Trim" — parse the second token.
@@ -180,6 +195,9 @@ const ReportsScreenBase: React.FC = () => {
 
     return {
       n,
+      rankedN,
+      pendingN: pendingRows.length,
+      pendingCause,
       avgScore,
       avgOtd,
       avgPay,
@@ -228,8 +246,10 @@ const ReportsScreenBase: React.FC = () => {
         ? "var(--color-warning)"
         : "var(--color-success)";
 
+  // Distribution shares are of the RANKED units (pending ones are excluded).
   const pct = (count: number): string =>
-    stats.n ? `${Math.round((count / stats.n) * 100)}%` : "0%";
+    stats.rankedN ? `${Math.round((count / stats.rankedN) * 100)}%` : "0%";
+  const share = (count: number): number => (stats.rankedN ? (count / stats.rankedN) * 100 : 0);
 
   const bestName = stats.best
     ? stats.best.make && stats.best.model
@@ -349,7 +369,10 @@ const ReportsScreenBase: React.FC = () => {
 
             {/* Approval distribution */}
             <div className="dc-card" style={{ ...card, padding: 20 }}>
-              <div style={panelLabel}>APPROVAL DISTRIBUTION · {stats.n} UNITS</div>
+              <div style={panelLabel}>
+                APPROVAL DISTRIBUTION ·{" "}
+                {stats.pendingN > 0 ? `${stats.rankedN} OF ${stats.n}` : stats.n} UNITS
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <BarRow
                   label={
@@ -361,11 +384,11 @@ const ReportsScreenBase: React.FC = () => {
                     </>
                   }
                   labelWidth={130}
-                  pct={stats.n ? (stats.strong / stats.n) * 100 : 0}
+                  pct={share(stats.strong)}
                   color="var(--color-success)"
                   height={10}
                   right={`${stats.strong} · ${pct(stats.strong)}`}
-                  rightWidth={70}
+                  rightWidth={92}
                 />
                 <BarRow
                   label={
@@ -377,11 +400,11 @@ const ReportsScreenBase: React.FC = () => {
                     </>
                   }
                   labelWidth={130}
-                  pct={stats.n ? (stats.moderate / stats.n) * 100 : 0}
+                  pct={share(stats.moderate)}
                   color="var(--color-warning)"
                   height={10}
                   right={`${stats.moderate} · ${pct(stats.moderate)}`}
-                  rightWidth={70}
+                  rightWidth={92}
                 />
                 <BarRow
                   label={
@@ -393,13 +416,22 @@ const ReportsScreenBase: React.FC = () => {
                     </>
                   }
                   labelWidth={130}
-                  pct={stats.n ? (stats.weak / stats.n) * 100 : 0}
+                  pct={share(stats.weak)}
                   color="var(--color-danger)"
                   height={10}
                   right={`${stats.weak} · ${pct(stats.weak)}`}
-                  rightWidth={70}
+                  rightWidth={92}
                 />
               </div>
+              {stats.pendingN > 0 && (
+                <div
+                  data-testid="reports-pending-note"
+                  style={{ fontSize: 12, color: "var(--color-text-subtle)", marginTop: 14 }}
+                >
+                  {stats.pendingN} of {stats.n} units are pending —{" "}
+                  {PENDING_CAUSE_META[stats.pendingCause].rank}
+                </div>
+              )}
             </div>
 
             {/* 3-card row */}
@@ -495,7 +527,9 @@ const ReportsScreenBase: React.FC = () => {
                       aria-live="polite"
                       style={{ fontSize: 13, color: "var(--color-text-subtle)" }}
                     >
-                      No inventory loaded.
+                      {stats.pendingN > 0
+                        ? "No ranked units yet — lender checks are pending."
+                        : "No inventory loaded."}
                     </span>
                   )}
                   {stats.makeRows.map((m) => (

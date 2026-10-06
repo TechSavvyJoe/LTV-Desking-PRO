@@ -90,13 +90,21 @@ export function useSaveDeal() {
         { ...normalizedDealData, ...filters },
         safeLenderProfiles
       );
-      const freshApproval = scoreApprovalOdds(freshVehicle, filters, freshFit.fitCount);
+      const freshApproval = scoreApprovalOdds(
+        freshVehicle,
+        filters,
+        freshFit.fitCount,
+        freshFit.pendingCount,
+        freshFit.pendingReason
+      );
       const vehicleSnapshot: CalculatedVehicle = {
         ...freshVehicle,
         approvalScore: freshApproval.internalScore,
         approvalBand: freshApproval.band,
         ptiRatio: freshApproval.ptiRatio,
         fitCount: freshFit.fitCount,
+        pendingCount: freshFit.pendingCount,
+        pendingCause: freshFit.pendingCause ?? undefined,
         fitNames: freshFit.fitNames,
       };
 

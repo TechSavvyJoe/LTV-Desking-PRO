@@ -133,13 +133,21 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
   const liveVehicle = useMemo(() => {
     const calculated = calculateFinancials(vehicle, normalizedDealData, settings);
     const fit = lenderFitForVehicle(calculated, { ...normalizedDealData, ...filters }, lenders);
-    const approval = scoreApprovalOdds(calculated, filters, fit.fitCount);
+    const approval = scoreApprovalOdds(
+      calculated,
+      filters,
+      fit.fitCount,
+      fit.pendingCount,
+      fit.pendingReason
+    );
     return {
       ...calculated,
       approvalScore: approval.internalScore,
       approvalBand: approval.band,
       ptiRatio: approval.ptiRatio,
       fitCount: fit.fitCount,
+      pendingCount: fit.pendingCount,
+      pendingCause: fit.pendingCause ?? undefined,
       fitNames: fit.fitNames,
     };
   }, [filters, lenders, normalizedDealData, settings, vehicle]);
@@ -191,13 +199,21 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         { ...normalizedDealData, ...filters },
         lenders
       );
-      const freshApproval = scoreApprovalOdds(freshFinancials, filters, freshFit.fitCount);
+      const freshApproval = scoreApprovalOdds(
+        freshFinancials,
+        filters,
+        freshFit.fitCount,
+        freshFit.pendingCount,
+        freshFit.pendingReason
+      );
       const freshVehicle: CalculatedVehicle = {
         ...freshFinancials,
         approvalScore: freshApproval.internalScore,
         approvalBand: freshApproval.band,
         ptiRatio: freshApproval.ptiRatio,
         fitCount: freshFit.fitCount,
+        pendingCount: freshFit.pendingCount,
+        pendingCause: freshFit.pendingCause ?? undefined,
         fitNames: freshFit.fitNames,
       };
       const pdfData: DealPdfData = {

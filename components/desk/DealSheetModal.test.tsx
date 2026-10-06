@@ -38,7 +38,10 @@ vi.mock("../../utils/downloadBlob", async () => {
   return { ...actual, downloadBlob: mocks.downloadBlob };
 });
 
-vi.mock("../../services/lenderMatcher", () => ({
+// Partial mock: lenderFit also reads the matcher's constraint-name constants
+// to classify pending holds, so keep the real exports and stub only the engine.
+vi.mock("../../services/lenderMatcher", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../services/lenderMatcher")>()),
   checkBankEligibility: mocks.checkBankEligibility,
 }));
 

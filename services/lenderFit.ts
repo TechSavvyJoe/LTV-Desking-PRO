@@ -5,8 +5,9 @@ import type {
   FilterData,
   LenderProfile,
   LenderTier,
+  PendingCause,
 } from "../types";
-import { checkBankEligibility } from "./lenderMatcher";
+import { REVIEW_CONSTRAINT, SAMPLE_CONSTRAINT, checkBankEligibility } from "./lenderMatcher";
 
 /**
  * lenderFit — aggregates the existing per-lender rules engine
@@ -28,11 +29,182 @@ export interface LenderFitEntry {
   evaluatedConstraints?: number;
 }
 
-export interface VehicleFit {
+export interface PendingSummary {
+  /** Active lenders whose result is held "pending" (unknown, not failed). */
+  pendingCount: number;
+  /** Most actionable cause across the pending lenders; null when none are pending. */
+  pendingCause: PendingCause | null;
+  /** One line saying what unblocks them (field names only); null when none are pending. */
+  pendingReason: string | null;
+}
+
+export interface VehicleFit extends PendingSummary {
   entries: LenderFitEntry[];
   fitCount: number;
   fitNames: string[];
 }
+
+/* --- Pending causes ------------------------------------------------------ */
+
+interface PendingCauseMeta {
+  /** ≤ 3-word pill label (Lenders status column). */
+  short: string;
+  /** One-line reason for `count` pending lenders. */
+  reason: (count: number) => string;
+  /** Clause completing "N of M units are pending — …" on Reports. */
+  rank: string;
+}
+
+const lendersWord = (n: number): string => `${n} lender${n === 1 ? "" : "s"}`;
+const addTo =
+  (field: string) =>
+  (n: number): string =>
+    `Add ${field} to check ${lendersWord(n)}`;
+
+/**
+ * Display metadata per cause. Keys are listed most-actionable first and that
+ * order IS the priority `pendingCauseOf` uses: deal inputs the desk can supply
+ * now, then vehicle data, then holds only an admin can clear (manual advance
+ * check, AI review, sample verification). A sample lender missing a FICO says
+ * "add a FICO" first; once the FICO is in, it says "verify sample".
+ */
+export const PENDING_CAUSE_META: Record<PendingCause, PendingCauseMeta> = {
+  fico: {
+    short: "Needs FICO",
+    reason: addTo("a FICO score"),
+    rank: "add a FICO on the desk to rank them",
+  },
+  income: {
+    short: "Needs income",
+    reason: addTo("monthly income"),
+    rank: "add monthly income on the desk to rank them",
+  },
+  debt: {
+    short: "Needs debt",
+    reason: addTo("monthly debt"),
+    rank: "add monthly debt on the desk to rank them",
+  },
+  term: {
+    short: "Needs term",
+    reason: addTo("a loan term"),
+    rank: "set a loan term on the desk to rank them",
+  },
+  apr: {
+    short: "Needs APR",
+    reason: addTo("a quoted APR"),
+    rank: "add a quoted APR on the desk to rank them",
+  },
+  backend: {
+    short: "Needs backend",
+    reason: addTo("the backend amount"),
+    rank: "add the backend amount on the desk to rank them",
+  },
+  condition: {
+    short: "Needs condition",
+    reason: addTo("the vehicle condition"),
+    rank: "set the vehicle condition on the desk to rank them",
+  },
+  mileage: {
+    short: "Needs mileage",
+    reason: addTo("vehicle mileage"),
+    rank: "add mileage in Inventory to rank them",
+  },
+  year: {
+    short: "Needs model year",
+    reason: addTo("a model year"),
+    rank: "add model years in Inventory to rank them",
+  },
+  make: {
+    short: "Needs make",
+    reason: addTo("the vehicle make"),
+    rank: "add makes in Inventory to rank them",
+  },
+  book: {
+    short: "Needs book value",
+    reason: addTo("a book value"),
+    rank: "add book values in Inventory to rank them",
+  },
+  payment: {
+    short: "Needs payment",
+    reason: (n) => `Complete the payment inputs to check ${lendersWord(n)}`,
+    rank: "complete the payment inputs on the desk to rank them",
+  },
+  other: {
+    short: "Pending",
+    reason: (n) => `${lendersWord(n)} pending required information`,
+    rank: "complete the deal on the desk to rank them",
+  },
+  advance: {
+    short: "Verify advance",
+    reason: (n) => `Max advance must be verified by hand for ${lendersWord(n)}`,
+    rank: "max advance must be verified by hand before they count",
+  },
+  review: {
+    short: "Needs review",
+    reason: () => "Flagged tiers must be reviewed before they count",
+    rank: "review the flagged tiers on Lenders to rank them",
+  },
+  sample: {
+    short: "Verify sample",
+    reason: () => "Sample programs must be verified before they count",
+    rank: "verify the sample programs on Lenders to rank them",
+  },
+};
+
+const CAUSE_PRIORITY = Object.keys(PENDING_CAUSE_META) as PendingCause[];
+
+/** Classify one unchecked-constraint name from the rules engine. */
+const causeOfConstraint = (constraint: string): PendingCause => {
+  if (constraint === SAMPLE_CONSTRAINT) return "sample";
+  if (constraint === REVIEW_CONSTRAINT) return "review";
+  const c = constraint.toLowerCase();
+  if (c === "credit score") return "fico";
+  if (c.startsWith("monthly income")) return "income";
+  if (c.startsWith("monthly debt")) return "debt";
+  if (c.startsWith("computed payment")) return "payment";
+  if (c === "loan term") return "term";
+  if (c === "quoted apr") return "apr";
+  if (c.startsWith("backend amount")) return "backend";
+  if (c === "vehicle condition" || c === "certified vehicle status") return "condition";
+  if (c === "vehicle mileage") return "mileage";
+  if (c === "vehicle model year") return "year";
+  if (c === "vehicle make") return "make";
+  if (c.startsWith("book value") || c === "front-end ltv") return "book";
+  if (c.startsWith("max advance")) return "advance";
+  return "other";
+};
+
+const causesOf = (unchecked: readonly string[] | undefined): Set<PendingCause> =>
+  new Set((unchecked ?? []).map(causeOfConstraint));
+
+/** The most actionable cause holding one lender's check at pending. */
+export const pendingCauseOf = (unchecked: readonly string[] | undefined): PendingCause => {
+  const causes = causesOf(unchecked);
+  return CAUSE_PRIORITY.find((cause) => causes.has(cause)) ?? "other";
+};
+
+const entryStatus = (e: LenderFitEntry): EligibilityStatus =>
+  e.status ?? (e.eligible ? "eligible" : "ineligible");
+
+/**
+ * Summarize the pending entries for one vehicle: how many are held, the most
+ * actionable cause across them, and a one-line reason that counts only the
+ * lenders that cause actually blocks ("Add a FICO score to check 11 lenders").
+ */
+export const summarizePending = (entries: readonly LenderFitEntry[]): PendingSummary => {
+  const pending = entries.filter((e) => entryStatus(e) === "pending");
+  if (pending.length === 0) return { pendingCount: 0, pendingCause: null, pendingReason: null };
+  const perEntry = pending.map((e) => causesOf(e.uncheckedConstraints));
+  const cause =
+    CAUSE_PRIORITY.find((c) => perEntry.some((causes) => causes.has(c))) ??
+    ("other" as PendingCause);
+  const blocked = perEntry.filter((causes) => causes.has(cause)).length || pending.length;
+  return {
+    pendingCount: pending.length,
+    pendingCause: cause,
+    pendingReason: PENDING_CAUSE_META[cause].reason(blocked),
+  };
+};
 
 const isActive = (l: LenderProfile): boolean => l.active !== false;
 
@@ -106,10 +278,13 @@ export const lenderFitForVehicle = (
     });
   }
   entries.sort(compareFitEntries);
-  const fit = entries.filter(
-    (e) => (e.status ?? (e.eligible ? "eligible" : "ineligible")) === "eligible" && e.eligible
-  );
-  return { entries, fitCount: fit.length, fitNames: fit.map((e) => e.name) };
+  const fit = entries.filter((e) => entryStatus(e) === "eligible" && e.eligible);
+  return {
+    entries,
+    fitCount: fit.length,
+    fitNames: fit.map((e) => e.name),
+    ...summarizePending(entries),
+  };
 };
 
 /** Count of inventory units each active lender currently fits. */

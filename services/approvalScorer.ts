@@ -31,7 +31,7 @@ export const APPROVAL_CONFIG = {
   ptiHardCap: { threshold: 25, cap: 35 },
   // Eligibility cap — fits no active lender → the number can't read above this.
   noFitCap: 45,
-  bands: { strong: 72, moderate: 50 }, // weak below `moderate`; fitCount 0 → none
+  bands: { strong: 72, moderate: 50 }, // weak below `moderate`; fitCount 0 → none (or pending)
   clamp: { floor: 8, ceil: 98 },
 } as const;
 
@@ -50,11 +50,18 @@ export interface ApprovalResult {
 /**
  * Score a vehicle's approval odds for the current deal. `fitCount` is the number
  * of active lenders the deal fits (from lenderFit) and caps the result.
+ * `pendingCount` is how many of the rest are held "pending" rather than failed:
+ * with nothing fitting, any pending lender makes the band "pending" (unknown)
+ * instead of "none" (no fit). The numeric score is computed — and capped —
+ * identically either way; consumers treat a "pending" score as indeterminate.
+ * `pendingReason` (lenderFit's one-line unblock hint) leads the reasons.
  */
 export const scoreApprovalOdds = (
   vehicle: CalculatedVehicle,
   deal: Pick<FilterData, "creditScore" | "monthlyIncome">,
-  fitCount: number
+  fitCount: number,
+  pendingCount = 0,
+  pendingReason?: string | null
 ): ApprovalResult => {
   const C = APPROVAL_CONFIG;
   const reasons: string[] = [];
@@ -94,16 +101,25 @@ export const scoreApprovalOdds = (
   else if (ptiRatio !== undefined && ptiRatio >= C.ptiSoftCap.threshold)
     score = Math.min(score, C.ptiSoftCap.cap);
 
-  // Eligibility cap — the gauge can't read high if nothing fits.
+  // Eligibility cap — the gauge can't read high if nothing fits. When the
+  // unfit lenders are merely pending (not failed), the headline reason is
+  // what unblocks them, not a decline.
+  const pending = fitCount <= 0 && pendingCount > 0;
   if (fitCount <= 0) {
     score = Math.min(score, C.noFitCap);
-    reasons.unshift("No active lender fits this structure");
+    reasons.unshift(
+      pending
+        ? pendingReason ||
+            `${pendingCount} lender${pendingCount === 1 ? "" : "s"} pending required checks`
+        : "No active lender fits this structure"
+    );
   }
 
   const internalScore = Math.round(clamp(score, C.clamp.floor, C.clamp.ceil));
 
   let band: ApprovalBand;
-  if (fitCount <= 0) band = "none";
+  if (pending) band = "pending";
+  else if (fitCount <= 0) band = "none";
   else if (internalScore >= C.bands.strong) band = "strong";
   else if (internalScore >= C.bands.moderate) band = "moderate";
   else band = "weak";
@@ -121,4 +137,5 @@ export const BAND_META: Record<ApprovalBand, BandMeta> = {
   moderate: { label: "Moderate odds", colorVar: "var(--color-warning)" },
   weak: { label: "Weak — restructure", colorVar: "var(--color-danger)" },
   none: { label: "No lender fit", colorVar: "var(--color-danger)" },
+  pending: { label: "Pending lender checks", colorVar: "var(--color-text-subtle)" },
 };

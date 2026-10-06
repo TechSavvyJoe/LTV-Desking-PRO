@@ -44,7 +44,8 @@ const effectiveTierRate = (tier: LenderTier): number | null => {
   return base + (finiteNumber(tier.rateAdder) ?? 0);
 };
 
-const SAMPLE_CONSTRAINT = "sample program - verify or convert before use";
+/** Exported so lenderFit can classify pending holds without string drift. */
+export const SAMPLE_CONSTRAINT = "sample program - verify or convert before use";
 const SAMPLE_REASON =
   "Sample program - illustrative only; verify or convert it before using it as an approval path.";
 
@@ -58,7 +59,7 @@ const SAMPLE_REASON =
 export const tierNeedsReview = (tier: LenderTier): boolean =>
   tier.needsReview === true || (Array.isArray(tier.rangeFlags) && tier.rangeFlags.length > 0);
 
-const REVIEW_CONSTRAINT = "AI-read tier needs review - verify against the lender's sheet";
+export const REVIEW_CONSTRAINT = "AI-read tier needs review - verify against the lender's sheet";
 
 /**
  * Plain-English names for the tier fields the AI range guard can flag. A

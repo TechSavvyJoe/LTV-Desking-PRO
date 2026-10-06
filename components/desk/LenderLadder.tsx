@@ -35,6 +35,8 @@ interface LenderLadderProps {
   profilesById: Map<string, LenderProfile>;
   fitCount: number;
   totalLenders: number;
+  /** Lenders whose check is held pending; a 0 fit count with any pending reads neutral. */
+  pendingCount?: number;
   limit?: number;
 }
 
@@ -44,14 +46,19 @@ const LenderLadder: React.FC<LenderLadderProps> = ({
   profilesById,
   fitCount,
   totalLenders,
+  pendingCount = 0,
   limit,
 }) => {
   const visible = (limit ? entries.slice(0, limit) : entries).filter(Boolean);
+  const pending = fitCount <= 0 && pendingCount > 0;
   return (
     <section className="desk-panel-section">
       <div className="desk-panel-heading">
         <span>Lender paths</span>
-        <strong style={{ color: fitCountColor(fitCount) }}>
+        <strong
+          style={{ color: fitCountColor(fitCount, pending) }}
+          title={pending ? `${pendingCount} pending lender checks` : undefined}
+        >
           {fitCount}/{totalLenders}
         </strong>
       </div>

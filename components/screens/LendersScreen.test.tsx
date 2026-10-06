@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
   role: "sales",
   profiles: [] as LenderProfile[],
   focusVin: null as string | null,
+  filters: { creditScore: 520, monthlyIncome: 5000 } as {
+    creditScore: number | null;
+    monthlyIncome: number | null;
+  },
+  unitsPerLender: {} as Record<string, number>,
   /** Every lender list the screen wrote through setLenderProfiles. */
   writes: [] as LenderProfile[][],
   openAiUpload: vi.fn(),
@@ -59,7 +64,7 @@ vi.mock("../../context/DealContext", async () => {
       const [profiles, setProfiles] = useState<LenderProfile[]>(mocks.profiles);
       return {
         dealData: { loanTerm: 72, downPayment: 0, backendProducts: 0, interestRate: 9 },
-        filters: { creditScore: 520, monthlyIncome: 5000 },
+        filters: mocks.filters,
         safeLenderProfiles: profiles,
         setLenderProfiles: (
           update: LenderProfile[] | ((prev: LenderProfile[]) => LenderProfile[])
@@ -71,7 +76,7 @@ vi.mock("../../context/DealContext", async () => {
           });
         },
         processedInventory: [vehicle],
-        unitsPerLender: {},
+        unitsPerLender: mocks.unitsPerLender,
         focusVin: mocks.focusVin,
         activeVehicle: null,
         refetchData: vi.fn(),
@@ -86,6 +91,8 @@ afterEach(() => {
   cleanup();
   mocks.writes = [];
   mocks.focusVin = null;
+  mocks.filters = { creditScore: 520, monthlyIncome: 5000 };
+  mocks.unitsPerLender = {};
 });
 
 const flaggedLender = (): LenderProfile => ({
@@ -202,6 +209,95 @@ describe("LendersScreen", () => {
     expect(lastWrittenTier()?.rangeFlags).toBeUndefined();
     expect(lastWrittenTier()?.needsReview).toBeUndefined();
     expect(screen.queryByText("NEEDS REVIEW")).toBeNull();
+  });
+
+  describe("status pill: pending vs. genuine fail", () => {
+    const ficoLender = (over: Partial<LenderProfile> = {}): LenderProfile => ({
+      id: "LF",
+      name: "Fico Bank",
+      bookValueSource: "Trade",
+      tiers: [{ name: "Prime", minFico: 640, maxLtv: 130, maxTerm: 84 }],
+      ...over,
+    });
+    const pill = (text: string) => screen.queryByText(text, { selector: "span" });
+
+    it("shows a neutral 'Needs FICO' pill (not 'No vehicle fit') for a no-FICO deal", () => {
+      mocks.role = "sales";
+      mocks.focusVin = "V1";
+      mocks.filters = { creditScore: null, monthlyIncome: 5000 };
+      mocks.profiles = [ficoLender()];
+      render(<LendersScreen />);
+
+      const needsFico = pill("Needs FICO");
+      expect(needsFico).toBeTruthy();
+      expect(needsFico?.style.color).toBe("var(--color-text-muted)");
+      expect(needsFico?.style.background).toBe("var(--color-bg-muted)");
+      expect(pill("No vehicle fit")).toBeNull();
+    });
+
+    it("says 'Verify sample' for a sample program once the FICO is in", () => {
+      mocks.role = "sales";
+      mocks.focusVin = "V1";
+      mocks.filters = { creditScore: 700, monthlyIncome: 5000 };
+      mocks.profiles = [ficoLender({ isSample: true })];
+      render(<LendersScreen />);
+
+      expect(pill("Verify sample")).toBeTruthy();
+      expect(pill("No vehicle fit")).toBeNull();
+    });
+
+    it("keeps the warning 'No vehicle fit' for a genuine fail", () => {
+      mocks.role = "sales";
+      mocks.focusVin = "V1";
+      mocks.filters = { creditScore: 700, monthlyIncome: 5000 };
+      // Vehicle OTD LTV is 95%; an 80% cap is a real rejection, not unknown.
+      mocks.profiles = [
+        ficoLender({ tiers: [{ name: "Tight", minFico: 640, maxLtv: 80, maxTerm: 84 }] }),
+      ];
+      render(<LendersScreen />);
+
+      const noFit = pill("No vehicle fit");
+      expect(noFit).toBeTruthy();
+      expect(noFit?.style.color).toBe("var(--color-warning)");
+      expect(pill("Needs FICO")).toBeNull();
+    });
+  });
+
+  describe("Buy rate column visibility", () => {
+    const rated: LenderProfile = {
+      id: "LR",
+      name: "Rate Bank",
+      bookValueSource: "Trade",
+      tiers: [{ name: "A", maxLtv: 130, maxTerm: 84, baseInterestRate: 6.49 }],
+    };
+
+    it("drops the Buy rate column (header and cells) for sales", () => {
+      mocks.role = "sales";
+      mocks.profiles = [rated];
+      render(<LendersScreen />);
+
+      const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
+      expect(headers).not.toContain("Buy rate");
+      expect(headers).toHaveLength(7);
+      const row = screen.getByRole("row", { name: /Rate Bank program details/ });
+      expect(row.querySelectorAll('[role="cell"]')).toHaveLength(7);
+      expect(row.style.gridTemplateColumns.split(" ")).toHaveLength(7);
+      expect(screen.queryByText("6.49%")).toBeNull();
+    });
+
+    it("shows the Buy rate column for a manager", () => {
+      mocks.role = "manager";
+      mocks.profiles = [rated];
+      render(<LendersScreen />);
+
+      const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
+      expect(headers).toContain("Buy rate");
+      expect(headers).toHaveLength(8);
+      const row = screen.getByRole("row", { name: /Rate Bank program details/ });
+      expect(row.querySelectorAll('[role="cell"]')).toHaveLength(8);
+      expect(row.style.gridTemplateColumns.split(" ")).toHaveLength(8);
+      expect(screen.getByText("6.49%")).toBeTruthy();
+    });
   });
 
   it("Mark verified clears a bare needsReview hold with no flagged fields", () => {

@@ -12,6 +12,8 @@ import {
   tierNeedsReview,
   unverifiedReviewFields,
 } from "../../services/lenderMatcher";
+import type { EligibilityResult } from "../../services/lenderMatcher";
+import { PENDING_CAUSE_META, pendingCauseOf } from "../../services/lenderFit";
 import { updateLenderProfile } from "../../lib/api";
 import { getCurrentUser } from "../../lib/pocketbase";
 import { toast } from "../../lib/toast";
@@ -39,8 +41,15 @@ const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
  */
 type LenderRow = LenderProfile & { reservePct?: number; fundingDays?: string };
 
-/** Matrix grid per the mockup's Lenders block. */
-const GRID = "1.7fr 0.95fr 0.8fr 0.85fr 0.8fr 0.85fr 1.5fr 1fr";
+/**
+ * Matrix grid per the mockup's Lenders block. The server strips buy rates for
+ * roles below manager (field_visibility.pb.js), so for those roles the Buy
+ * rate column is dropped entirely rather than rendering a column of "—".
+ */
+const gridFor = (showBuyRate: boolean): string =>
+  showBuyRate
+    ? "1.7fr 0.95fr 0.8fr 0.85fr 0.8fr 0.85fr 1.5fr 1fr"
+    : "1.7fr 0.95fr 0.8fr 0.85fr 0.8fr 1.5fr 1fr";
 
 const headCell: React.CSSProperties = {
   fontSize: 11,
@@ -162,13 +171,16 @@ interface StatusInfo {
   bg: string;
   /** deal-level eligibility (drives the units bar color with units>0) */
   dealEligible: boolean;
+  /** No unit fits yet, but the focused vehicle's check is held, not failed. */
+  pending?: boolean;
 }
 
 const statusFor = (
   lender: LenderRow,
   agg: LenderAggregates,
   deal: DealData & FilterData,
-  units: number
+  units: number,
+  focusedEligibility: EligibilityResult | null
 ): StatusInfo => {
   const danger = { color: "var(--color-danger)", bg: "var(--color-danger-subtle)" };
   if (lender.active === false) {
@@ -196,6 +208,17 @@ const statusFor = (
       color: "var(--color-success)",
       bg: "var(--color-success-subtle)",
       dealEligible: true,
+    };
+  }
+  // Unknown, not a fail: name what unblocks it ("Needs FICO", "Verify
+  // sample"…) in a neutral pill. "No vehicle fit" stays for a genuine fail.
+  if (focusedEligibility?.status === "pending") {
+    return {
+      label: PENDING_CAUSE_META[pendingCauseOf(focusedEligibility.uncheckedConstraints)].short,
+      color: "var(--color-text-muted)",
+      bg: "var(--color-bg-muted)",
+      dealEligible: true,
+      pending: true,
     };
   }
   return {
@@ -235,6 +258,9 @@ export const LendersScreen: React.FC = () => {
   // lender_profiles create/update are admin-only (PB rules), so editing and
   // the AI Lender Upload entry points (which end in a save) are too.
   const canEdit = role === "admin" || role === "superadmin";
+  // Mirrors the server's rate-cost wall: only these roles receive buy rates.
+  const showBuyRate = canEdit || role === "manager";
+  const grid = gridFor(showBuyRate);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedTier, setExpandedTier] = useState<number | null>(null);
@@ -474,7 +500,7 @@ export const LendersScreen: React.FC = () => {
               aria-rowindex={1}
               style={{
                 display: "grid",
-                gridTemplateColumns: GRID,
+                gridTemplateColumns: grid,
                 columnGap: 13,
                 alignItems: "center",
                 padding: "11px 20px",
@@ -497,9 +523,11 @@ export const LendersScreen: React.FC = () => {
               <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
                 Min FICO
               </span>
-              <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
-                Buy rate
-              </span>
+              {showBuyRate && (
+                <span role="columnheader" style={{ ...headCell, textAlign: "right" }}>
+                  Buy rate
+                </span>
+              )}
               <span role="columnheader" style={headCell}>
                 Units fitting
               </span>
@@ -529,10 +557,6 @@ export const LendersScreen: React.FC = () => {
               const badge = deriveTierBadge(l);
               const agg = aggregatesFor(l);
               const units = unitsPerLender[l.id] ?? 0;
-              const status = statusFor(l, agg, mergedDeal, units);
-              const barPct = shownCount > 0 ? Math.round((units / shownCount) * 100) : 0;
-              const barColor =
-                status.dealEligible && units > 0 ? "var(--color-success)" : "var(--color-warning)";
 
               // Tier matched for the live deal + focused vehicle (rules engine).
               // Only an ELIGIBLE result is a match: a pending one (review hold,
@@ -542,6 +566,13 @@ export const LendersScreen: React.FC = () => {
               const eligibility = focusedVehicle
                 ? checkBankEligibility(focusedVehicle, mergedDeal, l)
                 : null;
+              const status = statusFor(l, agg, mergedDeal, units, eligibility);
+              const barPct = shownCount > 0 ? Math.round((units / shownCount) * 100) : 0;
+              const barColor = status.pending
+                ? "var(--color-text-subtle)"
+                : status.dealEligible && units > 0
+                  ? "var(--color-success)"
+                  : "var(--color-warning)";
               const matched = eligibility?.status === "eligible" ? eligibility.matchedTier : null;
               const isAggregate = !matched;
               const rowLtv = matched
@@ -582,7 +613,7 @@ export const LendersScreen: React.FC = () => {
                     }}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: GRID,
+                      gridTemplateColumns: grid,
                       columnGap: 13,
                       alignItems: "center",
                       padding: "13px 20px",
@@ -681,18 +712,20 @@ export const LendersScreen: React.FC = () => {
                     >
                       {rowFico === null ? "—" : rowFico}
                     </span>
-                    <span
-                      role="cell"
-                      style={{
-                        fontSize: 14,
-                        textAlign: "right",
-                        ...mono,
-                        fontVariantNumeric: "tabular-nums",
-                        color: valColor,
-                      }}
-                    >
-                      {rowRate === null ? "—" : `${rowRate}%`}
-                    </span>
+                    {showBuyRate && (
+                      <span
+                        role="cell"
+                        style={{
+                          fontSize: 14,
+                          textAlign: "right",
+                          ...mono,
+                          fontVariantNumeric: "tabular-nums",
+                          color: valColor,
+                        }}
+                      >
+                        {rowRate === null ? "—" : `${rowRate}%`}
+                      </span>
+                    )}
                     <div role="cell" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div
                         style={{

@@ -170,8 +170,14 @@ const PipelineScreenBase: React.FC = () => {
       otdLtv = otdLtv ?? numVal(calc.otdLtv) ?? numVal(deal.vehicle.otdLtv);
       financed = financed ?? numVal(calc.amountToFinance) ?? numVal(deal.vehicle.amountToFinance);
     }
-    const approvalScore = persisted.approvalScore ?? deal.vehicle.approvalScore ?? null;
-    return { payment, otdLtv, financed, approvalScore };
+    // A "pending" band means the rules engine could not finish checking at
+    // least one lender at save time; its capped score is indeterminate, not a
+    // decline, so the column shows "—" rather than a failing red number.
+    const approvalPending = deal.vehicle.approvalBand === "pending";
+    const approvalScore = approvalPending
+      ? null
+      : (persisted.approvalScore ?? deal.vehicle.approvalScore ?? null);
+    return { payment, otdLtv, financed, approvalScore, approvalPending };
   };
 
   // --- Actions ---------------------------------------------------------------
@@ -489,6 +495,10 @@ const PipelineScreenBase: React.FC = () => {
                     <span
                       role="cell"
                       data-label="Approval"
+                      title={metrics.approvalPending ? "Pending lender checks" : undefined}
+                      aria-label={
+                        metrics.approvalPending ? "Approval odds pending lender checks" : undefined
+                      }
                       style={{
                         fontSize: 14,
                         textAlign: "right",

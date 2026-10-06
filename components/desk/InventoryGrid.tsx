@@ -173,6 +173,9 @@ const InventoryGridBase: React.FC<InventoryGridProps> = ({
               const focused = vehicle.vin === focusedVin;
               const score = vehicle.approvalScore ?? 0;
               const scoreColor = bandColor(vehicle);
+              // Pending lender checks: odds are unknown, so no number and no
+              // ring fill. The numeric score still drives the sort (unchanged).
+              const pending = vehicle.approvalBand === "pending";
 
               return (
                 <div
@@ -247,9 +250,18 @@ const InventoryGridBase: React.FC<InventoryGridProps> = ({
                         ? "—"
                         : `${fmt(vehicle.monthlyPayment as number)}/mo`}
                     </span>
-                    <span role="cell" data-label="Odds" className="desk-inventory-odds">
-                      <strong style={{ color: scoreColor }}>{score}</strong>
-                      <ScoreRing score={score} size={20} colorVar={scoreColor} />
+                    <span
+                      role="cell"
+                      data-label="Odds"
+                      className="desk-inventory-odds"
+                      title={pending ? "Pending lender checks" : undefined}
+                    >
+                      <strong style={{ color: scoreColor }}>{pending ? "—" : score}</strong>
+                      <ScoreRing
+                        score={pending ? 0 : score}
+                        size={20}
+                        colorVar={pending ? "transparent" : scoreColor}
+                      />
                     </span>
                   </div>
                 </div>

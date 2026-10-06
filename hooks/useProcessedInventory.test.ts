@@ -105,6 +105,26 @@ describe("computeProcessedInventory", () => {
     expect(withoutDebt.processedInventory[0]?.fitCount).toBe(0);
   });
 
+  it("bands a freshly seeded, no-FICO desk as 'pending' (unknown), not 'none', and keeps the score numeric", () => {
+    const result = computeProcessedInventory({
+      inventory: [sampleVehicle],
+      lenderProfiles: DEFAULT_LENDER_PROFILES,
+      dealData: { ...INITIAL_DEAL_DATA, loanTerm: 72, interestRate: 8.5 },
+      filters: INITIAL_FILTER_DATA,
+      settings: INITIAL_SETTINGS,
+      searchQuery: "",
+      inventorySort: { key: "approvalScore", direction: "desc" },
+      pagination: { currentPage: 1, itemsPerPage: 15 },
+    });
+    const unit = result.processedInventory[0];
+    expect(unit?.fitCount).toBe(0);
+    expect(unit?.pendingCount).toBe(DEFAULT_LENDER_PROFILES.length);
+    expect(unit?.approvalBand).toBe("pending");
+    expect(unit?.pendingCause).toBe("fico");
+    // Sort and persistence still see a number (capped exactly as before).
+    expect(typeof unit?.approvalScore).toBe("number");
+  });
+
   it("rescopes lender fits through the memoized hook when only filters.monthlyDebt changes [P1-regression: memo deps]", () => {
     const dtiLender: LenderProfile = {
       id: "dti-bank",

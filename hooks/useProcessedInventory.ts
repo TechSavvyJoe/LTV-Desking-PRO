@@ -91,13 +91,15 @@ export function scoreInventory(input: ScoreInput): ScoreResult {
       if (entry.eligible)
         unitsPerLender[entry.lenderId] = (unitsPerLender[entry.lenderId] ?? 0) + 1;
     }
-    const appr = scoreApprovalOdds(calc, credit, fit.fitCount);
+    const appr = scoreApprovalOdds(calc, credit, fit.fitCount, fit.pendingCount, fit.pendingReason);
     return {
       ...calc,
       approvalScore: appr.internalScore,
       approvalBand: appr.band,
       ptiRatio: appr.ptiRatio,
       fitCount: fit.fitCount,
+      pendingCount: fit.pendingCount,
+      pendingCause: fit.pendingCause ?? undefined,
       fitNames: fit.fitNames,
     };
   });

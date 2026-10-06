@@ -14,6 +14,11 @@ interface InspectorSummaryProps {
   apr: string;
   fitCount: number;
   totalLenders: number;
+  /** Band "pending": odds unknown until the held lender checks resolve. */
+  pending?: boolean;
+  pendingCount?: number;
+  /** One-line unblock hint (field names only), surfaced as the caption's title. */
+  pendingReason?: string | null;
   financed: number | null;
   backendProducts: number;
   otdLtv: number | "Error" | "N/A";
@@ -30,6 +35,9 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
   apr,
   fitCount,
   totalLenders,
+  pending = false,
+  pendingCount = 0,
+  pendingReason,
   financed,
   backendProducts,
   otdLtv,
@@ -46,16 +54,24 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
           label={bandLabel}
           width={116}
           ariaDescribedBy={disclaimerId}
+          indeterminate={pending}
         />
         <div className="desk-score-label" style={{ color: gaugeColor }}>
           {bandLabel}
         </div>
-        <div className="desk-fit-caption">
-          <strong style={{ color: fitCountColor(fitCount) }}>
-            {fitCount}/{totalLenders}
-          </strong>{" "}
-          lenders fit
-        </div>
+        {pending ? (
+          <div className="desk-fit-caption" title={pendingReason ?? undefined}>
+            <strong style={{ color: "var(--color-text-muted)" }}>{fitCount} fit</strong> ·{" "}
+            {pendingCount} pending
+          </div>
+        ) : (
+          <div className="desk-fit-caption">
+            <strong style={{ color: fitCountColor(fitCount) }}>
+              {fitCount}/{totalLenders}
+            </strong>{" "}
+            lenders fit
+          </div>
+        )}
       </div>
       <div className="desk-payment-cell">
         <div className="desk-payment-label">Est. monthly payment</div>

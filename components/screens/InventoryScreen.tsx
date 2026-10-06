@@ -536,6 +536,8 @@ const InventoryScreenBase: React.FC = () => {
                   const fitCount = v.fitCount ?? 0;
                   const score = v.approvalScore ?? 0;
                   const ring = BAND_META[v.approvalBand ?? "none"].colorVar;
+                  // Pending lender checks: odds unknown — "—", empty ring.
+                  const pending = v.approvalBand === "pending";
                   return (
                     <div
                       key={v.vin}
@@ -687,7 +689,7 @@ const InventoryScreenBase: React.FC = () => {
                             textAlign: "right",
                             fontFamily: mono,
                             fontWeight: 600,
-                            color: lendersColor(fitCount),
+                            color: pending ? "var(--color-text-muted)" : lendersColor(fitCount),
                           }}
                         >
                           {fitCount}/{totalLenders}
@@ -711,9 +713,13 @@ const InventoryScreenBase: React.FC = () => {
                               textAlign: "right",
                             }}
                           >
-                            {score}
+                            {pending ? "—" : score}
                           </span>
-                          <ScoreRing score={score} size={22} colorVar={ring} />
+                          <ScoreRing
+                            score={pending ? 0 : score}
+                            size={22}
+                            colorVar={pending ? "transparent" : ring}
+                          />
                         </span>
                       </div>
                     </div>

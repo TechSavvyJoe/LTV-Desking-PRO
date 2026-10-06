@@ -8,8 +8,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../../types";
 import type { LenderFitEntry } from "../../services/lenderFit";
+import { ApprovalGauge } from "../common/ApprovalGauge";
 import BackendAddons from "./BackendAddons";
 import { DealInspector } from "./DealInspector";
+import InspectorSummary from "./InspectorSummary";
 import { InventoryGrid } from "./InventoryGrid";
 import StructureMatrix from "./StructureMatrix";
 import { DeskTermsRail } from "./DeskTermsRail";
@@ -233,6 +235,112 @@ describe("desk subcomponents", () => {
     const describedElement = document.querySelector(`[aria-describedby="${disclaimer.id}"]`);
     expect(describedElement).toBeTruthy();
     expect(describedElement?.getAttribute("role")).toBe("img");
+  });
+
+  it("ApprovalGauge indeterminate: no value arc, '—' numeral, pending accessible name", () => {
+    const { container, rerender } = render(
+      <ApprovalGauge
+        score={45}
+        colorVar="var(--color-text-subtle)"
+        label="Pending lender checks"
+        indeterminate
+      />
+    );
+    const gauge = screen.getByRole("img");
+    expect(gauge.getAttribute("aria-label")).toBe("Approval odds pending, Pending lender checks");
+    expect(container.querySelector("[data-gauge-value]")).toBeNull();
+    expect(gauge.textContent).toBe("—");
+
+    rerender(<ApprovalGauge score={45} colorVar="var(--color-danger)" label="No lender fit" />);
+    expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
+      "Approval odds 45 of 100, No lender fit"
+    );
+    expect(container.querySelector("[data-gauge-value]")).toBeTruthy();
+    expect(screen.getByRole("img").textContent).toBe("45");
+  });
+
+  it("DealInspector shows a pending (unknown) summary instead of a red no-fit verdict", () => {
+    const pendingVehicle: CalculatedVehicle = {
+      ...vehicle,
+      approvalScore: 45,
+      approvalBand: "pending",
+      fitCount: 0,
+      pendingCount: 2,
+      pendingCause: "fico",
+      fitNames: [],
+    };
+    const pendingEntries: LenderFitEntry[] = entries.map((entry) => ({
+      ...entry,
+      eligible: false,
+      status: "pending",
+      uncheckedConstraints: ["credit score"],
+    }));
+    const { container } = render(
+      <DealInspector
+        vehicle={pendingVehicle}
+        entries={pendingEntries}
+        profilesById={new Map(lenderProfiles.map((profile) => [profile.id, profile]))}
+        totalLenders={2}
+        dealData={dealData}
+        settings={settings}
+        pinned={false}
+        onPin={vi.fn()}
+        onSetTermDown={vi.fn()}
+        compactMode={false}
+        compactOpen={false}
+        onCloseCompact={vi.fn()}
+        vscAmount={2495}
+        gapAmount={895}
+        otherBackend={0}
+        onToggleVsc={vi.fn()}
+        onToggleGap={vi.fn()}
+        onVscAmountChange={vi.fn()}
+        onGapAmountChange={vi.fn()}
+        onOtherBackendChange={vi.fn()}
+        onDealSheet={vi.fn()}
+        onSaveDeal={vi.fn()}
+      />
+    );
+
+    const gauge = screen.getByRole("img", { name: /Approval odds/ });
+    expect(gauge.getAttribute("aria-label")).toBe("Approval odds pending, Pending lender checks");
+    expect(gauge.textContent).toBe("—");
+    const label = container.querySelector(".desk-score-label") as HTMLElement;
+    expect(label.textContent).toBe("Pending lender checks");
+    expect(label.style.color).toBe("var(--color-text-subtle)");
+    expect(screen.queryByText("No lender fit")).toBeNull();
+
+    const caption = container.querySelector(".desk-score-cell .desk-fit-caption") as HTMLElement;
+    expect(caption.textContent).toBe("0 fit · 2 pending");
+    expect(caption.getAttribute("title")).toBe("Add a FICO score to check 2 lenders");
+  });
+
+  it("InspectorSummary keeps the X/Y fit caption (and its color) when not pending", () => {
+    const { container } = render(
+      <InspectorSummary
+        score={45}
+        bandLabel="No lender fit"
+        gaugeColor="var(--color-danger)"
+        pay={null}
+        loanTerm={72}
+        apr="8.9%"
+        fitCount={0}
+        totalLenders={13}
+        financed={null}
+        backendProducts={0}
+        otdLtv={120}
+        pti={undefined}
+        thresholds={settings.ltvThresholds}
+      />
+    );
+    const caption = container.querySelector(".desk-score-cell .desk-fit-caption") as HTMLElement;
+    expect(caption.textContent).toBe("0/13 lenders fit");
+    expect((caption.querySelector("strong") as HTMLElement).style.color).toBe(
+      "var(--color-danger)"
+    );
+    expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
+      "Approval odds 45 of 100, No lender fit"
+    );
   });
 
   it("InventoryGrid exposes table/cell ARIA semantics for virtualized rows", () => {
