@@ -64,6 +64,10 @@ const pendingUnit = (vin: string) =>
 const kpiValue = (label: string): string =>
   screen.getByText(label).parentElement?.textContent?.replace(label, "") ?? "";
 
+/** Full text of each distribution value cell whose share span reads `share`. */
+const valueCells = (share: string): string[] =>
+  screen.getAllByText(share).map((el) => el.parentElement?.textContent ?? "");
+
 afterEach(() => {
   cleanup();
   mocks.inventory = [];
@@ -79,10 +83,10 @@ describe("ReportsScreen pending units", () => {
     ];
     render(<ReportsScreen />);
 
-    expect(screen.getByText("APPROVAL DISTRIBUTION · 2 OF 4 UNITS")).toBeTruthy();
+    expect(screen.getByText("Approval distribution — 2 of 4 units")).toBeTruthy();
     // Shares are of the 2 ranked units; the pending 45s are not "weak".
-    expect(screen.getAllByText("1 · 50%")).toHaveLength(2); // strong + moderate
-    expect(screen.getAllByText("0 · 0%")).toHaveLength(1); // weak
+    expect(valueCells("50%")).toEqual(["1 50%", "1 50%"]); // strong + moderate
+    expect(valueCells("0%")).toEqual(["0 0%"]); // weak
     expect(screen.getByTestId("reports-pending-note").textContent).toBe(
       "2 of 4 units are pending — add a FICO on the desk to rank them"
     );
@@ -102,7 +106,7 @@ describe("ReportsScreen pending units", () => {
     expect(screen.getByTestId("reports-pending-note").textContent).toBe(
       "3 of 3 units are pending — add a FICO on the desk to rank them"
     );
-    expect(screen.getAllByText("0 · 0%")).toHaveLength(3);
+    expect(valueCells("0%")).toEqual(["0 0%", "0 0%", "0 0%"]);
   });
 
   it("renders no note when nothing is pending", () => {
@@ -110,7 +114,7 @@ describe("ReportsScreen pending units", () => {
     render(<ReportsScreen />);
 
     expect(screen.queryByTestId("reports-pending-note")).toBeNull();
-    expect(screen.getByText("APPROVAL DISTRIBUTION · 1 UNITS")).toBeTruthy();
+    expect(screen.getByText("Approval distribution — 1 unit")).toBeTruthy();
   });
 
   it("keeps each distribution value on one line", () => {
@@ -119,8 +123,20 @@ describe("ReportsScreen pending units", () => {
     );
     render(<ReportsScreen />);
 
-    const value = screen.getByText("35 · 100%");
+    const value = screen.getByText("100%").parentElement as HTMLElement;
     expect(value.style.whiteSpace).toBe("nowrap");
     expect(value.style.width).toBe("92px");
+  });
+
+  it("keeps status regions outside role=list containers", () => {
+    mocks.inventory = [pendingUnit("C")];
+    render(<ReportsScreen />);
+
+    const statuses = screen.getAllByRole("status");
+    expect(statuses.length).toBeGreaterThan(0);
+    for (const status of statuses) {
+      expect(status.closest('[role="list"]')).toBeNull();
+    }
+    expect(screen.getByTestId("reports-pending-note").closest('[role="list"]')).toBeNull();
   });
 });
