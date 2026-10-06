@@ -1,7 +1,7 @@
 # Accessibility Conformance Summary — LTV Desking PRO
 
 **Target standard:** WCAG 2.2, Level AA
-**Last reviewed:** 2026-09-18 · **Owner:** product/engineering
+**Last reviewed:** 2026-10-06 · **Owner:** product/engineering
 
 This is a conformance summary, not a formal VPAT. A VPAT 2.5 (WCAG edition) can be produced from this document on request — it maps the same evidence to the standard success-criterion-by-success-criterion table procurement teams expect, which this page intentionally keeps out of for readability.
 
@@ -31,7 +31,7 @@ These are re-checked manually during design/redesign passes (most recently the n
 
 ## Known gaps (stated honestly)
 
-- **Data-dense tables** (inventory grid, lender ladder, reports) have not had a full screen-reader table-navigation pass (row/column headers via `scope`/`aria-*` for the most complex grids); some rely on visual layout more than semantic table structure.
+- **Data-dense tables** (inventory grid, `/inventory`, lenders, pipeline, reports) now expose a valid `table > rowgroup > row > cell` tree with real disclosure buttons for expandable rows, and the authenticated axe scan passes on every one of them in both themes (2026-10-06). What has **not** been done is a full assistive-technology navigation pass (VoiceOver, NVDA, JAWS) through those grids — cell-by-cell reading order, header announcement and the expanded drawer rows have only been verified structurally.
 - **Charts** (`components/DealCharts.tsx`, Recharts) convey precise values primarily through hover/focus tooltips; there is no full text-equivalent (data table or summary) fallback for every chart yet, so screen-reader and low-vision users relying on non-hover access get less detail than sighted mouse users.
 - **PDF exports** (deal sheets, favorites lists) are generated client-side via `jsPDF`/`html2canvas` (`services/pdfGenerator.ts`) and are **not tagged PDF/UA** — they are visually faithful but not yet screen-reader navigable as structured documents.
 - **Authenticated-route automated coverage** runs only when the real seeded backend is available (CI's pull-request job) and is skipped otherwise (see above) — outside that, manual verification is the only signal for `/desk`, `/pipeline`, `/inventory`, `/lenders`, `/reports`, and `/tools`.
