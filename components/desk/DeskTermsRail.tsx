@@ -1,7 +1,7 @@
 import React from "react";
 import { parseMoneyInput } from "../../services/backendProducts";
 import { getRebateBreakdown } from "../../services/calculator";
-import { DESK_TERMS } from "./deskConstants";
+import { DESK_TERMS, metaItem, sansNum } from "./deskConstants";
 import type { AppState, DealData, FilterData } from "../../types";
 
 interface DeskTermsRailProps {
@@ -103,7 +103,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           <label htmlFor="desk-fico">FICO</label>
           <input
             id="desk-fico"
-            className="dc-input mono"
+            className="dc-input tabular-nums"
             inputMode="numeric"
             value={filters.creditScore ?? ""}
             onChange={setNumber((n) => setFilter({ creditScore: n || null }))}
@@ -114,7 +114,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           <div className="desk-input-action">
             <input
               id="desk-income"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.monthlyIncome ?? ""}
               onChange={setNumber((n) => setFilter({ monthlyIncome: n || null }))}
@@ -145,7 +145,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           <label htmlFor="desk-down">Down</label>
           <input
             id="desk-down"
-            className="dc-input mono"
+            className="dc-input tabular-nums"
             inputMode="numeric"
             value={dealData.downPayment || ""}
             onChange={setNumber((n) => setDeal({ downPayment: n }))}
@@ -176,14 +176,15 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           <label htmlFor="desk-apr">APR</label>
           <input
             id="desk-apr"
-            className="dc-input mono"
+            className="dc-input tabular-nums"
             inputMode="decimal"
             value={aprText}
             onChange={onAprChange}
           />
           {buyRate && (
             <button type="button" className="desk-inline-link" onClick={applyBuyRate}>
-              Use {buyRate.rate}% · {buyRate.lender}
+              <span style={{ ...metaItem, ...sansNum }}>Use {buyRate.rate}%</span>{" "}
+              <span>{buyRate.lender}</span>
             </button>
           )}
         </div>
@@ -200,18 +201,18 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
               onChange={(e) => setDeal({ buyerState: e.target.value as AppState })}
               aria-describedby="desk-buyer-state-hint"
             >
-              <option value="MI">MI · 6%</option>
-              <option value="OH">OH · 5.75%</option>
-              <option value="IN">IN · 6% recip.</option>
-              <option value="IL">IL · 6% recip.</option>
-              <option value="FL">FL · 6%</option>
+              <option value="MI">MI, 6%</option>
+              <option value="OH">OH, 5.75%</option>
+              <option value="IN">IN, 6% reciprocal</option>
+              <option value="IL">IL, 6% reciprocal</option>
+              <option value="FL">FL, 6%</option>
             </select>
           </div>
           <div className="desk-field">
             <label htmlFor="desk-trade-value">Trade value</label>
             <input
               id="desk-trade-value"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={dealData.tradeInValue || ""}
               onChange={setNumber((n) => setDeal({ tradeInValue: n }))}
@@ -221,7 +222,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-trade-payoff">Trade payoff</label>
             <input
               id="desk-trade-payoff"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={dealData.tradeInPayoff || ""}
               onChange={setNumber((n) => setDeal({ tradeInPayoff: n }))}
@@ -247,7 +248,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-rebate-amount">Rebate amount</label>
             <input
               id="desk-rebate-amount"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={rebateAmount || ""}
               onChange={setNumber((amount) => setRebate(rebateType, amount))}
@@ -257,7 +258,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-transaction-fees">Transaction fees</label>
             <input
               id="desk-transaction-fees"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={dealData.transactionFees ?? dealData.transactionFee ?? ""}
               onChange={setNumber((transactionFees) => setDeal({ transactionFees }))}
@@ -287,7 +288,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-monthly-debt">Monthly debt</label>
             <input
               id="desk-monthly-debt"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.monthlyDebt ?? ""}
               onChange={(event) =>
@@ -313,7 +314,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-max-price">Max price</label>
             <input
               id="desk-max-price"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.maxPrice ?? ""}
               onChange={setNumber((n) => setFilter({ maxPrice: n || null }))}
@@ -324,7 +325,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-max-payment">Max $/mo</label>
             <input
               id="desk-max-payment"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.maxPayment ?? ""}
               onChange={setNumber((n) => setFilter({ maxPayment: n || null }))}
@@ -335,7 +336,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-max-miles">Max miles</label>
             <input
               id="desk-max-miles"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.maxMiles ?? ""}
               onChange={setNumber((n) => setFilter({ maxMiles: n || null }))}
@@ -346,7 +347,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-min-score">Min odds</label>
             <input
               id="desk-min-score"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.minScore ?? ""}
               onChange={setNumber((n) => setFilter({ minScore: n || null }))}

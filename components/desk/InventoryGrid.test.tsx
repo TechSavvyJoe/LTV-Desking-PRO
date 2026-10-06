@@ -98,4 +98,21 @@ describe("InventoryGrid approval odds cell", () => {
     const noneStrong = oddsCells(container)[2]?.querySelector("strong") as HTMLElement;
     expect(noneStrong.style.color).toBe("var(--color-danger)");
   });
+
+  it("marks both virtualizer wrappers presentational so each row stays owned by the rowgroup", () => {
+    const { container } = renderGrid([base]);
+    const spacer = container.querySelector(".desk-inventory-spacer");
+    const wrapper = container.querySelector(".desk-virtual-row");
+    expect(spacer?.getAttribute("role")).toBe("presentation");
+    expect(wrapper?.getAttribute("role")).toBe("presentation");
+    expect(wrapper?.querySelector('[role="row"]')).toBeTruthy();
+  });
+
+  it("splits the vehicle meta into separate parts with the stock number as the only mono text", () => {
+    const { container } = renderGrid([base]);
+    const meta = container.querySelector(".desk-inventory-vehicle-meta") as HTMLElement;
+    expect(meta.textContent).not.toContain("·");
+    expect(meta.querySelectorAll("span")).toHaveLength(3);
+    expect(meta.textContent).toBe("2020 71,478 mi STK 5101");
+  });
 });

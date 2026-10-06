@@ -13,8 +13,7 @@ import { toast } from "../../lib/toast";
 import { BlobDownloadError, downloadBlob } from "../../utils/downloadBlob";
 import { useFocusTrap, useKeyboardShortcuts, useRestoreFocus } from "../../hooks/useKeyboard";
 import type { CalculatedVehicle, DealPdfData } from "../../types";
-
-const mono = "var(--mono)";
+import { metaItem, mono, sansNum } from "./deskConstants";
 
 const numVal = (v: number | "Error" | "N/A" | undefined): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
@@ -116,9 +115,11 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
     []
   );
 
-  const dateLabel = new Date()
-    .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    .toUpperCase();
+  const dateLabel = new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   const custName =
     typeof customerName === "string" && customerName.trim()
@@ -320,7 +321,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         style={{
           background: "var(--color-bg)",
           border: "1px solid var(--color-border)",
-          borderRadius: 8,
+          borderRadius: "var(--radius-lg)",
           boxShadow: "var(--shadow-md)",
           width: "100%",
           maxWidth: 440,
@@ -344,11 +345,11 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
             <div
               style={{
                 fontSize: 11,
-                fontFamily: mono,
                 color: "var(--color-text-subtle)",
               }}
             >
-              {dealerName || "—"} · {dateLabel}
+              <span style={metaItem}>{dealerName || "—"}</span>{" "}
+              <span style={sansNum}>{dateLabel}</span>
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, marginTop: 3 }}>Deal sheet</div>
           </div>
@@ -387,7 +388,8 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
           <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Prepared for</div>
           <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>{custName}</div>
           <div style={{ fontSize: 14, color: "var(--color-text-muted)", marginTop: 2 }}>
-            {liveVehicle.vehicle} · STK {liveVehicle.stock}
+            <span style={metaItem}>{liveVehicle.vehicle}</span>{" "}
+            <span style={{ fontFamily: mono }}>STK {liveVehicle.stock}</span>
           </div>
 
           <div
@@ -396,29 +398,51 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               margin: "14px 0",
               padding: "14px 16px",
               border: "1px solid var(--color-border)",
-              borderRadius: 12,
+              borderRadius: "var(--radius-md)",
             }}
           >
             <div
               style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.1em",
-                fontFamily: mono,
+                fontSize: 12,
+                fontWeight: 500,
                 color: "var(--color-text-muted)",
               }}
             >
-              EST. MONTHLY PAYMENT
+              Est. monthly payment
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 1, marginTop: 4 }}>
-              <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: 0, lineHeight: 1 }}>
+              <span
+                style={{
+                  ...sansNum,
+                  fontSize: 32,
+                  fontWeight: 700,
+                  letterSpacing: 0,
+                  lineHeight: 1,
+                }}
+              >
                 {pay ? pay.whole : "—"}
               </span>
-              <span style={{ fontSize: 17, fontWeight: 600, color: "var(--color-text-muted)" }}>
+              <span
+                style={{
+                  ...sansNum,
+                  fontSize: 17,
+                  fontWeight: 600,
+                  color: "var(--color-text-muted)",
+                }}
+              >
                 {pay ? pay.frac : ""}
               </span>
-              <span style={{ fontSize: 13, color: "var(--color-text-subtle)", marginLeft: 6 }}>
-                /mo · {normalizedDealData.loanTerm} mo · {aprLabel} APR
+              <span
+                style={{
+                  ...sansNum,
+                  fontSize: 13,
+                  color: "var(--color-text-subtle)",
+                  marginLeft: 6,
+                }}
+              >
+                <span style={metaItem}>/mo</span>{" "}
+                <span style={metaItem}>{normalizedDealData.loanTerm} mo</span>{" "}
+                <span>{aprLabel} APR</span>
               </span>
             </div>
           </div>
@@ -426,29 +450,25 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={rowStyle}>
               <span style={rowLabel}>Selling price</span>
-              <span style={{ fontFamily: mono }}>{price === null ? "—" : fmt(price)}</span>
+              <span style={sansNum}>{price === null ? "—" : fmt(price)}</span>
             </div>
             {rebate.dealerDiscount > 0 && (
               <div style={rowStyle}>
                 <span style={rowLabel}>Dealer discount / rebate</span>
-                <span style={{ fontFamily: mono, color: "var(--color-danger)" }}>
-                  −{fmt(rebate.dealerDiscount)}
-                </span>
+                <span style={sansNum}>−{fmt(rebate.dealerDiscount)}</span>
               </div>
             )}
             <div style={rowStyle}>
               <span style={rowLabel}>Tax + fees</span>
-              <span style={{ fontFamily: mono }}>{taxFees === null ? "—" : fmt(taxFees)}</span>
+              <span style={sansNum}>{taxFees === null ? "—" : fmt(taxFees)}</span>
             </div>
             <div style={rowStyle}>
               <span style={rowLabel}>Back-end add-ons</span>
-              <span style={{ fontFamily: mono }}>{fmt(addons)}</span>
+              <span style={sansNum}>{fmt(addons)}</span>
             </div>
             <div style={rowStyle}>
               <span style={rowLabel}>Down + trade + manufacturer rebate</span>
-              <span style={{ fontFamily: mono, color: "var(--color-danger)" }}>
-                {down >= 0 ? `−${fmt(down)}` : `+${fmt(-down)}`}
-              </span>
+              <span style={sansNum}>{down >= 0 ? `−${fmt(down)}` : `+${fmt(-down)}`}</span>
             </div>
             <div
               style={{
@@ -460,7 +480,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               }}
             >
               <span style={{ fontWeight: 600 }}>Amount financed</span>
-              <span style={{ fontFamily: mono, fontWeight: 700, color: "var(--color-primary)" }}>
+              <span style={{ ...sansNum, fontWeight: 700, color: "var(--color-primary)" }}>
                 {financed === null ? "—" : fmt(financed)}
               </span>
             </div>
@@ -470,7 +490,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
             </div>
             <div style={rowStyle}>
               <span style={rowLabel}>Payment-to-income</span>
-              <span style={{ fontFamily: mono, color: ptiColor }}>
+              <span style={{ ...sansNum, color: ptiColor }}>
                 {pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
               </span>
             </div>
@@ -511,7 +531,12 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               <div style={{ fontWeight: 700 }}>
                 {pdfState.status === "generating" && "Generating PDF"}
                 {pdfState.status === "downloaded" && "PDF ready"}
-                {pdfState.status === "error" && `PDF error · ${pdfState.code}`}
+                {pdfState.status === "error" && (
+                  <>
+                    <span style={metaItem}>PDF error:</span>{" "}
+                    <span style={{ fontFamily: mono }}>{pdfState.code}</span>
+                  </>
+                )}
               </div>
               <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
                 {pdfState.message}
@@ -545,7 +570,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
             alignItems: "center",
             justifyContent: "flex-end",
             gap: 9,
-            borderRadius: "0 0 16px 16px",
+            borderRadius: "0 0 var(--radius-lg) var(--radius-lg)",
           }}
         >
           <button onClick={onClose} className="transition-colors" style={secondaryBtn}>

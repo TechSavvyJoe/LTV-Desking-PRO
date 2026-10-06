@@ -13,6 +13,7 @@ import BackendAddons from "./BackendAddons";
 import { DealInspector } from "./DealInspector";
 import InspectorSummary from "./InspectorSummary";
 import { InventoryGrid } from "./InventoryGrid";
+import LenderLadder from "./LenderLadder";
 import StructureMatrix from "./StructureMatrix";
 import { DeskTermsRail } from "./DeskTermsRail";
 
@@ -103,6 +104,50 @@ const entries: LenderFitEntry[] = [
 ];
 
 describe("desk subcomponents", () => {
+  it("lender ladder chips keep fit, pending and declined distinct", () => {
+    // A held check must never read as a decline (and vice versa) — the
+    // pending band exists precisely to separate "not checked" from "no".
+    const mixed: LenderFitEntry[] = [
+      { lenderId: "fit", name: "Fits Bank", eligible: true, reasons: [], matchedTier: null },
+      {
+        lenderId: "hold",
+        name: "Held Bank",
+        eligible: false,
+        status: "pending",
+        reasons: [],
+        matchedTier: null,
+        uncheckedConstraints: ["credit score"],
+      },
+      {
+        lenderId: "decl",
+        name: "Declined Bank",
+        eligible: false,
+        status: "ineligible",
+        reasons: ["FICO below minimum"],
+        matchedTier: null,
+      },
+    ];
+    const { container } = render(
+      <LenderLadder
+        entries={mixed}
+        fitNames={["Fits Bank"]}
+        profilesById={new Map()}
+        fitCount={1}
+        totalLenders={3}
+        pendingCount={1}
+      />
+    );
+    const chips = Array.from(container.querySelectorAll(".desk-lender-badge")).map((el) => ({
+      text: el.textContent,
+      status: el.getAttribute("data-status"),
+    }));
+    expect(chips).toEqual([
+      { text: "Fit", status: "eligible" },
+      { text: "Pending", status: "pending" },
+      { text: "No fit", status: "ineligible" },
+    ]);
+  });
+
   beforeEach(() => {
     window.matchMedia = vi.fn().mockReturnValue({
       addEventListener: vi.fn(),
@@ -195,6 +240,37 @@ describe("desk subcomponents", () => {
     const fordCredit = screen.getAllByText("Ford Credit");
     expect(fordCredit.length).toBeGreaterThan(0);
     expect(screen.getByRole("tab", { name: "Add-ons" })).toBeTruthy();
+  });
+
+  it("makes the inspector tab panel keyboard-focusable so its scroll region is reachable", () => {
+    render(
+      <DealInspector
+        vehicle={vehicle}
+        entries={entries}
+        profilesById={new Map(lenderProfiles.map((profile) => [profile.id, profile]))}
+        totalLenders={2}
+        dealData={dealData}
+        settings={settings}
+        pinned={false}
+        onPin={vi.fn()}
+        onSetTermDown={vi.fn()}
+        compactMode={false}
+        compactOpen={false}
+        onCloseCompact={vi.fn()}
+        vscAmount={2495}
+        gapAmount={895}
+        otherBackend={0}
+        onToggleVsc={vi.fn()}
+        onToggleGap={vi.fn()}
+        onVscAmountChange={vi.fn()}
+        onGapAmountChange={vi.fn()}
+        onOtherBackendChange={vi.fn()}
+        onDealSheet={vi.fn()}
+        onSaveDeal={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("tabpanel").tabIndex).toBe(0);
   });
 
   it("shows the model-card disclaimer under the approval-odds gauge, described via aria-describedby", () => {
@@ -311,7 +387,7 @@ describe("desk subcomponents", () => {
     expect(screen.queryByText("No lender fit")).toBeNull();
 
     const caption = container.querySelector(".desk-score-cell .desk-fit-caption") as HTMLElement;
-    expect(caption.textContent).toBe("0 fit · 2 pending");
+    expect(caption.textContent).toBe("0 fit, 2 pending");
     expect(caption.getAttribute("title")).toBe("Add a FICO score to check 2 lenders");
   });
 
@@ -369,6 +445,29 @@ describe("desk subcomponents", () => {
     // Header is always present; body cells depend on the virtualizer scrollport
     // (often 0-height in jsdom), so assert markup roles rather than getByRole("cell").
     expect(container.querySelector('[role="row"][aria-rowindex="1"]')).toBeTruthy();
+  });
+
+  it("InventoryGrid renders its empty state outside the table element", () => {
+    render(
+      <InventoryGrid
+        rows={[]}
+        inventoryCount={0}
+        focusedVin={null}
+        thresholds={settings.ltvThresholds}
+        searchQuery=""
+        sortKey="approvalScore"
+        sortDirection="desc"
+        onSearchChange={vi.fn()}
+        onSort={vi.fn()}
+        onFocus={vi.fn()}
+        onOpenInspector={vi.fn()}
+        onLoadSampleData={vi.fn()}
+        onClearFilters={vi.fn()}
+      />
+    );
+
+    const table = screen.getByRole("table", { name: "Ranked inventory table" });
+    expect(table.contains(screen.getByText("No inventory yet"))).toBe(false);
   });
 
   it("StructureMatrix handles empty grid without crash (edge)", () => {

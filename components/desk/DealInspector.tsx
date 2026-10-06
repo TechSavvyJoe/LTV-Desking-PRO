@@ -276,7 +276,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
         ))}
       </div>
 
-      <div className="desk-inspector-body" {...tabs.getPanelProps(tab)}>
+      <div className="desk-inspector-body" {...tabs.getPanelProps(tab, { focusable: true })}>
         {tab === "summary" && (
           <FinancialBreakdown
             price={price}

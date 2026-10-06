@@ -246,7 +246,8 @@ describe("DealSheetModal PDF states", () => {
     fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("PDF error · blank_canvas")).toBeTruthy();
+      expect(screen.getByText("PDF error:")).toBeTruthy();
+      expect(screen.getByText("blank_canvas")).toBeTruthy();
     });
     expect(screen.queryByRole("link", { name: /open pdf fallback/i })).toBeNull();
     expect(mocks.capture).toHaveBeenCalledWith(
@@ -279,7 +280,8 @@ describe("DealSheetModal PDF states", () => {
     fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("PDF error · render_failed")).toBeTruthy();
+      expect(screen.getByText("PDF error:")).toBeTruthy();
+      expect(screen.getByText("render_failed")).toBeTruthy();
     });
     expect(screen.queryByRole("link", { name: /open pdf fallback/i })).toBeNull();
     expect(mocks.capture).toHaveBeenCalledWith(
@@ -295,7 +297,8 @@ describe("DealSheetModal PDF states", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
     await waitFor(() => {
-      expect(screen.getByText(/PDF error · dependency_load_failed/)).toBeTruthy();
+      expect(screen.getByText("PDF error:")).toBeTruthy();
+      expect(screen.getByText("dependency_load_failed")).toBeTruthy();
       expect(mocks.toastError).toHaveBeenCalled();
     });
   });

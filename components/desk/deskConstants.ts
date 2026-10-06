@@ -2,7 +2,21 @@ import React from "react";
 import { BAND_META } from "../../services/approvalScorer";
 import type { ApprovalBand, CalculatedVehicle, DealData, Settings } from "../../types";
 
+/** Identifiers only (VIN, stock number, shortcuts). Numerals use the sans + `sansNum`. */
 export const mono = "var(--mono)";
+
+/** Numeric data: body sans with tabular figures. */
+export const sansNum: React.CSSProperties = {
+  fontFamily: "var(--font-sans)",
+  fontVariantNumeric: "tabular-nums",
+};
+
+/**
+ * Spacing for the parts of a meta line. Render each part as its own inline
+ * span, put a plain space between them, and give every part but the last this
+ * margin; screen readers then get a real pause where a bullet used to be.
+ */
+export const metaItem: React.CSSProperties = { marginInlineEnd: 6 };
 
 /** Terms shipped by the dc design contract (chips + desking-grid rows). */
 export const DESK_TERMS = [60, 72, 84, 96];
@@ -86,12 +100,11 @@ export const labelStyle: React.CSSProperties = {
   marginBottom: 5,
 };
 export const sectionLabel: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: "0.12em",
-  color: "var(--color-text-subtle)",
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: 0,
+  color: "var(--color-text-muted)",
   marginBottom: 13,
-  fontFamily: mono,
 };
 export const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -104,19 +117,18 @@ export const inputStyle: React.CSSProperties = {
   fontFamily: "inherit",
   outline: "none",
 };
-export const monoInput: React.CSSProperties = { ...inputStyle, fontFamily: mono };
+/** Numeric input: sans with tabular figures (mono is for identifiers only). */
+export const monoInput: React.CSSProperties = { ...inputStyle, ...sansNum };
 export const cardStyle: React.CSSProperties = {
   background: "var(--color-bg)",
   border: "1px solid var(--color-border)",
-  borderRadius: 14,
-  boxShadow: "var(--shadow)",
+  borderRadius: "var(--radius-card)",
 };
 export const panelEyebrow: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: "0.1em",
-  fontFamily: mono,
-  color: "var(--color-text-subtle)",
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: 0,
+  color: "var(--color-text-muted)",
   marginBottom: 11,
 };
 

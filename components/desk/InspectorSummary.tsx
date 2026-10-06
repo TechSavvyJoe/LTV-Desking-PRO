@@ -3,7 +3,7 @@ import { ApprovalGauge } from "../common/ApprovalGauge";
 import { fmt } from "../../utils/format";
 import type { splitPay } from "../../utils/format";
 import type { Settings } from "../../types";
-import { fitCountColor, otdColorFor, pct, ptiColorFor } from "./deskConstants";
+import { fitCountColor, metaItem, otdColorFor, pct, ptiColorFor, sansNum } from "./deskConstants";
 
 interface InspectorSummaryProps {
   score: number;
@@ -61,12 +61,13 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
         </div>
         {pending ? (
           <div className="desk-fit-caption" title={pendingReason ?? undefined}>
-            <strong style={{ color: "var(--color-text-muted)" }}>{fitCount} fit</strong> ·{" "}
-            {pendingCount} pending
+            <strong style={{ ...sansNum, color: "var(--color-text-muted)" }}>{fitCount} fit</strong>
+            {", "}
+            <span style={sansNum}>{pendingCount} pending</span>
           </div>
         ) : (
           <div className="desk-fit-caption">
-            <strong style={{ color: fitCountColor(fitCount) }}>
+            <strong style={{ ...sansNum, color: fitCountColor(fitCount) }}>
               {fitCount}/{totalLenders}
             </strong>{" "}
             lenders fit
@@ -76,11 +77,12 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
       <div className="desk-payment-cell">
         <div className="desk-payment-label">Est. monthly payment</div>
         <div className="desk-payment-value">
-          <span>{pay ? pay.whole : "—"}</span>
-          <small>{pay ? pay.frac : ""}</small>
+          <span style={sansNum}>{pay ? pay.whole : "—"}</span>
+          <small style={sansNum}>{pay ? pay.frac : ""}</small>
         </div>
         <div className="desk-payment-meta">
-          {loanTerm} mo · {apr} APR · estimate
+          <span style={{ ...metaItem, ...sansNum }}>{loanTerm} mo</span>{" "}
+          <span style={{ ...metaItem, ...sansNum }}>{apr} APR</span> <span>estimate</span>
         </div>
       </div>
       <div
@@ -117,7 +119,7 @@ export const Metric: React.FC<{ label: string; value: string; tone?: "primary"; 
   React.memo(({ label, value, tone, color }) => (
     <div>
       <span>{label}</span>
-      <strong style={{ color: tone === "primary" ? "var(--color-primary)" : color }}>
+      <strong style={{ ...sansNum, color: tone === "primary" ? "var(--color-primary)" : color }}>
         {value}
       </strong>
     </div>

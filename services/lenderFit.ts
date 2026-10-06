@@ -183,7 +183,8 @@ export const pendingCauseOf = (unchecked: readonly string[] | undefined): Pendin
   return CAUSE_PRIORITY.find((cause) => causes.has(cause)) ?? "other";
 };
 
-const entryStatus = (e: LenderFitEntry): EligibilityStatus =>
+/** Resolved status of one entry — "pending" is held, not failed; UIs must not conflate them. */
+export const entryStatus = (e: LenderFitEntry): EligibilityStatus =>
   e.status ?? (e.eligible ? "eligible" : "ineligible");
 
 /**
