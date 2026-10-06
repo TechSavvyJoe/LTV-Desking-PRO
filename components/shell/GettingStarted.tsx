@@ -131,7 +131,7 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
         padding: "16px 18px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2 id="getting-started-title" style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>
             Set up your dealership

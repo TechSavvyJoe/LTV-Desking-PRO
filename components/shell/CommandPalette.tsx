@@ -20,6 +20,11 @@ interface CommandPaletteProps {
   onClose: () => void;
   items: PaletteItem[];
   placeholder?: string;
+  /**
+   * Element to focus on close, for openers that unmount as the palette mounts.
+   * Falls back to the element focused when the palette opened.
+   */
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 const MAX_RESULTS = 40;
@@ -80,6 +85,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onClose,
   items,
   placeholder = "Search deals and vehicles — or jump to a screen…",
+  returnFocusRef,
 }) => {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -92,6 +98,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   // captured before the trap moves focus onto the search input.
   useRestoreFocus(open);
   useFocusTrap(panelRef as React.RefObject<HTMLElement>, open);
+
+  // Declared after useRestoreFocus so its cleanup runs last and wins when an
+  // explicit return target is given.
+  const returnTargetRef = useRef(returnFocusRef);
+  returnTargetRef.current = returnFocusRef;
+  useEffect(() => {
+    if (!open) return;
+    return () => returnTargetRef.current?.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

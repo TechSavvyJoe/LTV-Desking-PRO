@@ -260,19 +260,19 @@ main {
 }
 
 /* The "Couldn't load dealers" + Retry state: shrinkable like .app-shell-dealer,
-   but Retry itself must stay reachable — only the message text (below) is an
-   ellipsis target, so overflow:hidden here clips the message, never the
-   button that sits before it in DOM order. [review P3 re-fix] */
+   but Retry itself must stay reachable — the block wraps (no overflow:hidden)
+   so neither Retry nor the message is ever clipped. [review P3 re-fix] */
 .app-shell-dealer-error {
   flex-shrink: 1;
   min-width: 0;
-  overflow: hidden;
+  /* Wrap instead of clipping: at narrow widths the message drops below Retry
+     rather than overflow:hidden shaving Retry's right edge. */
+  flex-wrap: wrap;
 }
 
 .app-shell-dealer-error-message {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 }
 
 /* Superadmin-only impersonating pill: below ~900px the ⌘K button, dealer
@@ -296,14 +296,14 @@ main {
       to right,
       transparent,
       #000 14px,
-      #000 calc(100% - 14px),
+      #000 calc(100% - 28px),
       transparent
     );
     mask-image: linear-gradient(
       to right,
       transparent,
       #000 14px,
-      #000 calc(100% - 14px),
+      #000 calc(100% - 28px),
       transparent
     );
   }

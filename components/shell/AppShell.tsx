@@ -382,7 +382,13 @@ export const AppShell: React.FC = () => {
   // unit in stock — the switching pattern F&I managers expect from DMS-class
   // tools. Items are rebuilt only when the underlying lists change. [takeover-P1 #8]
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  // True only when opened from the avatar menu, whose menuitem unmounts as the
+  // palette mounts — so close returns focus to the Account button explicitly.
+  const [paletteFromMenu, setPaletteFromMenu] = useState(false);
+  const openPalette = useCallback(() => {
+    setPaletteFromMenu(false);
+    setPaletteOpen(true);
+  }, []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
   useCommandPaletteHotkey(openPalette);
   const openDealInDesk = useOpenDealInDesk();
@@ -601,7 +607,6 @@ export const AppShell: React.FC = () => {
                     fontSize: 13,
                     fontWeight: 600,
                     color: "var(--color-danger)",
-                    whiteSpace: "nowrap",
                   }}
                 >
                   Couldn't load dealers
@@ -831,15 +836,12 @@ export const AppShell: React.FC = () => {
                   className="rail-btn"
                   style={menuItemStyle}
                   onClick={() => {
-                    // [WCAG 2.4.3] Focus the Account button *before* the palette
-                    // opens: this menuitem unmounts (setMenuOpen(false)) in the
-                    // same commit CommandPalette mounts, so if we don't move focus
-                    // first, useRestoreFocus captures <body> as "previously
-                    // focused" and Escape drops focus to the document instead of
-                    // returning it here.
-                    accountBtnRef.current?.focus();
+                    // [WCAG 2.4.3] This menuitem unmounts in the same commit the
+                    // palette mounts, so focus is returned to the Account button
+                    // explicitly via returnFocusRef below.
                     setMenuOpen(false);
                     openPalette();
+                    setPaletteFromMenu(true);
                   }}
                 >
                   <SearchIcon />
@@ -1005,7 +1007,12 @@ export const AppShell: React.FC = () => {
         </Suspense>
       </SectionErrorBoundary>
 
-      <CommandPalette open={paletteOpen} onClose={closePalette} items={paletteItems} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={closePalette}
+        items={paletteItems}
+        returnFocusRef={paletteFromMenu ? accountBtnRef : undefined}
+      />
 
       {/* Visible only while the importer is open and minimized. */}
       <BackgroundUploadIndicator
