@@ -37,8 +37,6 @@ export interface ShellOutletContext {
   openAiUpload: () => void;
 }
 
-const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
-
 /* Inline SVGs copied verbatim from LTV Desking PRO.dc.html (header + renderVals). */
 const SparkleIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -172,7 +170,7 @@ const CountChip: React.FC<{ count: number }> = ({ count }) => (
   <span
     style={{
       fontSize: 11,
-      ...mono,
+      fontVariantNumeric: "tabular-nums",
       background: "var(--color-bg-muted)",
       color: "var(--color-text-muted)",
       padding: "1px 6px",
@@ -480,7 +478,7 @@ export const AppShell: React.FC = () => {
       label: deal.customerName || "Unnamed deal",
       detail: [deal.vehicle?.vehicle, deal.vehicle?.stock && `STK ${deal.vehicle.stock}`]
         .filter(Boolean)
-        .join(" · "),
+        .join(", "),
       group: "Saved deals",
       keywords: [deal.vehicle?.vin ?? "", deal.vehicle?.stock ?? "", deal.salespersonName ?? ""],
       onSelect: () => openDealInDesk(deal),
@@ -805,7 +803,6 @@ export const AppShell: React.FC = () => {
                 justifyContent: "center",
                 fontSize: 12,
                 fontWeight: 700,
-                ...mono,
                 border: "none",
                 cursor: "pointer",
               }}

@@ -82,7 +82,8 @@ class ErrorBoundary extends Component<Props, State> {
     const card = (
       <div
         role="alert"
-        className={`bg-[var(--color-bg)] border border-[var(--color-border-strong)] rounded-lg shadow-md w-full ${
+        style={{ borderRadius: "var(--radius-card)" }}
+        className={`bg-[var(--color-bg)] border border-[var(--color-border-strong)] w-full ${
           scope === "app" ? "max-w-lg p-8" : "p-6"
         }`}
       >
@@ -113,9 +114,11 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <p className="mt-4 text-xs text-[var(--color-text-subtle)]">
-              Reference <span className="font-mono text-[var(--color-text-muted)]">{ref}</span>
-              {" · "}
+              <span>
+                Reference <span className="font-mono text-[var(--color-text-muted)]">{ref}</span>
+              </span>{" "}
               <a
+                style={{ marginLeft: 10 }}
                 href={supportHref}
                 className="underline underline-offset-2 hover:text-[var(--color-text)]"
               >

@@ -39,7 +39,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
         // Clear the token WITHOUT logout() — logout() reloads the page, which
         // unmounted this component before the error could ever render. [C-auth]
         pb.authStore.clear();
-        setError("Administrator access required. This account cannot open the Admin Console.");
+        setError("Administrator access required. This account cannot open the admin console.");
         return;
       }
 
@@ -64,16 +64,18 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
         <AnnouncementBanner />
       </div>
       <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-        <div className="w-full max-w-md p-8 space-y-7 bg-[var(--color-bg)] rounded-lg shadow-md border border-[var(--color-border)] animate-fadeIn">
+        <div
+          className="w-full max-w-md p-8 space-y-7 bg-[var(--color-bg)] border border-[var(--color-border)] animate-fadeIn"
+          style={{ borderRadius: "var(--radius-card)" }}
+        >
           <div className="flex flex-col items-center text-center">
             <BrandMark className="w-14 h-14 mb-4" />
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Admin <span className="text-[var(--color-primary)]">Console</span>
-            </h1>
-            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-              LTV Desking <span className="text-[var(--color-primary)] font-semibold">PRO</span>
-              <span className="mx-2 text-[var(--color-text-subtle)]">·</span>
-              Dealership and platform administrators
+            <h1 className="text-2xl font-semibold">Admin console</h1>
+            <p className="mt-2 flex flex-wrap justify-center gap-x-2.5 text-sm text-[var(--color-text-muted)]">
+              <span>
+                LTV Desking <span className="text-[var(--color-primary)] font-semibold">PRO</span>
+              </span>
+              <span>Dealership and platform administrators</span>
             </p>
           </div>
 
@@ -144,7 +146,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
               {loading ? (
                 <Icons.SpinnerIcon className="animate-spin h-5 w-5" />
               ) : (
-                "Sign in to Admin Console"
+                "Sign in to admin console"
               )}
             </Button>
           </form>
@@ -153,7 +155,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
             Need dealer access? Visit the main app at{" "}
             <a
               href="/"
-              className="font-mono text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
             >
               /
             </a>
@@ -165,7 +167,6 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
         <a href="/privacy" className="hover:text-[var(--color-text-muted)] transition-colors">
           Privacy
         </a>
-        <span aria-hidden>·</span>
         <a href="/terms" className="hover:text-[var(--color-text-muted)] transition-colors">
           Terms
         </a>

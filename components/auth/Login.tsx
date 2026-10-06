@@ -88,25 +88,21 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
       style={{
         background: "var(--color-bg)",
         border: "1px solid var(--color-border)",
-        borderRadius: 12 /* --radius-xl — matches the Register card radius fix */,
-        boxShadow: "var(--shadow-md)",
+        borderRadius: "var(--radius-card)",
         padding: "28px 28px 30px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-        <span
-          style={{
-            fontSize: 11 /* uppercase mono kicker — 11px readable floor */,
-            fontFamily: "var(--mono)",
-            letterSpacing: "0.12em",
-            color: "var(--color-text-subtle)",
-          }}
-        >
-          SIGN IN
-        </span>
-        <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
-      </div>
-
+      <h2
+        style={{
+          fontSize: 20,
+          fontWeight: 600,
+          letterSpacing: 0,
+          color: "var(--color-text)",
+          margin: "0 0 18px",
+        }}
+      >
+        Sign in
+      </h2>
       <label htmlFor="email" style={labelStyle}>
         Email address
       </label>

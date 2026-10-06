@@ -85,7 +85,7 @@ describe("OwnerLogin administrative role gate", () => {
 
     expect(
       await screen.findByText(
-        "Administrator access required. This account cannot open the Admin Console."
+        "Administrator access required. This account cannot open the admin console."
       )
     ).toBeTruthy();
     expect(mocks.authClear).toHaveBeenCalledOnce();
