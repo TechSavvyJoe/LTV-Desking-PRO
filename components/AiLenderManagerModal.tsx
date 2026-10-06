@@ -140,7 +140,7 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
       </div>
       <div className="w-full bg-[var(--color-bg-muted)] rounded-full h-3 overflow-hidden">
         <div
-          className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-300 ease-out"
+          className="h-full bg-[var(--color-primary)] rounded-full transition-[width] duration-300 ease-out motion-reduce:transition-none"
           style={{ width: `${overallProgress}%` }}
         />
       </div>
@@ -149,7 +149,9 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
     {/* Current stage message */}
     {currentStage && (
       <div className="text-center py-2">
-        <p className="text-sm text-[var(--color-text-muted)] animate-pulse">{currentStage}</p>
+        <p className="text-sm text-[var(--color-text-muted)] animate-pulse motion-reduce:animate-none">
+          {currentStage}
+        </p>
       </div>
     )}
 
@@ -175,7 +177,7 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
             </div>
             <div className="w-full bg-[var(--color-bg-subtle)] rounded-full h-2 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-300 ${
+                className={`h-full rounded-full transition-[width,background-color] duration-300 motion-reduce:transition-none ${
                   stage === "error"
                     ? "bg-[var(--color-danger)]"
                     : stage === "complete"

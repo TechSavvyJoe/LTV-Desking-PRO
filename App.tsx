@@ -48,7 +48,7 @@ const DealerAdminDashboard = lazy(() =>
 
 const PageFallback = (
   <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
-    <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+    <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
   </div>
 );
 

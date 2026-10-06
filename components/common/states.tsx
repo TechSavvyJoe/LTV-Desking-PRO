@@ -54,7 +54,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
         role="status"
         aria-live="polite"
       >
-        <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
+        <Icons.SpinnerIcon className="w-4 h-4 animate-spin motion-reduce:animate-none" />
         <span>{label}</span>
       </div>
     );
@@ -65,7 +65,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
       role="status"
       aria-live="polite"
     >
-      <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+      <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       <p className="text-sm text-[var(--color-text-muted)]">{label}</p>
     </div>
   );

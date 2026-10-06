@@ -65,7 +65,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
       </div>
       <div className="flex-1 flex items-center justify-center p-4 relative z-10">
         <div
-          className="w-full max-w-md p-8 space-y-7 bg-[var(--color-bg)] border border-[var(--color-border)] animate-fadeIn"
+          className="w-full max-w-md p-8 space-y-7 bg-[var(--color-bg)] border border-[var(--color-border)]"
           style={{ borderRadius: "var(--radius-card)" }}
         >
           <div className="flex flex-col items-center text-center">
@@ -144,7 +144,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
               className="btn-primary w-full flex justify-center py-2 px-4 rounded shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                <Icons.SpinnerIcon className="animate-spin h-5 w-5" />
+                <Icons.SpinnerIcon className="animate-spin motion-reduce:animate-none h-5 w-5" />
               ) : (
                 "Sign in to admin console"
               )}

@@ -86,7 +86,9 @@ const Button: React.FC<ButtonProps> = ({
       disabled={isDisabled}
       {...props}
     >
-      {isLoading && <SpinnerIcon className="w-4 h-4 animate-spin absolute" />}
+      {isLoading && (
+        <SpinnerIcon className="w-4 h-4 animate-spin motion-reduce:animate-none absolute" />
+      )}
       <span className={isLoading ? "opacity-0" : "inline-flex items-center gap-2"}>{children}</span>
     </button>
   );

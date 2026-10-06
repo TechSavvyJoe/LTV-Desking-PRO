@@ -241,7 +241,11 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
           opacity: loading ? 0.75 : 1,
         }}
       >
-        {loading ? <Icons.SpinnerIcon className="animate-spin h-5 w-5" /> : "Enter the desk"}
+        {loading ? (
+          <Icons.SpinnerIcon className="animate-spin motion-reduce:animate-none h-5 w-5" />
+        ) : (
+          "Enter the desk"
+        )}
       </button>
 
       <div

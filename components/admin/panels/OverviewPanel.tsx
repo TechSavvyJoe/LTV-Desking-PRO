@@ -139,7 +139,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
     .slice(0, 5);
 
   return (
-    <div className="animate-fadeIn" style={{ maxWidth: 1200 }}>
+    <div style={{ maxWidth: 1200 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: 0, margin: "0 0 4px" }}>
           Overview

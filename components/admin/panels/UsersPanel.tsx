@@ -249,7 +249,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
   };
 
   return (
-    <div className="space-y-5 animate-fadeIn">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

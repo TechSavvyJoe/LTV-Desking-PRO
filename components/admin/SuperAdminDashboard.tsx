@@ -92,7 +92,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       </div>
     );
   }

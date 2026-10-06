@@ -222,7 +222,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       </div>
     );
   }
@@ -290,7 +290,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === "users" && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-[var(--color-text)]">Team Members</h2>
               <Button onClick={() => setIsCreatingUser(true)} className="gap-2">
@@ -622,7 +622,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         )}
 
         {activeTab === "dealership" && dealer && (
-          <div className="space-y-6 animate-fadeIn max-w-3xl">
+          <div className="space-y-6 max-w-3xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-[var(--color-text)]">Dealership Information</h2>
               {!isEditingDealer && (

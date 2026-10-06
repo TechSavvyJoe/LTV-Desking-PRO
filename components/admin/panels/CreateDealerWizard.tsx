@@ -117,7 +117,7 @@ const CreateDealerWizard: React.FC<{
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center dc-scrim p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center dc-scrim p-4 motion-reduce:animate-none animate-fadeIn">
       <div className="w-full max-w-2xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4 bg-[var(--color-bg-subtle)]">
           <div className="flex items-center gap-3">
@@ -389,7 +389,6 @@ const CreateDealerWizard: React.FC<{
           {step === "done" && created && (
             <div className="text-center py-4 space-y-5">
               <div className="relative mx-auto w-16 h-16">
-                <div className="absolute inset-0 bg-[var(--color-success-subtle)] rounded-full animate-ping" />
                 <div className="relative w-16 h-16 bg-[var(--color-success-subtle)] ring-2 ring-[var(--color-success)] rounded-full flex items-center justify-center">
                   <Icons.CheckCircleIcon className="w-8 h-8 text-[var(--color-success)]" />
                 </div>

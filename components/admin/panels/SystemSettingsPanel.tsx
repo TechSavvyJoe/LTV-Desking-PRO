@@ -81,13 +81,13 @@ export const SystemSettingsPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Icons.SpinnerIcon className="w-6 h-6 text-[var(--color-primary)] animate-spin" />
+        <Icons.SpinnerIcon className="w-6 h-6 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 animate-fadeIn">
+    <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text)] tracking-tight">
@@ -167,7 +167,7 @@ export const SystemSettingsPanel: React.FC = () => {
               checked={form.signupsEnabled !== false}
               onChange={(e) => setForm({ ...form, signupsEnabled: e.target.checked })}
             />
-            <div className="w-11 h-6 bg-[var(--color-bg-muted)] peer-focus:ring-2 peer-focus:ring-[var(--color-primary)] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
+            <div className="w-11 h-6 bg-[var(--color-bg-muted)] peer-focus:ring-2 peer-focus:ring-[var(--color-primary)] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-transform after:duration-150 motion-reduce:after:transition-none peer-checked:bg-[var(--color-primary)]"></div>
           </label>
         </div>
 

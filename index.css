@@ -2272,47 +2272,17 @@ select.dc-input:focus {
   }
 }
 .toast-pop {
-  animation: toastUp 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-}
-
-/* Staggered entrance for desk / auth columns */
-@keyframes enterUp {
-  from {
-    transform: translateY(16px);
-  }
-  to {
-    transform: none;
-  }
-}
-.desk-body > * {
-  animation: enterUp 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-}
-.desk-body > *:nth-child(2) {
-  animation-delay: 0.1s;
-}
-.auth-col > * {
-  animation: enterUp 0.64s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-}
-.auth-col > *:nth-child(1) {
-  animation-delay: 0.04s;
-}
-.auth-col > *:nth-child(2) {
-  animation-delay: 0.15s;
-}
-.auth-col > *:nth-child(3) {
-  animation-delay: 0.27s;
+  animation: toastUp 0.24s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .desk-body > *,
-  .auth-col > * {
-    animation: none;
-  }
   .ring-anim {
     transition: none;
   }
   .live-dot,
-  .toast-pop {
+  .toast-pop,
+  .modal-backdrop,
+  .animate-fadeIn {
     animation: none;
   }
 }

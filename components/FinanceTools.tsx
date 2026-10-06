@@ -425,7 +425,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </p>
             </div>
             {activeTab === "analytics" && dealData && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="space-y-6">
                 <div className="p-4 bg-[var(--color-bg-subtle)] rounded-md border border-[var(--color-border)]">
                   <h4 className="font-semibold text-[var(--color-text)] mb-4">Payment breakdown</h4>
                   <Suspense
@@ -463,7 +463,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </div>
             )}
             {activeTab === "reserve" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <InputGroup label="Amount financed ($)" htmlFor="reserve-amount">
                     <StyledInput
@@ -597,7 +597,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </div>
             )}
             {activeTab === "payment" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-6">
                   <InputGroup label="Loan amount ($)" htmlFor="payment-loan-amount">
                     <StyledInput
@@ -649,7 +649,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </div>
             )}
             {activeTab === "budget" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="space-y-6">
                 <InputGroup label="Max monthly payment ($)" htmlFor="budget-max-payment">
                   <StyledInput
                     id="budget-max-payment"
@@ -715,7 +715,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </div>
             )}
             {activeTab === "compare" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <InputGroup label="Loan amount ($)" htmlFor="compare-loan-amount">
                     <StyledInput
@@ -759,7 +759,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </div>
             )}
             {activeTab === "qualify" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="space-y-6">
                 <InputGroup label="Monthly payment ($)" htmlFor="qualify-payment">
                   <StyledInput
                     id="qualify-payment"
@@ -827,7 +827,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </div>
             )}
             {activeTab === "max" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="space-y-6">
                 <InputGroup label="Bank approval amount ($)" htmlFor="max-approval-amount">
                   <StyledInput
                     id="max-approval-amount"
@@ -897,7 +897,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </div>
             )}
             {activeTab === "warranty" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <InputGroup label="Warranty cost / month ($)" htmlFor="warranty-cost-month">
                     <StyledInput
@@ -1012,7 +1012,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
               </div>
             )}
             {activeTab === "notes" && (
-              <div className="h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="h-full flex flex-col">
                 <textarea
                   id="finance-tools-notes"
                   aria-label="Finance tools notes"

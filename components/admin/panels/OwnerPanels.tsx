@@ -446,7 +446,9 @@ export const RefreshBar: React.FC<{
       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] border border-[var(--color-border)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
       title="Refresh data"
     >
-      <Icons.ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+      <Icons.ArrowPathIcon
+        className={`w-3.5 h-3.5 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`}
+      />
       <span>{loading ? "Refreshing…" : `Updated ${relative || "just now"}`}</span>
     </button>
   );
