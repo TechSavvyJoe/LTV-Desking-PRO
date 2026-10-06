@@ -24,6 +24,8 @@ const PB_PATH = PB_BIN_OVERRIDE || path.resolve("backend/pocketbase");
 const MIGRATIONS_DIR = path.resolve("backend/pb_migrations");
 const HOOKS_DIR = path.resolve("backend/pb_hooks");
 const PB_DATA_DIR = path.resolve(PB_DATA_OVERRIDE || "backend/pb_data");
+/** Local override for machines where 8090 is taken (CI and the e2e specs default to 8090). */
+const PB_PORT = process.env.PB_PORT || "8090";
 const DEFAULT_DEALER_A_ID = "dealeraid12345x";
 const DEFAULT_DEALER_B_ID = "dealerbid45678x";
 
@@ -364,15 +366,15 @@ async function main() {
     { stdio: "inherit" }
   );
 
-  // 4. Start PocketBase server on port 8090 (background)
-  console.log("Starting PocketBase server on port 8090...");
+  // 4. Start PocketBase server on PB_PORT (default 8090) in the background
+  console.log(`Starting PocketBase server on port ${PB_PORT}...`);
   // Use 'ignore' + detached+unref for KEEP_RUNNING to avoid pipe-buffer deadlocks
   // and let the server reliably outlive this script in CI.
   let pbProcess = spawn(
     effectivePbPath,
     [
       "serve",
-      "--http=127.0.0.1:8090",
+      `--http=127.0.0.1:${PB_PORT}`,
       `--dir=${PB_DATA_DIR}`,
       `--migrationsDir=${MIGRATIONS_DIR}`,
       `--hooksDir=${HOOKS_DIR}`,
@@ -392,7 +394,7 @@ async function main() {
     await wait(1000);
     for (let i = 0; i < 50; i++) {
       try {
-        await fetch("http://127.0.0.1:8090/api/health");
+        await fetch(`http://127.0.0.1:${PB_PORT}/api/health`);
       } catch {
         return;
       }
@@ -428,12 +430,12 @@ async function main() {
   };
 
   const restartPocketBase = async () => {
-    console.log("Restarting PocketBase on port 8090 after rule migration re-run...");
+    console.log(`Restarting PocketBase on port ${PB_PORT} after rule migration re-run...`);
     pbProcess = spawn(
       effectivePbPath,
       [
         "serve",
-        "--http=127.0.0.1:8090",
+        `--http=127.0.0.1:${PB_PORT}`,
         `--dir=${PB_DATA_DIR}`,
         `--migrationsDir=${MIGRATIONS_DIR}`,
         `--hooksDir=${HOOKS_DIR}`,
@@ -448,7 +450,7 @@ async function main() {
 
     for (let i = 0; i < 600; i++) {
       try {
-        const res = await fetch("http://127.0.0.1:8090/api/health");
+        const res = await fetch(`http://127.0.0.1:${PB_PORT}/api/health`);
         if (res.status === 200) return;
       } catch {
         // Ignored
@@ -465,7 +467,7 @@ async function main() {
   for (let i = 0; i < 600; i++) {
     // ~120s at 200ms
     try {
-      const res = await fetch("http://127.0.0.1:8090/api/health");
+      const res = await fetch(`http://127.0.0.1:${PB_PORT}/api/health`);
       if (res.status === 200) {
         isReady = true;
         break;
@@ -478,7 +480,7 @@ async function main() {
   }
 
   if (!isReady) {
-    console.error("PocketBase failed to start on port 8090.");
+    console.error(`PocketBase failed to start on port ${PB_PORT}.`);
     if (pbProcess && !KEEP_RUNNING) pbProcess.kill();
     process.exit(1);
   }
@@ -486,7 +488,7 @@ async function main() {
 
   // Extra settle time + retry auth: health can pass before full API/hooks/superuser are ready.
   await wait(2000);
-  const pb = new PocketBase("http://127.0.0.1:8090");
+  const pb = new PocketBase(`http://127.0.0.1:${PB_PORT}`);
 
   // 5. Authenticate (with retries)
   let authenticated = false;
@@ -546,7 +548,7 @@ async function main() {
     resetSkippedRuleMigrations();
     rerunRuleMigrations();
     await restartPocketBase();
-    console.log("KEEP_RUNNING mode: PB left running on 8090 with seeded data and rules applied.");
+    console.log(`KEEP_RUNNING mode: PB left running on  with seeded data and rules applied.`);
   }
 }
 
