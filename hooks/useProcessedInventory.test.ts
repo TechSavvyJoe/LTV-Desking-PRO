@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { computeProcessedInventory, useProcessedInventory } from "./useProcessedInventory";
+import {
+  computeProcessedInventory,
+  filterInventory,
+  useProcessedInventory,
+} from "./useProcessedInventory";
 import {
   DEFAULT_LENDER_PROFILES,
   INITIAL_DEAL_DATA,
   INITIAL_FILTER_DATA,
   INITIAL_SETTINGS,
 } from "../constants";
-import type { FilterData, LenderProfile, Vehicle } from "../types";
+import type { CalculatedVehicle, FilterData, LenderProfile, Vehicle } from "../types";
 
 const sampleVehicle: Vehicle = {
   id: "v1",
@@ -167,5 +171,30 @@ describe("computeProcessedInventory", () => {
     rerender({ ...INITIAL_FILTER_DATA, creditScore: 700, monthlyIncome: 3000, monthlyDebt: 200 });
 
     expect(result.current.unitsPerLender["dti-bank"]).toBe(1);
+  });
+});
+
+describe("filterInventory — min odds vs pending [PR #25 review]", () => {
+  const scored = (overrides: Partial<CalculatedVehicle>): CalculatedVehicle => ({
+    ...sampleVehicle,
+    salesTax: "N/A",
+    frontEndLtv: "N/A",
+    frontEndGross: "N/A",
+    amountToFinance: "N/A",
+    otdLtv: "N/A",
+    monthlyPayment: "N/A",
+    ...overrides,
+  });
+  const ranked = scored({ id: "r", approvalScore: 60, approvalBand: "moderate" });
+  const pending = scored({ id: "p", approvalScore: 45, approvalBand: "pending" });
+
+  it("never lets a pending unit's placeholder score satisfy a min-odds threshold", () => {
+    const kept = filterInventory([ranked, pending], { ...INITIAL_FILTER_DATA, minScore: 40 }, "");
+    expect(kept.map((v) => v.id)).toEqual(["r"]);
+  });
+
+  it("keeps pending units when no min-odds threshold is set", () => {
+    const kept = filterInventory([ranked, pending], { ...INITIAL_FILTER_DATA, minScore: null }, "");
+    expect(kept.map((v) => v.id)).toEqual(["r", "p"]);
   });
 });

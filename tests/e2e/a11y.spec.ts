@@ -68,14 +68,14 @@ test.describe("Accessibility (axe-core, WCAG 2.2 AA)", () => {
   test.describe("Login page", () => {
     test("light mode has no serious/critical violations", async ({ page }, testInfo) => {
       await page.goto("/");
-      await expect(page.getByText("SIGN IN")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
 
       await runAxeScan(page, testInfo, "login-light");
     });
 
     test("dark mode has no serious/critical violations", async ({ page }, testInfo) => {
       await page.goto("/");
-      await expect(page.getByText("SIGN IN")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
       await setColorScheme(page, "dark");
 
       await runAxeScan(page, testInfo, "login-dark");

@@ -120,9 +120,13 @@ export function filterInventory(
     const searchMatch =
       !query ||
       [item.vehicle, item.stock, item.vin].some((s) => (s || "").toLowerCase().includes(query));
+    // A pending unit's score is a capped placeholder shown everywhere as "—";
+    // it can never satisfy a numeric "min odds" threshold.
     const minScoreMatch =
       safeFilters.minScore == null ||
-      (typeof item.approvalScore === "number" && item.approvalScore >= safeFilters.minScore);
+      (item.approvalBand !== "pending" &&
+        typeof item.approvalScore === "number" &&
+        item.approvalScore >= safeFilters.minScore);
     const vehicleMatch =
       !safeFilters.vehicle ||
       (item.vehicle || "").toLowerCase().includes(safeFilters.vehicle.toLowerCase());

@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { LOCAL_PB_URL } from "./fixtures/backend";
 
 /**
  * Real-backend proof of backend/pb_hooks/field_visibility.pb.js.
@@ -17,12 +18,12 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
  * API-only (request fixture + raw fetch for realtime), no browser. Requires the seeded backend:
  *   PB_DATA_DIR=<fresh dir> E2E_REAL_BACKEND=1 E2E_KEEP_PB_RUNNING=1 npx tsx tests/helpers/seed-test-db.ts
  *   E2E_REAL_BACKEND=1 E2E_PB_URL=http://127.0.0.1:8090 npx playwright test tests/e2e/field-visibility.spec.ts
- * Targets E2E_PB_URL (default http://127.0.0.1:8090) — never VITE_POCKETBASE_URL,
+ * Targets E2E_PB_URL (default LOCAL_PB_URL, which honors PB_PORT) — never VITE_POCKETBASE_URL,
  * which .env.local points at production.
  */
 
 const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND;
-const PB_URL = process.env.E2E_PB_URL || "http://127.0.0.1:8090";
+const PB_URL = process.env.E2E_PB_URL || LOCAL_PB_URL;
 const DEALER_A = "dealeraid12345x";
 
 const CREDENTIALS = {

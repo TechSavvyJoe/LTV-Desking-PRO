@@ -1,4 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
+import { LOCAL_PB_URL } from "./backend";
 
 /**
  * Reusable real-backend auth fixture.
@@ -8,12 +9,12 @@ import type { APIRequestContext, Page } from "@playwright/test";
  * shape the PocketBase JS SDK's LocalAuthStore reads) before the first
  * navigation, so `page.goto("/desk")` lands authenticated without the login UI.
  *
- * Targets E2E_PB_URL (default http://127.0.0.1:8090) — the same variable
- * tests/e2e/field-visibility.spec.ts uses, never VITE_POCKETBASE_URL.
+ * Targets E2E_PB_URL (default: LOCAL_PB_URL, which honors PB_PORT) — the same
+ * variable tests/e2e/field-visibility.spec.ts uses, never VITE_POCKETBASE_URL.
  * Seeded accounts come from tests/helpers/seed-test-db.ts.
  */
 
-export const PB_URL = process.env.E2E_PB_URL || "http://127.0.0.1:8090";
+export const PB_URL = process.env.E2E_PB_URL || LOCAL_PB_URL;
 
 export const SEEDED_ACCOUNTS = {
   sales: { identity: "sales.a@dealera.com", password: "SalesPassword123!" },

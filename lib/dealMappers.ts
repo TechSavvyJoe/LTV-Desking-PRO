@@ -1,6 +1,14 @@
 import { INITIAL_DEAL_DATA } from "../constants";
-import type { AppState, CalculatedVehicle, DealData, SavedDeal as AppSavedDeal } from "../types";
+import type {
+  AppState,
+  ApprovalBand,
+  CalculatedVehicle,
+  DealData,
+  PendingCause,
+  SavedDeal as AppSavedDeal,
+} from "../types";
 import { normalizeBackendProductFields } from "../services/backendProducts";
+import { PENDING_CAUSE_META } from "../services/lenderFit";
 import type { SavedDeal as PocketBaseSavedDeal } from "./pocketbase";
 
 type UnknownRecord = Record<string, unknown>;
@@ -192,6 +200,20 @@ export const mapDealData = (value: unknown): DealData => {
   };
 };
 
+const APPROVAL_BANDS: readonly ApprovalBand[] = ["strong", "moderate", "weak", "none", "pending"];
+
+/** Persisted band, or undefined for anything that is not a known band. */
+const toApprovalBand = (value: unknown): ApprovalBand | undefined =>
+  typeof value === "string" && (APPROVAL_BANDS as readonly string[]).includes(value)
+    ? (value as ApprovalBand)
+    : undefined;
+
+/** Persisted pending cause, or undefined for anything lenderFit does not define. */
+const toPendingCause = (value: unknown): PendingCause | undefined =>
+  typeof value === "string" && Object.hasOwn(PENDING_CAUSE_META, value)
+    ? (value as PendingCause)
+    : undefined;
+
 export const mapCalculatedVehicle = (value: unknown): CalculatedVehicle => {
   const record = isRecord(value) ? value : {};
   const make = toOptionalString(record.make);
@@ -227,6 +249,12 @@ export const mapCalculatedVehicle = (value: unknown): CalculatedVehicle => {
     // column can render the odds shown at save time. [Phase 6]
     approvalScore: toFiniteNumber(record.approvalScore),
     fitCount: toFiniteNumber(record.fitCount),
+    // The band must survive the round trip too: a "pending" snapshot's score
+    // is a capped placeholder, and without the band the pipeline would show
+    // it as a real (red) approval result.
+    approvalBand: toApprovalBand(record.approvalBand),
+    pendingCount: toFiniteNumber(record.pendingCount),
+    pendingCause: toPendingCause(record.pendingCause),
   };
 };
 

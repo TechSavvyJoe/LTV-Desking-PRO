@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { LOCAL_PB_URL } from "./tests/e2e/fixtures/backend";
 
 const E2E_REAL = !!process.env.E2E_REAL_BACKEND || !!process.env.USE_SEED_BACKEND;
-const PB_URL = process.env.VITE_POCKETBASE_URL || process.env.PB_URL || "http://127.0.0.1:8090";
+const PB_URL = process.env.VITE_POCKETBASE_URL || process.env.PB_URL || LOCAL_PB_URL;
 const FRONTEND_PORT = process.env.E2E_BASE_PORT || "3000";
 const BASE_URL = process.env.E2E_BASE_URL || `http://127.0.0.1:${FRONTEND_PORT}`;
 

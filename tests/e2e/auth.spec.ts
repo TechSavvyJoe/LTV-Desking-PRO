@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { LOCAL_PB_URL } from "./fixtures/backend";
 
 /**
  * E2E + integration tests for LTV-Desking-PRO key flows using Playwright.
@@ -23,15 +24,17 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe("Auth / App Load (skeleton)", () => {
-  test("loads app shell and shows auth UI (SIGN IN) on unauthed visit", async ({ page }) => {
+  test("loads app shell and shows auth UI (Sign in heading) on unauthed visit", async ({
+    page,
+  }) => {
     await page.goto("/");
 
     // Title from index.html
     await expect(page).toHaveTitle(/LTV Desking PRO/i);
 
     // Unauthed default lands in AuthLayout + Login (see App.tsx + components/auth/Login.tsx)
-    // "SIGN IN" header text is stable marker.
-    await expect(page.getByText("SIGN IN")).toBeVisible();
+    // The "Sign in" heading is the stable marker for the login page.
+    await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
 
     // Form fields present (email/password)
     await expect(page.getByLabel(/email address/i)).toBeVisible();
@@ -636,7 +639,7 @@ async function setupTest(
     // For real backend E2E, authenticate via the API (reliable) and inject the token
     // so the app boots as logged-in. Avoids flakiness with form UI + state updates
     // after recent redesign. The dedicated login test covers the form for mocks.
-    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const pbUrl = process.env.VITE_POCKETBASE_URL || LOCAL_PB_URL;
     const authRes = await page.request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
       data: { identity: credentials.identity, password: credentials.password },
       headers: { "Content-Type": "application/json" },
@@ -681,7 +684,7 @@ test.describe("Login flow", () => {
     await page.goto("/");
 
     if (!USE_REAL_BACKEND) {
-      await expect(page.getByText("SIGN IN")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
       await expect(page.getByLabel(/email address/i)).toBeVisible();
       await expect(page.getByLabel(/password/i)).toBeVisible();
 
@@ -730,7 +733,7 @@ test.describe("User lifecycle guards", () => {
   }) => {
     test.skip(!USE_REAL_BACKEND, "Requires PocketBase with the production hooks loaded");
 
-    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const pbUrl = process.env.VITE_POCKETBASE_URL || LOCAL_PB_URL;
     const adminAuth = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
       data: { identity: "admin.a@dealera.com", password: "AdminPassword123!" },
     });
@@ -800,7 +803,7 @@ test.describe("Administrative console login", () => {
   }) => {
     test.skip(!USE_REAL_BACKEND, "Requires the seeded PocketBase backend");
 
-    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const pbUrl = process.env.VITE_POCKETBASE_URL || LOCAL_PB_URL;
     const email = `ui-lifecycle-${Date.now()}@example.test`;
     const password = `LifecycleUi${Date.now()}!`;
 

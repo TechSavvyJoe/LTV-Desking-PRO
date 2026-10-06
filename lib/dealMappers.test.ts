@@ -197,6 +197,42 @@ describe("mapPocketBaseSavedDeal", () => {
     expect(mapped.calculatedData).toMatchObject({ payment: 361.42, approvalScore: 79 });
   });
 
+  it("keeps a pending band (and its count/cause) through the round trip [PR #25 review]", () => {
+    const base = pbDeal();
+    const mapped = mapPocketBaseSavedDeal(
+      pbDeal({
+        vehicleData: {
+          ...(base.vehicleData as Record<string, unknown>),
+          approvalScore: 45,
+          approvalBand: "pending",
+          fitCount: 0,
+          pendingCount: 13,
+          pendingCause: "fico",
+        },
+      })
+    );
+    // Without the band the pipeline would render the capped 45 as a real result.
+    expect(mapped.vehicle.approvalBand).toBe("pending");
+    expect(mapped.vehicle.approvalScore).toBe(45);
+    expect(mapped.vehicle.pendingCount).toBe(13);
+    expect(mapped.vehicle.pendingCause).toBe("fico");
+  });
+
+  it("drops an unknown band or pending cause rather than trusting stored strings", () => {
+    const base = pbDeal();
+    const mapped = mapPocketBaseSavedDeal(
+      pbDeal({
+        vehicleData: {
+          ...(base.vehicleData as Record<string, unknown>),
+          approvalBand: "excellent",
+          pendingCause: "toString",
+        },
+      })
+    );
+    expect(mapped.vehicle.approvalBand).toBeUndefined();
+    expect(mapped.vehicle.pendingCause).toBeUndefined();
+  });
+
   it("handles an unknown status string gracefully (draft → pending bucket)", () => {
     const record = pbDeal({
       status: "wat" as unknown as PocketBaseSavedDeal["status"],

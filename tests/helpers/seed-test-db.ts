@@ -24,7 +24,12 @@ const PB_PATH = PB_BIN_OVERRIDE || path.resolve("backend/pocketbase");
 const MIGRATIONS_DIR = path.resolve("backend/pb_migrations");
 const HOOKS_DIR = path.resolve("backend/pb_hooks");
 const PB_DATA_DIR = path.resolve(PB_DATA_OVERRIDE || "backend/pb_data");
-/** Local override for machines where 8090 is taken (CI and the e2e specs default to 8090). */
+/**
+ * Local override for machines where 8090 is taken. The e2e fixtures and
+ * playwright.config.ts derive their default backend URL from the same PB_PORT
+ * (tests/e2e/fixtures/backend.ts), so setting it once keeps seed, API
+ * fixtures and the dev server on one port. CI leaves it unset (8090).
+ */
 const PB_PORT = process.env.PB_PORT || "8090";
 const DEFAULT_DEALER_A_ID = "dealeraid12345x";
 const DEFAULT_DEALER_B_ID = "dealerbid45678x";
