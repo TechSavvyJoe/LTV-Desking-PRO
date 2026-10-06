@@ -7,7 +7,41 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
 import type { DealPdfData, Settings } from "../../types";
+import { INTERNAL_USE_POLICY } from "./InternalUseNotice";
 import { PdfTemplate } from "./PdfTemplate";
+
+// Light tokens from index.css that printed paper may use.
+const PAPER_TOKENS = new Set([
+  "#ffffff",
+  "#111827",
+  "#4b5563",
+  "#e5e7eb",
+  "#f3f4f6",
+  "#eef2ff",
+  "#4f46e5",
+  "#15803d",
+  "#dcfce7",
+  "#b45309",
+  "#fef3c7",
+  "#b91c1c",
+  "#fee2e2",
+]);
+const cssOf = (container: HTMLElement): string =>
+  Array.from(container.querySelectorAll("style"))
+    .map((style) => style.textContent ?? "")
+    .join("\n");
+const hexesOf = (css: string): string[] =>
+  Array.from(new Set((css.match(/#[0-9a-f]{3,8}\b/gi) ?? []).map((hex) => hex.toLowerCase())));
+// The <style> tag is live in the app document while a PDF renders off-screen,
+// so every selector must stay inside the template root.
+const unscopedSelectors = (css: string, root: string): string[] =>
+  css
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("}")
+    .map((block) => block.split("{")[0]?.trim() ?? "")
+    .filter(Boolean)
+    .flatMap((selectors) => selectors.split(",").map((selector) => selector.trim()))
+    .filter((selector) => !selector.startsWith(root));
 
 const settings: Settings = {
   defaultTerm: 72,
@@ -101,6 +135,66 @@ describe("PdfTemplate", () => {
     expect(screen.getByText(/Verify proof of income/)).toBeTruthy();
   });
 
+  it("labels lenders Fit, No fit or Pending — a held check is never a decline — fits first", () => {
+    const sampleReason =
+      "Sample program - illustrative only; verify or convert it before using it as an approval path.";
+    const mixed = {
+      ...data,
+      lenderEligibility: [
+        {
+          name: "Held Bank",
+          eligible: false,
+          status: "pending" as const,
+          reasons: [sampleReason],
+          matchedTier: null,
+          uncheckedConstraints: ["sample program - verify or convert before use"],
+        },
+        {
+          name: "Declining Bank",
+          eligible: false,
+          status: "ineligible" as const,
+          reasons: ["Amount financed too high ($38,335 > $30,000)"],
+          matchedTier: null,
+        },
+        {
+          name: "Fitting Bank",
+          eligible: true,
+          status: "eligible" as const,
+          reasons: [],
+          matchedTier: { name: "A", maxLtv: 125, maxTerm: 84 },
+        },
+      ],
+    };
+    const { container } = render(<PdfTemplate {...mixed} settings={settings} />);
+
+    const badges = Array.from(container.querySelectorAll(".fit-badge")).map((b) => b.textContent);
+    expect(badges).toEqual(["Fit", "No fit", "Pending"]);
+    expect(container.textContent).not.toMatch(/\bReview\b/);
+
+    // The held bank's long reason is cut at a word boundary, never mid-word.
+    const heldRow = Array.from(container.querySelectorAll("tr")).find((tr) =>
+      tr.textContent?.includes("Held Bank")
+    );
+    const result = heldRow?.querySelector("td:last-child")?.textContent ?? "";
+    expect(result).toMatch(/ … \[continued in app\]$/);
+    const kept = result.replace(/ … \[continued in app\]$/, "");
+    expect(sampleReason.startsWith(kept)).toBe(true);
+    expect(sampleReason[kept.length]).toBe(" ");
+  });
+
+  it("marks both pages internal-use, quoting MODEL_CARD §10, and no longer calls itself a customer worksheet", () => {
+    const { container } = render(<PdfTemplate {...data} settings={settings} />);
+    const pages = Array.from(container.querySelectorAll("[data-pdf-page]"));
+    expect(pages).toHaveLength(2);
+    for (const page of pages) {
+      const footer = page.querySelector(".page-footer")?.textContent ?? "";
+      expect(footer).toContain("Internal use only.");
+      expect(footer).toContain(INTERNAL_USE_POLICY);
+    }
+    expect(screen.getByText("Preliminary deal worksheet, not a credit offer")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/customer worksheet/i);
+  });
+
   it("prints the out-of-state transit fee in the tax and fees subtotal", () => {
     render(
       <PdfTemplate
@@ -146,5 +240,45 @@ describe("PdfTemplate", () => {
     expect(screen.getAllByText(/\[continued in app\]/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Final approval, rate, advance/)).toBeTruthy();
     expect(screen.getByText(/Recheck the lender.s current rate sheet/)).toBeTruthy();
+  });
+
+  it("never prints the approval score, band, buy rate, or dealer cost (MODEL_CARD §5)", () => {
+    const { container } = render(
+      <PdfTemplate
+        {...data}
+        vehicle={{ ...data.vehicle, unitCost: 19_876, frontEndGross: 4_321 }}
+        lenderEligibility={[
+          {
+            name: "Ford Credit",
+            eligible: true,
+            reasons: [],
+            matchedTier: { name: "Used Tier A", otdLtv: 135, baseInterestRate: 5.49 },
+          },
+        ]}
+        settings={settings}
+      />
+    );
+    const printed = Array.from(container.querySelectorAll("[data-pdf-page]"))
+      .map((page) => page.textContent ?? "")
+      .join("\n");
+
+    expect(printed).toContain("Ford Credit");
+    expect(printed).not.toMatch(/\b68\b/); // approvalScore
+    expect(printed).not.toMatch(/moderate/i); // approvalBand
+    expect(printed).not.toMatch(/approval (odds|score)/i);
+    expect(printed).not.toContain("5.49"); // lender buy rate on the matched tier
+    expect(printed).not.toContain("19,876"); // unitCost
+    expect(printed).not.toContain("4,321"); // frontEndGross
+  });
+
+  it("keeps paper on the light tokens with white ink on the indigo mark", () => {
+    const { container } = render(<PdfTemplate {...data} settings={settings} />);
+    const css = cssOf(container);
+
+    // The dark theme's on-primary ink (#07120e) once leaked onto paper at ~2.3:1.
+    expect(css).toMatch(/\.mark\s*\{[^}]*background:\s*#4f46e5;[^}]*color:\s*#ffffff;/);
+    expect(hexesOf(css).filter((hex) => !PAPER_TOKENS.has(hex))).toEqual([]);
+    expect(unscopedSelectors(css, ".deal-pdf-page")).toEqual([]);
+    expect(container.querySelectorAll(".mark")).toHaveLength(2);
   });
 });
