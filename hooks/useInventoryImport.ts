@@ -71,7 +71,7 @@ export function useInventoryImport() {
     if (role !== "admin" && role !== "superadmin") {
       setMessage({
         type: "error",
-        text: "Administrator access is required to import inventory.",
+        text: "Only admins can import inventory. Ask your admin to import it.",
       });
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
@@ -82,7 +82,7 @@ export function useInventoryImport() {
     if (file.size > MAX_FILE_SIZE) {
       setMessage({
         type: "error",
-        text: "File size exceeds 10MB limit. Please upload a smaller file.",
+        text: "This file is over 10 MB. Upload a smaller export.",
       });
       // Reset file input
       if (fileInputRef.current) {
@@ -102,7 +102,7 @@ export function useInventoryImport() {
     if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
       setMessage({
         type: "error",
-        text: "Invalid file type. Please upload a CSV or Excel workbook (.csv, .xlsx).",
+        text: "That file type isn't supported. Upload a CSV or Excel (.xlsx) file.",
       });
       // Reset file input
       if (fileInputRef.current) {
@@ -120,7 +120,7 @@ export function useInventoryImport() {
       if (data.length === 0) {
         setMessage({
           type: "error",
-          text: "No valid vehicle data found in file.",
+          text: "No vehicles found in this file. Compare its columns with the sample CSV.",
         });
         return;
       }
@@ -130,7 +130,7 @@ export function useInventoryImport() {
       if (data.length > MAX_ROWS) {
         setMessage({
           type: "error",
-          text: `File contains ${data.length} vehicles. Maximum allowed is ${MAX_ROWS} rows. Please split into smaller files.`,
+          text: `This file has ${data.length.toLocaleString()} vehicles; the limit is ${MAX_ROWS.toLocaleString()}. Split it into smaller files.`,
         });
         return;
       }
@@ -139,7 +139,7 @@ export function useInventoryImport() {
       const skippedNote = skipped > 0 ? ` Skipped ${skipped} (${reasons.join("; ")}).` : "";
       setMessage({
         type: skipped > 0 ? "warning" : "success",
-        text: `Parsed ${data.length} vehicles.${skippedNote} Syncing to database...`,
+        text: `Read ${data.length} vehicles.${skippedNote} Importing…`,
       });
 
       // Prepare items for sync
@@ -176,11 +176,11 @@ export function useInventoryImport() {
 
       const failedNote =
         syncResult.failed > 0
-          ? ` ${syncResult.failed} operation(s) failed and were not saved.`
+          ? ` ${syncResult.failed} ${syncResult.failed === 1 ? "change" : "changes"} couldn't be saved — import the file again.`
           : "";
       setMessage({
         type: syncResult.failed > 0 ? "warning" : "success",
-        text: `Synced: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.${failedNote}`,
+        text: `Inventory imported: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.${failedNote}`,
       });
       capture("import_completed", {
         vehicles: data.length,
@@ -201,7 +201,7 @@ export function useInventoryImport() {
         text:
           err instanceof Error && err.message
             ? err.message
-            : "Error syncing inventory. Please try again.",
+            : "Couldn't import inventory. Check your connection and try again.",
       });
     } finally {
       setIsUploadingInventory(false);
@@ -320,28 +320,28 @@ export function useInventoryImport() {
 
         setMessage({
           type: "success",
-          text: "Vehicle decoded and saved. Please enter price/mileage before structuring.",
+          text: "Vehicle added. Enter its price and mileage before structuring a deal.",
         });
       } else {
-        setVinLookupResult("Error: Could not decode VIN");
+        setVinLookupResult("Error: Couldn't decode this VIN. Check it and try again.");
       }
     } catch (err) {
       // vinDecoder crafts specific user-facing errors (timeout, not found,
       // invalid VIN) — surface them instead of a blanket "Service unavailable".
       setVinLookupResult(
-        `Error: ${err instanceof Error && err.message ? err.message : "Service unavailable"}`
+        `Error: ${err instanceof Error && err.message ? err.message : "VIN lookup is unavailable. Try again shortly."}`
       );
     } finally {
       setIsVinLoading(false);
     }
   };
 
-  // Favorites PDF Download Handler
+  // Compare PDF download handler
   const handleDownloadFavorites = async () => {
     if (safeFavorites.length === 0) {
       setMessage({
         type: "error",
-        text: "No favorites to generate a PDF for.",
+        text: "Add vehicles to Compare on the desk first.",
       });
       return;
     }
@@ -371,8 +371,8 @@ export function useInventoryImport() {
         });
 
       const blob = await generateFavoritesPdf(pdfData, settings);
-      downloadBlob(blob, "LTV_Favorites.pdf");
-      setMessage({ type: "success", text: "Favorites PDF downloaded." });
+      downloadBlob(blob, "LTV_Compare.pdf");
+      setMessage({ type: "success", text: "Compare PDF downloaded" });
       // Evidence trail: record exactly what was handed across the desk —
       // the PDF itself is ephemeral client-side output. [G44]
       void logDealEvent({
@@ -400,7 +400,7 @@ export function useInventoryImport() {
       inventoryImportLogger.error("PDF generation failed", err);
       setMessage({
         type: "error",
-        text: "Unable to generate PDF. Please check your data.",
+        text: "Couldn't create the Compare PDF. Try again.",
       });
     }
   };

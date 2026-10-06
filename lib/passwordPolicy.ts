@@ -74,7 +74,7 @@ export const validatePassword = async (password: string): Promise<PolicyResult> 
         if (count > 0) {
           return {
             ok: false,
-            error: `This password has appeared in ${count.toLocaleString()} known data breaches. Please choose a different one.`,
+            error: `This password has appeared in ${count.toLocaleString()} known data breaches. Choose a different one.`,
           };
         }
       }

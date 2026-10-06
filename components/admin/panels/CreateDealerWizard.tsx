@@ -71,7 +71,11 @@ const CreateDealerWizard: React.FC<{
       setCreated(result);
       setStep("done");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create dealer and admin user");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Couldn't create the dealership. Check the details and try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -126,12 +130,12 @@ const CreateDealerWizard: React.FC<{
             </div>
             <div>
               <h3 className="text-base font-semibold text-[var(--color-text)]">
-                {step === "done" ? "Dealership ready" : "Add new dealership"}
+                {step === "done" ? "Dealership ready" : "Add dealership"}
               </h3>
               <p className="text-xs text-[var(--color-text-muted)]">
                 {step === "done"
-                  ? "Share the credentials below with the new admin."
-                  : "We'll create the dealer record and its first admin user."}
+                  ? "Share these sign-in details with the new admin."
+                  : "Set up the dealership, then its first admin."}
               </p>
             </div>
           </div>
@@ -416,7 +420,7 @@ const CreateDealerWizard: React.FC<{
                       navigator.clipboard?.writeText(created.dealer.code).catch(() => {});
                     }}
                     className="inline-flex items-center gap-2 font-mono text-[var(--color-primary)] font-bold hover:text-[var(--color-primary)]"
-                    title="Click to copy"
+                    title="Copy dealer code"
                   >
                     {created.dealer.code}
                     <Icons.ClipboardDocumentIcon className="w-3.5 h-3.5 opacity-60" />

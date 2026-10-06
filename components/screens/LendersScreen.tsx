@@ -274,7 +274,7 @@ export const LendersScreen: React.FC = () => {
 
   const role = getCurrentUser()?.role;
   // lender_profiles create/update are admin-only (PB rules), so editing and
-  // the AI Lender Upload entry points (which end in a save) are too.
+  // the rate-sheet upload entry points (which end in a save) are too.
   const canEdit = role === "admin" || role === "superadmin";
   // Mirrors the server's rate-cost wall: only these roles receive buy rates.
   const showBuyRate = canEdit || role === "manager";
@@ -348,7 +348,7 @@ export const LendersScreen: React.FC = () => {
       } else {
         // Revert the optimistic edit to the server's truth — otherwise the
         // screen shows terms the backend never accepted, forever. [review/P1]
-        toast.error("Couldn't save lender changes — restoring server values.");
+        toast.error("Couldn't save lender changes — last saved values restored.");
         void refetchData();
       }
     }, 500);
@@ -413,13 +413,13 @@ export const LendersScreen: React.FC = () => {
     setModalProfile(null);
     const res = await updateLenderProfile(profile.id, profile as never);
     if (res) {
-      toast.success(`${profile.name} updated`);
+      toast.success(`${profile.name} program saved`);
       queryClient.setQueryData<LenderProfile[]>(currentDealerQueryKeys().lenderProfiles, (old) =>
         Array.isArray(old) ? old.map((p) => (p.id === profile.id ? { ...p, ...profile } : p)) : old
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.lenderProfiles });
     } else {
-      toast.error("Couldn't save the lender program — restoring server values.");
+      toast.error("Couldn't save the lender program — last saved values restored.");
       void refetchData();
     }
   };
@@ -446,7 +446,7 @@ export const LendersScreen: React.FC = () => {
         >
           <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Lenders</h1>
           <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-            {activeCount} active programs
+            {activeCount} active {activeCount === 1 ? "program" : "programs"}
             <span className="lenders-screen-description">, recalculated against the live deal</span>
           </span>
         </div>
@@ -456,8 +456,8 @@ export const LendersScreen: React.FC = () => {
             onClick={openAiUpload}
             variant="primary"
             data-lenders-upload
-            aria-label="AI Lender Upload"
-            title="Upload and parse lender rate sheet with AI"
+            aria-label="Upload rate sheet"
+            title="AI reads the rate sheet and drafts programs for you to review"
           >
             <svg
               width="14"
@@ -475,7 +475,7 @@ export const LendersScreen: React.FC = () => {
               />
               <path d="M5 4v3M19 17v3M4 18h2M18 5h2" />
             </svg>
-            AI Lender Upload
+            Upload rate sheet
           </Button>
         )}
       </header>
@@ -487,11 +487,11 @@ export const LendersScreen: React.FC = () => {
             title="No lender programs yet"
             description={
               canEdit
-                ? "Use AI Lender Upload to extract programs from a rate sheet, or add them manually via the full program editor."
-                : "Lender programs are added by a dealer admin. Ask your admin to upload a rate sheet."
+                ? "Upload a rate sheet and AI drafts the programs. You review every number before it's saved."
+                : "Ask your admin to load lender programs."
             }
             primaryAction={
-              canEdit ? { label: "AI Lender Upload", onClick: openAiUpload } : undefined
+              canEdit ? { label: "Upload rate sheet", onClick: openAiUpload } : undefined
             }
           />
         ) : (

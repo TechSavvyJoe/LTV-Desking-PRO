@@ -136,8 +136,14 @@ const CountShare: React.FC<{ count: number; share: string }> = ({ count, share }
  * derived from real scorer/calculator outputs. [P7]
  */
 const ReportsScreenBase: React.FC = () => {
-  const { settings, processedInventory, safeLenderProfiles, savedDeals, unitsPerLender } =
-    useDealContext();
+  const {
+    settings,
+    processedInventory,
+    safeLenderProfiles,
+    savedDeals,
+    unitsPerLender,
+    loadSampleData,
+  } = useDealContext();
 
   const totalLenders = activeLenderCount(safeLenderProfiles);
 
@@ -303,8 +309,9 @@ const ReportsScreenBase: React.FC = () => {
         {stats.n === 0 ? (
           <EmptyState
             icon={<Icons.ChartIcon className="w-full h-full" />}
-            title="No inventory data"
-            description="Import inventory on the Inventory screen or load sample data to see performance reports, approval distribution, and lender reach."
+            title="No inventory to report on"
+            description="Reports appear once inventory is imported. Load sample data to preview them."
+            primaryAction={{ label: "Load sample data", onClick: loadSampleData }}
           />
         ) : (
           <>

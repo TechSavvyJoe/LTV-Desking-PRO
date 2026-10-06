@@ -213,7 +213,7 @@ const PipelineScreenBase: React.FC = () => {
           });
           setMessage({
             type: "success",
-            text: `Status updated to ${titleCase(next)} for ${deal.customerName}`,
+            text: `${deal.customerName} moved to ${titleCase(next)}`,
           });
         } else {
           applyStatus(from);
@@ -246,7 +246,7 @@ const PipelineScreenBase: React.FC = () => {
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Pipeline</h1>
           <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-            {counts.total} working deals
+            {counts.total} working {counts.total === 1 ? "deal" : "deals"}
           </span>
         </div>
         <Button
@@ -293,8 +293,8 @@ const PipelineScreenBase: React.FC = () => {
         {deals.length === 0 ? (
           <EmptyState
             icon={<Icons.FolderIcon className="w-full h-full" />}
-            title="No deals in the pipeline yet"
-            description="Structure a vehicle on the desk and hit Save deal — it lands here with its payment, approval odds and lender status."
+            title="No saved deals yet"
+            description="Structure a vehicle on the desk and click Save deal to add it here."
             primaryAction={{ label: "New deal", onClick: handleNewDeal }}
           />
         ) : (

@@ -222,7 +222,8 @@ const InventoryScreenBase: React.FC = () => {
         >
           <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Inventory</h1>
           <span style={{ fontSize: 13, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
-            {sortedInventory.length} of {inventory.length} units
+            {sortedInventory.length} of {inventory.length}{" "}
+            {inventory.length === 1 ? "unit" : "units"}
           </span>
           <span
             className="inventory-screen-description"
@@ -258,7 +259,7 @@ const InventoryScreenBase: React.FC = () => {
                 disabled={isUploadingInventory}
                 onClick={() => fileInputRef.current?.click()}
               >
-                {isUploadingInventory ? "Importing…" : "Import CSV/XLSX"}
+                {isUploadingInventory ? "Importing…" : "Import inventory"}
               </Button>
             </>
           )}
@@ -339,7 +340,7 @@ const InventoryScreenBase: React.FC = () => {
                     disabled={isVinLoading}
                     onClick={() => void handleVinLookup()}
                   >
-                    {isVinLoading ? <DataLoading label="…" variant="inline" /> : "Decode"}
+                    {isVinLoading ? <DataLoading label="Decoding…" variant="inline" /> : "Decode"}
                   </Button>
                 </div>
                 {vinLookupResult && (
@@ -365,10 +366,10 @@ const InventoryScreenBase: React.FC = () => {
             type="button"
             variant="secondary"
             size="sm"
-            title="Export the compared (pinned) vehicles as a PDF"
+            title="Download a PDF of the vehicles in Compare"
             onClick={() => void handleDownloadFavorites()}
           >
-            Favorites PDF
+            Compare PDF
           </Button>
 
           {/* Search — bound to the shared context query (mockup line 496) */}
@@ -694,12 +695,21 @@ const InventoryScreenBase: React.FC = () => {
           <EmptyState
             icon={<Icons.CarIcon className="w-full h-full" />}
             title="No inventory yet"
-            description="Import your dealership's CSV or Excel feed and every unit gets priced against the live deal — payment, LTV, lender fit and approval odds."
-            primaryAction={{
-              label: "Import CSV/XLSX",
-              onClick: () => fileInputRef.current?.click(),
-            }}
-            secondaryAction={{ label: "Download sample CSV", onClick: downloadSampleCsv }}
+            description={
+              canManageInventory
+                ? "Import the CSV or Excel file your DMS exports. Every unit is priced against the live deal."
+                : "Ask your admin to import inventory."
+            }
+            primaryAction={
+              canManageInventory
+                ? { label: "Import inventory", onClick: () => fileInputRef.current?.click() }
+                : undefined
+            }
+            secondaryAction={
+              canManageInventory
+                ? { label: "Download sample CSV", onClick: downloadSampleCsv }
+                : undefined
+            }
           />
         )}
 
@@ -707,7 +717,7 @@ const InventoryScreenBase: React.FC = () => {
         {noResults && (
           <EmptyState
             title="No vehicles match"
-            description="No vehicles match the current filters or search."
+            description="Clear the filters or change your search."
             primaryAction={{ label: "Clear filters", onClick: clearFilters }}
           />
         )}

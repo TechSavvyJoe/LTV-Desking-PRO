@@ -120,10 +120,10 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           phone: userFormData.phone,
           role: userFormData.role as "admin" | "sales" | "manager",
         });
-        toast.success("User updated successfully");
+        toast.success("User saved");
       } else {
         if (userFormData.password !== userFormData.passwordConfirm) {
-          setUserError("Passwords do not match");
+          setUserError("Passwords don't match");
           return;
         }
         if (userFormData.password.length < PASSWORD_MIN_LENGTH) {
@@ -134,12 +134,12 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           ...userFormData,
           role: userFormData.role as "admin" | "sales" | "manager",
         });
-        toast.success("User created successfully");
+        toast.success("User created");
       }
       resetUserForm();
       loadData();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to save user";
+      const message = err instanceof Error ? err.message : "Couldn't save the user. Try again.";
       setUserError(message);
     }
   };
@@ -162,15 +162,16 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
     if (
       await confirmAction({
         title: "Delete user?",
-        message: "Are you sure you want to delete this user? They will lose access immediately.",
-        confirmLabel: "Delete",
+        message:
+          "They lose access immediately and this can't be undone. To keep their deal history, deactivate them instead.",
+        confirmLabel: "Delete user",
         tone: "danger",
       })
     ) {
       try {
         await deleteDealerUser(userId);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to delete user");
+        toast.error(err instanceof Error ? err.message : "Couldn't delete the user. Try again.");
         return;
       }
       toast.success("User deleted");
@@ -182,7 +183,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
     try {
       await updateDealerUser(userId, { role: newRole as "admin" | "sales" | "manager" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update role");
+      toast.error(err instanceof Error ? err.message : "Couldn't change the role. Try again.");
       loadData(); // resync the role select after a rejected change
       return;
     }
@@ -196,7 +197,13 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
     try {
       await setUserActive(u.id, !isActive);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update user status");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : isActive
+            ? "Couldn't deactivate the user. Try again."
+            : "Couldn't reactivate the user. Try again."
+      );
       return;
     }
     toast.success(isActive ? "User deactivated" : "User reactivated");
@@ -211,11 +218,13 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
       // Dealer-admin-scoped update; the superadmin-only updateDealer silently
       // no-oped for this audience. [C13]
       await updateCurrentDealer(dealerFormData);
-      toast.success("Dealership details updated");
+      toast.success("Dealership details saved");
       setIsEditingDealer(false);
       loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update dealership details");
+      toast.error(
+        error instanceof Error ? error.message : "Couldn't save dealership details. Try again."
+      );
     }
   };
 
@@ -258,7 +267,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         right={
           <Button onClick={onSwitchToDealer} variant="primary" className="gap-2">
             <Icons.ChevronLeftIcon className="w-4 h-4" />
-            Back to Dashboard
+            Back to the desk
           </Button>
         }
       />
@@ -283,7 +292,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         <ConsoleTab
           active={activeTab === "dealership"}
           onClick={() => setActiveTab("dealership")}
-          label="Dealership Details"
+          label="Dealership details"
         />
       </div>
 
@@ -292,10 +301,10 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         {activeTab === "users" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--color-text)]">Team Members</h2>
+              <h2 className="text-lg font-bold text-[var(--color-text)]">Team members</h2>
               <Button onClick={() => setIsCreatingUser(true)} className="gap-2">
                 <Icons.PlusIcon className="w-4 h-4" />
-                Add User
+                Add user
               </Button>
             </div>
 
@@ -308,7 +317,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
             {(isCreatingUser || editingUserId) && (
               <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)] shadow-sm">
                 <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-                  {editingUserId ? "Edit Team Member" : "Add New Team Member"}
+                  {editingUserId ? "Edit team member" : "Add team member"}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
@@ -316,7 +325,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       htmlFor="admin-user-first-name"
                       className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                     >
-                      First Name *
+                      First name *
                     </label>
                     <input
                       id="admin-user-first-name"
@@ -334,7 +343,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       htmlFor="admin-user-last-name"
                       className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                     >
-                      Last Name *
+                      Last name *
                     </label>
                     <input
                       id="admin-user-last-name"
@@ -431,7 +440,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                           htmlFor="admin-user-password-confirm"
                           className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                         >
-                          Confirm Password *
+                          Confirm password *
                         </label>
                         <input
                           id="admin-user-password-confirm"
@@ -460,7 +469,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       (!editingUserId && !userFormData.password)
                     }
                   >
-                    {editingUserId ? "Save Changes" : "Create User"}
+                    {editingUserId ? "Save user" : "Create user"}
                   </Button>
                 </div>
               </div>
@@ -587,7 +596,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                                     : "Reactivate user"
                               }
                             >
-                              {isActive ? "Deactivate" : "Activate"}
+                              {isActive ? "Deactivate" : "Reactivate"}
                             </button>
                             {!isSelf && (
                               <button
@@ -610,7 +619,11 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                         <EmptyState
                           icon={<Icons.UserIcon className="w-8 h-8" />}
                           title="No team members yet"
-                          description="Invite users from the Owner Console or add team members to this dealership."
+                          description="Add your salespeople and managers so they can desk deals."
+                          primaryAction={{
+                            label: "Add user",
+                            onClick: () => setIsCreatingUser(true),
+                          }}
                         />
                       </td>
                     </tr>
@@ -624,7 +637,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         {activeTab === "dealership" && dealer && (
           <div className="space-y-6 max-w-3xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--color-text)]">Dealership Information</h2>
+              <h2 className="text-lg font-bold text-[var(--color-text)]">Dealership details</h2>
               {!isEditingDealer && (
                 <Button
                   onClick={() => setIsEditingDealer(true)}
@@ -632,7 +645,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   className="gap-2"
                 >
                   <Icons.PencilIcon className="w-4 h-4" />
-                  Edit Details
+                  Edit details
                 </Button>
               )}
             </div>
@@ -644,7 +657,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     htmlFor={isEditingDealer ? "admin-dealer-name" : undefined}
                     className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                   >
-                    Dealership Name
+                    Dealership name
                   </label>
                   {isEditingDealer ? (
                     <input
@@ -663,7 +676,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                 <div>
                   {/* Read-only value: a <label> with no control is invalid, so this is a plain caption. */}
                   <span className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
-                    Dealer Code
+                    Dealer code
                   </span>
                   <p className="text-[var(--color-text-muted)] font-mono bg-[var(--color-bg-subtle)] px-3 py-2 rounded-lg border border-[var(--color-border)] inline-block">
                     {dealer.code}
@@ -677,7 +690,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     htmlFor={isEditingDealer ? "admin-dealer-email" : undefined}
                     className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                   >
-                    Email Contact
+                    Contact email
                   </label>
                   {isEditingDealer ? (
                     <input
@@ -698,7 +711,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     htmlFor={isEditingDealer ? "admin-dealer-phone" : undefined}
                     className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                   >
-                    Phone Contact
+                    Contact phone
                   </label>
                   {isEditingDealer ? (
                     <input
@@ -795,7 +808,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     Cancel
                   </Button>
                   <Button onClick={handleDealerSubmit} disabled={!dealerFormData.name}>
-                    Save Changes
+                    Save details
                   </Button>
                 </div>
               )}

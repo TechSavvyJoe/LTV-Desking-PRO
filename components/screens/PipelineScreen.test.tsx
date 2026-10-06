@@ -40,7 +40,7 @@ describe("PipelineScreen empty state", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("No deals in the pipeline yet")).toBeTruthy();
+    expect(screen.getByText("No saved deals yet")).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
   });
 });

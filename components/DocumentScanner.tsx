@@ -38,7 +38,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
     }
     // Guard: oversized images can hang the OCR worker.
     if (file.size > MAX_IMAGE_BYTES) {
-      setError("Image is too large (max 10 MB). Please upload a smaller photo or screenshot.");
+      setError("This image is over 10 MB. Upload a smaller photo or screenshot.");
       return;
     }
 
@@ -85,11 +85,11 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
       if (income !== null) {
         setDetected(income);
       } else {
-        setError("Could not detect income automatically. Please enter manually.");
+        setError("Couldn't find an income on this pay stub. Try a clearer photo, or type it in.");
       }
     } catch (err) {
       documentScannerLogger.error("OCR Error", err);
-      setError("Failed to scan document. Please try again or enter manually.");
+      setError("Couldn't scan this image. Try another photo, or type the income in.");
     } finally {
       setIsScanning(false);
     }
@@ -101,7 +101,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-[var(--color-text)] flex items-center gap-2">
             <Icons.DocumentTextIcon className="w-6 h-6 text-[var(--color-primary)]" />
-            Scan Pay Stub
+            Scan pay stub
           </h3>
           <button
             onClick={onClose}
@@ -143,7 +143,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
               <Icons.CameraIcon className="w-12 h-12 text-[var(--color-text-subtle)] mx-auto mb-2" />
             )}
             <p className="text-sm text-[var(--color-text-muted)]">
-              {isScanning ? "Scanning document..." : "Click to upload or take a photo"}
+              {isScanning ? "Scanning pay stub…" : "Click to upload or take a photo"}
             </p>
             <p className="text-xs text-[var(--color-text-subtle)] mt-1">
               JPG or PNG, up to 10 MB. PDFs aren&apos;t supported.
@@ -159,7 +159,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
                 </span>
               </p>
               <p className="text-xs text-[var(--color-text-muted)]">
-                Confirm this is correct before applying — OCR can misread.
+                Check it against the pay stub before applying — scans can misread.
               </p>
               <div className="flex gap-2">
                 <Button
@@ -188,7 +188,7 @@ export const DocumentScanner: React.FC<DocumentScannerProps> = ({ onIncomeExtrac
                 />
               </div>
               <p className="text-xs text-center text-[var(--color-text-muted)]">
-                Processing... {progress}%
+                Scanning… {progress}%
               </p>
             </div>
           )}

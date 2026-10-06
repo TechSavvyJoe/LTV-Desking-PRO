@@ -43,7 +43,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
             margin: "10px 0 0",
           }}
         >
-          Ask your dealership administrator to create your account, or contact support.
+          Ask your admin to create your account, or contact support.
         </p>
         <div style={{ marginTop: 18 }}>
           <button

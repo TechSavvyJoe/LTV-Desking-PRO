@@ -18,7 +18,7 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 ## Features
 
 - **Real-time LTV Calculations** — Front-end LTV, OTD LTV, gross profit, and monthly payments update instantly as deal parameters change
-- **AI Lender Upload** — Upload PDF rate sheets and the selected server-side model extracts lender tiers, LTV limits, FICO ranges, and restrictions
+- **Upload rate sheet** — Upload PDF rate sheets and the selected server-side model extracts lender tiers, LTV limits, FICO ranges, and restrictions
 - **Model Switching** — Choose current top, balanced, and fast OpenAI/ChatGPT, Anthropic, and Gemini models per workflow
 - **Multi-Lender Matching** — See which lenders approve a deal based on credit score, income, vehicle age, and mileage
 - **Deal Structuring Modal** — Full deal worksheet with down payment, trade equity, backend products, and term selection

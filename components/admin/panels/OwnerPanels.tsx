@@ -213,6 +213,13 @@ export const ActivePill: React.FC<{ label?: string }> = ({ label = "Active" }) =
 );
 
 /** Role chip (neutral) for user lists. Sentence case per Dealer Trust. */
+const ROLE_CHIP_LABELS: Record<string, string> = {
+  sales: "Sales",
+  manager: "Manager",
+  admin: "Admin",
+  superadmin: "Owner",
+};
+
 export const RoleChip: React.FC<{ role: string }> = ({ role }) => (
   <span
     style={{
@@ -225,7 +232,7 @@ export const RoleChip: React.FC<{ role: string }> = ({ role }) => (
       borderRadius: 6,
     }}
   >
-    {role}
+    {ROLE_CHIP_LABELS[role] ?? role}
   </span>
 );
 
@@ -340,7 +347,7 @@ export const SearchInput: React.FC<{
       <button
         onClick={() => onChange("")}
         className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-        aria-label="Clear"
+        aria-label="Clear search"
         type="button"
       >
         <Icons.XMarkIcon className="w-4 h-4" />

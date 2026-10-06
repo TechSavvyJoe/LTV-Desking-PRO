@@ -254,8 +254,8 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={profile ? `Edit ${formData.name || "Lender"}` : "Add New Lender"}
-      description="Configure lending guidelines and credit tier structures"
+      title={profile ? `Edit ${formData.name || "lender program"}` : "Add lender program"}
+      description="Set the program's limits and credit tiers."
       size="xl"
       footer={
         <>
@@ -264,7 +264,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
           </Button>
           <Button variant="primary" onClick={handleSubmit} className="ml-auto">
             <Icons.SaveIcon className="w-4 h-4 mr-2" />
-            Save Lender
+            Save program
           </Button>
         </>
       }
@@ -275,16 +275,16 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
           <div className="px-5 py-4 bg-[var(--color-primary)]">
             <h4 className="flex items-center gap-2 text-sm font-bold text-[var(--on-primary)]">
               <Icons.BuildingLibraryIcon className="w-5 h-5" />
-              Lender Settings
+              Lender settings
             </h4>
             <p className="text-[var(--on-primary)]/80 text-xs mt-0.5">
-              Required fields and global parameters
+              Program-wide limits that apply to every tier
             </p>
           </div>
           <div className="p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div className="sm:col-span-2 lg:col-span-1">
-                <InputGroup label="Lender Name*" htmlFor="name">
+                <InputGroup label="Lender name*" htmlFor="name">
                   <Input
                     type="text"
                     id="name"
@@ -296,7 +296,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                   />
                 </InputGroup>
               </div>
-              <InputGroup label="Book Value Source" htmlFor="bookValueSource">
+              <InputGroup label="Book value source" htmlFor="bookValueSource">
                 <Select
                   id="bookValueSource"
                   name="bookValueSource"
@@ -307,7 +307,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                   <option value="Retail">JD Power Retail</option>
                 </Select>
               </InputGroup>
-              <InputGroup label="Min Monthly Income" htmlFor="minIncome">
+              <InputGroup label="Min monthly income" htmlFor="minIncome">
                 <Input
                   type="number"
                   id="minIncome"
@@ -340,15 +340,15 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
             <div>
               <h4 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text)]">
                 <Icons.ListIcon className="w-5 h-5 text-[var(--color-primary)]" />
-                Credit Tiers
+                Credit tiers
               </h4>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Define credit tiers with specific LTV, term, and eligibility requirements
+                Each tier sets its own LTV, term and eligibility limits.
               </p>
             </div>
             <Button type="button" variant="primary" size="sm" onClick={addTier}>
               <Icons.PlusIcon className="w-4 h-4 mr-1" />
-              Add Tier
+              Add tier
             </Button>
           </div>
 
@@ -419,7 +419,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         duplicateTier(index);
                       }}
                       className="p-1.5 text-[var(--color-text-subtle)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] rounded transition-colors"
-                      title="Duplicate Tier"
+                      title="Duplicate tier"
                     >
                       <Icons.DocumentDuplicateIcon className="w-4 h-4" />
                     </button>
@@ -431,7 +431,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                       }}
                       disabled={(formData.tiers?.length || 0) <= 1}
                       className="p-1.5 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors disabled:opacity-30"
-                      title="Remove Tier"
+                      title="Remove tier"
                     >
                       <Icons.TrashIcon className="w-4 h-4" />
                     </button>
@@ -484,7 +484,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                   <div className="p-4 space-y-4 bg-[var(--color-bg-subtle)]">
                     {/* Credit & LTV Row */}
                     <div className="grid grid-cols-3 gap-3">
-                      <TierField label="FICO Range">
+                      <TierField label="FICO range">
                         <RangeInputPair
                           minName="minFico"
                           maxName="maxFico"
@@ -505,7 +505,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                           className="!px-2 text-center text-xs"
                         />
                       </TierField>
-                      <TierField label="Max Term (mo)">
+                      <TierField label="Max term (mo)">
                         <Input
                           type="number"
                           name="maxTerm"
@@ -519,7 +519,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
                     {/* Vehicle Requirements Row */}
                     <div className="grid grid-cols-3 gap-3">
-                      <TierField label="Model Year">
+                      <TierField label="Model year">
                         <RangeInputPair
                           minName="minYear"
                           maxName="maxYear"
@@ -541,7 +541,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                           onChange={(e) => handleTierChange(index, e)}
                         />
                       </TierField>
-                      <TierField label="Amount Financed">
+                      <TierField label="Amount financed">
                         <RangeInputPair
                           minName="minAmountFinanced"
                           maxName="maxAmountFinanced"
@@ -557,10 +557,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                     {/* Advanced Options Row */}
                     <div className="pt-3 border-t border-[var(--color-border)]">
                       <p className="text-[10px] font-medium text-[var(--color-text-subtle)] mb-2">
-                        Advanced Options
+                        Advanced options
                       </p>
                       <div className="grid grid-cols-4 gap-3">
-                        <TierField label="Buy Rate %">
+                        <TierField label="Buy rate %">
                           <Input
                             type="number"
                             name="baseInterestRate"
@@ -571,7 +571,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                             className="!px-2 text-center text-xs"
                           />
                         </TierField>
-                        <TierField label="Rate Adder %">
+                        <TierField label="Rate adder %">
                           <Input
                             type="number"
                             name="rateAdder"
@@ -582,7 +582,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                             className="!px-2 text-center text-xs"
                           />
                         </TierField>
-                        <TierField label="Max Backend $">
+                        <TierField label="Max backend $">
                           <Input
                             type="number"
                             name="maxBackend"
@@ -592,7 +592,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                             className="!px-2 text-center text-xs"
                           />
                         </TierField>
-                        <TierField label="Vehicle Type">
+                        <TierField label="Vehicle type">
                           <select
                             name="vehicleType"
                             value={tier.vehicleType || ""}
@@ -657,7 +657,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
               </p>
               <Button type="button" variant="primary" size="sm" onClick={addTier}>
                 <Icons.PlusIcon className="w-4 h-4 mr-1" />
-                Add First Tier
+                Add first tier
               </Button>
             </div>
           )}

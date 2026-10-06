@@ -33,7 +33,7 @@ import { toast } from "../../lib/toast";
 
 /** Context handed to routed screens via <Outlet/> (react-router outlet context). */
 export interface ShellOutletContext {
-  /** Opens the AI Lender Upload modal owned by the shell. */
+  /** Opens the rate-sheet upload modal owned by the shell. */
   openAiUpload: () => void;
 }
 
@@ -315,7 +315,7 @@ export const AppShell: React.FC = () => {
     navigate("/admin");
   };
 
-  // --- AI Lender Upload modal state (moved from legacy MainLayout) ----------
+  // --- Rate-sheet upload modal state (moved from legacy MainLayout) ----------
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isAiMinimized, setIsAiMinimized] = useState(false);
   // Progress reported by the AI importer, shown by the minimized
@@ -434,8 +434,8 @@ export const AppShell: React.FC = () => {
     if (isSuperAdmin || isDealerAdmin) {
       screens.push({
         id: "nav-admin",
-        label: isSuperAdmin ? "Owner Console" : "Admin",
-        detail: "Users, dealers, settings",
+        label: isSuperAdmin ? "Owner console" : "Admin",
+        detail: "Users, dealerships, settings",
         group: "Go to",
         onSelect: go("/admin"),
       });
@@ -448,8 +448,8 @@ export const AppShell: React.FC = () => {
         ? [
             {
               id: "act-ai-upload",
-              label: "AI Lender Upload",
-              detail: "Import a rate sheet or program guide",
+              label: "Upload rate sheet",
+              detail: "AI drafts lender programs from a rate sheet",
               group: "Actions",
               keywords: ["import", "rate sheet", "lender", "program"],
               onSelect: openAiUpload,
@@ -607,7 +607,7 @@ export const AppShell: React.FC = () => {
                     color: "var(--color-danger)",
                   }}
                 >
-                  Couldn't load dealers
+                  Couldn't load dealerships
                 </span>
               </div>
             ) : (
@@ -731,8 +731,8 @@ export const AppShell: React.FC = () => {
             <button
               onClick={openAiUpload}
               className="app-shell-ai-btn"
-              aria-label="AI lender upload"
-              title="AI lender upload"
+              aria-label="Upload rate sheet"
+              title="Upload rate sheet"
               // Background + hover live in index.css (.app-shell-ai-btn) so the
               // hover state is plain CSS instead of JS style mutation.
               style={{
@@ -751,7 +751,7 @@ export const AppShell: React.FC = () => {
               }}
             >
               <SparkleIcon />
-              <span className="app-shell-ai-label">AI Lender Upload</span>
+              <span className="app-shell-ai-label">Upload rate sheet</span>
             </button>
           )}
 
@@ -855,7 +855,7 @@ export const AppShell: React.FC = () => {
                     }}
                   >
                     <ShieldIcon />
-                    {isSuperAdmin ? "Owner Console" : "Admin"}
+                    {isSuperAdmin ? "Owner console" : "Admin"}
                   </button>
                 )}
                 <button
@@ -938,7 +938,7 @@ export const AppShell: React.FC = () => {
           {(isSuperAdmin || isDealerAdmin) && (
             <NavLink to="/admin" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
               <ShieldIcon />
-              {isSuperAdmin ? "Owner Console" : "Admin"}
+              {isSuperAdmin ? "Owner console" : "Admin"}
             </NavLink>
           )}
         </nav>
@@ -949,7 +949,7 @@ export const AppShell: React.FC = () => {
         {dataError ? (
           <div style={{ padding: "20px 24px" }}>
             <DataError
-              title="Couldn't load your data"
+              title="Couldn't load your dealership data"
               description={dataError}
               onRetry={refetchData}
             />
@@ -989,7 +989,7 @@ export const AppShell: React.FC = () => {
         </Suspense>
       </SectionErrorBoundary>
 
-      <SectionErrorBoundary label="AI Lender Upload" onReset={() => setIsAiModalOpen(false)}>
+      <SectionErrorBoundary label="The rate sheet upload" onReset={() => setIsAiModalOpen(false)}>
         <Suspense fallback={null}>
           <AiLenderManagerModal
             isOpen={isAiModalOpen && !isAiMinimized}

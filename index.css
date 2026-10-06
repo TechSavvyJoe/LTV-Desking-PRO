@@ -260,7 +260,7 @@ main {
   text-overflow: ellipsis;
 }
 
-/* The "Couldn't load dealers" + Retry state: shrinkable like .app-shell-dealer,
+/* The "Couldn't load dealerships" + Retry state: shrinkable like .app-shell-dealer,
    but Retry itself must stay reachable — the block wraps (no overflow:hidden)
    so neither Retry nor the message is ever clipped. [review P3 re-fix] */
 .app-shell-dealer-error {
@@ -978,7 +978,7 @@ select.dc-input:focus {
   color: var(--color-text) !important;
 }
 
-/* Header "AI Lender Upload" button — hover handled here instead of JS
+/* Header "Upload rate sheet" button — hover handled here instead of JS
    onMouseEnter/onMouseLeave style mutation. */
 .app-shell-ai-btn {
   background-color: var(--color-primary);

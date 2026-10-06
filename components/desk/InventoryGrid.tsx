@@ -298,8 +298,8 @@ const InventoryGridBase: React.FC<InventoryGridProps> = ({
           title={inventoryCount === 0 ? "No inventory yet" : "No vehicles match"}
           description={
             inventoryCount === 0
-              ? "Import vehicles from the Inventory tab or load sample data."
-              : "No vehicles match the current filters or search."
+              ? "Import inventory on the Inventory screen, or load sample data to try the desk."
+              : "Clear the filters or change your search."
           }
           primaryAction={
             inventoryCount === 0

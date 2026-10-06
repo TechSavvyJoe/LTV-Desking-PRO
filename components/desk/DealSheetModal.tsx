@@ -63,7 +63,7 @@ const pdfErrorCode = (error: unknown): string => {
 
 const pdfErrorMessage = (error: unknown): string => {
   if (error instanceof Error && error.message) return error.message;
-  return "The deal sheet PDF could not be generated.";
+  return "Couldn't create the deal sheet PDF. Try again.";
 };
 
 const dealSheetFilename = (vehicle: CalculatedVehicle): string => {
@@ -190,7 +190,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
 
   const handleDownloadPdf = async () => {
     if (pdfBusy) return;
-    setPdfState({ status: "generating", message: "Generating PDF..." });
+    setPdfState({ status: "generating", message: "Generating PDF…" });
     try {
       // Recalculate from the live, non-debounced inputs at click time. The
       // vehicle prop may still carry the prior 300ms scoring snapshot.
@@ -251,13 +251,12 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
             ? {
                 ...current,
                 url: null,
-                message:
-                  "Download started. The fallback link expired; generate again to reopen it.",
+                message: "Download started. The open link expired — download again to reopen it.",
               }
             : current
         );
       }, PDF_FALLBACK_LIFETIME_MS);
-      toast.success("PDF ready. Download started.");
+      toast.success("Deal sheet PDF ready");
       capture("pdf_generated", {
         pdfType: "deal_sheet",
         status: result.status,
@@ -292,7 +291,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         term: normalizedDealData.loanTerm,
         fitCount: liveVehicle.fitCount ?? 0,
       });
-      toast.error(`PDF failed (${code}).`);
+      toast.error(`Couldn't create the PDF (${code}). Try again.`);
     }
   };
 
@@ -553,7 +552,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
                     fontWeight: 700,
                   }}
                 >
-                  Open PDF fallback
+                  Open PDF
                 </a>
               )}
             </div>
@@ -599,7 +598,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               fontFamily: "inherit",
             }}
           >
-            Save to pipeline
+            Save deal
           </button>
         </div>
       </div>

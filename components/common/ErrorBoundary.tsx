@@ -96,11 +96,11 @@ class ErrorBoundary extends Component<Props, State> {
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold text-[var(--color-text)]">
-              {scope === "app" ? "Something went wrong" : `${label} couldn't load`}
+              {scope === "app" ? "The app hit an error" : `${label} couldn't load`}
             </h2>
             <p className="mt-1 text-sm text-[var(--color-text-muted)] leading-relaxed">
               {scope === "app"
-                ? "The app hit an unexpected error. Your saved deals and inventory are safe — nothing was lost. Try again, or reload the page."
+                ? "Your saved deals and inventory are safe. Try again, or reload the page."
                 : `${label} hit an unexpected error. The other screens still work — try again, or reload if it keeps happening.`}
             </p>
 

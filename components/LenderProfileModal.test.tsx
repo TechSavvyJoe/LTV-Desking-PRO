@@ -66,7 +66,7 @@ describe("LenderProfileModal", () => {
     expect(maxLtvInput).toBeTruthy();
     fireEvent.change(maxLtvInput, { target: { value: "130" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save Lender" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save program" }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const saved = onSave.mock.calls[0]?.[0] as LenderProfile;
@@ -90,7 +90,7 @@ describe("LenderProfileModal", () => {
     expect(nameInput).toBeTruthy();
     fireEvent.change(nameInput, { target: { value: "Tier A Renamed" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save Lender" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save program" }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const saved = onSave.mock.calls[0]?.[0] as LenderProfile;
@@ -110,7 +110,7 @@ describe("LenderProfileModal", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Mark verified" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save Lender" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save program" }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const saved = onSave.mock.calls[0]?.[0] as LenderProfile;
@@ -127,7 +127,7 @@ describe("LenderProfileModal", () => {
       <LenderProfileModal profile={profile} isOpen={true} onClose={vi.fn()} onSave={onSave} />
     );
     const save = (): LenderTier | undefined => {
-      fireEvent.click(screen.getByRole("button", { name: "Save Lender" }));
+      fireEvent.click(screen.getByRole("button", { name: "Save program" }));
       return (onSave.mock.calls.at(-1)?.[0] as LenderProfile | undefined)?.tiers?.[0];
     };
     return { save };

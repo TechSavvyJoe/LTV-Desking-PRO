@@ -329,7 +329,7 @@ const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND || !!process.env.USE_SEE
 
 async function mockAiEndpoints(page: Page) {
   // AI endpoints (used in various modals)
-  // Specific mocks for lender extract/enrich to support full AI Lender Upload flow.
+  // Specific mocks for lender extract/enrich to support full rate-sheet upload flow.
   await page.route("**/api/ai/lender-extract", async (route) => {
     if (route.request().method() === "POST") {
       await route.fulfill({
@@ -822,13 +822,13 @@ test.describe("Administrative console login", () => {
       await page.getByLabel(/^Role\s*\*/).selectOption("manager");
       await page.getByLabel(/^Password/i).fill(password);
       await page.getByLabel(/Confirm Password/i).fill(password);
-      await page.getByRole("button", { name: "Create User", exact: true }).click();
+      await page.getByRole("button", { name: "Create user", exact: true }).click();
 
       // Toasts are mirrored into a persistent sr-only role="status" live region, so
       // plain getByText would match both the pill and the region — assert on the
       // region, as the rest of this suite does.
       const toast = (text: string) => page.getByRole("status").filter({ hasText: text });
-      await expect(toast("User created successfully")).toBeVisible({ timeout: 15_000 });
+      await expect(toast("User created")).toBeVisible({ timeout: 15_000 });
       const teamRow = () => page.getByRole("row").filter({ hasText: email });
       await expect(teamRow()).toBeVisible();
       await expect(teamRow().getByRole("combobox")).toHaveValue("manager");
@@ -842,7 +842,7 @@ test.describe("Administrative console login", () => {
       });
       expect(blockedLogin.ok()).toBeFalsy();
 
-      await teamRow().getByRole("button", { name: "Activate", exact: true }).click();
+      await teamRow().getByRole("button", { name: "Reactivate", exact: true }).click();
       await expect(toast("User reactivated")).toBeVisible();
       await expect(teamRow().getByText("Inactive", { exact: true })).toHaveCount(0);
 
@@ -857,7 +857,7 @@ test.describe("Administrative console login", () => {
         .click();
       const dialog = page.getByRole("alertdialog", { name: "Delete user?" });
       await expect(dialog).toBeVisible();
-      await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+      await dialog.getByRole("button", { name: "Delete user", exact: true }).click();
       await expect(toast("User deleted")).toBeVisible();
       await expect(teamRow()).toHaveCount(0);
     } finally {
@@ -894,7 +894,7 @@ test.describe("Administrative console login", () => {
       timeout: 15_000,
     });
     await expect(
-      page.getByRole("banner").getByRole("button", { name: /Onboard new dealer/i })
+      page.getByRole("banner").getByRole("button", { name: /Add dealership/i })
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
   });
@@ -908,7 +908,7 @@ test.describe("Inventory import", () => {
     await setupTest(page, "/inventory", ADMIN_TEST_AUTH);
 
     // Toolbar buttons from InventoryScreen + useInventoryImport
-    await expect(page.getByRole("button", { name: "Import CSV/XLSX" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Import inventory" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
 
     const csvContent = `Stock #,Year,Make,Model,Trim,VIN,Mileage,Price,Cost,J.D. Power Trade In,J.D. Power Retail,Unit Cost
@@ -926,7 +926,7 @@ test.describe("Inventory import", () => {
     // Seed inventory size varies; assert sync toast shape + both imported stocks.
     await expect(
       page.getByRole("status").filter({
-        hasText: /Synced: \d+ added, \d+ updated, \d+ marked sold\./,
+        hasText: /Inventory imported: \d+ added, \d+ updated, \d+ marked sold\./,
       })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK E2E001/)).toBeVisible();
@@ -975,7 +975,8 @@ test.describe("Inventory import", () => {
 
     await expect(
       page.getByRole("alert").filter({
-        hasText: /Synced: \d+ added, \d+ updated, \d+ marked sold\..*failed and were not saved\./,
+        hasText:
+          /Inventory imported: \d+ added, \d+ updated, \d+ marked sold\..*couldn't be saved — import the file again\./,
       })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
@@ -988,8 +989,8 @@ test.describe("Inventory import", () => {
     await setupTest(page, "/inventory");
 
     await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Import CSV/XLSX" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Favorites PDF/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Import inventory" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Compare PDF/i })).toBeVisible();
   });
 });
 
@@ -997,10 +998,10 @@ test.describe("Inventory import", () => {
 // AI LENDER UPLOAD (uses specific /api/ai/lender-* mocks)
 // ---------------------------------------------------------------------------
 test.describe("AI lender upload", () => {
-  test("opens AI Lender Upload modal, uploads PDF, analyzes, and confirms save", async ({
+  test("opens the rate-sheet upload, extracts programs from a PDF, and saves them", async ({
     page,
   }) => {
-    // AI Lender Upload is admin-only (lender_profiles create/update rules).
+    // Rate-sheet upload is admin-only (lender_profiles create/update rules).
     await setupTest(page, "/desk", ADMIN_TEST_AUTH);
     await waitForDeskReady(page);
 
@@ -1010,13 +1011,13 @@ test.describe("AI lender upload", () => {
     }
 
     // Open modal via header button (AppShell + LendersScreen also expose)
-    const aiBtn = page.getByRole("button", { name: /AI Lender Upload/i });
+    const aiBtn = page.getByRole("button", { name: /Upload rate sheet/i });
     await expect(aiBtn).toBeVisible({ timeout: 10000 });
     await aiBtn.click();
 
     // Modal title
-    const aiDialog = page.getByRole("dialog", { name: /AI Lender Upload/i });
-    await expect(aiDialog.getByRole("heading", { name: "AI Lender Upload" })).toBeVisible();
+    const aiDialog = page.getByRole("dialog", { name: /Upload rate sheet/i });
+    await expect(aiDialog.getByRole("heading", { name: "Upload rate sheet" })).toBeVisible();
     await expect(
       aiDialog.getByText(/Click to upload or drag and drop PDF rate sheets/i)
     ).toBeVisible();
@@ -1041,7 +1042,7 @@ test.describe("AI lender upload", () => {
     });
 
     // Wait for file to register in UI state
-    await expect(aiDialog.getByText(/1 file\(s\) ready for analysis/i)).toBeVisible({
+    await expect(aiDialog.getByText(/\b1 file ready/i)).toBeVisible({
       timeout: 5000,
     });
 
@@ -1052,16 +1053,18 @@ test.describe("AI lender upload", () => {
       await expect(enrichToggle).toBeVisible();
     }
 
-    // Click Analyze (triggers processLenderSheet + mocked API)
-    await page.getByRole("button", { name: /^Analyze$/i }).click();
+    // Click "Extract programs" (triggers processLenderSheet + mocked API)
+    await page.getByRole("button", { name: /^Extract programs$/i }).click();
 
     // Results UI appears with extracted lenders from our mock data
-    await expect(page.getByText("Analysis Results")).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText("🏦 E2E Alliance Credit Union")).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("🏦 E2E Capital One Auto")).toBeVisible();
+    await expect(page.getByText("Programs found")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("E2E Alliance Credit Union", { exact: true })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByText("E2E Capital One Auto", { exact: true })).toBeVisible();
 
     // Confirm saves via mocked PB writes (saveLenderProfile)
-    await page.getByRole("button", { name: /Confirm and Update/i }).click();
+    await page.getByRole("button", { name: /Save lender programs/i }).click();
 
     // Modal should auto-close after success (see setTimeout in component)
     await expect(aiDialog).toBeHidden({ timeout: 5000 });
@@ -1162,9 +1165,9 @@ test.describe("Deal save", () => {
     await saveBtn.click();
 
     // Success path in hook: setMessage success -> toast renders
-    await expect(
-      page.getByRole("status").filter({ hasText: /Deal saved successfully/i })
-    ).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("status").filter({ hasText: /Deal saved/i })).toBeVisible({
+      timeout: 8000,
+    });
 
     // Scope to alerts — inventory rows like STK FAILED01 must not trip this.
     // Toast keeps an always-mounted (empty) sr-only role="alert" live region, so
@@ -1269,7 +1272,7 @@ test.describe("PDF generation", () => {
     await setupTest(page, "/inventory");
 
     // Button from InventoryScreen toolbar (may require favorites for full click, presence is key assertion)
-    await expect(page.getByRole("button", { name: /Favorites PDF/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /Compare PDF/i })).toBeVisible({
       timeout: 10000,
     });
   });

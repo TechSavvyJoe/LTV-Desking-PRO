@@ -1017,7 +1017,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   id="finance-tools-notes"
                   aria-label="Finance tools notes"
                   className="flex-1 w-full p-3 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-subtle)] resize-none text-sm text-[var(--color-text)] placeholder-[var(--color-text-subtle)] min-h-[400px] transition-colors duration-[var(--duration-fast)]"
-                  placeholder="Type your notes here..."
+                  placeholder="Type your notes here…"
                   value={scratchPadNotes}
                   onChange={(e) => setScratchPadNotes(e.target.value)}
                 />

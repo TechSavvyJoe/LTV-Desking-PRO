@@ -116,17 +116,17 @@ const openLender = (name: string) =>
   fireEvent.click(screen.getByRole("row", { name: new RegExp(`${name} program details`) }));
 
 describe("LendersScreen", () => {
-  it("offers AI Lender Upload only to admins (header and empty state)", () => {
+  it("offers the rate sheet upload only to admins (header and empty state)", () => {
     mocks.role = "sales";
     mocks.profiles = [];
     render(<LendersScreen />);
-    expect(screen.queryAllByRole("button", { name: /AI Lender Upload/i })).toHaveLength(0);
-    expect(screen.getByText(/Ask your admin to upload a rate sheet/)).toBeTruthy();
+    expect(screen.queryAllByRole("button", { name: /Upload rate sheet/i })).toHaveLength(0);
+    expect(screen.getByText(/Ask your admin to load lender programs/)).toBeTruthy();
     cleanup();
 
     mocks.role = "admin";
     render(<LendersScreen />);
-    expect(screen.getAllByRole("button", { name: /AI Lender Upload/i })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /Upload rate sheet/i })).toHaveLength(2);
   });
 
   it("renders the empty state without a table when there are no programs", () => {

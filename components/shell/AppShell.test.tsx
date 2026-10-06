@@ -95,14 +95,14 @@ describe("AppShell", () => {
     expect(document.activeElement).toBe(account);
   });
 
-  it("shows the AI Lender Upload pill for an admin but not for sales", () => {
+  it("shows the rate sheet upload pill for an admin but not for sales", () => {
     const { unmount } = renderShell();
-    expect(screen.getByRole("button", { name: "AI lender upload" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Upload rate sheet" })).toBeTruthy();
     unmount();
 
     mocks.getCurrentUser.mockReturnValue(userWithRole("sales"));
     renderShell();
-    expect(screen.queryByRole("button", { name: "AI lender upload" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Upload rate sheet" })).toBeNull();
   });
 
   it("the ⌘K header button is a secondary action (hidden at phone widths)", () => {

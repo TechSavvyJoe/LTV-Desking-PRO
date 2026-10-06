@@ -109,7 +109,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           currentUser?.email ||
           "—"
         }
-        sub={currentUser?.role === "superadmin" ? "Superadmin" : "Admin"}
+        sub={currentUser?.role === "superadmin" ? "Owner" : "Admin"}
         right={
           <>
             {onSwitchToDealer && (
@@ -157,7 +157,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
               >
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              Onboard new dealer
+              Add dealership
             </button>
             <button
               onClick={logout}
@@ -201,7 +201,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
         <ConsoleTab
           active={activeTab === "dealers"}
           onClick={() => setActiveTab("dealers")}
-          label="Dealers"
+          label="Dealerships"
           badge={stats.totalDealers}
         />
         <ConsoleTab

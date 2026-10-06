@@ -42,7 +42,12 @@ export const SystemSettingsPanel: React.FC = () => {
       })
       .catch(
         (e: unknown) =>
-          !cancelled && setError(e instanceof Error ? e.message : "Failed to load settings")
+          !cancelled &&
+          setError(
+            e instanceof Error
+              ? e.message
+              : "Couldn't load system settings. Reload the page before saving."
+          )
       )
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -57,7 +62,7 @@ export const SystemSettingsPanel: React.FC = () => {
       try {
         thresholds = JSON.parse(form.defaultLtvThresholds);
       } catch {
-        setError("Default LTV thresholds must be valid JSON");
+        setError('Default LTV thresholds must be valid JSON, like {"700": 120}.');
         return;
       }
     }
@@ -72,7 +77,7 @@ export const SystemSettingsPanel: React.FC = () => {
       });
       setSavedAt(new Date());
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save settings");
+      setError(e instanceof Error ? e.message : "Couldn't save system settings. Try again.");
     } finally {
       setSaving(false);
     }
@@ -91,7 +96,7 @@ export const SystemSettingsPanel: React.FC = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text)] tracking-tight">
-            System Settings
+            System settings
           </h2>
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             Affects every dealership on the platform.
@@ -128,7 +133,7 @@ export const SystemSettingsPanel: React.FC = () => {
             placeholder="support@ltvdesking.com"
           />
           <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
-            Shown to dealers in error messages and help screens.
+            Shown to dealerships in error messages and help screens.
           </p>
         </div>
 
@@ -153,7 +158,9 @@ export const SystemSettingsPanel: React.FC = () => {
 
         <div className="flex items-center justify-between p-4 bg-[var(--color-bg-subtle)] ring-1 ring-[var(--color-border)] rounded-xl">
           <div>
-            <p className="text-sm font-medium text-[var(--color-text)]">Allow new dealer signups</p>
+            <p className="text-sm font-medium text-[var(--color-text)]">
+              Allow new dealership signups
+            </p>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
               When off, the public registration form on{" "}
               <code className="text-[var(--color-text-muted)]">/</code> is disabled.
@@ -163,7 +170,7 @@ export const SystemSettingsPanel: React.FC = () => {
             <input
               type="checkbox"
               className="sr-only peer"
-              aria-label="Allow new dealer signups"
+              aria-label="Allow new dealership signups"
               checked={form.signupsEnabled !== false}
               onChange={(e) => setForm({ ...form, signupsEnabled: e.target.checked })}
             />

@@ -71,7 +71,7 @@ describe("AiLenderManagerModal", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
+      fireEvent.click(screen.getByRole("button", { name: "Extract programs" }));
     });
 
     expect(

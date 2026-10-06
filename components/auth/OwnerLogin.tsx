@@ -22,7 +22,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
     setError(null);
 
     if (!email || !password) {
-      setError("Please enter both email and password");
+      setError("Enter your email and password");
       return;
     }
 
@@ -30,7 +30,7 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
     try {
       const result = await login(email, password);
       if (!result.success) {
-        setError(result.error || "Invalid email or password");
+        setError(result.error || "Sign-in failed. Check your email and password.");
         return;
       }
 
@@ -39,17 +39,17 @@ export const OwnerLogin: React.FC<OwnerLoginProps> = ({ onSuccess }) => {
         // Clear the token WITHOUT logout() — logout() reloads the page, which
         // unmounted this component before the error could ever render. [C-auth]
         pb.authStore.clear();
-        setError("Administrator access required. This account cannot open the admin console.");
+        setError("This account doesn't have admin access. Sign in with an admin account.");
         return;
       }
 
       toast.success(
-        role === "superadmin" ? "Welcome to the Owner Console" : "Welcome to Dealer Administration"
+        role === "superadmin" ? "Signed in to the owner console" : "Signed in to the admin console"
       );
       onSuccess();
     } catch (err) {
       // Owner login failure surfaced via UI toast.
-      setError("An unexpected error occurred. Please try again.");
+      setError("Couldn't sign in. Check your connection and try again.");
     } finally {
       setLoading(false);
     }

@@ -87,7 +87,7 @@ export interface DataErrorProps {
 }
 
 export const DataError: React.FC<DataErrorProps> = ({
-  title = "Something went wrong",
+  title = "Couldn't load this section",
   description,
   onRetry,
   secondaryAction,

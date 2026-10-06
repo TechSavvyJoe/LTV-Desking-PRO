@@ -78,25 +78,6 @@ const UploadIcon = () => (
   </svg>
 );
 
-const getStageIcon = (stage: ProcessingProgress["stage"]) => {
-  switch (stage) {
-    case "uploading":
-      return "📤";
-    case "extracting":
-      return "🔍";
-    case "validating":
-      return "✅";
-    case "enhancing":
-      return "🧠";
-    case "complete":
-      return "🎉";
-    case "error":
-      return "❌";
-    default:
-      return "⏳";
-  }
-};
-
 const getStageColor = (stage: ProcessingProgress["stage"]) => {
   switch (stage) {
     case "uploading":
@@ -135,7 +116,7 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
     {/* Overall progress bar */}
     <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <span className="text-sm font-medium text-[var(--color-text)]">Overall Progress</span>
+        <span className="text-sm font-medium text-[var(--color-text)]">Overall progress</span>
         <span className="text-sm font-bold text-[var(--color-primary)]">{overallProgress}%</span>
       </div>
       <div className="w-full bg-[var(--color-bg-muted)] rounded-full h-3 overflow-hidden">
@@ -166,7 +147,6 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
           <div key={index} className="bg-[var(--color-bg-muted)] rounded-lg p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-lg">{getStageIcon(stage)}</span>
                 <span className="text-sm font-medium text-[var(--color-text)] truncate max-w-[200px]">
                   {file.name}
                 </span>
@@ -199,21 +179,11 @@ const ProgressSection: React.FC<ProgressSectionProps> = ({
 
     {/* Processing stages legend */}
     <div className="flex flex-wrap justify-center gap-3 mt-4 pt-4 border-t border-[var(--color-border)]">
-      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-        <span>📤</span> Upload
-      </div>
-      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-        <span>🔍</span> Extract
-      </div>
-      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-        <span>✅</span> Validate
-      </div>
-      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-        <span>🧠</span> Enhance
-      </div>
-      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-        <span>🎉</span> Complete
-      </div>
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">Upload</div>
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">Extract</div>
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">Validate</div>
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">Enhance</div>
+      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">Complete</div>
     </div>
   </div>
 );
@@ -300,7 +270,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             });
 
             // Update current stage message
-            const stageMessage = `${getStageIcon(progress.stage)} ${progress.message}`;
+            const stageMessage = progress.message;
             setCurrentStage(stageMessage);
 
             // Calculate overall progress
@@ -338,7 +308,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         newResults.push({
           fileName: file.name,
           status: "error",
-          error: error instanceof Error ? error.message : "Unknown processing error.",
+          error: error instanceof Error ? error.message : "Unknown error.",
         });
       }
     }
@@ -359,7 +329,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
     setIncludedLenders(allKeys);
     setResults(newResults);
     setOverallProgress(100);
-    setCurrentStage("🎉 All files processed!");
+    setCurrentStage("All rate sheets read");
     setIsLoading(false);
     onProgress?.(0, "");
   };
@@ -392,7 +362,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
     if (allLenders.length === 0) return;
 
     setIsLoading(true);
-    setCurrentStage("💾 Saving lenders to database...");
+    setCurrentStage("Saving lender programs…");
 
     let savedCount = 0;
     let updatedCount = 0;
@@ -452,12 +422,12 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
     // Show summary message
     const messages = [];
-    if (savedCount > 0) messages.push(`${savedCount} new lender(s) saved`);
-    if (updatedCount > 0) messages.push(`${updatedCount} lender(s) updated`);
-    if (errorCount > 0) messages.push(`${errorCount} error(s)`);
+    if (savedCount > 0) messages.push(`${savedCount} added`);
+    if (updatedCount > 0) messages.push(`${updatedCount} updated`);
+    if (errorCount > 0) messages.push(`${errorCount} couldn't be saved`);
 
     if (messages.length > 0) {
-      setCurrentStage(`✅ Complete: ${messages.join(", ")}`);
+      setCurrentStage(`Lender programs: ${messages.join(", ")}`);
     }
 
     // Close after brief delay to show completion message
@@ -507,16 +477,16 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="AI Lender Upload"
+        aria-label="Upload rate sheet"
       >
         <div className="p-4 flex justify-between items-center border-b border-[var(--color-border)]">
-          <h2 className="text-xl font-bold text-[var(--color-text)]">AI Lender Upload</h2>
+          <h2 className="text-xl font-bold text-[var(--color-text)]">Upload rate sheet</h2>
           <div className="flex items-center gap-2">
             {isLoading && onMinimize && (
               <button
                 onClick={onMinimize}
                 className="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-primary)] transition-colors"
-                title="Minimize - Processing will continue in background"
+                title="Minimize — reading continues in the background"
                 aria-label="Minimize"
               >
                 <MinimizeIcon />
@@ -566,7 +536,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
               </div>
               {files.length > 0 && (
                 <div className="mt-4">
-                  <h4 className="font-semibold text-[var(--color-text)] mb-2">Selected Files:</h4>
+                  <h4 className="font-semibold text-[var(--color-text)] mb-2">Selected files</h4>
                   <ul className="space-y-1 text-sm list-disc list-inside text-[var(--color-text-muted)]">
                     {files.map((file, i) => (
                       <li key={i}>{file.name}</li>
@@ -585,12 +555,11 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                 />
                 <label htmlFor="enrich-toggle" className="text-sm cursor-pointer">
                   <span className="font-medium text-[var(--color-text)]">
-                    Enrich missing bank data via web search
+                    Fill in missing lender details from the web
                   </span>
                   <span className="block text-xs text-[var(--color-text-muted)] mt-1">
-                    After extracting the rate sheet, search the web (Gemini grounding) to fill in
-                    any missing contact info, website, portal URL, or general bank notes. Sources
-                    are cited. Adds ~10–20s per file.
+                    After reading the sheet, search the web for missing contact info, website,
+                    portal link and notes. Sources are cited. Adds about 10–20 seconds per file.
                   </span>
                 </label>
               </div>
@@ -598,7 +567,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           ) : (
             <div>
               <h3 className="text-lg font-semibold text-[var(--color-text)] mb-3">
-                Analysis Results
+                Programs found
               </h3>
               <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {results.map((res, i) => (
@@ -611,13 +580,13 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                     }`}
                   >
                     <p className="font-semibold text-sm text-[var(--color-text)] mb-2">
-                      📄 {res.fileName}
+                      {res.fileName}
                     </p>
                     {res.status === "success" && res.lenders ? (
                       <div className="space-y-3">
                         <p className="text-xs text-[var(--color-success)]">
-                          ✓ Successfully extracted{" "}
-                          <strong className="font-bold">{res.lenders.length}</strong> lender(s)
+                          Found <strong className="font-bold">{res.lenders.length}</strong>{" "}
+                          {res.lenders.length === 1 ? "lender" : "lenders"}
                         </p>
                         {res.lenders.map((lender, j) => {
                           const lenderKey = `${i}-${j}`;
@@ -645,12 +614,12 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                     aria-label={`Include ${lender.name || "this lender"} in the update`}
                                   />
                                   <span className="font-semibold text-[var(--color-text)] text-sm">
-                                    🏦 {lender.name}
+                                    {lender.name}
                                   </span>
                                 </label>
                                 {matchedExisting && (
                                   <span className="px-2 py-0.5 rounded-sm text-[10px] font-medium bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border border-[var(--color-warning)]/40">
-                                    {`Will update existing '${matchedExisting}'`}
+                                    {`Updates your existing ${matchedExisting} program`}
                                   </span>
                                 )}
                               </div>
@@ -719,9 +688,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                               )}
                               {lender.enrichmentSources && lender.enrichmentSources.length > 0 && (
                                 <div className="mb-3 flex flex-wrap gap-1.5 items-center text-[10px]">
-                                  <span className="text-[var(--color-text-muted)]">
-                                    🔎 Sources:
-                                  </span>
+                                  <span className="text-[var(--color-text-muted)]">Sources:</span>
                                   {lender.enrichmentSources.slice(0, 5).map((src, idx) => (
                                     <a
                                       key={idx}
@@ -750,12 +717,15 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                               {lender.tiers && lender.tiers.length > 0 ? (
                                 <div className="space-y-2">
                                   <p className="text-xs text-[var(--color-text-muted)]">
-                                    {lender.tiers.length} credit tier(s) extracted:
+                                    {lender.tiers.length} credit{" "}
+                                    {lender.tiers.length === 1 ? "tier" : "tiers"}:
                                   </p>
                                   {reviewTierCount > 0 && (
                                     <p className="text-xs font-medium text-[var(--color-warning)]">
-                                      ⚠️ {reviewTierCount} tier(s) need review — the AI read
-                                      implausible values that were dropped. Those tiers stay pending
+                                      {reviewTierCount === 1
+                                        ? "1 tier needs review"
+                                        : `${reviewTierCount} tiers need review`}{" "}
+                                      — implausible values were dropped. These tiers stay pending
                                       (never counted as a fit) until corrected.
                                     </p>
                                   )}
@@ -843,8 +813,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                               className="mt-2 rounded-sm px-2 py-1.5 bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border border-[var(--color-warning)]/40"
                                             >
                                               <p className="font-semibold">
-                                                ⚠️ Needs review — verify against the lender's
-                                                official sheet
+                                                Needs review — verify against the lender's official
+                                                sheet
                                               </p>
                                               {tier.rangeFlags && tier.rangeFlags.length > 0 && (
                                                 <ul className="mt-1 space-y-0.5">
@@ -868,7 +838,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                                 </div>
                               ) : (
                                 <p className="text-xs text-[var(--color-warning)]">
-                                  ⚠️ No credit tiers extracted
+                                  No credit tiers found
                                 </p>
                               )}
                             </div>
@@ -876,7 +846,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
                         })}
                       </div>
                     ) : (
-                      <p className="text-xs text-[var(--color-danger)]">❌ Error: {res.error}</p>
+                      <p className="text-xs text-[var(--color-danger)]">
+                        Couldn&apos;t read this file: {res.error}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -888,10 +860,10 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         <div className="p-4 border-t border-[var(--color-border)] flex justify-between items-center">
           <p className="text-sm text-[var(--color-text-muted)]">
             {isLoading
-              ? "AI is analyzing documents... please wait."
+              ? "Reading rate sheets…"
               : results.length > 0
-                ? "Review the results above, uncheck any lenders to skip, and confirm."
-                : `${files.length} file(s) ready for analysis.`}
+                ? "Uncheck any lender you don't want, then save."
+                : `${files.length} ${files.length === 1 ? "file" : "files"} ready`}
           </p>
           <div className="flex gap-3 items-center">
             {!isLoading && results.length > 0 && (
@@ -904,11 +876,11 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             </Button>
             {results.length > 0 ? (
               <Button onClick={handleConfirm} disabled={isLoading || selectedLenderCount === 0}>
-                Confirm and Update
+                Save lender programs
               </Button>
             ) : (
               <Button onClick={handleAnalyze} disabled={isLoading || files.length === 0}>
-                Analyze
+                Extract programs
               </Button>
             )}
           </div>

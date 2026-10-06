@@ -45,7 +45,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
   const handleResetSubmit = async () => {
     const target = resetEmail.trim();
     if (!target) {
-      toast.error("Please enter your email address");
+      toast.error("Enter your email to get a reset link");
       return;
     }
     setResetLoading(true);
@@ -61,7 +61,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error("Please enter both email and password");
+      toast.error("Enter your email and password");
       return;
     }
 
@@ -69,14 +69,14 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
     try {
       const result = await login(email, password);
       if (result.success) {
-        toast.success("Welcome back!");
+        toast.success("Signed in");
         onSuccess();
       } else {
-        toast.error(result.error || "Invalid email or password");
+        toast.error(result.error || "Sign-in failed. Check your email and password.");
       }
     } catch (error) {
       // Login failure surfaced via UI toast; detailed in Sentry via boundary.
-      toast.error("An unexpected error occurred. Please try again.");
+      toast.error("Couldn't sign in. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -216,7 +216,8 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
               role="alert"
               style={{ fontSize: 12, color: "var(--color-danger)", margin: "8px 0 0" }}
             >
-              Could not send the reset email. Please try again, or contact your administrator.
+              Couldn&apos;t send the reset email. Try again, or ask your admin to reset your
+              password.
             </p>
           )}
         </div>
