@@ -27,9 +27,10 @@ const SALES_ROUTES = ["/desk", "/pipeline", "/inventory", "/lenders", "/reports"
 
 const ADMIN_ROUTES = ["/lenders", "/admin"];
 
+// The API-login fixture (./fixtures/auth) only works against the seeded
+// PocketBase stack; the mocked-auth run has no real session to scan with.
 const AUTH_SKIP_REASON =
-  "No reusable auth fixture/storageState exists in this repo (auth.spec.ts wires up mocked " +
-  "auth locally and does not export it) — skipping authenticated-route a11y scan until one is added.";
+  "Authenticated-route scans need the seeded PocketBase stack (E2E_REAL_BACKEND=1).";
 
 const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND;
 
