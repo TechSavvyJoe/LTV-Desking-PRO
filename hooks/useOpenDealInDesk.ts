@@ -54,13 +54,13 @@ export function useOpenDealInDesk(): (deal: SavedDeal) => void {
       if (live) {
         setFocusVin(live.vin);
         setActiveVehicle(live);
-        setMessage({ type: "success", text: "Deal loaded successfully." });
+        setMessage({ type: "success", text: "Deal opened on the desk" });
       } else {
         setFocusVin(null);
         setActiveVehicle(null);
         setMessage({
           type: "warning",
-          text: "Vehicle no longer in inventory; deal terms restored",
+          text: "Deal terms restored — the vehicle is no longer in inventory",
         });
       }
       navigate("/desk");

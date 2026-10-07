@@ -92,7 +92,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       </div>
     );
   }
@@ -103,13 +103,13 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
       style={{ background: "var(--color-bg-subtle)", fontFamily: "var(--font-sans)" }}
     >
       <ConsoleHeader
-        label="OWNER CONSOLE"
+        label="Owner console"
         title={
           `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim() ||
           currentUser?.email ||
           "—"
         }
-        sub={currentUser?.role === "superadmin" ? "Superadmin" : "Admin"}
+        sub={currentUser?.role === "superadmin" ? "Owner" : "Admin"}
         right={
           <>
             {onSwitchToDealer && (
@@ -157,7 +157,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
               >
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              Onboard new dealer
+              Add dealership
             </button>
             <button
               onClick={logout}
@@ -193,28 +193,34 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           gap: 4,
         }}
       >
-        <ConsoleTab
-          active={activeTab === "overview"}
-          onClick={() => setActiveTab("overview")}
-          label="Overview"
-        />
-        <ConsoleTab
-          active={activeTab === "dealers"}
-          onClick={() => setActiveTab("dealers")}
-          label="Dealers"
-          badge={stats.totalDealers}
-        />
-        <ConsoleTab
-          active={activeTab === "users"}
-          onClick={() => setActiveTab("users")}
-          label="Users"
-          badge={stats.totalUsers}
-        />
-        <ConsoleTab
-          active={activeTab === "settings"}
-          onClick={() => setActiveTab("settings")}
-          label="Settings"
-        />
+        {/* Section switcher — a labelled nav with the current section marked. [aria #15] */}
+        <nav
+          aria-label="Owner console sections"
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
+        >
+          <ConsoleTab
+            active={activeTab === "overview"}
+            onClick={() => setActiveTab("overview")}
+            label="Overview"
+          />
+          <ConsoleTab
+            active={activeTab === "dealers"}
+            onClick={() => setActiveTab("dealers")}
+            label="Dealerships"
+            badge={stats.totalDealers}
+          />
+          <ConsoleTab
+            active={activeTab === "users"}
+            onClick={() => setActiveTab("users")}
+            label="Users"
+            badge={stats.totalUsers}
+          />
+          <ConsoleTab
+            active={activeTab === "settings"}
+            onClick={() => setActiveTab("settings")}
+            label="Settings"
+          />
+        </nav>
         <div style={{ marginLeft: "auto" }}>{refreshBar}</div>
       </div>
 

@@ -248,6 +248,8 @@ export interface LenderProfile {
   dealer: string;
   name: string;
   active: boolean;
+  /** Illustrative default program; held pending until an admin verifies it. */
+  isSample?: boolean;
   tiers: LenderTier[];
   bookValueSource?: "Trade" | "Retail";
   minIncome?: number;

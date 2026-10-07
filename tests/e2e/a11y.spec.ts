@@ -1,5 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, type Page, type TestInfo } from "@playwright/test";
+import { test, expect, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { authenticateAs, type SeededRole } from "./fixtures/auth";
+import { USE_REAL_BACKEND } from "./fixtures/backend";
 
 /**
  * Automated accessibility gate (axe-core) for LTV-Desking-PRO.
@@ -9,14 +11,11 @@ import { test, expect, type Page, type TestInfo } from "@playwright/test";
  * attached to the test report (testInfo.attach) so failures are debuggable
  * without re-running locally.
  *
- * Scope: the public login page only. The authenticated app routes
- * (/desk, /pipeline, /inventory, /lenders, /reports, /tools) require a
- * logged-in session, and this project has no reusable auth fixture or
- * storageState — tests/e2e/auth.spec.ts authenticates via ad-hoc route
- * mocking / addInitScript defined locally in that file (not exported), so
- * there is nothing to import here. Those routes are explicitly skipped
- * below with a reason rather than duplicating ~200 lines of mock setup or
- * silently scanning the (unauthenticated) login page under a different URL.
+ * Scope: the public login page (always) plus the authenticated app routes
+ * (/desk, /pipeline, /inventory, /lenders, /reports, /tools as a sales user;
+ * /lenders and /admin as an admin) when the real seeded backend is available
+ * (E2E_REAL_BACKEND or USE_SEED_BACKEND). Authentication goes through the PocketBase API via
+ * tests/e2e/fixtures/auth.ts, not the login form.
  *
  * See docs/ACCESSIBILITY.md for the conformance summary this gate backs.
  */
@@ -25,11 +24,33 @@ const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 const FAIL_IMPACTS = new Set(["serious", "critical"]);
 
-const AUTHED_ROUTES = ["/desk", "/pipeline", "/inventory", "/lenders", "/reports", "/tools"];
+const SALES_ROUTES = ["/desk", "/pipeline", "/inventory", "/lenders", "/reports", "/tools"];
 
+const ADMIN_ROUTES = ["/lenders", "/admin"];
+
+// The API-login fixture (./fixtures/auth) only works against the seeded
+// PocketBase stack; the mocked-auth run has no real session to scan with.
 const AUTH_SKIP_REASON =
-  "No reusable auth fixture/storageState exists in this repo (auth.spec.ts wires up mocked " +
-  "auth locally and does not export it) — skipping authenticated-route a11y scan until one is added.";
+  "Authenticated-route scans need the seeded PocketBase stack (E2E_REAL_BACKEND=1 or USE_SEED_BACKEND=1).";
+
+// What proves each route's own screen has rendered — not the shell, and not a
+// lazy route's Suspense spinner, which sits inside the same <main>. Axe must
+// never scan the fallback and report the route as covered.
+const ROUTE_READY: Record<string, (page: Page) => Locator> = {
+  "/desk": (p) => p.locator('[data-screen-label="Dealer desk"]'),
+  "/pipeline": (p) => p.locator('[data-screen-label="Pipeline"]'),
+  "/inventory": (p) => p.locator('[data-screen-label="Inventory"]'),
+  "/lenders": (p) => p.locator('[data-screen-label="Lenders"]'),
+  "/reports": (p) => p.locator('[data-screen-label="Reports"]'),
+  "/tools": (p) => p.getByRole("heading", { name: /finance tools/i }),
+  "/admin": (p) => p.getByRole("heading", { name: /team members/i }),
+};
+
+function routeReady(page: Page, route: string): Locator {
+  const ready = ROUTE_READY[route];
+  if (!ready) throw new Error(`No readiness marker for ${route} — add one to ROUTE_READY.`);
+  return ready(page).first();
+}
 
 type ColorScheme = "light" | "dark";
 
@@ -65,14 +86,14 @@ test.describe("Accessibility (axe-core, WCAG 2.2 AA)", () => {
   test.describe("Login page", () => {
     test("light mode has no serious/critical violations", async ({ page }, testInfo) => {
       await page.goto("/");
-      await expect(page.getByText("SIGN IN")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
 
       await runAxeScan(page, testInfo, "login-light");
     });
 
     test("dark mode has no serious/critical violations", async ({ page }, testInfo) => {
       await page.goto("/");
-      await expect(page.getByText("SIGN IN")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
       await setColorScheme(page, "dark");
 
       await runAxeScan(page, testInfo, "login-dark");
@@ -80,10 +101,37 @@ test.describe("Accessibility (axe-core, WCAG 2.2 AA)", () => {
   });
 
   test.describe("Authenticated app routes", () => {
-    for (const route of AUTHED_ROUTES) {
-      test(`${route} (light + dark) — skipped, no auth fixture`, async () => {
-        test.skip(true, AUTH_SKIP_REASON);
-      });
+    const cases: Array<{ role: SeededRole; routes: string[] }> = [
+      { role: "sales", routes: SALES_ROUTES },
+      { role: "admin", routes: ADMIN_ROUTES },
+    ];
+
+    for (const { role, routes } of cases) {
+      for (const route of routes) {
+        for (const scheme of ["light", "dark"] as const) {
+          test(`${role} ${route} (${scheme}) has no serious/critical violations`, async ({
+            page,
+            request,
+          }, testInfo) => {
+            test.skip(!USE_REAL_BACKEND, AUTH_SKIP_REASON);
+
+            await authenticateAs(page, request, role);
+            await page.goto(route);
+            await page.locator('[role="status"][aria-busy="true"]').first().waitFor({
+              state: "detached",
+              timeout: 20000,
+            });
+            await expect(page.locator("main, [role='main']").first()).toBeVisible();
+            await expect(routeReady(page, route)).toBeVisible({ timeout: 20000 });
+            await setColorScheme(page, scheme);
+            // Let colour transitions (<=240ms, see --transition-* in index.css)
+            // finish so axe samples final colours.
+            await page.waitForTimeout(800);
+
+            await runAxeScan(page, testInfo, `${role}-${route.slice(1)}-${scheme}`);
+          });
+        }
+      }
     }
   });
 });

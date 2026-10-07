@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { LOCAL_PB_URL } from "./fixtures/backend";
 
 /**
  * E2E + integration tests for LTV-Desking-PRO key flows using Playwright.
@@ -23,15 +24,17 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe("Auth / App Load (skeleton)", () => {
-  test("loads app shell and shows auth UI (SIGN IN) on unauthed visit", async ({ page }) => {
+  test("loads app shell and shows auth UI (Sign in heading) on unauthed visit", async ({
+    page,
+  }) => {
     await page.goto("/");
 
     // Title from index.html
     await expect(page).toHaveTitle(/LTV Desking PRO/i);
 
     // Unauthed default lands in AuthLayout + Login (see App.tsx + components/auth/Login.tsx)
-    // "SIGN IN" header text is stable marker.
-    await expect(page.getByText("SIGN IN")).toBeVisible();
+    // The "Sign in" heading is the stable marker for the login page.
+    await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
 
     // Form fields present (email/password)
     await expect(page.getByLabel(/email address/i)).toBeVisible();
@@ -69,11 +72,14 @@ test.describe("Load desk", () => {
       // The seed source uses UI names (`modelYear`, `stock`) while PocketBase
       // stores `year`, `stockNumber`. Guard the mapping so a successful count
       // assertion cannot hide identity data being silently dropped.
-      const sampleRow = page.getByRole("row", {
-        name: /Focus 2020 Ford Explorer XLT on desk/i,
-      });
+      // Rows are found by their vehicle button (its name is make/model/trim);
+      // the stock prints once with its "STK" prefix, never doubled.
+      const sampleRow = page
+        .getByRole("row")
+        .filter({ has: page.getByRole("button", { name: "Ford Explorer XLT", exact: true }) });
       await expect(sampleRow).toBeVisible();
-      await expect(sampleRow).toContainText("STK STK1026");
+      await expect(sampleRow).toContainText("STK1026");
+      await expect(sampleRow).not.toContainText("STK STK");
     }
   });
 
@@ -82,7 +88,7 @@ test.describe("Load desk", () => {
   }) => {
     await setupTest(page, "/desk");
 
-    const inspectorTitle = page.locator(".desk-inspector-title-row h2");
+    const inspectorTitle = page.locator(".desk-inspector-title-row h3");
     await expect(inspectorTitle).toBeVisible();
     const selectedVehicle = await inspectorTitle.innerText();
 
@@ -153,6 +159,15 @@ const SALES_TEST_AUTH: TestCredentials = {
 
 const ADMIN_TEST_AUTH: TestCredentials = {
   identity: "admin.a@dealera.com",
+  password: "AdminPassword123!",
+  role: "admin",
+};
+
+// Tests that WRITE dealer data on the real backend (inventory imports, rate-sheet
+// saves) run as Dealer B's admin so they never change Dealer A — the dealer
+// the accessibility, ranking and lender-ladder tests read. Same role in mocks.
+const ADMIN_B_TEST_AUTH: TestCredentials = {
+  identity: "admin.b@dealerb.com",
   password: "AdminPassword123!",
   role: "admin",
 };
@@ -326,7 +341,7 @@ const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND || !!process.env.USE_SEE
 
 async function mockAiEndpoints(page: Page) {
   // AI endpoints (used in various modals)
-  // Specific mocks for lender extract/enrich to support full AI Lender Upload flow.
+  // Specific mocks for lender extract/enrich to support full rate-sheet upload flow.
   await page.route("**/api/ai/lender-extract", async (route) => {
     if (route.request().method() === "POST") {
       await route.fulfill({
@@ -636,7 +651,7 @@ async function setupTest(
     // For real backend E2E, authenticate via the API (reliable) and inject the token
     // so the app boots as logged-in. Avoids flakiness with form UI + state updates
     // after recent redesign. The dedicated login test covers the form for mocks.
-    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const pbUrl = process.env.VITE_POCKETBASE_URL || LOCAL_PB_URL;
     const authRes = await page.request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
       data: { identity: credentials.identity, password: credentials.password },
       headers: { "Content-Type": "application/json" },
@@ -681,7 +696,7 @@ test.describe("Login flow", () => {
     await page.goto("/");
 
     if (!USE_REAL_BACKEND) {
-      await expect(page.getByText("SIGN IN")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
       await expect(page.getByLabel(/email address/i)).toBeVisible();
       await expect(page.getByLabel(/password/i)).toBeVisible();
 
@@ -730,7 +745,7 @@ test.describe("User lifecycle guards", () => {
   }) => {
     test.skip(!USE_REAL_BACKEND, "Requires PocketBase with the production hooks loaded");
 
-    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const pbUrl = process.env.VITE_POCKETBASE_URL || LOCAL_PB_URL;
     const adminAuth = await request.post(`${pbUrl}/api/collections/users/auth-with-password`, {
       data: { identity: "admin.a@dealera.com", password: "AdminPassword123!" },
     });
@@ -800,7 +815,7 @@ test.describe("Administrative console login", () => {
   }) => {
     test.skip(!USE_REAL_BACKEND, "Requires the seeded PocketBase backend");
 
-    const pbUrl = process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090";
+    const pbUrl = process.env.VITE_POCKETBASE_URL || LOCAL_PB_URL;
     const email = `ui-lifecycle-${Date.now()}@example.test`;
     const password = `LifecycleUi${Date.now()}!`;
 
@@ -819,18 +834,20 @@ test.describe("Administrative console login", () => {
       await page.getByLabel(/^Role\s*\*/).selectOption("manager");
       await page.getByLabel(/^Password/i).fill(password);
       await page.getByLabel(/Confirm Password/i).fill(password);
-      await page.getByRole("button", { name: "Create User", exact: true }).click();
+      await page.getByRole("button", { name: "Create user", exact: true }).click();
 
       // Toasts are mirrored into a persistent sr-only role="status" live region, so
       // plain getByText would match both the pill and the region — assert on the
       // region, as the rest of this suite does.
       const toast = (text: string) => page.getByRole("status").filter({ hasText: text });
-      await expect(toast("User created successfully")).toBeVisible({ timeout: 15_000 });
+      await expect(toast("User created")).toBeVisible({ timeout: 15_000 });
       const teamRow = () => page.getByRole("row").filter({ hasText: email });
       await expect(teamRow()).toBeVisible();
       await expect(teamRow().getByRole("combobox")).toHaveValue("manager");
 
-      await teamRow().getByRole("button", { name: "Deactivate", exact: true }).click();
+      await teamRow()
+        .getByRole("button", { name: `Deactivate ${email}`, exact: true })
+        .click();
       await expect(toast("User deactivated")).toBeVisible();
       await expect(teamRow().getByText("Inactive", { exact: true })).toBeVisible();
 
@@ -839,7 +856,9 @@ test.describe("Administrative console login", () => {
       });
       expect(blockedLogin.ok()).toBeFalsy();
 
-      await teamRow().getByRole("button", { name: "Activate", exact: true }).click();
+      await teamRow()
+        .getByRole("button", { name: `Reactivate ${email}`, exact: true })
+        .click();
       await expect(toast("User reactivated")).toBeVisible();
       await expect(teamRow().getByText("Inactive", { exact: true })).toHaveCount(0);
 
@@ -854,7 +873,7 @@ test.describe("Administrative console login", () => {
         .click();
       const dialog = page.getByRole("alertdialog", { name: "Delete user?" });
       await expect(dialog).toBeVisible();
-      await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+      await dialog.getByRole("button", { name: "Delete user", exact: true }).click();
       await expect(toast("User deleted")).toBeVisible();
       await expect(teamRow()).toHaveCount(0);
     } finally {
@@ -887,11 +906,11 @@ test.describe("Administrative console login", () => {
     await page.getByLabel(/password/i).fill("SuperAdminPass123!");
     await page.getByRole("button", { name: /Sign in to Admin Console/i }).click();
 
-    await expect(page.getByText("OWNER CONSOLE", { exact: true })).toBeVisible({
+    await expect(page.getByText("Owner console", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
     await expect(
-      page.getByRole("banner").getByRole("button", { name: /Onboard new dealer/i })
+      page.getByRole("banner").getByRole("button", { name: /Add dealership/i })
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
   });
@@ -902,11 +921,13 @@ test.describe("Administrative console login", () => {
 // ---------------------------------------------------------------------------
 test.describe("Inventory import", () => {
   test("imports CSV via hidden input and shows success state", async ({ page }) => {
-    await setupTest(page, "/inventory", ADMIN_TEST_AUTH);
+    await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
 
     // Toolbar buttons from InventoryScreen + useInventoryImport
-    await expect(page.getByRole("button", { name: "Import CSV/XLSX" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Import inventory" }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Download sample CSV", exact: true })
+    ).toBeVisible();
 
     const csvContent = `Stock #,Year,Make,Model,Trim,VIN,Mileage,Price,Cost,J.D. Power Trade In,J.D. Power Retail,Unit Cost
   E2E001,2024,Toyota,Camry,SE,1M8GDM9AXKP042788,12000,26500,22000,23500,27500,22000
@@ -923,7 +944,7 @@ test.describe("Inventory import", () => {
     // Seed inventory size varies; assert sync toast shape + both imported stocks.
     await expect(
       page.getByRole("status").filter({
-        hasText: /Synced: \d+ added, \d+ updated, \d+ marked sold\./,
+        hasText: /Inventory imported: \d+ added, \d+ updated, \d+ marked sold\./,
       })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK E2E001/)).toBeVisible();
@@ -933,7 +954,7 @@ test.describe("Inventory import", () => {
   test("shows only server-persisted rows when part of a replacement import fails", async ({
     page,
   }) => {
-    await setupTest(page, "/inventory", ADMIN_TEST_AUTH);
+    await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
 
     // Unique VINs so earlier imports don't turn this into PATCH updates; fail
     // both create (POST) and update (PATCH) for the intentionally-bad row.
@@ -972,7 +993,8 @@ test.describe("Inventory import", () => {
 
     await expect(
       page.getByRole("alert").filter({
-        hasText: /Synced: \d+ added, \d+ updated, \d+ marked sold\..*failed and were not saved\./,
+        hasText:
+          /Inventory imported: \d+ added, \d+ updated, \d+ marked sold\..*couldn't be saved — import the file again\./,
       })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
@@ -984,9 +1006,11 @@ test.describe("Inventory import", () => {
   }) => {
     await setupTest(page, "/inventory");
 
-    await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Import CSV/XLSX" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Favorites PDF/i })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Download sample CSV", exact: true })
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Import inventory" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Compare PDF/i })).toBeVisible();
   });
 });
 
@@ -994,11 +1018,11 @@ test.describe("Inventory import", () => {
 // AI LENDER UPLOAD (uses specific /api/ai/lender-* mocks)
 // ---------------------------------------------------------------------------
 test.describe("AI lender upload", () => {
-  test("opens AI Lender Upload modal, uploads PDF, analyzes, and confirms save", async ({
+  test("opens the rate-sheet upload, extracts programs from a PDF, and saves them", async ({
     page,
   }) => {
-    // AI Lender Upload is admin-only (lender_profiles create/update rules).
-    await setupTest(page, "/desk", ADMIN_TEST_AUTH);
+    // Rate-sheet upload is admin-only (lender_profiles create/update rules).
+    await setupTest(page, "/desk", ADMIN_B_TEST_AUTH);
     await waitForDeskReady(page);
 
     if (USE_REAL_BACKEND) {
@@ -1007,13 +1031,13 @@ test.describe("AI lender upload", () => {
     }
 
     // Open modal via header button (AppShell + LendersScreen also expose)
-    const aiBtn = page.getByRole("button", { name: /AI Lender Upload/i });
+    const aiBtn = page.getByRole("button", { name: /Upload rate sheet/i });
     await expect(aiBtn).toBeVisible({ timeout: 10000 });
     await aiBtn.click();
 
     // Modal title
-    const aiDialog = page.getByRole("dialog", { name: /AI Lender Upload/i });
-    await expect(aiDialog.getByRole("heading", { name: "AI Lender Upload" })).toBeVisible();
+    const aiDialog = page.getByRole("dialog", { name: /Upload rate sheet/i });
+    await expect(aiDialog.getByRole("heading", { name: "Upload rate sheet" })).toBeVisible();
     await expect(
       aiDialog.getByText(/Click to upload or drag and drop PDF rate sheets/i)
     ).toBeVisible();
@@ -1038,7 +1062,7 @@ test.describe("AI lender upload", () => {
     });
 
     // Wait for file to register in UI state
-    await expect(aiDialog.getByText(/1 file\(s\) ready for analysis/i)).toBeVisible({
+    await expect(aiDialog.getByText(/\b1 file ready/i)).toBeVisible({
       timeout: 5000,
     });
 
@@ -1049,16 +1073,18 @@ test.describe("AI lender upload", () => {
       await expect(enrichToggle).toBeVisible();
     }
 
-    // Click Analyze (triggers processLenderSheet + mocked API)
-    await page.getByRole("button", { name: /^Analyze$/i }).click();
+    // Click "Extract programs" (triggers processLenderSheet + mocked API)
+    await page.getByRole("button", { name: /^Extract programs$/i }).click();
 
     // Results UI appears with extracted lenders from our mock data
-    await expect(page.getByText("Analysis Results")).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText("🏦 E2E Alliance Credit Union")).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("🏦 E2E Capital One Auto")).toBeVisible();
+    await expect(page.getByText("Programs found")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("E2E Alliance Credit Union", { exact: true })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByText("E2E Capital One Auto", { exact: true })).toBeVisible();
 
     // Confirm saves via mocked PB writes (saveLenderProfile)
-    await page.getByRole("button", { name: /Confirm and Update/i }).click();
+    await page.getByRole("button", { name: /Save lender programs/i }).click();
 
     // Modal should auto-close after success (see setTimeout in component)
     await expect(aiDialog).toBeHidden({ timeout: 5000 });
@@ -1119,7 +1145,8 @@ test.describe("Lender match", () => {
       page.locator(".desk-lender-row, [data-fit], .desk-lender-badge").first()
     ).toBeVisible({ timeout: 8000 });
 
-    // FIT count text like "2/2 lenders fit" or similar (from InspectorSummary + LenderLadder)
+    // Mocked profiles and the seed's verified programs (VERIFIED_FOR_DEALER_A in
+    // tests/helpers/seed-test-db.ts) both fit this profile: "N/M lenders fit".
     await expect(page.locator(".desk-fit-caption").first()).toContainText(/lenders fit/i);
 
     // Lower profile -> fewer fits (still renders)
@@ -1154,9 +1181,9 @@ test.describe("Deal save", () => {
     await saveBtn.click();
 
     // Success path in hook: setMessage success -> toast renders
-    await expect(
-      page.getByRole("status").filter({ hasText: /Deal saved successfully/i })
-    ).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("status").filter({ hasText: /Deal saved/i })).toBeVisible({
+      timeout: 8000,
+    });
 
     // Scope to alerts — inventory rows like STK FAILED01 must not trip this.
     // Toast keeps an always-mounted (empty) sr-only role="alert" live region, so
@@ -1261,7 +1288,7 @@ test.describe("PDF generation", () => {
     await setupTest(page, "/inventory");
 
     // Button from InventoryScreen toolbar (may require favorites for full click, presence is key assertion)
-    await expect(page.getByRole("button", { name: /Favorites PDF/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /Compare PDF/i })).toBeVisible({
       timeout: 10000,
     });
   });

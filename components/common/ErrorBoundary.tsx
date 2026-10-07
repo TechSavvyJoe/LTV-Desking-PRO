@@ -82,7 +82,8 @@ class ErrorBoundary extends Component<Props, State> {
     const card = (
       <div
         role="alert"
-        className={`bg-[var(--color-bg)] border border-[var(--color-border-strong)] rounded-lg shadow-md w-full ${
+        style={{ borderRadius: "var(--radius-card)" }}
+        className={`bg-[var(--color-bg)] border border-[var(--color-border-strong)] w-full ${
           scope === "app" ? "max-w-lg p-8" : "p-6"
         }`}
       >
@@ -95,11 +96,11 @@ class ErrorBoundary extends Component<Props, State> {
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold text-[var(--color-text)]">
-              {scope === "app" ? "Something went wrong" : `${label} couldn't load`}
+              {scope === "app" ? "The app hit an error" : `${label} couldn't load`}
             </h2>
             <p className="mt-1 text-sm text-[var(--color-text-muted)] leading-relaxed">
               {scope === "app"
-                ? "The app hit an unexpected error. Your saved deals and inventory are safe — nothing was lost. Try again, or reload the page."
+                ? "Your saved deals and inventory are safe. Try again, or reload the page."
                 : `${label} hit an unexpected error. The other screens still work — try again, or reload if it keeps happening.`}
             </p>
 
@@ -113,9 +114,11 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <p className="mt-4 text-xs text-[var(--color-text-subtle)]">
-              Reference <span className="font-mono text-[var(--color-text-muted)]">{ref}</span>
-              {" · "}
+              <span>
+                Reference <span className="font-mono text-[var(--color-text-muted)]">{ref}</span>
+              </span>{" "}
               <a
+                style={{ marginLeft: 10 }}
                 href={supportHref}
                 className="underline underline-offset-2 hover:text-[var(--color-text)]"
               >

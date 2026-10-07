@@ -61,7 +61,7 @@ export const AIDefaultsPanel: React.FC = () => {
       });
       setSavedAt(new Date());
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save AI defaults");
+      setError(e instanceof Error ? e.message : "Couldn't save AI defaults. Try again.");
     } finally {
       setSaving(false);
     }
@@ -72,7 +72,7 @@ export const AIDefaultsPanel: React.FC = () => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-base font-semibold text-[var(--color-text)] tracking-tight">
-            AI Defaults
+            AI defaults
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             Default provider and model per task. Dealer-level settings override these.

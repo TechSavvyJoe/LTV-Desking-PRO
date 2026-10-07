@@ -61,7 +61,7 @@ describe("OwnerLogin administrative role gate", () => {
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
     expect(mocks.authClear).not.toHaveBeenCalled();
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Welcome to Dealer Administration");
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Signed in to the admin console");
   });
 
   it("admits a platform superadmin", async () => {
@@ -73,7 +73,7 @@ describe("OwnerLogin administrative role gate", () => {
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
     expect(mocks.authClear).not.toHaveBeenCalled();
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Welcome to the Owner Console");
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Signed in to the owner console");
   });
 
   it("clears the session and rejects a non-administrative user", async () => {
@@ -85,7 +85,7 @@ describe("OwnerLogin administrative role gate", () => {
 
     expect(
       await screen.findByText(
-        "Administrator access required. This account cannot open the Admin Console."
+        "This account doesn't have admin access. Sign in with an admin account."
       )
     ).toBeTruthy();
     expect(mocks.authClear).toHaveBeenCalledOnce();

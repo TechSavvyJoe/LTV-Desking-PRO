@@ -1,7 +1,7 @@
 import React from "react";
 import { fmt } from "../../utils/format";
 import type { Settings } from "../../types";
-import { otdColorFor, pct, ptiColorFor } from "./deskConstants";
+import { otdColorFor, pct, ptiColorFor, sansNum } from "./deskConstants";
 
 export const Line: React.FC<{ label: string; value: string; color?: string; bold?: boolean }> =
   React.memo(({ label, value, color, bold }) => (
@@ -9,7 +9,7 @@ export const Line: React.FC<{ label: string; value: string; color?: string; bold
       <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
       <span
         style={{
-          fontFamily: "var(--mono)",
+          ...sansNum,
           fontWeight: bold ? 700 : 400,
           color: color || "inherit",
         }}
@@ -41,16 +41,12 @@ const FinancialBreakdown: React.FC<FinancialBreakdownProps> = ({
   <section className="desk-panel-section">
     <div className="desk-panel-heading">
       <span>Structure</span>
-      <strong style={{ color: otdColorFor(otdLtv, thresholds) }}>{pct(otdLtv)}</strong>
+      <strong style={{ ...sansNum, color: otdColorFor(otdLtv, thresholds) }}>{pct(otdLtv)}</strong>
     </div>
     <div className="desk-breakdown-list">
       <Line label="Selling price" value={price === null ? "—" : fmt(price)} />
       <Line label="Tax + fees" value={taxFees === null ? "—" : fmt(taxFees)} />
-      <Line
-        label="Down + trade + rebate"
-        value={down ? `-${fmt(down)}` : "-$0"}
-        color="var(--color-danger)"
-      />
+      <Line label="Down + trade + rebate" value={down ? `-${fmt(down)}` : "-$0"} />
       <Line
         label="Payment-to-income"
         value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}

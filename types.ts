@@ -21,10 +21,35 @@ export interface Vehicle {
  * "moderate" (≥ 50), "weak" (below), and "none". The numeric score is shown on
  * the gauge, but the band is cross-checked against real lender eligibility — a
  * deal that fits no active lender can never read better than "none".
- * [dc-redesign / reconciliation 1]
+ * "pending" is the UNKNOWN case: nothing fits yet, but at least one lender's
+ * result is held pending (missing deal input, unverified sample program, review
+ * hold) rather than failed. Surfaces treat it as indeterminate, never as a
+ * decline. [dc-redesign / reconciliation 1]
  */
-export type ApprovalBand = "strong" | "moderate" | "weak" | "none";
+export type ApprovalBand = "strong" | "moderate" | "weak" | "none" | "pending";
 export type EligibilityStatus = "eligible" | "ineligible" | "pending";
+/**
+ * The most actionable thing holding a lender check at "pending" (see
+ * lenderFit.pendingCauseOf). Names a field or a provenance hold — never a value.
+ */
+export type PendingCause =
+  | "fico"
+  | "income"
+  | "debt"
+  | "term"
+  | "apr"
+  | "backend"
+  | "condition"
+  | "mileage"
+  | "year"
+  | "make"
+  | "book"
+  | "payment"
+  | "other"
+  | "advance"
+  | "certified"
+  | "review"
+  | "sample";
 export type RebateType = "manufacturer" | "dealer";
 export type VehicleCondition = "new" | "used";
 
@@ -41,6 +66,8 @@ export interface CalculatedVehicle extends Vehicle {
   approvalBand?: ApprovalBand;
   ptiRatio?: number; // payment-to-income %, or undefined when income is unknown
   fitCount?: number; // # of active lenders the current deal fits
+  pendingCount?: number; // # of active lenders whose result is held "pending" (not failed)
+  pendingCause?: PendingCause; // what most actionably unblocks those pending checks
   fitNames?: string[]; // names of the active lenders the current deal fits
 }
 

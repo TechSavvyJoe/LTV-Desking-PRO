@@ -115,6 +115,50 @@ describe("approvalScorer (mockup formula + retained hardening)", () => {
     });
   });
 
+  describe("pending band (nothing fits yet, but checks are held — not failed)", () => {
+    const deal = { creditScore: null, monthlyIncome: null };
+
+    it("bands 'pending' when no lender fits and some are pending", () => {
+      const r = scoreApprovalOdds(
+        mkVehicle(80),
+        deal,
+        0,
+        11,
+        "Add a FICO score to check 11 lenders"
+      );
+      expect(r.band).toBe("pending");
+      expect(r.reasons[0]).toBe("Add a FICO score to check 11 lenders");
+      expect(r.reasons).not.toContain("No active lender fits this structure");
+    });
+
+    it("keeps the numeric score identical to the no-fit case (still capped)", () => {
+      const pending = scoreApprovalOdds(mkVehicle(80), deal, 0, 13);
+      const none = scoreApprovalOdds(mkVehicle(80), deal, 0, 0);
+      expect(pending.internalScore).toBe(none.internalScore);
+      expect(pending.internalScore).toBeLessThanOrEqual(APPROVAL_CONFIG.noFitCap);
+    });
+
+    it("falls back to a counted reason when no matcher hint is supplied", () => {
+      expect(scoreApprovalOdds(mkVehicle(80), deal, 0, 1).reasons[0]).toBe(
+        "1 lender pending required checks"
+      );
+      expect(scoreApprovalOdds(mkVehicle(80), deal, 0, 4, null).reasons[0]).toBe(
+        "4 lenders pending required checks"
+      );
+    });
+
+    it("stays 'none' when nothing fits and nothing is pending (pendingCount 0 / default)", () => {
+      expect(scoreApprovalOdds(mkVehicle(80), deal, 0, 0).band).toBe("none");
+      expect(scoreApprovalOdds(mkVehicle(80), deal, 0).band).toBe("none");
+    });
+
+    it("ignores pendingCount once any lender fits", () => {
+      const r = scoreApprovalOdds(mkVehicle(100), { creditScore: 650, monthlyIncome: null }, 4, 9);
+      expect(r.band).toBe("strong");
+      expect(r.internalScore).toBe(78);
+    });
+  });
+
   describe("unknown inputs", () => {
     it("holds unknown income neutral instead of awarding the best PTI component", () => {
       const r = scoreApprovalOdds(mkVehicle(100), { creditScore: 650, monthlyIncome: null }, 4);
@@ -163,6 +207,10 @@ describe("approvalScorer (mockup formula + retained hardening)", () => {
       expect(BAND_META.none).toEqual({
         label: "No lender fit",
         colorVar: "var(--color-danger)",
+      });
+      expect(BAND_META.pending).toEqual({
+        label: "Pending lender checks",
+        colorVar: "var(--color-text-subtle)",
       });
     });
   });

@@ -375,7 +375,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (inventoryQuery.isLoading || lenderProfilesQuery.isLoading || savedDealsQuery.isLoading);
   const dataError =
     inventoryQuery.error || lenderProfilesQuery.error || savedDealsQuery.error
-      ? "We couldn't load your data. Check your connection and try again."
+      ? "Check your connection, then retry."
       : null;
 
   const refetchData = useCallback(() => {
@@ -548,7 +548,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         gapPrice: newSettings.gapPrice,
       }).catch((err) => {
         dealContextLogger.error("Failed to persist settings", err);
-        toast.error("Couldn't sync settings to the server — local defaults still apply.");
+        toast.error("Server save failed — settings kept in this browser.");
       });
 
       return newSettings;
@@ -683,7 +683,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setFavorites(prevFavorites);
           setMessage({
             type: "error",
-            text: "Couldn't save that change to the server. Your edit was reverted.",
+            text: "Couldn't save that change, so it was undone. Try again.",
           });
         } else {
           const serverVehicle = mapInventoryItem(result);
@@ -757,7 +757,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     setMessage({
       type: "success",
-      text: "Sample inventory and lender programs loaded.",
+      text: "Sample data loaded",
     });
   }, [
     resetDealState,

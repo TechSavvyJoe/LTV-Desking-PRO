@@ -1,7 +1,7 @@
 import React from "react";
 import { parseMoneyInput } from "../../services/backendProducts";
 import { getRebateBreakdown } from "../../services/calculator";
-import { DESK_TERMS } from "./deskConstants";
+import { DESK_TERMS, metaItem, sansNum } from "./deskConstants";
 import type { AppState, DealData, FilterData } from "../../types";
 
 interface DeskTermsRailProps {
@@ -22,6 +22,8 @@ interface DeskTermsRailProps {
   onClearFilters: () => void;
   onScanIncome: () => void;
 }
+
+const ADVANCED_ID = "desk-terms-advanced";
 
 const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
   customerName,
@@ -66,8 +68,11 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
     <section className="desk-terms-card">
       <div className="desk-terms-head">
         <div className="desk-section-title">
-          <span>01</span>
-          <strong>Deal terms</strong>
+          <span aria-hidden="true">01</span>
+          {/* A real heading for the outline; the <strong> keeps its look. */}
+          <h2 style={{ margin: 0, fontSize: "inherit", fontWeight: "inherit" }}>
+            <strong>Deal terms</strong>
+          </h2>
           <span className="desk-live-pill">
             <span className="live-dot" />
             Live
@@ -79,11 +84,14 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             type="button"
             className="desk-ghost-btn transition-colors"
             onClick={onToggleAdvanced}
+            aria-expanded={advancedOpen}
+            aria-controls={advancedOpen ? ADVANCED_ID : undefined}
           >
-            {advancedOpen ? "Hide filters" : "More filters"}
+            More filters
           </button>
+          {/* Clears the customer, credit, terms and filters — say so. */}
           <button type="button" className="desk-ghost-btn transition-colors" onClick={onReset}>
-            Reset
+            Reset deal
           </button>
         </div>
       </div>
@@ -103,7 +111,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           <label htmlFor="desk-fico">FICO</label>
           <input
             id="desk-fico"
-            className="dc-input mono"
+            className="dc-input tabular-nums"
             inputMode="numeric"
             value={filters.creditScore ?? ""}
             onChange={setNumber((n) => setFilter({ creditScore: n || null }))}
@@ -114,7 +122,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           <div className="desk-input-action">
             <input
               id="desk-income"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.monthlyIncome ?? ""}
               onChange={setNumber((n) => setFilter({ monthlyIncome: n || null }))}
@@ -142,10 +150,10 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           </div>
         </div>
         <div className="desk-field compact">
-          <label htmlFor="desk-down">Down</label>
+          <label htmlFor="desk-down">Down ($)</label>
           <input
             id="desk-down"
-            className="dc-input mono"
+            className="dc-input tabular-nums"
             inputMode="numeric"
             value={dealData.downPayment || ""}
             onChange={setNumber((n) => setDeal({ downPayment: n }))}
@@ -153,18 +161,15 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
         </div>
         <div className="desk-field term">
           <label id="desk-term-label">Term</label>
-          <div
-            className="desk-term-buttons"
-            role="group"
-            aria-labelledby="desk-term-label"
-            aria-label="Loan term"
-          >
+          <div className="desk-term-buttons" role="group" aria-labelledby="desk-term-label">
             {DESK_TERMS.map((term) => (
               <button
                 type="button"
                 key={term}
                 className="transition-colors"
                 data-active={dealData.loanTerm === term}
+                aria-pressed={dealData.loanTerm === term}
+                aria-label={`${term} months`}
                 onClick={() => setDeal({ loanTerm: term })}
               >
                 {term}
@@ -173,24 +178,25 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           </div>
         </div>
         <div className="desk-field compact">
-          <label htmlFor="desk-apr">APR</label>
+          <label htmlFor="desk-apr">APR (%)</label>
           <input
             id="desk-apr"
-            className="dc-input mono"
+            className="dc-input tabular-nums"
             inputMode="decimal"
             value={aprText}
             onChange={onAprChange}
           />
           {buyRate && (
             <button type="button" className="desk-inline-link" onClick={applyBuyRate}>
-              Use {buyRate.rate}% · {buyRate.lender}
+              <span style={{ ...metaItem, ...sansNum }}>Use {buyRate.rate}%</span>{" "}
+              <span>{buyRate.lender}</span>
             </button>
           )}
         </div>
       </div>
 
       {advancedOpen && (
-        <div className="desk-terms-advanced">
+        <div id={ADVANCED_ID} className="desk-terms-advanced">
           <div className="desk-field">
             <label htmlFor="desk-buyer-state">Buyer state</label>
             <select
@@ -200,18 +206,18 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
               onChange={(e) => setDeal({ buyerState: e.target.value as AppState })}
               aria-describedby="desk-buyer-state-hint"
             >
-              <option value="MI">MI · 6%</option>
-              <option value="OH">OH · 5.75%</option>
-              <option value="IN">IN · 6% recip.</option>
-              <option value="IL">IL · 6% recip.</option>
-              <option value="FL">FL · 6%</option>
+              <option value="MI">MI, 6%</option>
+              <option value="OH">OH, 5.75%</option>
+              <option value="IN">IN, 6% reciprocal</option>
+              <option value="IL">IL, 6% reciprocal</option>
+              <option value="FL">FL, 6%</option>
             </select>
           </div>
           <div className="desk-field">
             <label htmlFor="desk-trade-value">Trade value</label>
             <input
               id="desk-trade-value"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={dealData.tradeInValue || ""}
               onChange={setNumber((n) => setDeal({ tradeInValue: n }))}
@@ -221,7 +227,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-trade-payoff">Trade payoff</label>
             <input
               id="desk-trade-payoff"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={dealData.tradeInPayoff || ""}
               onChange={setNumber((n) => setDeal({ tradeInPayoff: n }))}
@@ -247,7 +253,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-rebate-amount">Rebate amount</label>
             <input
               id="desk-rebate-amount"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={rebateAmount || ""}
               onChange={setNumber((amount) => setRebate(rebateType, amount))}
@@ -257,7 +263,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-transaction-fees">Transaction fees</label>
             <input
               id="desk-transaction-fees"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={dealData.transactionFees ?? dealData.transactionFee ?? ""}
               onChange={setNumber((transactionFees) => setDeal({ transactionFees }))}
@@ -287,7 +293,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-monthly-debt">Monthly debt</label>
             <input
               id="desk-monthly-debt"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.monthlyDebt ?? ""}
               onChange={(event) =>
@@ -313,7 +319,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-max-price">Max price</label>
             <input
               id="desk-max-price"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.maxPrice ?? ""}
               onChange={setNumber((n) => setFilter({ maxPrice: n || null }))}
@@ -324,7 +330,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-max-payment">Max $/mo</label>
             <input
               id="desk-max-payment"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.maxPayment ?? ""}
               onChange={setNumber((n) => setFilter({ maxPayment: n || null }))}
@@ -335,7 +341,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-max-miles">Max miles</label>
             <input
               id="desk-max-miles"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.maxMiles ?? ""}
               onChange={setNumber((n) => setFilter({ maxMiles: n || null }))}
@@ -346,7 +352,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <label htmlFor="desk-min-score">Min odds</label>
             <input
               id="desk-min-score"
-              className="dc-input mono"
+              className="dc-input tabular-nums"
               inputMode="numeric"
               value={filters.minScore ?? ""}
               onChange={setNumber((n) => setFilter({ minScore: n || null }))}

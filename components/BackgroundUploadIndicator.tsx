@@ -21,10 +21,14 @@ const BackgroundUploadIndicator: React.FC<BackgroundUploadIndicatorProps> = ({
     <button
       onClick={onRestore}
       className="fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--on-primary)] rounded-md shadow-sm transition-colors group"
-      title="Click to view upload progress"
+      title="Show rate sheet progress"
     >
       <div className="relative w-8 h-8">
-        <svg className="absolute inset-0 w-8 h-8 animate-spin" viewBox="0 0 24 24" fill="none">
+        <svg
+          className="absolute inset-0 w-8 h-8 animate-spin motion-reduce:animate-none"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
           <circle
             className="opacity-25"
             cx="12"
@@ -41,7 +45,7 @@ const BackgroundUploadIndicator: React.FC<BackgroundUploadIndicatorProps> = ({
             strokeWidth="3"
             strokeDasharray={`${overallProgress * 0.628} 62.8`}
             strokeLinecap="round"
-            className="transition-all duration-300"
+            className="transition-[stroke-dasharray] duration-300 motion-reduce:transition-none"
             style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
           />
         </svg>
@@ -63,9 +67,9 @@ const BackgroundUploadIndicator: React.FC<BackgroundUploadIndicatorProps> = ({
       </div>
 
       <div className="flex flex-col items-start min-w-0">
-        <span className="text-sm font-semibold">AI Processing {overallProgress}%</span>
+        <span className="text-sm font-semibold">Reading rate sheets {overallProgress}%</span>
         <span className="text-xs opacity-75 truncate max-w-[150px]">
-          {currentStage || "Working..."}
+          {currentStage || "Working…"}
         </span>
       </div>
 

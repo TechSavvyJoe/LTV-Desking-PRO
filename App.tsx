@@ -48,7 +48,7 @@ const DealerAdminDashboard = lazy(() =>
 
 const PageFallback = (
   <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
-    <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+    <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
   </div>
 );
 
@@ -64,14 +64,18 @@ const ToolsRoute: React.FC = () => {
   const liveVehicle =
     (activeVehicle && processedInventory.find((v) => v.vin === activeVehicle.vin)) || activeVehicle;
   return (
-    <Suspense fallback={<DataLoading label="Loading tools…" />}>
-      <FinanceTools
-        scratchPadNotes={scratchPadNotes}
-        setScratchPadNotes={setScratchPadNotes}
-        dealData={dealData}
-        activeVehicle={liveVehicle}
-      />
-    </Suspense>
+    // Page gutter: 16px on phones, 24px above 760px, matching the other
+    // screens, so the tools card no longer touches the viewport edges. [R27]
+    <div className="px-4 pt-4 pb-6 min-[761px]:px-6">
+      <Suspense fallback={<DataLoading label="Loading tools…" />}>
+        <FinanceTools
+          scratchPadNotes={scratchPadNotes}
+          setScratchPadNotes={setScratchPadNotes}
+          dealData={dealData}
+          activeVehicle={liveVehicle}
+        />
+      </Suspense>
+    </div>
   );
 };
 

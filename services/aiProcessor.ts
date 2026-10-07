@@ -133,8 +133,8 @@ const postAiRoute = async <T>(
       const friendly =
         serverMsg ||
         (response.status >= 500
-          ? "AI request failed. Please try again or contact support if the problem persists."
-          : `Request failed (${response.status}). Please try again.`);
+          ? "The AI service had a problem. Try again, or contact support if it keeps happening."
+          : `AI request failed (${response.status}). Try again.`);
       return {
         ok: false,
         error: friendly,
@@ -143,7 +143,7 @@ const postAiRoute = async <T>(
     }
 
     if (!body) {
-      return { ok: false, error: "AI route returned an empty response." };
+      return { ok: false, error: "The AI service returned nothing. Try again." };
     }
 
     return body;
@@ -152,10 +152,10 @@ const postAiRoute = async <T>(
       error instanceof DOMException && error.name === "AbortError"
         ? "AI request timed out. Try a faster model or a smaller file, or check your connection."
         : error instanceof Error && /network|fetch|ECONN/i.test(error.message)
-          ? "Network error reaching AI service. Check your connection and try again."
+          ? "Couldn't reach the AI service. Check your connection and try again."
           : error instanceof Error
             ? error.message
-            : "AI request failed. Please try again or contact support.";
+            : "AI request failed. Try again, or contact support if it keeps happening.";
     return { ok: false, error: message };
   } finally {
     window.clearTimeout(timeout);
@@ -221,12 +221,14 @@ export const processLenderSheet = async (
   onProgress?.({
     stage: "uploading",
     progress: 5,
-    message: "Reading PDF file...",
+    message: "Reading the PDF…",
     currentFile: file.name,
   });
 
   if (file.type && file.type !== "application/pdf") {
-    throw new Error("AI lender upload only supports PDF rate sheets.");
+    throw new Error(
+      "Only PDF rate sheets are supported. Save the sheet as a PDF and upload it again."
+    );
   }
 
   if (file.size > MAX_AI_PDF_BYTES) {
@@ -242,7 +244,7 @@ export const processLenderSheet = async (
   onProgress?.({
     stage: "extracting",
     progress: 25,
-    message: "Server AI is extracting lender tiers...",
+    message: "Extracting lender tiers…",
     currentFile: file.name,
   });
 
@@ -279,7 +281,7 @@ export const processLenderSheet = async (
     onProgress?.({
       stage: "enhancing",
       progress: 65,
-      message: "Searching the web for missing bank info...",
+      message: "Searching the web for missing lender details…",
       currentFile: file.name,
     });
 
@@ -300,7 +302,7 @@ export const processLenderSheet = async (
       onProgress?.({
         stage: "enhancing",
         progress: 65 + Math.round((i / lenders.length) * 25),
-        message: `Enriching ${lender.name} (${missing.length} missing field${missing.length === 1 ? "" : "s"})...`,
+        message: `Looking up ${lender.name} (${missing.length} missing field${missing.length === 1 ? "" : "s"})…`,
         currentFile: file.name,
       });
 
@@ -318,7 +320,7 @@ export const processLenderSheet = async (
   onProgress?.({
     stage: "complete",
     progress: 100,
-    message: `Extracted ${lenders.length} lender profile(s).`,
+    message: `Found ${lenders.length} lender ${lenders.length === 1 ? "program" : "programs"}.`,
     currentFile: file.name,
   });
 

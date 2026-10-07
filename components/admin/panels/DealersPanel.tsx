@@ -122,7 +122,7 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
       await updateDealer(editingId, formData);
     } catch (err) {
       // Surface the real failure and keep the form open so nothing is lost. [C16]
-      toast.error(err instanceof Error ? err.message : "Failed to update dealership");
+      toast.error(err instanceof Error ? err.message : "Couldn't save the dealership. Try again.");
       return;
     }
     resetForm();
@@ -133,8 +133,8 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
     const ok = await confirmAction({
       title: `View as ${dealer.name}?`,
       message:
-        "You will see the app exactly as this dealership sees it. Use this only for support and demos. You can exit at any time from the banner at the top.",
-      confirmLabel: "Enter dealership",
+        "You'll see the app exactly as this dealership does. Use it for support and demos, and exit any time from the banner at the top.",
+      confirmLabel: "View as dealership",
     });
     if (ok) {
       onImpersonate(dealer.id);
@@ -158,17 +158,19 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
   const handleDelete = async (id: string) => {
     if (
       await confirmAction({
-        title: "Delete dealer?",
+        title: "Delete dealership?",
         message:
-          "Are you sure you want to delete this dealer? This will affect all associated users and data.",
-        confirmLabel: "Delete",
+          "Its users lose access and this can't be undone. To pause access instead, deactivate it.",
+        confirmLabel: "Delete dealership",
         tone: "danger",
       })
     ) {
       try {
         await deleteDealer(id);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to delete dealership");
+        toast.error(
+          err instanceof Error ? err.message : "Couldn't delete the dealership. Try again."
+        );
         return;
       }
       onRefresh();
@@ -179,14 +181,20 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
     try {
       await updateDealer(dealer.id, { active: !dealer.active });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update dealership status");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : dealer.active
+            ? "Couldn't deactivate the dealership. Try again."
+            : "Couldn't activate the dealership. Try again."
+      );
       return;
     }
     onRefresh();
   };
 
   return (
-    <div className="space-y-5 animate-fadeIn">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -205,7 +213,7 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
           />
           <Button onClick={() => setShowWizard(true)} className="gap-2 whitespace-nowrap">
             <Icons.PlusIcon className="w-4 h-4" />
-            Add Dealer
+            Add dealership
           </Button>
         </div>
       </div>
@@ -248,7 +256,7 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
-                placeholder="Dealership Name"
+                placeholder="Dealership name"
               />
             </div>
             <div>
@@ -386,7 +394,7 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
       {/* Dealers Table */}
       <div className="bg-[var(--color-bg)] rounded-lg ring-1 ring-[var(--color-border)] overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full" aria-label="Dealers list">
+          <table className="w-full" aria-label="Dealerships list">
             <thead className="bg-[var(--color-bg)]">
               <tr className="border-b border-[var(--color-border)]">
                 <SortHeader label="Dealer" field="name" current={sort} onSort={toggleSort} />
@@ -475,7 +483,7 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
                       <StatusPill
                         active={dealer.active}
                         onClick={() => handleToggleActive(dealer)}
-                        title={dealer.active ? "Click to deactivate" : "Click to activate"}
+                        title={dealer.active ? "Deactivate dealership" : "Activate dealership"}
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -484,7 +492,9 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
                           onClick={() => handleImpersonate(dealer)}
                           className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-muted)] rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           title={
-                            dealer.active ? "View as this dealership" : "Activate dealer first"
+                            dealer.active
+                              ? "View as this dealership"
+                              : "Activate this dealership first"
                           }
                           aria-label={`View as ${dealer.name}`}
                           disabled={!dealer.active}
@@ -516,12 +526,18 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
                 <tr>
                   <td colSpan={7} className="px-4 py-0">
                     <EmptyState
+                      headingLevel={3}
                       icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
-                      title={search ? "No dealers match your search" : "No dealers yet"}
+                      title={search ? "No dealerships match" : "No dealerships yet"}
                       description={
                         search
-                          ? "Try a different search term."
-                          : "Click 'Add Dealer' to onboard your first dealership."
+                          ? "Try a different name, code or city."
+                          : "Add a dealership and its first admin to get started."
+                      }
+                      primaryAction={
+                        search
+                          ? { label: "Clear search", onClick: () => setSearch("") }
+                          : { label: "Add dealership", onClick: () => setShowWizard(true) }
                       }
                     />
                   </td>

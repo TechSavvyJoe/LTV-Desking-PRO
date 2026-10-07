@@ -33,11 +33,9 @@ import { toast } from "../../lib/toast";
 
 /** Context handed to routed screens via <Outlet/> (react-router outlet context). */
 export interface ShellOutletContext {
-  /** Opens the AI Lender Upload modal owned by the shell. */
+  /** Opens the rate-sheet upload modal owned by the shell. */
   openAiUpload: () => void;
 }
-
-const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 
 /* Inline SVGs copied verbatim from LTV Desking PRO.dc.html (header + renderVals). */
 const SparkleIcon = () => (
@@ -168,11 +166,20 @@ const tabStyle = (isActive: boolean): React.CSSProperties => ({
   whiteSpace: "nowrap",
 });
 
-const CountChip: React.FC<{ count: number }> = ({ count }) => (
+/**
+ * Live count beside a nav label. The unit is screen-reader-only text so
+ * "Pipeline 3" reads as "Pipeline 3 deals" without changing what sighted users
+ * see. [aria #25]
+ */
+const CountChip: React.FC<{ count: number; unit: string; units: string }> = ({
+  count,
+  unit,
+  units,
+}) => (
   <span
     style={{
       fontSize: 11,
-      ...mono,
+      fontVariantNumeric: "tabular-nums",
       background: "var(--color-bg-muted)",
       color: "var(--color-text-muted)",
       padding: "1px 6px",
@@ -180,6 +187,7 @@ const CountChip: React.FC<{ count: number }> = ({ count }) => (
     }}
   >
     {count}
+    <span className="sr-only"> {count === 1 ? unit : units}</span>
   </span>
 );
 
@@ -211,6 +219,23 @@ export const AppShell: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // On phones the tab row scrolls horizontally; bring the active tab into view
+  // after each route change. Instant (not smooth) so it is motion-safe by
+  // construction, and block:"nearest" so the page never scrolls vertically.
+  // [R22]
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    // Scroll only the nav, never the window (scrollIntoView can shift both).
+    if (nav && active) {
+      nav.scrollTo?.({
+        left: active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2,
+        behavior: "instant",
+      });
+    }
+  }, [location.pathname]);
 
   const currentUser = getCurrentUser();
   const isSuperAdmin = currentUser?.role === "superadmin";
@@ -317,7 +342,7 @@ export const AppShell: React.FC = () => {
     navigate("/admin");
   };
 
-  // --- AI Lender Upload modal state (moved from legacy MainLayout) ----------
+  // --- Rate-sheet upload modal state (moved from legacy MainLayout) ----------
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isAiMinimized, setIsAiMinimized] = useState(false);
   // Progress reported by the AI importer, shown by the minimized
@@ -382,7 +407,13 @@ export const AppShell: React.FC = () => {
   // unit in stock — the switching pattern F&I managers expect from DMS-class
   // tools. Items are rebuilt only when the underlying lists change. [takeover-P1 #8]
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  // True only when opened from the avatar menu, whose menuitem unmounts as the
+  // palette mounts — so close returns focus to the Account button explicitly.
+  const [paletteFromMenu, setPaletteFromMenu] = useState(false);
+  const openPalette = useCallback(() => {
+    setPaletteFromMenu(false);
+    setPaletteOpen(true);
+  }, []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
   useCommandPaletteHotkey(openPalette);
   const openDealInDesk = useOpenDealInDesk();
@@ -430,8 +461,8 @@ export const AppShell: React.FC = () => {
     if (isSuperAdmin || isDealerAdmin) {
       screens.push({
         id: "nav-admin",
-        label: isSuperAdmin ? "Owner Console" : "Admin",
-        detail: "Users, dealers, settings",
+        label: isSuperAdmin ? "Owner console" : "Admin",
+        detail: "Users, dealerships, settings",
         group: "Go to",
         onSelect: go("/admin"),
       });
@@ -444,8 +475,8 @@ export const AppShell: React.FC = () => {
         ? [
             {
               id: "act-ai-upload",
-              label: "AI Lender Upload",
-              detail: "Import a rate sheet or program guide",
+              label: "Upload rate sheet",
+              detail: "AI drafts lender programs from a rate sheet",
               group: "Actions",
               keywords: ["import", "rate sheet", "lender", "program"],
               onSelect: openAiUpload,
@@ -474,7 +505,7 @@ export const AppShell: React.FC = () => {
       label: deal.customerName || "Unnamed deal",
       detail: [deal.vehicle?.vehicle, deal.vehicle?.stock && `STK ${deal.vehicle.stock}`]
         .filter(Boolean)
-        .join(" · "),
+        .join(", "),
       group: "Saved deals",
       keywords: [deal.vehicle?.vin ?? "", deal.vehicle?.stock ?? "", deal.salespersonName ?? ""],
       onSelect: () => openDealInDesk(deal),
@@ -601,10 +632,9 @@ export const AppShell: React.FC = () => {
                     fontSize: 13,
                     fontWeight: 600,
                     color: "var(--color-danger)",
-                    whiteSpace: "nowrap",
                   }}
                 >
-                  Couldn't load dealers
+                  Couldn't load dealerships
                 </span>
               </div>
             ) : (
@@ -727,9 +757,9 @@ export const AppShell: React.FC = () => {
           {(isSuperAdmin || isDealerAdmin) && (
             <button
               onClick={openAiUpload}
-              className="app-shell-ai-btn"
-              aria-label="AI lender upload"
-              title="AI lender upload"
+              className="app-shell-ai-btn app-shell-icon-btn"
+              aria-label="Upload rate sheet"
+              title="Upload rate sheet"
               // Background + hover live in index.css (.app-shell-ai-btn) so the
               // hover state is plain CSS instead of JS style mutation.
               style={{
@@ -748,14 +778,14 @@ export const AppShell: React.FC = () => {
               }}
             >
               <SparkleIcon />
-              <span className="app-shell-ai-label">AI Lender Upload</span>
+              <span className="app-shell-ai-label">Upload rate sheet</span>
             </button>
           )}
 
           <button
             onClick={toggleTheme}
-            className="rail-btn"
-            aria-label="Toggle theme"
+            className="rail-btn app-shell-icon-btn"
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             style={railBtnStyle}
           >
             {theme === "dark" ? <SunIcon /> : <MoonIcon />}
@@ -784,7 +814,7 @@ export const AppShell: React.FC = () => {
             <button
               ref={accountBtnRef}
               onClick={() => setMenuOpen((v) => !v)}
-              className="rail-btn"
+              className="rail-btn app-shell-icon-btn"
               title="Account"
               aria-label="Account menu"
               aria-haspopup="menu"
@@ -800,7 +830,6 @@ export const AppShell: React.FC = () => {
                 justifyContent: "center",
                 fontSize: 12,
                 fontWeight: 700,
-                ...mono,
                 border: "none",
                 cursor: "pointer",
               }}
@@ -831,15 +860,12 @@ export const AppShell: React.FC = () => {
                   className="rail-btn"
                   style={menuItemStyle}
                   onClick={() => {
-                    // [WCAG 2.4.3] Focus the Account button *before* the palette
-                    // opens: this menuitem unmounts (setMenuOpen(false)) in the
-                    // same commit CommandPalette mounts, so if we don't move focus
-                    // first, useRestoreFocus captures <body> as "previously
-                    // focused" and Escape drops focus to the document instead of
-                    // returning it here.
-                    accountBtnRef.current?.focus();
+                    // [WCAG 2.4.3] This menuitem unmounts in the same commit the
+                    // palette mounts, so focus is returned to the Account button
+                    // explicitly via returnFocusRef below.
                     setMenuOpen(false);
                     openPalette();
+                    setPaletteFromMenu(true);
                   }}
                 >
                   <SearchIcon />
@@ -856,7 +882,7 @@ export const AppShell: React.FC = () => {
                     }}
                   >
                     <ShieldIcon />
-                    {isSuperAdmin ? "Owner Console" : "Admin"}
+                    {isSuperAdmin ? "Owner console" : "Admin"}
                   </button>
                 )}
                 <button
@@ -913,6 +939,7 @@ export const AppShell: React.FC = () => {
         </div>
 
         <nav
+          ref={navRef}
           aria-label="Primary"
           className="app-shell-nav"
           style={{ display: "flex", alignItems: "center", gap: 2, padding: "0 14px" }}
@@ -922,15 +949,15 @@ export const AppShell: React.FC = () => {
           </NavLink>
           <NavLink to="/pipeline" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Pipeline
-            <CountChip count={savedDeals.length} />
+            <CountChip count={savedDeals.length} unit="deal" units="deals" />
           </NavLink>
           <NavLink to="/inventory" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Inventory
-            <CountChip count={inventory.length} />
+            <CountChip count={inventory.length} unit="unit" units="units" />
           </NavLink>
           <NavLink to="/lenders" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Lenders
-            <CountChip count={lenderProfiles.length} />
+            <CountChip count={lenderProfiles.length} unit="program" units="programs" />
           </NavLink>
           <NavLink to="/reports" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Reports
@@ -939,7 +966,7 @@ export const AppShell: React.FC = () => {
           {(isSuperAdmin || isDealerAdmin) && (
             <NavLink to="/admin" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
               <ShieldIcon />
-              {isSuperAdmin ? "Owner Console" : "Admin"}
+              {isSuperAdmin ? "Owner console" : "Admin"}
             </NavLink>
           )}
         </nav>
@@ -950,7 +977,7 @@ export const AppShell: React.FC = () => {
         {dataError ? (
           <div style={{ padding: "20px 24px" }}>
             <DataError
-              title="Couldn't load your data"
+              title="Couldn't load your dealership data"
               description={dataError}
               onRetry={refetchData}
             />
@@ -990,7 +1017,7 @@ export const AppShell: React.FC = () => {
         </Suspense>
       </SectionErrorBoundary>
 
-      <SectionErrorBoundary label="AI Lender Upload" onReset={() => setIsAiModalOpen(false)}>
+      <SectionErrorBoundary label="The rate sheet upload" onReset={() => setIsAiModalOpen(false)}>
         <Suspense fallback={null}>
           <AiLenderManagerModal
             isOpen={isAiModalOpen && !isAiMinimized}
@@ -1005,7 +1032,12 @@ export const AppShell: React.FC = () => {
         </Suspense>
       </SectionErrorBoundary>
 
-      <CommandPalette open={paletteOpen} onClose={closePalette} items={paletteItems} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={closePalette}
+        items={paletteItems}
+        returnFocusRef={paletteFromMenu ? accountBtnRef : undefined}
+      />
 
       {/* Visible only while the importer is open and minimized. */}
       <BackgroundUploadIndicator

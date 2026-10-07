@@ -266,6 +266,50 @@ describe("CommandPalette [takeover-P1 #8]", () => {
     expect(document.activeElement).not.toBe(document.body);
   });
 
+  it("returnFocusRef: Escape focuses that element even though the opener unmounted", () => {
+    const { items } = makeItems();
+    const Host: React.FC = () => {
+      const [menuOpen, setMenuOpen] = React.useState(true);
+      const [paletteOpen, setPaletteOpen] = React.useState(false);
+      const accountRef = React.useRef<HTMLButtonElement>(null);
+      return (
+        <>
+          <button ref={accountRef} type="button">
+            Account
+          </button>
+          {menuOpen && (
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setPaletteOpen(true);
+              }}
+            >
+              Search
+            </button>
+          )}
+          <CommandPalette
+            open={paletteOpen}
+            onClose={() => setPaletteOpen(false)}
+            items={items}
+            returnFocusRef={accountRef}
+          />
+        </>
+      );
+    };
+    render(<Host />);
+    const account = screen.getByRole("button", { name: "Account" });
+    const search = screen.getByRole("button", { name: "Search" });
+    search.focus();
+    fireEvent.click(search);
+
+    const input = screen.getByRole("combobox");
+    expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(account);
+  });
+
   it("keeps DOM focus on the input: options are not Tab stops and clicks don't steal focus", () => {
     const { items } = makeItems();
     render(<CommandPalette open onClose={() => {}} items={items} />);

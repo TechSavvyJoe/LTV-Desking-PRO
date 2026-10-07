@@ -92,10 +92,10 @@ export const seedDatabase = async (): Promise<void> => {
     const profilesFailed = DEFAULT_LENDER_PROFILES.length - profileOk;
     if (profilesFailed > 0) {
       toast.warning(
-        `Seeded ${profileOk} of ${DEFAULT_LENDER_PROFILES.length} lender profiles (${profilesFailed} failed).`
+        `Seeded ${profileOk} of ${DEFAULT_LENDER_PROFILES.length} lender programs (${profilesFailed} failed).`
       );
     } else {
-      toast.success(`Seeded ${profileOk} lender profiles.`);
+      toast.success(`Seeded ${profileOk} lender programs.`);
     }
   } else {
     console.log("Lender profiles already have data. Skipping seed.");

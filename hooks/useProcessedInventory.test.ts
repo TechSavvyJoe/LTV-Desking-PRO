@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { computeProcessedInventory, useProcessedInventory } from "./useProcessedInventory";
+import {
+  computeProcessedInventory,
+  filterInventory,
+  sortInventory,
+  useProcessedInventory,
+} from "./useProcessedInventory";
 import {
   DEFAULT_LENDER_PROFILES,
   INITIAL_DEAL_DATA,
   INITIAL_FILTER_DATA,
   INITIAL_SETTINGS,
 } from "../constants";
-import type { FilterData, LenderProfile, Vehicle } from "../types";
+import type { CalculatedVehicle, FilterData, LenderProfile, Vehicle } from "../types";
 
 const sampleVehicle: Vehicle = {
   id: "v1",
@@ -105,6 +110,28 @@ describe("computeProcessedInventory", () => {
     expect(withoutDebt.processedInventory[0]?.fitCount).toBe(0);
   });
 
+  it("bands a freshly seeded, no-FICO desk as 'pending' (unknown), not 'none', and keeps the score numeric", () => {
+    const result = computeProcessedInventory({
+      inventory: [sampleVehicle],
+      lenderProfiles: DEFAULT_LENDER_PROFILES,
+      dealData: { ...INITIAL_DEAL_DATA, loanTerm: 72, interestRate: 8.5 },
+      filters: INITIAL_FILTER_DATA,
+      settings: INITIAL_SETTINGS,
+      searchQuery: "",
+      inventorySort: { key: "approvalScore", direction: "desc" },
+      pagination: { currentPage: 1, itemsPerPage: 15 },
+    });
+    const unit = result.processedInventory[0];
+    expect(unit?.fitCount).toBe(0);
+    expect(unit?.pendingCount).toBe(DEFAULT_LENDER_PROFILES.length);
+    expect(unit?.approvalBand).toBe("pending");
+    // Every default program is an unverified sample, so a FICO would rank
+    // nothing: the honest unblock is verifying the samples, not adding a FICO.
+    expect(unit?.pendingCause).toBe("sample");
+    // Sort and persistence still see a number (capped exactly as before).
+    expect(typeof unit?.approvalScore).toBe("number");
+  });
+
   it("rescopes lender fits through the memoized hook when only filters.monthlyDebt changes [P1-regression: memo deps]", () => {
     const dtiLender: LenderProfile = {
       id: "dti-bank",
@@ -147,5 +174,46 @@ describe("computeProcessedInventory", () => {
     rerender({ ...INITIAL_FILTER_DATA, creditScore: 700, monthlyIncome: 3000, monthlyDebt: 200 });
 
     expect(result.current.unitsPerLender["dti-bank"]).toBe(1);
+  });
+});
+
+describe("filterInventory — min odds vs pending [PR #25 review]", () => {
+  const scored = (overrides: Partial<CalculatedVehicle>): CalculatedVehicle => ({
+    ...sampleVehicle,
+    salesTax: "N/A",
+    frontEndLtv: "N/A",
+    frontEndGross: "N/A",
+    amountToFinance: "N/A",
+    otdLtv: "N/A",
+    monthlyPayment: "N/A",
+    ...overrides,
+  });
+  const ranked = scored({ id: "r", approvalScore: 60, approvalBand: "moderate" });
+  const pending = scored({ id: "p", approvalScore: 45, approvalBand: "pending" });
+
+  it("never lets a pending unit's placeholder score satisfy a min-odds threshold", () => {
+    const kept = filterInventory([ranked, pending], { ...INITIAL_FILTER_DATA, minScore: 40 }, "");
+    expect(kept.map((v) => v.id)).toEqual(["r"]);
+  });
+
+  it("keeps pending units when no min-odds threshold is set", () => {
+    const kept = filterInventory([ranked, pending], { ...INITIAL_FILTER_DATA, minScore: null }, "");
+    expect(kept.map((v) => v.id)).toEqual(["r", "p"]);
+  });
+});
+
+describe("sortInventory — odds ordering ignores pending placeholders [PR #25 review]", () => {
+  const unit = (
+    id: string,
+    approvalScore: number,
+    approvalBand: CalculatedVehicle["approvalBand"]
+  ) => ({ ...sampleVehicle, id, approvalScore, approvalBand }) as CalculatedVehicle;
+
+  it("ranks a verified weak fit above a pending unit whose hidden score is higher", () => {
+    const sorted = sortInventory([unit("pending", 45, "pending"), unit("weak", 38, "weak")], {
+      key: "approvalScore",
+      direction: "desc",
+    });
+    expect(sorted.map((v) => v.id)).toEqual(["weak", "pending"]);
   });
 });

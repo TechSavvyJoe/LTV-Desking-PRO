@@ -17,7 +17,7 @@ const ScratchPad: React.FC<ScratchPadProps> = ({ notes, onChange }) => {
       <textarea
         id="scratchpad"
         className="flex-1 w-full p-4 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none resize-none font-mono text-sm text-[var(--color-text)] placeholder-[var(--color-text-subtle)]"
-        placeholder="Type your notes here..."
+        placeholder="Type your notes here…"
         value={notes}
         onChange={(e) => onChange(e.target.value)}
       />

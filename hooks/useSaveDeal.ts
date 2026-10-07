@@ -48,7 +48,7 @@ export function useSaveDeal() {
     (vehicleOverride?: CalculatedVehicle) => {
       const vehicleToSave = vehicleOverride || activeVehicle;
       if (!vehicleToSave) {
-        setMessage({ type: "error", text: "No vehicle selected to save." });
+        setMessage({ type: "error", text: "Pick a vehicle on the desk before saving." });
         return;
       }
       if (
@@ -61,16 +61,16 @@ export function useSaveDeal() {
       ) {
         setMessage({
           type: "error",
-          text: "Complete vehicle details (price, mileage, VIN) before saving.",
+          text: "Add the vehicle's price, mileage and VIN before saving.",
         });
         return;
       }
       if (!customerName) {
         setErrors((prev) => ({
           ...prev,
-          customerName: "Customer Name is required",
+          customerName: "Enter the customer's name",
         }));
-        setMessage({ type: "error", text: "Please enter a Customer Name." });
+        setMessage({ type: "error", text: "Enter the customer's name to save the deal." });
         return;
       }
 
@@ -90,13 +90,21 @@ export function useSaveDeal() {
         { ...normalizedDealData, ...filters },
         safeLenderProfiles
       );
-      const freshApproval = scoreApprovalOdds(freshVehicle, filters, freshFit.fitCount);
+      const freshApproval = scoreApprovalOdds(
+        freshVehicle,
+        filters,
+        freshFit.fitCount,
+        freshFit.pendingCount,
+        freshFit.pendingReason
+      );
       const vehicleSnapshot: CalculatedVehicle = {
         ...freshVehicle,
         approvalScore: freshApproval.internalScore,
         approvalBand: freshApproval.band,
         ptiRatio: freshApproval.ptiRatio,
         fitCount: freshFit.fitCount,
+        pendingCount: freshFit.pendingCount,
+        pendingCause: freshFit.pendingCause ?? undefined,
         fitNames: freshFit.fitNames,
       };
 
@@ -154,13 +162,16 @@ export function useSaveDeal() {
       saveMutation.mutate(newDealData, {
         onSuccess: (saved) => {
           if (!saved) {
-            setMessage({ type: "error", text: "Failed to save deal to backend." });
+            setMessage({
+              type: "error",
+              text: "Couldn't save the deal. Check your connection and try again.",
+            });
             return;
           }
           const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
           setSavedDeals((prev) => [mappedSaved, ...prev]);
           void queryClient.invalidateQueries({ queryKey: queryKeys.savedDeals });
-          setMessage({ type: "success", text: "Deal saved successfully." });
+          setMessage({ type: "success", text: "Deal saved" });
           setIsDealDirty(false);
           void logDealEvent({
             action: "deal_saved",
@@ -174,7 +185,10 @@ export function useSaveDeal() {
           capture("deal_saved", { term: dealData.loanTerm });
         },
         onError: () => {
-          setMessage({ type: "error", text: "Failed to save deal to backend." });
+          setMessage({
+            type: "error",
+            text: "Couldn't save the deal. Check your connection and try again.",
+          });
         },
       });
     },

@@ -91,13 +91,15 @@ export function scoreInventory(input: ScoreInput): ScoreResult {
       if (entry.eligible)
         unitsPerLender[entry.lenderId] = (unitsPerLender[entry.lenderId] ?? 0) + 1;
     }
-    const appr = scoreApprovalOdds(calc, credit, fit.fitCount);
+    const appr = scoreApprovalOdds(calc, credit, fit.fitCount, fit.pendingCount, fit.pendingReason);
     return {
       ...calc,
       approvalScore: appr.internalScore,
       approvalBand: appr.band,
       ptiRatio: appr.ptiRatio,
       fitCount: fit.fitCount,
+      pendingCount: fit.pendingCount,
+      pendingCause: fit.pendingCause ?? undefined,
       fitNames: fit.fitNames,
     };
   });
@@ -118,9 +120,13 @@ export function filterInventory(
     const searchMatch =
       !query ||
       [item.vehicle, item.stock, item.vin].some((s) => (s || "").toLowerCase().includes(query));
+    // A pending unit's score is a capped placeholder shown everywhere as "—";
+    // it can never satisfy a numeric "min odds" threshold.
     const minScoreMatch =
       safeFilters.minScore == null ||
-      (typeof item.approvalScore === "number" && item.approvalScore >= safeFilters.minScore);
+      (item.approvalBand !== "pending" &&
+        typeof item.approvalScore === "number" &&
+        item.approvalScore >= safeFilters.minScore);
     const vehicleMatch =
       !safeFilters.vehicle ||
       (item.vehicle || "").toLowerCase().includes(safeFilters.vehicle.toLowerCase());
@@ -159,8 +165,13 @@ export function sortInventory(
 ): CalculatedVehicle[] {
   if (!inventorySort.key) return filteredInventory;
   const sortKey = inventorySort.key as keyof CalculatedVehicle;
+  // A pending unit's score is a capped placeholder shown as "—"; sorting by
+  // odds treats it as missing so it never outranks (or gets auto-focused
+  // over) a verified fit on the hidden number.
+  const valueOf = (v: CalculatedVehicle) =>
+    sortKey === "approvalScore" && v.approvalBand === "pending" ? null : v[sortKey];
   return [...filteredInventory].sort((a, b) =>
-    compareSortValues(a[sortKey], b[sortKey], inventorySort.direction, "none")
+    compareSortValues(valueOf(a), valueOf(b), inventorySort.direction, "none")
   );
 }
 

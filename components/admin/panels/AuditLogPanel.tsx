@@ -29,11 +29,12 @@ export const AuditLogCard: React.FC = () => {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const list = await listAuditLog(25);
       setEntries(list);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load audit log");
+      setError(e instanceof Error ? e.message : "Check your connection and retry.");
     } finally {
       setLoading(false);
     }
@@ -48,7 +49,7 @@ export const AuditLogCard: React.FC = () => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-base font-semibold text-[var(--color-text)] tracking-tight">
-            Audit Log
+            Audit log
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             Most recent 25 entries. Append-only — entries cannot be edited or deleted.
@@ -69,13 +70,14 @@ export const AuditLogCard: React.FC = () => {
       {loading && <DataLoading label="Loading audit log…" />}
 
       {error && !loading && (
-        <DataError title="Failed to load audit log" description={error} onRetry={refresh} />
+        <DataError title="Couldn't load the audit log" description={error} onRetry={refresh} />
       )}
 
       {!loading && !error && entries.length === 0 && (
         <EmptyState
+          headingLevel={4}
           title="No audit entries yet"
-          description="Actions like key updates and tests will appear here once performed. The log is append-only."
+          description="Adding, testing or removing an AI key creates an entry here."
         />
       )}
 
@@ -115,7 +117,7 @@ export const AuditLogCard: React.FC = () => {
                   </span>
                 )}
                 {detailsObj?.ok === true && (
-                  <span className="text-[11px] text-[var(--color-success)]">— live</span>
+                  <span className="text-[11px] text-[var(--color-success)]">— passed</span>
                 )}
               </div>
             );

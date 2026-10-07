@@ -42,6 +42,29 @@ describe("Modal body scroll lock", () => {
     expect(document.body.style.position).toBe("");
   });
 
+  it("puts the window back where it was, instantly, when the lock releases", () => {
+    // The window is the page scroller; html is scroll-behavior: smooth, so the
+    // restore must opt out of smooth scrolling or the page animates from the top.
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    Object.defineProperty(window, "scrollY", { value: 420, configurable: true });
+    const { rerender } = render(
+      <Modal isOpen title="Edit lender" onClose={vi.fn()}>
+        <p>content</p>
+      </Modal>
+    );
+    expect(document.body.style.top).toBe("-420px");
+
+    rerender(
+      <Modal isOpen={false} title="Edit lender" onClose={vi.fn()}>
+        <p>content</p>
+      </Modal>
+    );
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 420, left: 0, behavior: "instant" });
+    scrollTo.mockRestore();
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+  });
+
   it("restores the body lock when unmounted while still open", () => {
     // Regression: a screen unmounting an open Modal (⌘K navigation, a route
     // error boundary swapping the screen out) must not leave the page frozen.

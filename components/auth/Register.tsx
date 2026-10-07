@@ -16,25 +16,10 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
       style={{
         background: "var(--color-bg)",
         border: "1px solid var(--color-border)",
-        borderRadius: 12 /* --radius-xl — 16 sat outside the 8-12px card radius scale */,
-        boxShadow: "var(--shadow-md)",
+        borderRadius: "var(--radius-card)",
         padding: "28px 28px 30px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-        <span
-          style={{
-            fontSize: 11 /* uppercase mono kicker — 11px readable floor */,
-            fontFamily: "var(--mono)",
-            letterSpacing: "0.12em",
-            color: "var(--color-text-subtle)",
-          }}
-        >
-          REGISTER DEALER
-        </span>
-        <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
-      </div>
-
       <div style={{ textAlign: "center" }}>
         <div style={{ color: "var(--color-text-subtle)" }}>
           <Icons.LockClosedIcon className="w-10 h-10 mx-auto" />
@@ -42,7 +27,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
         <h2
           style={{
             fontSize: 20,
-            fontWeight: 700,
+            fontWeight: 600,
             letterSpacing: 0,
             color: "var(--color-text)",
             margin: "14px 0 0",
@@ -58,7 +43,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
             margin: "10px 0 0",
           }}
         >
-          Ask your dealership administrator to create your account, or contact support.
+          Ask your admin to create your account, or contact support.
         </p>
         <div style={{ marginTop: 18 }}>
           <button

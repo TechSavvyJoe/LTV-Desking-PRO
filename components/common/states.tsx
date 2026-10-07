@@ -54,7 +54,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
         role="status"
         aria-live="polite"
       >
-        <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
+        <Icons.SpinnerIcon className="w-4 h-4 animate-spin motion-reduce:animate-none" />
         <span>{label}</span>
       </div>
     );
@@ -65,7 +65,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
       role="status"
       aria-live="polite"
     >
-      <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+      <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       <p className="text-sm text-[var(--color-text-muted)]">{label}</p>
     </div>
   );
@@ -87,7 +87,7 @@ export interface DataErrorProps {
 }
 
 export const DataError: React.FC<DataErrorProps> = ({
-  title = "Something went wrong",
+  title = "Couldn't load this section",
   description,
   onRetry,
   secondaryAction,
@@ -124,6 +124,11 @@ export interface EmptyStateProps {
   primaryAction?: Action;
   /** Optional secondary action */
   secondaryAction?: Action;
+  /**
+   * Heading level for the title. Defaults to 2 (a screen's h1 sits above it);
+   * pass 3 when the empty state lives inside a panel that already has an h2.
+   */
+  headingLevel?: 2 | 3 | 4;
 }
 
 // ============================================
@@ -212,27 +217,31 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   primaryAction,
   secondaryAction,
-}) => (
-  <div
-    className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3 max-w-md mx-auto"
-    role="status"
-    aria-live="polite"
-    aria-label={title}
-  >
-    {icon && (
-      <div className="w-12 h-12 text-[var(--color-text-subtle)] mb-2" aria-hidden="true">
-        {icon}
-      </div>
-    )}
-    <h3 className="text-lg font-semibold text-[var(--color-text)]">{title}</h3>
-    {description && (
-      <p className="text-sm text-[var(--color-text-muted)] max-w-sm">{description}</p>
-    )}
-    {(primaryAction || secondaryAction) && (
-      <div className="flex items-center gap-2 mt-3">
-        {primaryAction && <ActionButton {...primaryAction} variant="primary" />}
-        {secondaryAction && <ActionButton {...secondaryAction} variant="secondary" />}
-      </div>
-    )}
-  </div>
-);
+  headingLevel = 2,
+}) => {
+  const Heading = `h${headingLevel}` as "h2" | "h3" | "h4";
+  return (
+    <div
+      className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3 max-w-md mx-auto"
+      role="status"
+      aria-live="polite"
+      aria-label={title}
+    >
+      {icon && (
+        <div className="w-12 h-12 text-[var(--color-text-subtle)] mb-2" aria-hidden="true">
+          {icon}
+        </div>
+      )}
+      <Heading className="text-lg font-semibold text-[var(--color-text)]">{title}</Heading>
+      {description && (
+        <p className="text-sm text-[var(--color-text-muted)] max-w-sm">{description}</p>
+      )}
+      {(primaryAction || secondaryAction) && (
+        <div className="flex items-center gap-2 mt-3">
+          {primaryAction && <ActionButton {...primaryAction} variant="primary" />}
+          {secondaryAction && <ActionButton {...secondaryAction} variant="secondary" />}
+        </div>
+      )}
+    </div>
+  );
+};

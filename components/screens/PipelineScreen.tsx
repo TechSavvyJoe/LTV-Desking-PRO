@@ -22,7 +22,7 @@ import type { SavedDeal } from "../../types";
 const mono = "var(--mono)";
 
 /** 7-col grid per the mockup's PIPELINE table (lines 559/569). */
-const GRID = "1.6fr 2fr 0.8fr 1fr 0.9fr 1.2fr 1fr";
+const GRID = "1.6fr 2fr var(--pipeline-term-track, 0.8fr) 1fr 0.9fr 1.2fr 1fr";
 
 /**
  * Approval-score color, driven by the scorer's own band thresholds
@@ -46,28 +46,33 @@ const initialsOf = (name: string): string =>
     .slice(0, 2)
     .toUpperCase() || "?";
 
+/** "STK" prefix only when the stock value does not already carry one. */
+const stockLabel = (stock: string): string =>
+  /^stk/i.test(String(stock).trim()) ? String(stock) : `STK ${stock}`;
+
 const numVal = (v: number | "Error" | "N/A" | undefined): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
+const tnum: React.CSSProperties = { fontVariantNumeric: "tabular-nums" };
+
 const headerCell: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: "0.1em",
-  fontFamily: mono,
-  color: "var(--color-text-subtle)",
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: 0,
+  color: "var(--color-text-muted)",
 };
 
 const metricLabel: React.CSSProperties = {
-  fontSize: 11,
-  fontFamily: mono,
-  color: "var(--color-text-subtle)",
+  fontSize: 12,
+  fontWeight: 500,
+  color: "var(--color-text-muted)",
   marginBottom: 4,
 };
 
 const metricValue: React.CSSProperties = {
   fontSize: 15,
-  fontFamily: mono,
   fontWeight: 600,
+  ...tnum,
 };
 
 const KpiCard: React.FC<{ label: string; value: number; color?: string }> = ({
@@ -79,16 +84,14 @@ const KpiCard: React.FC<{ label: string; value: number; color?: string }> = ({
     style={{
       background: "var(--color-bg)",
       border: "1px solid var(--color-border)",
-      borderRadius: "var(--radius-card)",
+      borderRadius: "var(--radius-md)",
       padding: 18,
-      boxShadow: "var(--shadow)",
     }}
   >
     <div
       style={{
         fontSize: 12,
-        fontWeight: 600,
-        fontFamily: mono,
+        fontWeight: 500,
         color: "var(--color-text-muted)",
       }}
     >
@@ -135,7 +138,7 @@ const PipelineScreenBase: React.FC = () => {
 
   // OTD LTV colors come from settings.ltvThresholds — never hardcoded 115/125.
   const otdColor = (n: number | null): string => {
-    if (n === null) return "var(--color-text-subtle)";
+    if (n === null) return "var(--color-text-muted)";
     return n >= danger
       ? "var(--color-danger)"
       : n >= warn
@@ -170,8 +173,14 @@ const PipelineScreenBase: React.FC = () => {
       otdLtv = otdLtv ?? numVal(calc.otdLtv) ?? numVal(deal.vehicle.otdLtv);
       financed = financed ?? numVal(calc.amountToFinance) ?? numVal(deal.vehicle.amountToFinance);
     }
-    const approvalScore = persisted.approvalScore ?? deal.vehicle.approvalScore ?? null;
-    return { payment, otdLtv, financed, approvalScore };
+    // A "pending" band means the rules engine could not finish checking at
+    // least one lender at save time; its capped score is indeterminate, not a
+    // decline, so the column shows "—" rather than a failing red number.
+    const approvalPending = deal.vehicle.approvalBand === "pending";
+    const approvalScore = approvalPending
+      ? null
+      : (persisted.approvalScore ?? deal.vehicle.approvalScore ?? null);
+    return { payment, otdLtv, financed, approvalScore, approvalPending };
   };
 
   // --- Actions ---------------------------------------------------------------
@@ -208,7 +217,7 @@ const PipelineScreenBase: React.FC = () => {
           });
           setMessage({
             type: "success",
-            text: `Status updated to ${titleCase(next)} · ${deal.customerName}`,
+            text: `${deal.customerName} moved to ${titleCase(next)}`,
           });
         } else {
           applyStatus(from);
@@ -239,18 +248,10 @@ const PipelineScreenBase: React.FC = () => {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontFamily: mono,
-              letterSpacing: "0.18em",
-              color: "var(--color-text-subtle)",
-            }}
-          >
-            DEAL PIPELINE
+          <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Pipeline</h1>
+          <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+            {counts.total} working {counts.total === 1 ? "deal" : "deals"}
           </span>
-          <div style={{ height: 20, width: 1, background: "var(--color-border)" }} />
-          <span style={{ fontSize: 15, fontWeight: 600 }}>{counts.total} working deals</span>
         </div>
         <Button
           type="button"
@@ -293,155 +294,219 @@ const PipelineScreenBase: React.FC = () => {
           <KpiCard label="Pending lender" value={counts.pending} color="var(--color-warning)" />
         </div>
 
-        {/* Deal table */}
-        <div
-          role="table"
-          aria-label="Deal pipeline"
-          aria-rowcount={deals.length + 1}
-          style={{
-            background: "var(--color-bg)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--shadow)",
-            overflow: "hidden",
-          }}
-        >
-          <div role="rowgroup">
-            <div
-              className="pipeline-screen-columns"
-              role="row"
-              aria-rowindex={1}
-              style={{
-                display: "grid",
-                gridTemplateColumns: GRID,
-                columnGap: 14,
-                alignItems: "center",
-                padding: "11px 20px",
-                background: "var(--color-bg-subtle)",
-                borderBottom: "1px solid var(--color-border)",
-              }}
-            >
-              <span role="columnheader" style={headerCell}>
-                Customer
-              </span>
-              <span role="columnheader" style={headerCell}>
-                Vehicle
-              </span>
-              <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
-                Term
-              </span>
-              <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
-                Payment
-              </span>
-              <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
-                Approval
-              </span>
-              <span role="columnheader" style={headerCell}>
-                Lender
-              </span>
-              <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
-                Status
-              </span>
+        {deals.length === 0 ? (
+          <EmptyState
+            icon={<Icons.FolderIcon className="w-full h-full" />}
+            title="No saved deals yet"
+            description="Structure a vehicle on the desk and click Save deal to add it here."
+            primaryAction={{ label: "New deal", onClick: handleNewDeal }}
+          />
+        ) : (
+          <div
+            role="table"
+            aria-label="Deal pipeline"
+            style={{
+              background: "var(--color-bg)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)",
+              overflow: "hidden",
+            }}
+          >
+            <div role="rowgroup">
+              <div
+                className="pipeline-screen-columns"
+                role="row"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: GRID,
+                  columnGap: 14,
+                  alignItems: "center",
+                  padding: "11px 20px",
+                  background: "var(--color-bg-subtle)",
+                  borderBottom: "1px solid var(--color-border)",
+                }}
+              >
+                <span role="columnheader" style={headerCell}>
+                  Customer
+                </span>
+                <span role="columnheader" style={headerCell}>
+                  Vehicle
+                </span>
+                <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
+                  Term
+                </span>
+                <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
+                  Payment
+                </span>
+                <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
+                  Approval
+                </span>
+                <span role="columnheader" style={headerCell}>
+                  Lender
+                </span>
+                <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
+                  Status
+                </span>
+              </div>
             </div>
-          </div>
 
-          {deals.length === 0 && (
-            <EmptyState
-              icon={<Icons.FolderIcon className="w-full h-full" />}
-              title="No deals in the pipeline yet"
-              description="Structure a vehicle on the desk and hit Save deal — it lands here with its payment, approval odds and lender status."
-              primaryAction={{ label: "New deal", onClick: handleNewDeal }}
-            />
-          )}
+            <div role="rowgroup">
+              {deals.map((deal) => {
+                const bucket = statusBucket(deal.status);
+                const meta = STATUS_BUCKET_META[bucket];
+                const expanded = expandedId === deal.id;
+                const metrics = metricsFor(deal);
+                const savedDate = new Date(deal.date || deal.createdAt || Date.now());
+                const savedFmt = Number.isNaN(savedDate.getTime())
+                  ? "—"
+                  : savedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                const toggleExpanded = () =>
+                  setExpandedId((cur) => (cur === deal.id ? null : deal.id));
 
-          <div role="rowgroup">
-            {deals.map((deal, dealIndex) => {
-              const bucket = statusBucket(deal.status);
-              const meta = STATUS_BUCKET_META[bucket];
-              const expanded = expandedId === deal.id;
-              const metrics = metricsFor(deal);
-              const savedDate = new Date(deal.date || deal.createdAt || Date.now());
-              const savedFmt = Number.isNaN(savedDate.getTime())
-                ? "—"
-                : savedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-              const toggleExpanded = () =>
-                setExpandedId((cur) => (cur === deal.id ? null : deal.id));
-
-              return (
-                <div key={deal.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
-                  {/* Row — click / Enter / Space toggles the drawer (single-open) */}
-                  <div
-                    className="inv-row pipeline-screen-row"
-                    onClick={toggleExpanded}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleExpanded();
-                      }
-                    }}
-                    role="row"
-                    aria-rowindex={dealIndex + 2}
-                    tabIndex={0}
-                    aria-expanded={expanded}
-                    aria-label={`Deal for ${deal.customerName}`}
-                    aria-controls={`pipeline-panel-${deal.id}`}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: GRID,
-                      columnGap: 14,
-                      alignItems: "center",
-                      padding: "12px 20px",
-                      cursor: "pointer",
-                    }}
-                  >
+                return (
+                  <div key={deal.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
+                    {/* Row — mouse click toggles the drawer; the chevron button is the keyboard control (single-open) */}
                     <div
-                      role="cell"
-                      style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}
+                      className="inv-row pipeline-screen-row"
+                      onClick={toggleExpanded}
+                      role="row"
+                      aria-label={`Deal for ${deal.customerName}`}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: GRID,
+                        columnGap: 14,
+                        alignItems: "center",
+                        padding: "12px 20px",
+                        cursor: "pointer",
+                      }}
                     >
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: "var(--color-text-subtle)",
-                          width: 8,
-                          flexShrink: 0,
-                        }}
-                        aria-hidden="true"
-                      >
-                        {expanded ? "▾" : "▸"}
-                      </span>
                       <div
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 9,
-                          background: "var(--color-bg-muted)",
-                          color: "var(--color-text-muted)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          fontFamily: mono,
-                          flexShrink: 0,
-                        }}
-                        aria-hidden="true"
+                        role="cell"
+                        style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}
                       >
-                        {initialsOf(deal.customerName)}
+                        <button
+                          type="button"
+                          aria-expanded={expanded}
+                          aria-controls={`pipeline-panel-${deal.id}`}
+                          aria-label={`${expanded ? "Hide" : "Show"} details for ${deal.vehicle.vehicle}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpanded();
+                          }}
+                          style={{
+                            fontSize: 10,
+                            color: "var(--color-text-subtle)",
+                            width: 8,
+                            flexShrink: 0,
+                            background: "transparent",
+                            border: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          <span aria-hidden="true">{expanded ? "▾" : "▸"}</span>
+                        </button>
+                        <div
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 9,
+                            background: "var(--color-bg-muted)",
+                            color: "var(--color-text-muted)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            flexShrink: 0,
+                          }}
+                          aria-hidden="true"
+                        >
+                          {initialsOf(deal.customerName)}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {deal.customerName}
+                        </span>
+                      </div>
+                      <div role="cell" style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {deal.vehicle.vehicle}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "var(--color-text-subtle)",
+                            fontFamily: mono,
+                          }}
+                        >
+                          {stockLabel(deal.vehicle.stock)}
+                        </div>
                       </div>
                       <span
+                        role="cell"
+                        data-label="Term"
                         style={{
-                          fontSize: 14,
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          fontSize: 13,
+                          textAlign: "right",
+                          ...tnum,
+                          color: "var(--color-text-muted)",
                         }}
                       >
-                        {deal.customerName}
+                        {deal.dealData.loanTerm} mo
                       </span>
-                    </div>
-                    <div role="cell" style={{ minWidth: 0 }}>
-                      <div
+                      <span
+                        role="cell"
+                        data-label="Payment"
+                        style={{
+                          fontSize: 14,
+                          textAlign: "right",
+                          fontWeight: 600,
+                          ...tnum,
+                        }}
+                      >
+                        {metrics.payment === null ? "—" : `${fmt(metrics.payment)}/mo`}
+                      </span>
+                      <span
+                        role="cell"
+                        data-label="Approval"
+                        title={metrics.approvalPending ? "Pending lender checks" : undefined}
+                        aria-label={
+                          metrics.approvalPending
+                            ? "Approval odds pending lender checks"
+                            : undefined
+                        }
+                        style={{
+                          fontSize: 14,
+                          textAlign: "right",
+                          fontWeight: 700,
+                          ...tnum,
+                          color:
+                            metrics.approvalScore === null
+                              ? "var(--color-text-subtle)"
+                              : approvalColor(metrics.approvalScore),
+                        }}
+                      >
+                        {metrics.approvalScore === null ? "—" : Math.round(metrics.approvalScore)}
+                      </span>
+                      <span
+                        role="cell"
+                        data-label="Lender"
                         style={{
                           fontSize: 13,
                           whiteSpace: "nowrap",
@@ -449,184 +514,124 @@ const PipelineScreenBase: React.FC = () => {
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {deal.vehicle.vehicle}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--color-text-subtle)",
-                          fontFamily: mono,
-                        }}
-                      >
-                        STK {deal.vehicle.stock}
-                      </div>
-                    </div>
-                    <span
-                      role="cell"
-                      data-label="Term"
-                      style={{
-                        fontSize: 13,
-                        textAlign: "right",
-                        fontFamily: mono,
-                        color: "var(--color-text-muted)",
-                      }}
-                    >
-                      {deal.dealData.loanTerm} mo
-                    </span>
-                    <span
-                      role="cell"
-                      data-label="Payment"
-                      style={{
-                        fontSize: 14,
-                        textAlign: "right",
-                        fontFamily: mono,
-                        fontWeight: 600,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {metrics.payment === null ? "—" : `${fmt(metrics.payment)}/mo`}
-                    </span>
-                    <span
-                      role="cell"
-                      data-label="Approval"
-                      style={{
-                        fontSize: 14,
-                        textAlign: "right",
-                        fontFamily: mono,
-                        fontWeight: 700,
-                        color:
-                          metrics.approvalScore === null
-                            ? "var(--color-text-subtle)"
-                            : approvalColor(metrics.approvalScore),
-                      }}
-                    >
-                      {metrics.approvalScore === null ? "—" : Math.round(metrics.approvalScore)}
-                    </span>
-                    <span
-                      role="cell"
-                      data-label="Lender"
-                      style={{
-                        fontSize: 13,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {deal.lenderName ?? "—"}
-                    </span>
-                    <span role="cell" data-label="Status" style={{ textAlign: "right" }}>
-                      <span
-                        title={deal.status}
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          fontFamily: mono,
-                          padding: "3px 9px",
-                          borderRadius: 6,
-                          color: meta.colorVar,
-                          background: meta.bgVar,
-                        }}
-                      >
-                        {meta.label}
+                        {deal.lenderName ?? "—"}
                       </span>
-                    </span>
-                  </div>
-
-                  {/* Drawer — mockup lines 582-598 */}
-                  {expanded && (
-                    <div
-                      id={`pipeline-panel-${deal.id}`}
-                      style={{
-                        padding: "4px 20px 18px 37px",
-                        background: "var(--color-bg-subtle)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(5,1fr)",
-                          gap: 12,
-                          margin: "10px 0 16px",
-                          maxWidth: 620,
-                        }}
-                      >
-                        <div>
-                          <div style={metricLabel}>Down</div>
-                          <div style={metricValue}>{fmt(deal.dealData.downPayment || 0)}</div>
-                        </div>
-                        <div>
-                          <div style={metricLabel}>APR</div>
-                          <div style={metricValue}>{deal.dealData.interestRate}%</div>
-                        </div>
-                        <div>
-                          <div style={metricLabel}>Financed</div>
-                          <div style={metricValue}>
-                            {metrics.financed === null ? "—" : fmt(metrics.financed)}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={metricLabel}>OTD LTV</div>
-                          <div style={{ ...metricValue, color: otdColor(metrics.otdLtv) }}>
-                            {metrics.otdLtv === null ? "—" : `${Math.round(metrics.otdLtv)}%`}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={metricLabel}>Saved</div>
-                          <div style={metricValue}>{savedFmt}</div>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <label
-                          htmlFor={`deal-status-${deal.id}`}
+                      <span role="cell" data-label="Status" style={{ textAlign: "right" }}>
+                        <span
+                          title={deal.status}
                           style={{
                             fontSize: 12,
-                            fontWeight: 500,
-                            color: "var(--color-text-muted)",
+                            fontWeight: 600,
+                            padding: "3px 9px",
+                            borderRadius: 6,
+                            color: meta.colorVar,
+                            background: meta.bgVar,
                           }}
                         >
-                          Status
-                        </label>
-                        <select
-                          id={`deal-status-${deal.id}`}
-                          className="dc-input"
-                          value={deal.status}
-                          onChange={(e) =>
-                            handleStatusChange(deal, e.target.value as CanonicalDealStatus)
-                          }
-                          style={{
-                            background: "var(--color-bg)",
-                            border: "1px solid var(--color-border)",
-                            borderRadius: "var(--radius-md)",
-                            padding: "7px 10px",
-                            fontSize: 14,
-                            color: "var(--color-text)",
-                            fontFamily: "inherit",
-                            outline: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {CANONICAL_DEAL_STATUSES.map((status) => (
-                            <option key={status} value={status}>
-                              {titleCase(status)}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          onClick={() => handleOpenInDesk(deal)}
-                          variant="primary"
-                          className="ml-auto"
-                        >
-                          Open in desk →
-                        </Button>
-                      </div>
+                          {meta.label}
+                        </span>
+                      </span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+
+                    {/* Drawer — mockup lines 582-598 */}
+                    {expanded && (
+                      <div
+                        id={`pipeline-panel-${deal.id}`}
+                        role="row"
+                        style={{
+                          padding: "4px 20px 18px 37px",
+                          background: "var(--color-bg-subtle)",
+                        }}
+                      >
+                        <div role="cell" aria-colspan={7}>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(5,1fr)",
+                              gap: 12,
+                              margin: "10px 0 16px",
+                              maxWidth: 620,
+                            }}
+                          >
+                            <div>
+                              <div style={metricLabel}>Down</div>
+                              <div style={metricValue}>{fmt(deal.dealData.downPayment || 0)}</div>
+                            </div>
+                            <div>
+                              <div style={metricLabel}>APR</div>
+                              <div style={metricValue}>{deal.dealData.interestRate}%</div>
+                            </div>
+                            <div>
+                              <div style={metricLabel}>Financed</div>
+                              <div style={metricValue}>
+                                {metrics.financed === null ? "—" : fmt(metrics.financed)}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={metricLabel}>OTD LTV</div>
+                              <div style={{ ...metricValue, color: otdColor(metrics.otdLtv) }}>
+                                {metrics.otdLtv === null ? "—" : `${Math.round(metrics.otdLtv)}%`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={metricLabel}>Saved</div>
+                              <div style={metricValue}>{savedFmt}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <label
+                              htmlFor={`deal-status-${deal.id}`}
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: "var(--color-text-muted)",
+                              }}
+                            >
+                              Status
+                            </label>
+                            <select
+                              id={`deal-status-${deal.id}`}
+                              className="dc-input"
+                              value={deal.status}
+                              onChange={(e) =>
+                                handleStatusChange(deal, e.target.value as CanonicalDealStatus)
+                              }
+                              style={{
+                                background: "var(--color-bg)",
+                                border: "1px solid var(--color-border)",
+                                borderRadius: "var(--radius-md)",
+                                padding: "7px 10px",
+                                fontSize: 14,
+                                color: "var(--color-text)",
+                                fontFamily: "inherit",
+                                outline: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {CANONICAL_DEAL_STATUSES.map((status) => (
+                                <option key={status} value={status}>
+                                  {titleCase(status)}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              type="button"
+                              onClick={() => handleOpenInDesk(deal)}
+                              variant="primary"
+                              className="ml-auto"
+                            >
+                              Open in desk →
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

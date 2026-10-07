@@ -120,10 +120,10 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           phone: userFormData.phone,
           role: userFormData.role as "admin" | "sales" | "manager",
         });
-        toast.success("User updated successfully");
+        toast.success("User saved");
       } else {
         if (userFormData.password !== userFormData.passwordConfirm) {
-          setUserError("Passwords do not match");
+          setUserError("Passwords don't match");
           return;
         }
         if (userFormData.password.length < PASSWORD_MIN_LENGTH) {
@@ -134,12 +134,12 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           ...userFormData,
           role: userFormData.role as "admin" | "sales" | "manager",
         });
-        toast.success("User created successfully");
+        toast.success("User created");
       }
       resetUserForm();
       loadData();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to save user";
+      const message = err instanceof Error ? err.message : "Couldn't save the user. Try again.";
       setUserError(message);
     }
   };
@@ -162,15 +162,16 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
     if (
       await confirmAction({
         title: "Delete user?",
-        message: "Are you sure you want to delete this user? They will lose access immediately.",
-        confirmLabel: "Delete",
+        message:
+          "They lose access immediately and this can't be undone. To keep their deal history, deactivate them instead.",
+        confirmLabel: "Delete user",
         tone: "danger",
       })
     ) {
       try {
         await deleteDealerUser(userId);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to delete user");
+        toast.error(err instanceof Error ? err.message : "Couldn't delete the user. Try again.");
         return;
       }
       toast.success("User deleted");
@@ -182,7 +183,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
     try {
       await updateDealerUser(userId, { role: newRole as "admin" | "sales" | "manager" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update role");
+      toast.error(err instanceof Error ? err.message : "Couldn't change the role. Try again.");
       loadData(); // resync the role select after a rejected change
       return;
     }
@@ -196,7 +197,13 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
     try {
       await setUserActive(u.id, !isActive);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update user status");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : isActive
+            ? "Couldn't deactivate the user. Try again."
+            : "Couldn't reactivate the user. Try again."
+      );
       return;
     }
     toast.success(isActive ? "User deactivated" : "User reactivated");
@@ -211,18 +218,20 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
       // Dealer-admin-scoped update; the superadmin-only updateDealer silently
       // no-oped for this audience. [C13]
       await updateCurrentDealer(dealerFormData);
-      toast.success("Dealership details updated");
+      toast.success("Dealership details saved");
       setIsEditingDealer(false);
       loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update dealership details");
+      toast.error(
+        error instanceof Error ? error.message : "Couldn't save dealership details. Try again."
+      );
     }
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
-        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+        <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       </div>
     );
   }
@@ -236,7 +245,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
       case "admin":
         return "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]";
       case "manager":
-        return "bg-[var(--color-warning-subtle)] text-[var(--color-warning)]";
+        return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
       default:
         return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
     }
@@ -256,15 +265,23 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           currentUser?.email
         }
         right={
-          <Button onClick={onSwitchToDealer} variant="primary" className="gap-2">
+          // Icon-only at phone widths so it can't cover the title; the label
+          // stays in the accessible name at every width. [R19]
+          <Button
+            onClick={onSwitchToDealer}
+            variant="primary"
+            aria-label="Back to the desk"
+            className="gap-2 max-[760px]:min-h-[44px] max-[760px]:min-w-[44px] max-[760px]:px-2.5"
+          >
             <Icons.ChevronLeftIcon className="w-4 h-4" />
-            Back to Dashboard
+            <span className="max-[760px]:sr-only">Back to the desk</span>
           </Button>
         }
       />
 
-      {/* Sub-tab bar — .tab-btn idiom */}
-      <div
+      {/* Section switcher — a labelled nav with the current section marked. [aria #15] */}
+      <nav
+        aria-label="Admin sections"
         style={{
           padding: "0 24px",
           background: "var(--color-bg)",
@@ -283,19 +300,19 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
         <ConsoleTab
           active={activeTab === "dealership"}
           onClick={() => setActiveTab("dealership")}
-          label="Dealership Details"
+          label="Dealership details"
         />
-      </div>
+      </nav>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === "users" && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--color-text)]">Team Members</h2>
+              <h2 className="text-lg font-bold text-[var(--color-text)]">Team members</h2>
               <Button onClick={() => setIsCreatingUser(true)} className="gap-2">
                 <Icons.PlusIcon className="w-4 h-4" />
-                Add User
+                Add user
               </Button>
             </div>
 
@@ -306,9 +323,9 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
             )}
 
             {(isCreatingUser || editingUserId) && (
-              <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)] shadow-sm">
+              <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)]">
                 <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
-                  {editingUserId ? "Edit Team Member" : "Add New Team Member"}
+                  {editingUserId ? "Edit team member" : "Add team member"}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
@@ -316,7 +333,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       htmlFor="admin-user-first-name"
                       className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                     >
-                      First Name *
+                      First name *
                     </label>
                     <input
                       id="admin-user-first-name"
@@ -334,7 +351,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       htmlFor="admin-user-last-name"
                       className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                     >
-                      Last Name *
+                      Last name *
                     </label>
                     <input
                       id="admin-user-last-name"
@@ -431,7 +448,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                           htmlFor="admin-user-password-confirm"
                           className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                         >
-                          Confirm Password *
+                          Confirm password *
                         </label>
                         <input
                           id="admin-user-password-confirm"
@@ -460,171 +477,188 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                       (!editingUserId && !userFormData.password)
                     }
                   >
-                    {editingUserId ? "Save Changes" : "Create User"}
+                    {editingUserId ? "Save user" : "Create user"}
                   </Button>
                 </div>
               </div>
             )}
 
-            <div className="bg-[var(--color-bg)] rounded-md border border-[var(--color-border)] overflow-hidden shadow-sm">
-              <table className="w-full text-left" aria-label="Team users list">
-                <thead className="bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
-                    >
-                      User
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
-                    >
-                      Email
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
-                    >
-                      Role
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
-                    >
-                      Joined
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
-                    >
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
-                  {users.map((u) => {
-                    const isSelf = u.id === currentUser?.id;
-                    const isActive = u.active ?? true;
-                    return (
-                      <tr
-                        key={u.id}
-                        className={`hover:bg-[var(--color-bg-muted)] transition-colors ${
-                          isActive ? "" : "opacity-60"
-                        }`}
+            <div className="bg-[var(--color-bg)] rounded-md border border-[var(--color-border)] overflow-hidden">
+              <div className="admin-table-scroll relative overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left" aria-label="Team users list">
+                  <thead className="bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
                       >
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[var(--color-primary-subtle)] text-[var(--color-primary)] rounded-full flex items-center justify-center font-bold">
-                              {u.firstName?.[0]}
-                              {u.lastName?.[0]}
-                            </div>
-                            <div>
-                              <p className="font-medium text-[var(--color-text)]">
-                                {u.firstName} {u.lastName}
-                                {!isActive && (
-                                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] align-middle">
-                                    Inactive
-                                  </span>
-                                )}
-                              </p>
-                              <p className="text-xs text-[var(--color-text-subtle)]">{u.phone}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
-                          {u.email}
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <select
-                            value={u.role}
-                            aria-label={`Role for ${u.email}`}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              const role = (["sales", "manager", "admin"] as const).includes(
-                                val as Exclude<User["role"], "superadmin">
-                              )
-                                ? (val as Exclude<User["role"], "superadmin">)
-                                : "sales";
-                              handleRoleChange(u.id, role);
-                            }}
-                            disabled={isSelf}
-                            className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer outline-none ${getRoleBadgeColor(
-                              u.role
-                            )}`}
-                          >
-                            <option value="sales">Sales</option>
-                            <option value="manager">Manager</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                        </td>
-                        <td className="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
-                          {new Date(u.created).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleEditUser(u)}
-                              className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg-muted)] rounded-lg transition-colors"
-                              title="Edit"
-                              aria-label={`Edit ${u.email}`}
-                            >
-                              <Icons.PencilIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleToggleUserActive(u)}
-                              disabled={isSelf}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                                isActive
-                                  ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)] hover:bg-[var(--color-warning-subtle)]"
-                                  : "bg-[var(--color-success-subtle)] text-[var(--color-success)] ring-[var(--color-success)] hover:bg-[var(--color-success-subtle)]"
-                              }`}
-                              title={
-                                isSelf
-                                  ? "You can't deactivate your own account"
-                                  : isActive
-                                    ? "Deactivate user (keeps their history)"
-                                    : "Reactivate user"
-                              }
-                            >
-                              {isActive ? "Deactivate" : "Activate"}
-                            </button>
-                            {!isSelf && (
-                              <button
-                                onClick={() => handleDeleteUser(u.id)}
-                                className="p-2 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors"
-                                title="Delete permanently"
-                                aria-label={`Delete ${u.email} permanently`}
+                        User
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
+                      >
+                        Email
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                      >
+                        Role
+                      </th>
+                      <th
+                        scope="col"
+                        className="admin-col-joined px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                      >
+                        Joined
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {users.map((u) => {
+                      const isSelf = u.id === currentUser?.id;
+                      const isActive = u.active ?? true;
+                      return (
+                        <tr
+                          key={u.id}
+                          className={`hover:bg-[var(--color-bg-muted)] transition-colors ${
+                            isActive ? "" : "opacity-60"
+                          }`}
+                        >
+                          <th scope="row" className="px-4 py-4 text-left font-normal">
+                            <div className="flex items-center gap-3">
+                              <div
+                                aria-hidden="true"
+                                className="w-10 h-10 bg-[var(--color-primary-subtle)] text-[var(--color-primary)] rounded-full flex items-center justify-center font-bold"
                               >
-                                <Icons.TrashIcon className="w-4 h-4" />
+                                {u.firstName?.[0]}
+                                {u.lastName?.[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium text-[var(--color-text)]">
+                                  {u.firstName} {u.lastName}
+                                  {!isActive && (
+                                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] align-middle">
+                                      Inactive
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-[var(--color-text-subtle)]">{u.phone}</p>
+                              </div>
+                            </div>
+                          </th>
+                          <td className="max-w-[220px] break-all px-4 py-4 text-sm text-[var(--color-text-muted)]">
+                            {u.email}
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <select
+                              value={u.role}
+                              aria-label={`Role for ${u.email}`}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const role = (["sales", "manager", "admin"] as const).includes(
+                                  val as Exclude<User["role"], "superadmin">
+                                )
+                                  ? (val as Exclude<User["role"], "superadmin">)
+                                  : "sales";
+                                handleRoleChange(u.id, role);
+                              }}
+                              disabled={isSelf}
+                              className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer outline-none ${getRoleBadgeColor(
+                                u.role
+                              )}`}
+                            >
+                              <option value="sales">Sales</option>
+                              <option value="manager">Manager</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          </td>
+                          <td className="admin-col-joined px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
+                            {new Date(u.created).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-4 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleEditUser(u)}
+                                className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg-muted)] rounded-lg transition-colors"
+                                title="Edit"
+                                aria-label={`Edit ${u.email}`}
+                              >
+                                <Icons.PencilIcon className="w-4 h-4" />
                               </button>
-                            )}
-                          </div>
+                              <button
+                                onClick={() => handleToggleUserActive(u)}
+                                disabled={isSelf}
+                                aria-label={`${isActive ? "Deactivate" : "Reactivate"} ${u.email}`}
+                                aria-describedby={isSelf ? `self-deactivate-${u.id}` : undefined}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                                  isActive
+                                    ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)] hover:bg-[var(--color-warning-subtle)]"
+                                    : "bg-[var(--color-success-subtle)] text-[var(--color-success)] ring-[var(--color-success)] hover:bg-[var(--color-success-subtle)]"
+                                }`}
+                                title={
+                                  isSelf
+                                    ? "You can't deactivate your own account"
+                                    : isActive
+                                      ? "Deactivate user (keeps their history)"
+                                      : "Reactivate user"
+                                }
+                              >
+                                {isActive ? "Deactivate" : "Reactivate"}
+                              </button>
+                              {isSelf && (
+                                <span id={`self-deactivate-${u.id}`} className="sr-only">
+                                  You can't deactivate your own account
+                                </span>
+                              )}
+                              {!isSelf && (
+                                <button
+                                  onClick={() => handleDeleteUser(u.id)}
+                                  className="p-2 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors"
+                                  title="Delete permanently"
+                                  aria-label={`Delete ${u.email} permanently`}
+                                >
+                                  <Icons.TrashIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {users.length === 0 && (
+                      <tr>
+                        <td colSpan={5}>
+                          <EmptyState
+                            headingLevel={3}
+                            icon={<Icons.UserIcon className="w-8 h-8" />}
+                            title="No team members yet"
+                            description="Add your salespeople and managers so they can desk deals."
+                            primaryAction={{
+                              label: "Add user",
+                              onClick: () => setIsCreatingUser(true),
+                            }}
+                          />
                         </td>
                       </tr>
-                    );
-                  })}
-                  {users.length === 0 && (
-                    <tr>
-                      <td colSpan={5}>
-                        <EmptyState
-                          icon={<Icons.UserIcon className="w-8 h-8" />}
-                          title="No team members yet"
-                          description="Invite users from the Owner Console or add team members to this dealership."
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === "dealership" && dealer && (
-          <div className="space-y-6 animate-fadeIn max-w-3xl">
+          <div className="space-y-6 max-w-3xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--color-text)]">Dealership Information</h2>
+              <h2 className="text-lg font-bold text-[var(--color-text)]">Dealership details</h2>
               {!isEditingDealer && (
                 <Button
                   onClick={() => setIsEditingDealer(true)}
@@ -632,19 +666,19 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                   className="gap-2"
                 >
                   <Icons.PencilIcon className="w-4 h-4" />
-                  Edit Details
+                  Edit details
                 </Button>
               )}
             </div>
 
-            <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)] shadow-sm">
+            <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
                     htmlFor={isEditingDealer ? "admin-dealer-name" : undefined}
                     className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                   >
-                    Dealership Name
+                    Dealership name
                   </label>
                   {isEditingDealer ? (
                     <input
@@ -663,7 +697,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                 <div>
                   {/* Read-only value: a <label> with no control is invalid, so this is a plain caption. */}
                   <span className="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
-                    Dealer Code
+                    Dealer code
                   </span>
                   <p className="text-[var(--color-text-muted)] font-mono bg-[var(--color-bg-subtle)] px-3 py-2 rounded-lg border border-[var(--color-border)] inline-block">
                     {dealer.code}
@@ -677,7 +711,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     htmlFor={isEditingDealer ? "admin-dealer-email" : undefined}
                     className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                   >
-                    Email Contact
+                    Contact email
                   </label>
                   {isEditingDealer ? (
                     <input
@@ -698,7 +732,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     htmlFor={isEditingDealer ? "admin-dealer-phone" : undefined}
                     className="block text-sm font-medium text-[var(--color-text-muted)] mb-1"
                   >
-                    Phone Contact
+                    Contact phone
                   </label>
                   {isEditingDealer ? (
                     <input
@@ -795,7 +829,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
                     Cancel
                   </Button>
                   <Button onClick={handleDealerSubmit} disabled={!dealerFormData.name}>
-                    Save Changes
+                    Save details
                   </Button>
                 </div>
               )}

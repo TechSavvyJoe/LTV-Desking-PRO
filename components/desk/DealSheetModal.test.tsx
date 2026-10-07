@@ -38,7 +38,10 @@ vi.mock("../../utils/downloadBlob", async () => {
   return { ...actual, downloadBlob: mocks.downloadBlob };
 });
 
-vi.mock("../../services/lenderMatcher", () => ({
+// Partial mock: lenderFit also reads the matcher's constraint-name constants
+// to classify pending holds, so keep the real exports and stub only the engine.
+vi.mock("../../services/lenderMatcher", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../services/lenderMatcher")>()),
   checkBankEligibility: mocks.checkBankEligibility,
 }));
 
@@ -159,7 +162,7 @@ describe("DealSheetModal PDF states", () => {
     fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
 
     expect(await screen.findByText("PDF ready")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /open pdf fallback/i }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: /^open pdf$/i }).getAttribute("href")).toBe(
       "blob:deal-sheet"
     );
     expect(mocks.downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "Deal_Sheet_5101.pdf", {
@@ -243,9 +246,10 @@ describe("DealSheetModal PDF states", () => {
     fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("PDF error · blank_canvas")).toBeTruthy();
+      expect(screen.getByText("PDF error:")).toBeTruthy();
+      expect(screen.getByText("blank_canvas")).toBeTruthy();
     });
-    expect(screen.queryByRole("link", { name: /open pdf fallback/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^open pdf$/i })).toBeNull();
     expect(mocks.capture).toHaveBeenCalledWith(
       "pdf_failed",
       expect.objectContaining({ pdfType: "deal_sheet", code: "blank_canvas" })
@@ -276,9 +280,10 @@ describe("DealSheetModal PDF states", () => {
     fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("PDF error · render_failed")).toBeTruthy();
+      expect(screen.getByText("PDF error:")).toBeTruthy();
+      expect(screen.getByText("render_failed")).toBeTruthy();
     });
-    expect(screen.queryByRole("link", { name: /open pdf fallback/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^open pdf$/i })).toBeNull();
     expect(mocks.capture).toHaveBeenCalledWith(
       "pdf_failed",
       expect.objectContaining({ code: "render_failed" })
@@ -292,7 +297,8 @@ describe("DealSheetModal PDF states", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
     await waitFor(() => {
-      expect(screen.getByText(/PDF error · dependency_load_failed/)).toBeTruthy();
+      expect(screen.getByText("PDF error:")).toBeTruthy();
+      expect(screen.getByText("dependency_load_failed")).toBeTruthy();
       expect(mocks.toastError).toHaveBeenCalled();
     });
   });
@@ -308,7 +314,7 @@ describe("DealSheetModal PDF states", () => {
     const btn = screen.getByRole("button", { name: /download pdf/i });
     fireEvent.click(btn);
     // Wait for generating state to be reflected in UI (avoids stale closure on sync clicks)
-    await waitFor(() => expect(screen.getByText("Generating PDF...")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Generating PDF…")).toBeTruthy());
     // second click while generating should be ignored by guard
     fireEvent.click(btn);
 
@@ -330,7 +336,7 @@ describe("DealSheetModal PDF states", () => {
       <DealSheetModal vehicle={vehicle} onClose={onClose} onSaveToPipeline={vi.fn()} />
     );
     const headerClose = screen.getAllByRole("button", { name: /^close$/i })[0];
-    const saveButton = screen.getByRole("button", { name: /save to pipeline/i });
+    const saveButton = screen.getByRole("button", { name: /^save deal$/i });
 
     await waitFor(() => expect(document.activeElement).toBe(headerClose));
     fireEvent.keyDown(headerClose!, { key: "Tab", shiftKey: true });

@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { appBackendUrl, USE_REAL_BACKEND } from "./fixtures/backend";
 
 /**
  * Real-backend proof of backend/pb_hooks/field_visibility.pb.js.
@@ -17,12 +18,13 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
  * API-only (request fixture + raw fetch for realtime), no browser. Requires the seeded backend:
  *   PB_DATA_DIR=<fresh dir> E2E_REAL_BACKEND=1 E2E_KEEP_PB_RUNNING=1 npx tsx tests/helpers/seed-test-db.ts
  *   E2E_REAL_BACKEND=1 E2E_PB_URL=http://127.0.0.1:8090 npx playwright test tests/e2e/field-visibility.spec.ts
- * Targets E2E_PB_URL (default http://127.0.0.1:8090) — never VITE_POCKETBASE_URL,
- * which .env.local points at production.
+ * Targets appBackendUrl() — the same backend the app and the other e2e fixtures use
+ * (E2E_PB_URL, VITE_POCKETBASE_URL, PB_URL, PB_PORT-aware local default) — which
+ * refuses any non-local host, so .env.local's production VITE_POCKETBASE_URL is
+ * never reached. Resolved per call, so the mocked run (these tests skip) never resolves it.
  */
 
-const USE_REAL_BACKEND = !!process.env.E2E_REAL_BACKEND;
-const PB_URL = process.env.E2E_PB_URL || "http://127.0.0.1:8090";
+const pbUrl = (): string => appBackendUrl();
 const DEALER_A = "dealeraid12345x";
 
 const CREDENTIALS = {
@@ -38,7 +40,7 @@ type PbRecord = Record<string, unknown> & { id: string };
 
 async function login(request: APIRequestContext, role: Role): Promise<string> {
   const collection = role === "superuser" ? "_superusers" : "users";
-  const res = await request.post(`${PB_URL}/api/collections/${collection}/auth-with-password`, {
+  const res = await request.post(`${pbUrl()}/api/collections/${collection}/auth-with-password`, {
     data: CREDENTIALS[role],
   });
   expect(res.ok(), `${role} login`).toBeTruthy();
@@ -52,7 +54,7 @@ async function readBoth(
   collection: string,
   id: string
 ): Promise<{ list: PbRecord; view: PbRecord }> {
-  const listRes = await request.get(`${PB_URL}/api/collections/${collection}/records`, {
+  const listRes = await request.get(`${pbUrl()}/api/collections/${collection}/records`, {
     headers: { Authorization: token },
     params: { filter: `id = "${id}"`, perPage: 1 },
   });
@@ -60,7 +62,7 @@ async function readBoth(
   const { items } = (await listRes.json()) as { items: PbRecord[] };
   expect(items).toHaveLength(1);
 
-  const viewRes = await request.get(`${PB_URL}/api/collections/${collection}/records/${id}`, {
+  const viewRes = await request.get(`${pbUrl()}/api/collections/${collection}/records/${id}`, {
     headers: { Authorization: token },
   });
   expect(viewRes.ok(), `${collection} view`).toBeTruthy();
@@ -75,7 +77,7 @@ async function deleteAsAdmin(
   collection: string,
   id: string
 ): Promise<void> {
-  const res = await request.delete(`${PB_URL}/api/collections/${collection}/records/${id}`, {
+  const res = await request.delete(`${pbUrl()}/api/collections/${collection}/records/${id}`, {
     headers: { Authorization: adminToken },
   });
   expect(res.ok(), `cleanup ${collection}/${id}`).toBeTruthy();
@@ -107,7 +109,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       },
     ];
 
-    const created = await request.post(`${PB_URL}/api/collections/lender_profiles/records`, {
+    const created = await request.post(`${pbUrl()}/api/collections/lender_profiles/records`, {
       headers: { Authorization: adminToken },
       data: {
         dealer: DEALER_A,
@@ -189,7 +191,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       monthlyPayment: 450,
     };
 
-    const created = await request.post(`${PB_URL}/api/collections/saved_deals/records`, {
+    const created = await request.post(`${pbUrl()}/api/collections/saved_deals/records`, {
       headers: { Authorization: adminToken },
       data: {
         dealer: DEALER_A,
@@ -242,7 +244,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       // Legacy shape: flags without needsReview.
       { name: "Tier 2", minFico: 600, rangeFlags: ["baseInterestRate=649 outside 0-40"] },
     ];
-    const created = await request.post(`${PB_URL}/api/collections/lender_profiles/records`, {
+    const created = await request.post(`${pbUrl()}/api/collections/lender_profiles/records`, {
       headers: { Authorization: adminToken },
       data: { dealer: DEALER_A, name: `Range Flag Probe ${Date.now()}`, active: true, tiers },
     });
@@ -280,7 +282,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
   }) => {
     const adminToken = await login(request, "admin");
     const post = async (collection: string, data: Record<string, unknown>): Promise<string> => {
-      const res = await request.post(`${PB_URL}/api/collections/${collection}/records`, {
+      const res = await request.post(`${pbUrl()}/api/collections/${collection}/records`, {
         headers: { Authorization: adminToken },
         data,
       });
@@ -345,7 +347,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
         ["saved_deals", dealId],
         ["dealers", DEALER_A],
       ] as const) {
-        const res = await request.get(`${PB_URL}/api/collections/${collection}/records`, {
+        const res = await request.get(`${pbUrl()}/api/collections/${collection}/records`, {
           headers: { Authorization: salesToken },
           params: { filter: `id = "${id}"` },
         });
@@ -355,7 +357,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
 
       for (const [collection, params, managerRows] of probes) {
         const label = `${collection} ${JSON.stringify(params)}`;
-        const url = `${PB_URL}/api/collections/${collection}/records`;
+        const url = `${pbUrl()}/api/collections/${collection}/records`;
 
         const salesRes = await request.get(url, { headers: { Authorization: salesToken }, params });
         expect(salesRes.status(), `sales ${label}`).toBe(403);
@@ -379,7 +381,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
         ["dealers", { filter: "active = true" }],
         ["inventory", {}],
       ] as Array<[string, Record<string, string>]>) {
-        const res = await request.get(`${PB_URL}/api/collections/${collection}/records`, {
+        const res = await request.get(`${pbUrl()}/api/collections/${collection}/records`, {
           headers: { Authorization: salesToken },
           params,
         });
@@ -390,7 +392,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       // That is safe only because PocketBase evaluates just that one: a
       // trailing duplicate is ignored for everyone (a manager still gets the
       // row although unitCost > 99999999 is false), so it answers nothing.
-      const inventoryUrl = `${PB_URL}/api/collections/inventory/records`;
+      const inventoryUrl = `${pbUrl()}/api/collections/inventory/records`;
       const byId = encodeURIComponent(`id = "${unitId}"`);
       const impossible = encodeURIComponent("unitCost > 99999999");
       for (const [role, token] of [
@@ -426,7 +428,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
   }) => {
     const subscribe = async (token: string, subscriptions: string[]): Promise<number> => {
       const controller = new AbortController();
-      const res = await fetch(`${PB_URL}/api/realtime`, { signal: controller.signal });
+      const res = await fetch(`${pbUrl()}/api/realtime`, { signal: controller.signal });
       if (!res.ok || !res.body) throw new Error(`realtime connect failed: ${res.status}`);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -441,7 +443,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
           if (match?.[1]) clientId = (JSON.parse(match[1]) as { clientId: string }).clientId;
         }
         expect(clientId, "PB_CONNECT clientId").not.toBe("");
-        const sub = await request.post(`${PB_URL}/api/realtime`, {
+        const sub = await request.post(`${pbUrl()}/api/realtime`, {
           headers: { Authorization: token },
           data: { clientId, subscriptions },
         });

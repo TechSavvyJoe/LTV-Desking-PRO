@@ -48,28 +48,34 @@ score = 0.36·creditComp + 0.50·ltvComp + 0.14·ptiComp
 
 Affordability caps:   PTI ≥ 20% → score ≤ 55 ;  PTI ≥ 25% → score ≤ 35
 Eligibility cap:      fitCount = 0 → score ≤ 45 and band = "none"
+                      (or "pending" when pendingCount > 0 — see below)
 Final:                round(clamp(score, 8, 98))
 
 Bands: strong ≥ 72 · moderate ≥ 50 · weak < 50 · none (fits no active lender)
+       · pending (fits no lender yet, but ≥ 1 active lender could not be checked)
 ```
+
+**Pending vs. none.** `lenderFit.ts` reports a lender as _pending_ (not failed) when a rule it needs could not be evaluated — the FICO or income is missing, a book value or price is absent, a published range is flagged for review, or the program is a sample awaiting verification. If nothing fits and at least one lender is pending, the band is `pending` and the headline reason names what unblocks it (field names only, e.g. "Add a FICO score to check 3 lenders"). The numeric cap is identical to `none` (≤ 45); consumers treat a `pending` score as indeterminate — the inspector gauge renders it as an empty arc with no number, the inventory grid, compare strip and pipeline show a neutral "Pending" pill instead of a failing one, and Reports excludes pending units from the band distribution with a one-line note. This keeps "we haven't checked yet" visually distinct from "every lender declined."
 
 The score also returns up to a handful of **principal drag factors** in plain language ("OTD LTV high (131%)", "Payment-to-income high (21.4%)", "Credit score in subprime range", "No active lender fits this structure", "Monthly income missing; PTI held neutral"). These are diagnostic hints for the desk, not adverse-action reasons.
 
 ## 5. Outputs and how they are shown
 
 - **Gauge / numeric score (deal inspector)** — the disclaimer caption _"Estimate, not a credit decision or offer of credit. Final terms require a lender credit check."_ is shown directly under the gauge (`components/desk/InspectorSummary.tsx`).
-- **Deal sheet modal and printed PDFs do not display the score.** They compute it only to persist it (`DealSheetModal.tsx:136-140`, `:194-199`) and never render the number, band, or gauge; each surface instead carries its own general estimate-only disclaimer text (`DealSheetModal.tsx:471`, `PdfTemplate.tsx:604-606`, `FavoritesPdfTemplate.tsx:518-519`) — not the caption above, and not tied to any score output.
-- **Band label** — strong / moderate / weak / none.
+- **Deal sheet modal and printed PDFs do not display the score.** They compute it only to persist it (`DealSheetModal.tsx:136-140`, `:194-199`) and never render the number, band, or gauge; each surface instead carries its own general estimate-only disclaimer text (the DealSheetModal footer, the page-1 footer of `components/pdf/PdfTemplate.tsx`, and every page footer of `components/pdf/FavoritesPdfTemplate.tsx`) — not the caption above, and not tied to any score output. Buy rate, rate adder, reserve, unit cost and front-end gross never print either; `PdfTemplate.test.tsx` and `AncillaryPdfTemplates.test.tsx` pin all of this.
+- **Printed paper is marked internal-use (§10).** Every page of the deal sheet and the Compare PDF carries "**Internal use only.** Printed deal worksheets are internal-use unless they carry the full Truth-in-Lending companion disclosures." in its footer (`components/pdf/InternalUseNotice.tsx`, quoted verbatim from §10; tests pin it on every page). The deal sheet calls itself a "Preliminary deal worksheet", not a customer worksheet. The internal lender cheat sheet is marked "Confidential".
+- **Printed lender status uses the same three states as the app** — Fit, Pending (a check the rules engine could not finish, e.g. an unverified sample program) and No fit (a real decline) — so paper never presents a held check as a decline.
+- **Band label** — strong / moderate / weak / none / pending (`pending` shows as "Pending lender checks" with the unblock hint, never as a failing color).
 - **Fit count** — "N of M lenders fit," derived from the published-rules engine (`lenderMatcher.ts`), which is the single source of truth for eligibility. The score is capped so it can never read better than the rules engine allows.
-- **Open gap** — the inventory grid's score column, the compare strip, the pipeline screen's Approval column (`components/screens/PipelineScreen.tsx:489-503`), the `/inventory` route's score column (`components/screens/InventoryScreen.tsx:537,716` — a separate component from the desk inspector's inventory grid), and the reports screen's score column all render the bare number/band with no disclaimer today. Printed deal paper is also not marked internal-use (see §10). Adding an equivalent caption or footnote to those surfaces, and the internal-use marking, is tracked as follow-up work, not yet shipped.
+- **Open gap** — the inventory grid's score column, the compare strip, the pipeline screen's Approval column (`components/screens/PipelineScreen.tsx:489-503`), the `/inventory` route's score column (`components/screens/InventoryScreen.tsx:537,716` — a separate component from the desk inspector's inventory grid), and the reports screen's score column all render the bare number/band with no disclaimer today. Adding an equivalent caption or footnote to those surfaces is tracked as follow-up work, not yet shipped.
 
 ## 6. Guardrails (in code)
 
-1. **Eligibility floor** — a structure that fits no active lender program cannot read above 45 or show any band but "none." The heuristic cannot contradict the rules engine.
+1. **Eligibility floor** — a structure that fits no active lender program cannot read above 45 or show any band but "none" (or "pending" when the rules engine could not finish checking at least one lender). The heuristic cannot contradict the rules engine, and an unchecked lender is never presented as a decline.
 2. **Affordability veto** — PTI at or above 20% / 25% caps the score regardless of credit and LTV.
 3. **Neutral unknowns** — missing data never inflates the score.
 4. **Role gating (server-side)** — `sales` users see band and fit count but never lender buy-rate or dealer reserve (`backend/pb_hooks/field_visibility.pb.js`, with `backend/pb_hooks/field_filter_guard.pb.js` rejecting sales `?filter=` / `?sort=` / realtime filters that name those fields so they cannot be recovered by probing).
-5. **Disclaimer today, gap elsewhere** — the estimate caption is rendered with the score on the deal inspector gauge only. The deal sheet modal and printed PDFs do not display the score at all; they carry their own general estimate-only disclaimer text instead, unrelated to any rendered score. The caption is **not yet** rendered on the inventory grid, compare strip, pipeline Approval column, `/inventory` route score column, or reports score columns, and printed deal paper is **not yet** marked internal-use per the §10 policy (see §5).
+5. **Disclaimer today, gap elsewhere** — the estimate caption is rendered with the score on the deal inspector gauge only. The deal sheet modal and printed PDFs do not display the score at all; they carry their own general estimate-only disclaimer text instead, unrelated to any rendered score. The caption is **not yet** rendered on the inventory grid, compare strip, pipeline Approval column, `/inventory` route score column, or reports score columns. Printed deal paper is marked internal-use per the §10 policy on every page (see §5).
 6. **Single tunable config** — every constant lives in `APPROVAL_CONFIG`; changes are code-reviewed and versioned with this card.
 
 ## 7. Fairness and protected classes

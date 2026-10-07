@@ -1,6 +1,7 @@
 import React from "react";
 import type { DealPdfData, LenderEligibilityStatus, Settings } from "../../types";
 import { formatCurrency, formatCurrencyExact, formatNumber } from "../common/TableCell";
+import { InternalUseNotice } from "./InternalUseNotice";
 
 const money = (value: number | string | undefined): string => formatCurrencyExact(value);
 const wholeMoney = (value: number | string | undefined): string => formatCurrency(value);
@@ -16,7 +17,30 @@ const n = (value: unknown): number =>
 
 const MAX_PRINTED_LENDERS = 6;
 const MAX_PRINTED_NOTE_CHARS = 220;
-const CONTINUATION_SUFFIX = "... [continued in app]";
+const CONTINUATION_SUFFIX = "… [continued in app]";
+
+type PrintStatus = "fit" | "pending" | "none";
+
+/** The same three-way split the app and the Compare PDF use: a held check is not a decline. */
+const printStatus = (lender: LenderEligibilityStatus): PrintStatus =>
+  lender.eligible && (lender.status === undefined || lender.status === "eligible")
+    ? "fit"
+    : // Explicit status wins; uncheckedConstraints only for legacy entries without one.
+      (
+          lender.status !== undefined
+            ? lender.status === "pending"
+            : (lender.uncheckedConstraints?.length ?? 0) > 0
+        )
+      ? "pending"
+      : "none";
+
+const PRINT_STATUS_LABEL: Record<PrintStatus, string> = {
+  fit: "Fit",
+  pending: "Pending",
+  none: "No fit",
+};
+
+const PRINT_STATUS_RANK: Record<PrintStatus, number> = { fit: 0, none: 1, pending: 2 };
 
 const normalizePrintableText = (value: string | undefined): string =>
   (value || "").replace(/\s+/g, " ").trim();
@@ -27,7 +51,11 @@ const boundedPrintableText = (value: string | undefined, maxChars: number): stri
   if (text.length <= maxChars) return text;
 
   const available = Math.max(1, maxChars - CONTINUATION_SUFFIX.length - 1);
-  return `${text.slice(0, available).trimEnd()} ${CONTINUATION_SUFFIX}`;
+  const cut = text.slice(0, available);
+  // Break at a word boundary so a cut never lands mid-word ("before usi…").
+  const lastSpace = cut.lastIndexOf(" ");
+  const atWord = lastSpace > available * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return `${atWord.trimEnd().replace(/[,;:\s-]+$/, "")} ${CONTINUATION_SUFFIX}`;
 };
 
 const firstReason = (lender: LenderEligibilityStatus): string =>
@@ -47,6 +75,22 @@ const lenderTerm = (lender: LenderEligibilityStatus): string => {
   return "—";
 };
 
+/* Paper uses the light tokens from index.css only — ink #111827, muted
+   #4b5563 (all 9pt text, so nothing prints lighter), hairline #e5e7eb, and
+   primary #4f46e5 with white on it (the mark). Status fills are the success /
+   warning subtle pairs. Groups are made with rules and spacing, not boxes.
+   Type: one family (Geist Sans is what the app loads; html2canvas rasterizes
+   what the browser renders, so Inter is only a fallback), weights 400–700,
+   tabular numerals. Scale: title 20pt, payment figure 24pt, section heading
+   11pt/600, body 10pt, captions and column heads 9pt. Mono is for VIN and
+   stock number only.
+
+   Height budget (content box 259.4mm): page 1 ≈ 227mm, page 2 ≈ 227mm at
+   worst-case lender rows. assertPrintablePageFits in services/pdfGenerator.ts
+   throws on overflow, so re-budget before adding rows or raising sizes. */
+const FONT_STACK = `"Geist Sans", Inter, ui-sans-serif, system-ui, sans-serif`;
+const MONO_STACK = `"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace`;
+
 const styles = `
   .deal-pdf-page,
   .deal-pdf-page * {
@@ -57,351 +101,280 @@ const styles = `
     background: #ffffff !important;
     background-clip: border-box !important;
     color: #111827;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 8.4pt;
+    font-family: ${FONT_STACK};
+    font-size: 10pt;
+    font-weight: 400;
+    line-height: 1.25;
+    /* No tabular-nums here: html2canvas drops font-variant when it draws, so the
+       browser would lay digits out at tabular widths and the canvas would paint
+       proportional ones — runs then overlap the next word ("30,000mi"). */
+    font-variant-numeric: normal;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     width: 215.9mm;
     height: 279.4mm;
-    padding: 8mm;
+    padding: 10mm 11mm;
     display: flex;
     flex-direction: column;
-    gap: 5mm;
+    gap: 6mm;
     overflow: hidden;
   }
   .deal-pdf-page > * {
     flex-shrink: 0;
   }
+  .deal-pdf-page h1,
+  .deal-pdf-page h2,
+  .deal-pdf-page p { margin: 0; }
+  .deal-pdf-page .mono {
+    font-family: ${MONO_STACK};
+  }
   .deal-pdf-page .topbar {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 8mm;
     align-items: start;
-    border-bottom: 2px solid #111827;
     padding-bottom: 4mm;
-    background: #ffffff;
-    color: #111827;
+    border-bottom: 1px solid #111827;
   }
   .deal-pdf-page .brand {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 3mm;
   }
   .deal-pdf-page .mark {
-    width: 10mm;
-    height: 10mm;
-    border-radius: 2.6mm;
+    flex-shrink: 0;
+    width: 9mm;
+    height: 9mm;
+    border-radius: 1.5mm;
     background: #4f46e5;
-    color: #07120e;
+    color: #ffffff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: 900;
-    letter-spacing: 0;
+    font-size: 8pt;
+    font-weight: 700;
   }
-  .deal-pdf-page h1,
-  .deal-pdf-page h2,
-  .deal-pdf-page h3,
-  .deal-pdf-page p { margin: 0; }
   .deal-pdf-page h1 {
-    color: #111827;
-    font-size: 16pt;
-    line-height: 1.05;
-    letter-spacing: 0;
+    font-size: 20pt;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
   }
   .deal-pdf-page .subtitle {
-    color: #4b5563;
-    font-size: 8.2pt;
     margin-top: 1mm;
+    color: #4b5563;
   }
   .deal-pdf-page .meta {
     color: #4b5563;
-    font-size: 8pt;
-    line-height: 1.45;
+    font-size: 9pt;
+    line-height: 1.4;
     text-align: right;
   }
-  .deal-pdf-page .hero {
+  .deal-pdf-page .pair {
     display: grid;
-    grid-template-columns: 1.08fr 1fr;
-    gap: 4mm;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8mm;
+    align-items: start;
   }
-  .deal-pdf-page .summary-card {
-    border: 1px solid #d1d5db;
-    border-radius: 3mm;
-    padding: 4mm;
-    background: #f8fafc;
+  .deal-pdf-page h2 {
+    margin-bottom: 1.5mm;
+    font-size: 11pt;
+    font-weight: 600;
+    line-height: 1.3;
   }
   .deal-pdf-page .payment-label {
-    color: #4338ca;
-    font-size: 8pt;
-    font-weight: 800;
-    letter-spacing: 0.7pt;
-    text-transform: none;
+    color: #4b5563;
   }
   .deal-pdf-page .payment {
-    color: #064e3b;
-    font-size: 28pt;
-    font-weight: 900;
-    line-height: 1;
+    margin-top: 1mm;
+    font-size: 24pt;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .deal-pdf-page .caption {
+    color: #4b5563;
+    font-size: 9pt;
+    line-height: 1.35;
+  }
+  .deal-pdf-page .caption strong {
+    color: #111827;
+    font-weight: 600;
+  }
+  .deal-pdf-page .payment + .caption {
     margin-top: 1mm;
   }
-  .deal-pdf-page .payment small {
-    font-size: 13pt;
-  }
-  .deal-pdf-page .hero-grid {
+  .deal-pdf-page .metrics {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2mm;
-    margin-top: 3mm;
-  }
-  .deal-pdf-page .metric {
-    border: 1px solid #d1d5db;
-    border-radius: 2mm;
-    padding: 2.3mm;
-    min-height: 13mm;
-    background: #ffffff;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4mm;
+    margin-top: 4mm;
+    padding-top: 2mm;
+    border-top: 1px solid #e5e7eb;
   }
   .deal-pdf-page .metric span {
     display: block;
-    color: #6b7280;
-    font-size: 6.5pt;
-    font-weight: 800;
-    letter-spacing: 0.45pt;
-    text-transform: none;
+    color: #4b5563;
+    font-size: 9pt;
   }
   .deal-pdf-page .metric strong {
     display: block;
-    color: #111827;
-    font-size: 10pt;
-    font-weight: 800;
-    margin-top: 1mm;
-  }
-  .deal-pdf-page .section {
-    border: 1px solid #e5e7eb;
-    border-radius: 2.4mm;
-    overflow: hidden;
-    background: #ffffff;
-  }
-  .deal-pdf-page .section h2 {
-    background: #f3f4f6;
-    border-bottom: 1px solid #e5e7eb;
-    color: #111827;
-    font-size: 8.6pt;
-    font-weight: 900;
-    letter-spacing: 0.55pt;
-    padding: 2.5mm 3mm;
-    text-transform: none;
-  }
-  .deal-pdf-page .section-body {
-    padding: 2.5mm 3mm;
-  }
-  .deal-pdf-page .columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4mm;
+    margin-top: 0.8mm;
+    font-size: 12pt;
+    font-weight: 600;
   }
   .deal-pdf-page .kv {
     display: grid;
-    grid-template-columns: minmax(26mm, 0.9fr) minmax(0, 1.1fr);
-    gap: 2mm;
-    padding: 1.05mm 0;
-    border-bottom: 1px solid #f3f4f6;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 4mm;
+    padding: 0.8mm 0;
+    border-top: 1px solid #e5e7eb;
   }
-  .deal-pdf-page .kv:last-child { border-bottom: 0; }
-  .deal-pdf-page .kv span {
-    color: #6b7280;
+  .deal-pdf-page .kv > span {
+    color: #4b5563;
   }
-  .deal-pdf-page .kv strong {
-    color: #111827;
-    font-weight: 750;
+  .deal-pdf-page .kv > strong {
+    font-weight: 500;
     text-align: right;
     overflow-wrap: anywhere;
-  }
-  .deal-pdf-page .financial-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: 4mm;
   }
   .deal-pdf-page table {
     width: 100%;
     border-collapse: collapse;
   }
   .deal-pdf-page td {
-    padding: 1.25mm 0;
-    border-bottom: 1px solid #f3f4f6;
+    padding: 0.8mm 0;
+    border-top: 1px solid #e5e7eb;
     vertical-align: top;
   }
   .deal-pdf-page td:first-child {
-    color: #6b7280;
+    padding-right: 3mm;
+    color: #4b5563;
   }
   .deal-pdf-page td:last-child {
     text-align: right;
-    font-weight: 750;
-    color: #111827;
-  }
-  .deal-pdf-page tr.total td {
-    border-top: 1.5px solid #111827;
-    border-bottom: 0;
-    padding-top: 2mm;
-    font-weight: 900;
-  }
-  .deal-pdf-page tr.subtotal td {
-    border-top: 1px solid #d1d5db;
-    font-weight: 850;
-  }
-  .deal-pdf-page .notes {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4mm;
-  }
-  .deal-pdf-page .callout {
-    border: 1px solid #eef2ff;
-    border-radius: 2.2mm;
-    padding: 2.5mm 3mm;
-    background: #ecfdf5;
-    color: #065f46;
-    line-height: 1.4;
-  }
-  .deal-pdf-page .fineprint {
-    margin-top: auto;
-    border-top: 1px solid #d1d5db;
-    padding-top: 3mm;
-    color: #6b7280;
-    font-size: 7.1pt;
-    line-height: 1.38;
-  }
-  .deal-pdf-page .page-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 6mm;
-  }
-  .deal-pdf-page .page-footer span:last-child {
+    font-weight: 500;
     white-space: nowrap;
   }
-  .deal-pdf-page .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 3mm;
+  .deal-pdf-page tr.subtotal td {
+    color: #111827;
+    font-weight: 600;
+  }
+  .deal-pdf-page tr.total td {
+    padding-top: 1.5mm;
+    border-top-color: #111827;
+    color: #111827;
+    font-weight: 600;
+  }
+  .deal-pdf-page .structure-note {
+    margin-top: 2mm;
   }
   .deal-pdf-page .lender-table {
     table-layout: fixed;
-    font-size: 7.1pt;
   }
   .deal-pdf-page .lender-table th {
-    padding: 1.5mm 1.3mm;
+    padding: 0 2mm 1.2mm 0;
+    border-bottom: 1px solid #111827;
     color: #4b5563;
-    background: #f8fafc;
-    border-bottom: 1px solid #d1d5db;
-    font-size: 6.4pt;
-    font-weight: 850;
+    font-size: 9pt;
+    font-weight: 600;
     text-align: left;
+    vertical-align: bottom;
   }
-  .deal-pdf-page .lender-table td {
-    padding: 1.35mm 1.3mm;
+  .deal-pdf-page .lender-table td,
+  .deal-pdf-page .lender-table td:first-child,
+  .deal-pdf-page .lender-table td:last-child {
+    padding: 1.2mm 2mm 1.2mm 0;
+    border-top: 0;
     border-bottom: 1px solid #e5e7eb;
     color: #111827;
+    font-weight: 400;
     text-align: left;
-    font-weight: 500;
-    line-height: 1.2;
+    white-space: normal;
     overflow-wrap: anywhere;
   }
-  .deal-pdf-page .lender-table tr:last-child td { border-bottom: 0; }
-  .deal-pdf-page .lender-table .continuation-row td {
-    padding: 1.1mm 1.3mm;
-    background: #fffbeb;
-    color: #92400e;
-    font-weight: 800;
-    text-align: left;
+  .deal-pdf-page .lender-table td:first-child {
+    font-weight: 500;
   }
-  .deal-pdf-page .lender-table th:nth-child(1),
-  .deal-pdf-page .lender-table td:nth-child(1) { width: 18%; }
-  .deal-pdf-page .lender-table th:nth-child(2),
-  .deal-pdf-page .lender-table td:nth-child(2) { width: 9%; }
-  .deal-pdf-page .lender-table th:nth-child(3),
-  .deal-pdf-page .lender-table td:nth-child(3) { width: 18%; }
-  .deal-pdf-page .lender-table th:nth-child(4),
-  .deal-pdf-page .lender-table td:nth-child(4) { width: 10%; }
-  .deal-pdf-page .lender-table th:nth-child(5),
-  .deal-pdf-page .lender-table td:nth-child(5) { width: 12%; }
-  .deal-pdf-page .lender-table th:nth-child(6),
-  .deal-pdf-page .lender-table td:nth-child(6) { width: 33%; }
+  .deal-pdf-page .lender-table .continuation-row td {
+    color: #b45309;
+    font-size: 9pt;
+    font-weight: 600;
+  }
+  .deal-pdf-page .lender-table .empty-row td {
+    color: #4b5563;
+    font-weight: 400;
+  }
+  .deal-pdf-page .lender-table th:nth-child(1) { width: 20%; }
+  .deal-pdf-page .lender-table th:nth-child(2) { width: 9%; }
+  .deal-pdf-page .lender-table th:nth-child(3) { width: 19%; }
+  .deal-pdf-page .lender-table th:nth-child(4) { width: 9%; }
+  .deal-pdf-page .lender-table th:nth-child(5) { width: 11%; }
+  .deal-pdf-page .lender-table th:nth-child(6) { width: 32%; }
   .deal-pdf-page .fit-badge {
     display: inline-block;
-    min-width: 12mm;
-    padding: 0.55mm 1mm;
-    border-radius: 1.2mm;
-    background: #eef2ff;
-    color: #065f46;
-    font-size: 6.2pt;
-    font-weight: 900;
-    text-align: center;
+    padding: 0.2mm 1.5mm;
+    border-radius: 1mm;
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 9pt;
+    font-weight: 600;
+    line-height: 1.3;
   }
-  .deal-pdf-page .fit-badge.review {
-    background: #fef3c7;
-    color: #92400e;
+  .deal-pdf-page .fit-badge.pending {
+    background: #f3f4f6;
+    color: #4b5563;
+  }
+  .deal-pdf-page .fit-badge.none {
+    background: #fee2e2;
+    color: #b91c1c;
   }
   .deal-pdf-page .notes-box {
-    min-height: 25mm;
+    display: flex;
+    flex-direction: column;
+    height: 44mm;
+    padding-top: 1.2mm;
+    border-top: 1px solid #e5e7eb;
+    line-height: 1.35;
     overflow-wrap: anywhere;
-    line-height: 1.45;
-  }
-  .deal-pdf-page .notes-text {
-    color: #111827;
   }
   .deal-pdf-page .continuation-note {
     margin-top: auto;
-    border-top: 1px solid #f59e0b;
-    padding-top: 0.8mm;
-    color: #92400e;
-    font-size: 6.2pt;
-    font-weight: 850;
-    line-height: 1.2;
-  }
-  .deal-pdf-page--detail {
-    gap: 3mm;
-  }
-  .deal-pdf-page--detail .topbar {
-    padding-bottom: 3mm;
-  }
-  .deal-pdf-page--detail .section h2 {
-    padding: 1.7mm 2.5mm;
-  }
-  .deal-pdf-page--detail .section-body {
-    padding: 1.6mm 2.5mm;
-  }
-  .deal-pdf-page--detail .kv {
-    padding: 0.62mm 0;
-  }
-  .deal-pdf-page--detail .lender-table {
-    font-size: 6.45pt;
-  }
-  .deal-pdf-page--detail .lender-table th {
-    padding: 0.8mm 1.15mm;
-    font-size: 5.9pt;
-  }
-  .deal-pdf-page--detail .lender-table td {
-    padding: 0.72mm 1.15mm;
-    line-height: 1.1;
-  }
-  .deal-pdf-page--detail .fit-badge {
-    padding: 0.3mm 0.8mm;
-    font-size: 5.8pt;
-  }
-  .deal-pdf-page--detail .notes-box {
-    display: flex;
-    flex-direction: column;
-    height: 23mm;
-    min-height: 23mm;
+    padding-top: 1mm;
+    color: #b45309;
+    font-size: 9pt;
+    font-weight: 600;
     line-height: 1.3;
   }
-  .deal-pdf-page--detail .callout {
-    padding: 1.8mm 2.5mm;
-    line-height: 1.3;
+  .deal-pdf-page .page-footer {
+    margin-top: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6mm;
+    align-items: end;
+    padding-top: 3mm;
+    border-top: 1px solid #e5e7eb;
+    color: #4b5563;
+    font-size: 9pt;
+    line-height: 1.35;
   }
-  .deal-pdf-page--detail .fineprint {
-    padding-top: 2mm;
+  .deal-pdf-page .page-footer p + p {
+    margin-top: 1.5mm;
+  }
+  .deal-pdf-page .page-footer strong {
+    color: #111827;
+    font-weight: 600;
+  }
+  .deal-pdf-page .page-number {
+    white-space: nowrap;
   }
 `;
+
+const Mark: React.FC = () => (
+  <div className="mark" role="img" aria-label="LTV Desking PRO">
+    LTV
+  </div>
+);
 
 const Kv: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="kv">
@@ -456,13 +429,21 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
     n(settings.cvrFee) +
     n(dealData.stateFees) +
     outOfStateTransitFee;
-  const printableLenders = safeEligibility.slice(0, MAX_PRINTED_LENDERS);
+  // Fits first, then declines (their reasons are actionable), then held
+  // checks, whose boilerplate reason would otherwise crowd out the rest.
+  const printableLenders = [...safeEligibility]
+    .sort((a, b) => PRINT_STATUS_RANK[printStatus(a)] - PRINT_STATUS_RANK[printStatus(b)])
+    .slice(0, MAX_PRINTED_LENDERS);
   const omittedLenderCount = safeEligibility.length - printableLenders.length;
   const normalizedNotes = normalizePrintableText(dealData.notes);
   const notesTruncated = normalizedNotes.length > MAX_PRINTED_NOTE_CHARS;
   const printableNotes = notesTruncated
-    ? `${normalizedNotes.slice(0, MAX_PRINTED_NOTE_CHARS).trimEnd()}...`
+    ? `${normalizedNotes.slice(0, MAX_PRINTED_NOTE_CHARS).trimEnd()}…`
     : normalizedNotes || "No deal notes were entered.";
+
+  const printedOn = new Date().toLocaleDateString();
+  const aprText =
+    typeof dealData.interestRate === "number" ? `${dealData.interestRate.toFixed(2)}%` : "N/A";
 
   return (
     <>
@@ -470,95 +451,82 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
       <div className="deal-pdf-page" data-pdf-page="1">
         <header className="topbar">
           <div className="brand">
-            <div className="mark">LTV</div>
+            <Mark />
             <div>
-              <h1>Deal Sheet</h1>
-              <p className="subtitle">Preliminary customer worksheet, not a credit offer</p>
+              <h1>Deal sheet</h1>
+              <p className="subtitle">Preliminary deal worksheet, not a credit offer</p>
             </div>
           </div>
           <div className="meta">
-            <div>{new Date().toLocaleDateString()}</div>
+            <div>{printedOn}</div>
             <div>{dealNumber ? `Deal #${dealNumber}` : "Working deal"}</div>
             <div>{salespersonName || "Salesperson not set"}</div>
             <div>{customerName || "Walk-in customer"}</div>
           </div>
         </header>
 
-        <section className="hero">
-          <div className="summary-card">
-            <div className="payment-label">Estimated monthly payment</div>
-            <div className="payment">{money(vehicle.monthlyPayment)}</div>
-            <p className="subtitle">
+        <section className="pair">
+          <div>
+            <p className="payment-label">Estimated monthly payment</p>
+            <p className="payment">{money(vehicle.monthlyPayment)}</p>
+            <p className="caption">
               {typeof dealData.interestRate === "number"
                 ? `${dealData.loanTerm} months at ${dealData.interestRate.toFixed(2)}% APR estimate`
                 : `${dealData.loanTerm} months; enter APR for payment estimate`}
             </p>
-            <div className="hero-grid">
+            <div className="metrics">
               <Metric label="Amount financed" value={money(vehicle.amountToFinance)} />
               <Metric label="OTD LTV" value={pct(vehicle.otdLtv)} />
               <Metric label="PTI" value={pct(vehicle.ptiRatio, 1)} />
             </div>
           </div>
 
-          <div className="section">
+          <div>
             <h2>Vehicle</h2>
-            <div className="section-body">
-              <Kv label="Unit" value={vehicle.vehicle} />
-              <Kv label="Stock / VIN" value={`${vehicle.stock} / ${vehicle.vin}`} />
-              <Kv label="Mileage" value={`${formatNumber(vehicle.mileage)} mi`} />
-              <Kv label="Selling price" value={money(vehicle.price)} />
-              <Kv label="Trade book" value={wholeMoney(vehicle.jdPower)} />
-              <Kv label="Retail book" value={wholeMoney(vehicle.jdPowerRetail)} />
-            </div>
+            <Kv label="Unit" value={vehicle.vehicle} />
+            <Kv label="Stock" value={<span className="mono">{vehicle.stock}</span>} />
+            <Kv label="VIN" value={<span className="mono">{vehicle.vin}</span>} />
+            <Kv label="Mileage" value={`${formatNumber(vehicle.mileage)} mi`} />
+            <Kv label="Trade book" value={wholeMoney(vehicle.jdPower)} />
+            <Kv label="Retail book" value={wholeMoney(vehicle.jdPowerRetail)} />
           </div>
         </section>
 
-        <section className="columns">
-          <div className="section">
-            <h2>Customer Inputs</h2>
-            <div className="section-body">
-              <Kv label="Customer" value={customerName || "N/A"} />
-              <Kv label="FICO estimate" value={customerFilters.creditScore ?? "N/A"} />
-              <Kv
-                label="Gross income"
-                value={
-                  customerFilters.monthlyIncome
-                    ? `${money(customerFilters.monthlyIncome)} / mo`
-                    : "N/A"
-                }
-              />
-              <Kv label="Buyer state" value={buyerState} />
-              <Kv label="Term" value={`${dealData.loanTerm} months`} />
-              <Kv
-                label="APR estimate"
-                value={
-                  typeof dealData.interestRate === "number"
-                    ? `${dealData.interestRate.toFixed(2)}%`
-                    : "N/A"
-                }
-              />
-            </div>
+        <section className="pair">
+          <div>
+            <h2>Customer inputs</h2>
+            <Kv label="Customer" value={customerName || "N/A"} />
+            <Kv label="FICO estimate" value={customerFilters.creditScore ?? "N/A"} />
+            <Kv
+              label="Gross income"
+              value={
+                customerFilters.monthlyIncome
+                  ? `${money(customerFilters.monthlyIncome)} / mo`
+                  : "N/A"
+              }
+            />
+            <Kv label="Buyer state" value={buyerState} />
+            <Kv label="Term" value={`${dealData.loanTerm} months`} />
+            <Kv label="APR estimate" value={aprText} />
           </div>
 
-          <div className="section">
-            <h2>Structure Snapshot</h2>
-            <div className="section-body">
-              <Kv label="Front-end LTV" value={pct(vehicle.frontEndLtv)} />
-              <Kv label="Out-the-door LTV" value={pct(vehicle.otdLtv)} />
-              <Kv label="Payment-to-income" value={pct(vehicle.ptiRatio, 1)} />
-              <Kv
-                label="Lender fits"
-                value={`${eligibleLenders.length}/${safeEligibility.length || 0}`}
-              />
-              <Kv label="Backend total" value={money(dealData.backendProducts)} />
-              <Kv label="Total credits" value={money(totalCredits)} />
-            </div>
+          <div>
+            <h2>Structure snapshot</h2>
+            <Kv label="Front-end LTV" value={pct(vehicle.frontEndLtv)} />
+            <Kv label="Out-the-door LTV" value={pct(vehicle.otdLtv)} />
+            <Kv label="Payment-to-income" value={pct(vehicle.ptiRatio, 1)} />
+            <Kv
+              label="Lender fits"
+              value={`${eligibleLenders.length} of ${safeEligibility.length}`}
+            />
+            <Kv label="Backend total" value={money(dealData.backendProducts)} />
+            <Kv label="Total credits" value={money(totalCredits)} />
           </div>
         </section>
 
-        <section className="section">
-          <h2>Deal Structure</h2>
-          <div className="section-body financial-grid">
+        <section>
+          <h2>Deal structure</h2>
+          <div className="pair">
             <table>
               <tbody>
                 <Row label="Selling price" value={money(vehicle.price)} />
@@ -591,160 +559,116 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
               </tbody>
             </table>
           </div>
+          <p className="caption structure-note">
+            <strong>Structure check:</strong> The payment, amount financed, LTV, PTI, cash/trade
+            credits, rebate, and each backend product above are calculated from the current desk
+            values. Page 2 prints the lender screen and flags any results that continue in the app.
+          </p>
         </section>
 
-        <section className="callout">
-          <strong>Structure check:</strong> The payment, amount financed, LTV, PTI, cash/trade
-          credits, rebate, and each backend product above are calculated from the current desk
-          values. Page 2 prints the lender screen and flags any results that continue in the app.
-        </section>
-
-        <footer className="fineprint page-footer">
-          <span>
-            Estimate only. Not a retail installment contract, Truth-in-Lending disclosure, credit
-            approval, or offer of credit. Verify taxes, fees, book values, APR, term, payment, and
-            product pricing before contracting.
-          </span>
-          <span>Page 1 of 2</span>
+        <footer className="page-footer">
+          <div>
+            <InternalUseNotice />
+            <p>
+              Estimate only. Not a retail installment contract, Truth-in-Lending disclosure, credit
+              approval, or offer of credit. Verify taxes, fees, book values, APR, term, payment, and
+              product pricing before contracting.
+            </p>
+          </div>
+          <span className="page-number">Page 1 of 2</span>
         </footer>
       </div>
 
-      <div className="deal-pdf-page deal-pdf-page--detail" data-pdf-page="2">
+      <div className="deal-pdf-page" data-pdf-page="2">
         <header className="topbar">
           <div className="brand">
-            <div className="mark">LTV</div>
+            <Mark />
             <div>
-              <h1>Deal Detail</h1>
-              <p className="subtitle">Lender paths, backend composition, and deal assumptions</p>
+              <h1>Deal detail</h1>
+              <p className="subtitle">Lender screen, calculation assumptions, and deal notes</p>
             </div>
           </div>
           <div className="meta">
-            <div>{new Date().toLocaleDateString()}</div>
-            <div>{dealNumber ? `Deal #${dealNumber}` : `Stock ${vehicle.stock}`}</div>
+            <div>{printedOn}</div>
+            <div>{dealNumber ? `Deal #${dealNumber}` : "Working deal"}</div>
+            <div>
+              Stock <span className="mono">{vehicle.stock}</span>
+            </div>
             <div>{customerName || "Walk-in customer"}</div>
           </div>
         </header>
 
-        <section className="detail-grid">
-          <div className="section">
-            <h2>Deal Reference</h2>
-            <div className="section-body">
-              <Kv label="Customer" value={customerName || "N/A"} />
-              <Kv label="Salesperson" value={salespersonName || "N/A"} />
-              <Kv label="Stock" value={vehicle.stock} />
-              <Kv label="VIN" value={vehicle.vin} />
-              <Kv label="Buyer state" value={buyerState} />
-            </div>
-          </div>
-
-          <div className="section">
-            <h2>Current Structure</h2>
-            <div className="section-body">
-              <Kv label="Payment" value={money(vehicle.monthlyPayment)} />
-              <Kv label="Amount financed" value={money(vehicle.amountToFinance)} />
-              <Kv label="Term" value={`${dealData.loanTerm} months`} />
-              <Kv
-                label="APR"
-                value={
-                  typeof dealData.interestRate === "number"
-                    ? `${dealData.interestRate.toFixed(2)}%`
-                    : "N/A"
-                }
-              />
-              <Kv
-                label="OTD LTV / PTI"
-                value={`${pct(vehicle.otdLtv)} / ${pct(vehicle.ptiRatio, 1)}`}
-              />
-            </div>
-          </div>
-
-          <div className="section">
-            <h2>Backend & Credits</h2>
-            <div className="section-body">
-              <Kv label="Service contract" value={money(vscAmount)} />
-              <Kv label="GAP coverage" value={money(gapAmount)} />
-              <Kv label="Other backend" value={money(otherBackend)} />
-              <Kv label="Backend total" value={money(dealData.backendProducts)} />
-              <Kv label="Total credits" value={money(totalCredits)} />
-            </div>
-          </div>
-        </section>
-
-        <section className="section">
+        <section>
           <h2>
-            Lender Screening — {eligibleLenders.length}/{safeEligibility.length} Preliminary Fits
+            Lender screening — {eligibleLenders.length} of {safeEligibility.length} preliminary fits
           </h2>
-          <div className="section-body" style={{ padding: 0 }}>
-            <table className="lender-table">
-              <thead>
-                <tr>
-                  <th>Lender</th>
-                  <th>Status</th>
-                  <th>Matched program</th>
-                  <th>OTD cap</th>
-                  <th>Term range</th>
-                  <th>Screen result</th>
+          <table className="lender-table">
+            <thead>
+              <tr>
+                <th>Lender</th>
+                <th>Status</th>
+                <th>Matched program</th>
+                <th>OTD cap</th>
+                <th>Term range</th>
+                <th>Screen result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {printableLenders.map((lender, index) => (
+                <tr key={`${lender.name}-${index}`}>
+                  <td>{boundedPrintableText(lender.name, 34)}</td>
+                  <td>
+                    <span className={`fit-badge ${printStatus(lender)}`}>
+                      {PRINT_STATUS_LABEL[printStatus(lender)]}
+                    </span>
+                  </td>
+                  <td>{boundedPrintableText(lender.matchedTier?.name, 38)}</td>
+                  <td>{lenderLtvCap(lender)}</td>
+                  <td>{lenderTerm(lender)}</td>
+                  <td>
+                    {boundedPrintableText(
+                      lender.eligible
+                        ? "Current inputs pass the entered program rules."
+                        : firstReason(lender),
+                      90
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {printableLenders.map((lender, index) => (
-                  <tr key={`${lender.name}-${index}`}>
-                    <td>{boundedPrintableText(lender.name, 34)}</td>
-                    <td>
-                      <span className={`fit-badge${lender.eligible ? "" : " review"}`}>
-                        {lender.eligible ? "Fit" : "Review"}
-                      </span>
-                    </td>
-                    <td>{boundedPrintableText(lender.matchedTier?.name, 38)}</td>
-                    <td>{lenderLtvCap(lender)}</td>
-                    <td>{lenderTerm(lender)}</td>
-                    <td>
-                      {boundedPrintableText(
-                        lender.eligible
-                          ? "Current inputs pass the entered program rules."
-                          : firstReason(lender),
-                        105
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {omittedLenderCount > 0 && (
-                  <tr className="continuation-row">
-                    <td colSpan={6}>
-                      {omittedLenderCount} additional lender screen
-                      {omittedLenderCount === 1 ? "" : "s"} continue in the application.
-                    </td>
-                  </tr>
-                )}
-                {safeEligibility.length === 0 && (
-                  <tr>
-                    <td colSpan={6}>No active lender profiles were available for screening.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+              {omittedLenderCount > 0 && (
+                <tr className="continuation-row">
+                  <td colSpan={6}>
+                    {omittedLenderCount} additional lender screen
+                    {omittedLenderCount === 1 ? "" : "s"} continue in the application.
+                  </td>
+                </tr>
+              )}
+              {safeEligibility.length === 0 && (
+                <tr className="empty-row">
+                  <td colSpan={6}>No active lender profiles were available for screening.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </section>
 
-        <section className="columns">
-          <div className="section">
-            <h2>Calculation Assumptions</h2>
-            <div className="section-body">
-              <Kv label="Doc fee" value={money(settings.docFee)} />
-              <Kv label="CVR fee" value={money(settings.cvrFee)} />
-              <Kv label="State/title fees" value={money(dealData.stateFees)} />
-              {buyerState !== "MI" && (
-                <Kv label="Out-of-state transit fee" value={money(outOfStateTransitFee)} />
-              )}
-              <Kv label="Sales tax estimate" value={money(vehicle.salesTax)} />
-              <Kv label="Trade book" value={wholeMoney(vehicle.jdPower)} />
-              <Kv label="Retail book" value={wholeMoney(vehicle.jdPowerRetail)} />
-            </div>
+        <section className="pair">
+          <div>
+            <h2>Calculation assumptions</h2>
+            <Kv label="Doc fee" value={money(settings.docFee)} />
+            <Kv label="CVR fee" value={money(settings.cvrFee)} />
+            <Kv label="State/title fees" value={money(dealData.stateFees)} />
+            {buyerState !== "MI" && (
+              <Kv label="Out-of-state transit fee" value={money(outOfStateTransitFee)} />
+            )}
+            <Kv label="Sales tax estimate" value={money(vehicle.salesTax)} />
+            <Kv label="Trade book" value={wholeMoney(vehicle.jdPower)} />
+            <Kv label="Retail book" value={wholeMoney(vehicle.jdPowerRetail)} />
           </div>
-          <div className="section">
-            <h2>Deal Notes</h2>
-            <div className="section-body notes-box" data-pdf-bounded="notes">
-              <div className="notes-text">{printableNotes}</div>
+          <div>
+            <h2>Deal notes</h2>
+            <div className="notes-box" data-pdf-bounded="notes">
+              <div>{printableNotes}</div>
               {notesTruncated && (
                 <div className="continuation-note">
                   Deal notes continue in the application; the PDF shows the first{" "}
@@ -755,18 +679,21 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings }> = ({
           </div>
         </section>
 
-        <section className="callout">
-          <strong>Lender screen:</strong> Results use dealer-entered program data and the current
-          deal snapshot. Final approval, rate, advance, stipulations, product eligibility, and
-          funding remain lender decisions. Dealer-internal cost, gross, and reserve are excluded.
-        </section>
-
-        <footer className="fineprint page-footer">
-          <span>
-            Recheck the lender’s current rate sheet and all required documents before submission.
-            Retain this worksheet with the deal jacket according to dealership policy.
-          </span>
-          <span>Page 2 of 2</span>
+        <footer className="page-footer">
+          <div>
+            <InternalUseNotice />
+            <p>
+              <strong>Lender screen:</strong> Results use dealer-entered program data and the
+              current deal snapshot. Final approval, rate, advance, stipulations, product
+              eligibility, and funding remain lender decisions. Dealer-internal cost, gross, and
+              reserve are excluded.
+            </p>
+            <p>
+              Recheck the lender’s current rate sheet and all required documents before submission.
+              Retain this worksheet with the deal jacket according to dealership policy.
+            </p>
+          </div>
+          <span className="page-number">Page 2 of 2</span>
         </footer>
       </div>
     </>

@@ -71,7 +71,11 @@ const CreateDealerWizard: React.FC<{
       setCreated(result);
       setStep("done");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create dealer and admin user");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Couldn't create the dealership. Check the details and try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -117,7 +121,7 @@ const CreateDealerWizard: React.FC<{
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center dc-scrim p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center dc-scrim p-4 motion-reduce:animate-none animate-fadeIn">
       <div className="w-full max-w-2xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4 bg-[var(--color-bg-subtle)]">
           <div className="flex items-center gap-3">
@@ -126,12 +130,12 @@ const CreateDealerWizard: React.FC<{
             </div>
             <div>
               <h3 className="text-base font-semibold text-[var(--color-text)]">
-                {step === "done" ? "Dealership ready" : "Add new dealership"}
+                {step === "done" ? "Dealership ready" : "Add dealership"}
               </h3>
               <p className="text-xs text-[var(--color-text-muted)]">
                 {step === "done"
-                  ? "Share the credentials below with the new admin."
-                  : "We'll create the dealer record and its first admin user."}
+                  ? "Share these sign-in details with the new admin."
+                  : "Set up the dealership, then its first admin."}
               </p>
             </div>
           </div>
@@ -389,7 +393,6 @@ const CreateDealerWizard: React.FC<{
           {step === "done" && created && (
             <div className="text-center py-4 space-y-5">
               <div className="relative mx-auto w-16 h-16">
-                <div className="absolute inset-0 bg-[var(--color-success-subtle)] rounded-full animate-ping" />
                 <div className="relative w-16 h-16 bg-[var(--color-success-subtle)] ring-2 ring-[var(--color-success)] rounded-full flex items-center justify-center">
                   <Icons.CheckCircleIcon className="w-8 h-8 text-[var(--color-success)]" />
                 </div>
@@ -417,7 +420,7 @@ const CreateDealerWizard: React.FC<{
                       navigator.clipboard?.writeText(created.dealer.code).catch(() => {});
                     }}
                     className="inline-flex items-center gap-2 font-mono text-[var(--color-primary)] font-bold hover:text-[var(--color-primary)]"
-                    title="Click to copy"
+                    title="Copy dealer code"
                   >
                     {created.dealer.code}
                     <Icons.ClipboardDocumentIcon className="w-3.5 h-3.5 opacity-60" />

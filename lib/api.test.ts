@@ -125,6 +125,44 @@ describe("read APIs throw by default (C10)", () => {
     await expect(getLenderProfiles({ soft: true })).resolves.toEqual([]);
   });
 
+  it("getLenderProfiles treats PocketBase's stored 0 on optional lender limits as not configured", async () => {
+    // NumberField columns can't hold "unset": an empty limit reads back as 0,
+    // and a $0 max amount financed / 0% PTI cap would decline every deal.
+    mocks.getFullList.mockResolvedValue([
+      {
+        id: "l1",
+        name: "Unset Bank",
+        tiers: [],
+        minAmountFinanced: 0,
+        maxAmountFinanced: 0,
+        minIncome: 0,
+        maxPti: 0,
+        reservePct: 0,
+      },
+      {
+        id: "l2",
+        name: "Capped Bank",
+        tiers: [],
+        minAmountFinanced: 7500,
+        maxAmountFinanced: 45000,
+        minIncome: 1800,
+        maxPti: 20,
+      },
+    ]);
+    const [unset, capped] = await getLenderProfiles();
+
+    for (const key of ["minAmountFinanced", "maxAmountFinanced", "minIncome", "maxPti"]) {
+      expect(unset).not.toHaveProperty(key);
+    }
+    expect(unset?.reservePct).toBe(0); // a real 0% reserve, not a limit — kept
+    expect(capped).toMatchObject({
+      minAmountFinanced: 7500,
+      maxAmountFinanced: 45000,
+      minIncome: 1800,
+      maxPti: 20,
+    });
+  });
+
   it("getSavedDeals throws on failure unless soft", async () => {
     mocks.getFullList.mockRejectedValue(new Error("timeout"));
     await expect(getSavedDeals()).rejects.toThrow("timeout");

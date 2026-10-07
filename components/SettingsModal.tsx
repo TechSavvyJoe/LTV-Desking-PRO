@@ -209,7 +209,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
       window.location.reload();
     } catch (err) {
       settingsModalLogger.error("Failed to reset local preferences", err);
-      toast.error("Could not reset preferences. Please clear site data manually in your browser.");
+      toast.error("Couldn't reset preferences. Clear this site's data in your browser settings.");
     }
   };
 
@@ -714,18 +714,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 if (
                   await confirmAction({
                     title: "Seed database?",
-                    message: "Seed database with default inventory and lenders?",
-                    confirmLabel: "Seed",
+                    message:
+                      "Adds sample inventory and lender programs to this dealership's database.",
+                    confirmLabel: "Seed database",
                   })
                 ) {
                   try {
                     const { seedDatabase } = await import("../lib/seeder");
                     await seedDatabase();
-                    toast.success("Database seeded! Reloading application...");
+                    toast.success("Database seeded. Reloading…");
                     setTimeout(() => window.location.reload(), 1500);
                   } catch (e) {
                     settingsModalLogger.error("Failed to seed database", e);
-                    toast.error(e instanceof Error ? e.message : "Failed to seed database.");
+                    toast.error(
+                      e instanceof Error
+                        ? e.message
+                        : "Couldn't seed the database. Check the console."
+                    );
                   }
                 }
               }}
