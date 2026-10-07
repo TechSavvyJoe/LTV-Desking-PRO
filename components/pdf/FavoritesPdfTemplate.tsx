@@ -340,7 +340,12 @@ const isVerifiedFit = (lender: LenderEligibilityStatus | null | undefined): bool
 const isPendingCheck = (lender: LenderEligibilityStatus | null | undefined): boolean =>
   !!lender &&
   !lender.eligible &&
-  (lender.status === "pending" || (lender.uncheckedConstraints?.length ?? 0) > 0);
+  // An explicit status is authoritative: a definite decline that also has
+  // unchecked fields is still a decline. uncheckedConstraints is only a
+  // fallback for legacy entries without a status.
+  (lender.status !== undefined
+    ? lender.status === "pending"
+    : (lender.uncheckedConstraints?.length ?? 0) > 0);
 
 const safeList = (eligibility: LenderEligibilityStatus[] | undefined) =>
   Array.isArray(eligibility) ? eligibility : [];

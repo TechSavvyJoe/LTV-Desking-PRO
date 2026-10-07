@@ -139,6 +139,11 @@ export const PENDING_CAUSE_META: Record<PendingCause, PendingCauseMeta> = {
     reason: (n) => `Max advance must be verified by hand for ${lendersWord(n)}`,
     rank: "max advance must be verified by hand before they count",
   },
+  certified: {
+    short: "Verify certified",
+    reason: (n) => `Certified status must be confirmed by hand for ${lendersWord(n)}`,
+    rank: "certified status must be confirmed by hand before they count",
+  },
   review: {
     short: "Needs review",
     reason: () => "Flagged tiers must be reviewed before they count",
@@ -165,7 +170,10 @@ const causeOfConstraint = (constraint: string): PendingCause => {
   if (c === "loan term") return "term";
   if (c === "quoted apr") return "apr";
   if (c.startsWith("backend amount")) return "backend";
-  if (c === "vehicle condition" || c === "certified vehicle status") return "condition";
+  if (c === "vehicle condition") return "condition";
+  // The desk's condition selector is new/used only; certified status is
+  // confirmed by hand, so it must not send the user to that selector.
+  if (c === "certified vehicle status") return "certified";
   if (c === "vehicle mileage") return "mileage";
   if (c === "vehicle model year") return "year";
   if (c === "vehicle make") return "make";
@@ -192,7 +200,11 @@ export const entryStatus = (e: LenderFitEntry): EligibilityStatus =>
  * actionable cause across them, and a one-line reason that counts only the
  * lenders that cause actually blocks ("Add a FICO score to check 11 lenders").
  */
-const PROVENANCE_HOLDS: ReadonlySet<PendingCause> = new Set<PendingCause>(["sample", "review"]);
+const PROVENANCE_HOLDS: ReadonlySet<PendingCause> = new Set<PendingCause>([
+  "sample",
+  "review",
+  "certified",
+]);
 
 export const summarizePending = (entries: readonly LenderFitEntry[]): PendingSummary => {
   const pending = entries.filter((e) => entryStatus(e) === "pending");

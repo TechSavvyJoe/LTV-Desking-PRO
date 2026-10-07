@@ -155,6 +155,8 @@ describe("PdfTemplate", () => {
           status: "ineligible" as const,
           reasons: ["Amount financed too high ($38,335 > $30,000)"],
           matchedTier: null,
+          // A definite decline that also has an unchecked field is still a decline.
+          uncheckedConstraints: ["monthly income for max PTI"],
         },
         {
           name: "Fitting Bank",

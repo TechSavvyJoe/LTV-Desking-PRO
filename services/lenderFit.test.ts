@@ -288,6 +288,9 @@ describe("lenderFit", () => {
       expect(pendingCauseOf(["credit score", "vehicle mileage"])).toBe("fico");
       expect(pendingCauseOf(["monthly income for tier max PTI"])).toBe("income");
       expect(pendingCauseOf(["vehicle mileage"])).toBe("mileage");
+      // Certified status is confirmed by hand — never "set the condition" (new/used only).
+      expect(pendingCauseOf(["certified vehicle status"])).toBe("certified");
+      expect(pendingCauseOf(["vehicle condition"])).toBe("condition");
       expect(pendingCauseOf(["something new"])).toBe("other");
       expect(pendingCauseOf([])).toBe("other");
       // Every pill label fits the ≤ 3-word Lenders status column.

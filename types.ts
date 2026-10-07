@@ -47,6 +47,7 @@ export type PendingCause =
   | "payment"
   | "other"
   | "advance"
+  | "certified"
   | "review"
   | "sample";
 export type RebateType = "manufacturer" | "dealer";

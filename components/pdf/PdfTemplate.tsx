@@ -25,7 +25,12 @@ type PrintStatus = "fit" | "pending" | "none";
 const printStatus = (lender: LenderEligibilityStatus): PrintStatus =>
   lender.eligible && (lender.status === undefined || lender.status === "eligible")
     ? "fit"
-    : lender.status === "pending" || (lender.uncheckedConstraints?.length ?? 0) > 0
+    : // Explicit status wins; uncheckedConstraints only for legacy entries without one.
+      (
+          lender.status !== undefined
+            ? lender.status === "pending"
+            : (lender.uncheckedConstraints?.length ?? 0) > 0
+        )
       ? "pending"
       : "none";
 
