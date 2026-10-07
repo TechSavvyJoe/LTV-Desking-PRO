@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ProfitInputsSchema } from "../../services/dealAssessment";
 
 /**
  * Zod schema for DealData runtime validation
@@ -42,6 +43,7 @@ export const DealDataSchema = z
       .max(50000, "State fees seem unrealistically high"),
 
     notes: z.string().max(5000, "Notes cannot exceed 5000 characters").default(""),
+    profitInputs: ProfitInputsSchema.optional(),
 
     buyerState: z.enum(["MI", "OH", "IN", "IL", "FL"]).optional(),
 
@@ -79,6 +81,8 @@ export const FilterDataSchema = z
       .min(0, "Monthly income cannot be negative")
       .max(1000000, "Monthly income seems unrealistically high")
       .nullable(),
+    monthlyDebt: z.number().finite().min(0).max(1000000).nullable().optional(),
+    minScore: z.number().finite().min(0).max(100).nullable().optional(),
 
     vehicle: z.string().max(500).default(""),
 
@@ -133,6 +137,8 @@ export const SavedDealSchema = z
     customerFilters: z.object({
       creditScore: z.number().int().min(300).max(850).nullable(),
       monthlyIncome: z.number().min(0).nullable(),
+      monthlyDebt: z.number().finite().min(0).nullable().optional(),
+      maxPayment: z.number().finite().min(0).nullable().optional(),
     }),
 
     notes: z.string().max(5000).optional(),

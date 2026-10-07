@@ -1,9 +1,9 @@
 import React, { useId } from "react";
-import { ApprovalGauge } from "../common/ApprovalGauge";
 import { fmt } from "../../utils/format";
 import type { splitPay } from "../../utils/format";
 import type { Settings } from "../../types";
-import { fitCountColor, metaItem, otdColorFor, pct, ptiColorFor, sansNum } from "./deskConstants";
+import type { DealAssessment } from "../../services/dealAssessment";
+import { fitCountColor, metaItem, otdColorFor, pct, sansNum } from "./deskConstants";
 
 interface InspectorSummaryProps {
   score: number;
@@ -24,6 +24,7 @@ interface InspectorSummaryProps {
   otdLtv: number | "Error" | "N/A";
   pti: number | undefined;
   thresholds: Settings["ltvThresholds"];
+  assessment?: DealAssessment;
 }
 
 const InspectorSummary: React.FC<InspectorSummaryProps> = ({
@@ -41,27 +42,34 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
   financed,
   backendProducts,
   otdLtv,
-  pti,
   thresholds,
+  assessment,
 }) => {
   const disclaimerId = useId();
   return (
     <section className="desk-inspector-summary pay-glow">
       <div className="desk-score-cell">
-        <ApprovalGauge
-          score={score}
-          colorVar={gaugeColor}
-          label={bandLabel}
-          width={116}
-          ariaDescribedBy={disclaimerId}
-          indeterminate={pending}
-        />
-        {/* The gauge's accessible name already ends with the band label;
+        <span className="desk-readiness-label">Deal readiness</span>
+        <div
+          className="desk-readiness-number"
+          role="img"
+          aria-label={
+            pending
+              ? `Deal readiness pending, ${bandLabel}`
+              : `Deal readiness ${Math.round(score)} of 100, ${bandLabel}`
+          }
+          aria-describedby={disclaimerId}
+          style={{ color: gaugeColor }}
+        >
+          <strong>{pending ? "—" : Math.round(score)}</strong>
+          {!pending && <span aria-hidden="true">/100</span>}
+        </div>
+        {/* The rating's accessible name already ends with the band label;
             hide the visible copy so it isn't read twice. */}
         <div className="desk-score-label" style={{ color: gaugeColor }} aria-hidden="true">
           {bandLabel}
         </div>
-        {pending ? (
+        {!assessment && pending ? (
           <>
             <div className="desk-fit-caption">
               <strong style={{ ...sansNum, color: "var(--color-text-muted)" }}>
@@ -74,14 +82,14 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
                 touch, keyboard and screen-reader users get it too. */}
             {pendingReason && <p className="desk-pending-reason">{pendingReason}</p>}
           </>
-        ) : (
+        ) : !assessment ? (
           <div className="desk-fit-caption">
             <strong style={{ ...sansNum, color: fitCountColor(fitCount) }}>
               {fitCount}/{totalLenders}
             </strong>{" "}
             lenders fit
           </div>
-        )}
+        ) : null}
       </div>
       <div className="desk-payment-cell">
         <div className="desk-payment-label">Est. monthly payment</div>
@@ -102,31 +110,29 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
           <span style={{ ...metaItem, ...sansNum }}>{apr} APR</span> <span>estimate</span>
         </div>
       </div>
-      <div
-        id={disclaimerId}
-        className="desk-fit-caption"
-        style={{ gridColumn: "1 / -1", textAlign: "center", lineHeight: 1.3, marginTop: 1 }}
-      >
-        Estimate, not a credit decision or offer of credit. Final terms require a lender credit
-        check.
+      {assessment && (
+        <div className="desk-fit-caption desk-checks-caption">
+          {assessment.passed}/{assessment.total} checks passed · {assessment.fitCount}/
+          {assessment.checkedLenders} checked programs fit
+        </div>
+      )}
+      <div id={disclaimerId} className="sr-only">
+        Readiness counts passed checks. Estimates require confirmed inputs and a lender decision.
       </div>
       <div className="desk-summary-metrics" role="group" aria-label="Deal structure metrics">
+        <Metric label="Financed" value={financed === null ? "—" : fmt(financed)} tone="primary" />
         <Metric
-          label="Amount financed"
-          value={financed === null ? "—" : fmt(financed)}
-          tone="primary"
+          label={assessment ? "Est. gross" : "Back-end products"}
+          value={
+            assessment
+              ? assessment.totalGross === null
+                ? "Unknown costs"
+                : fmt(assessment.totalGross)
+              : fmt(backendProducts)
+          }
+          color="var(--color-text)"
         />
-        <Metric label="Back-end products" value={fmt(backendProducts)} color="var(--color-text)" />
-        <Metric
-          label="Out-the-door LTV"
-          value={pct(otdLtv)}
-          color={otdColorFor(otdLtv, thresholds)}
-        />
-        <Metric
-          label="Payment-to-income"
-          value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}
-          color={ptiColorFor(pti)}
-        />
+        <Metric label="OTD LTV" value={pct(otdLtv)} color={otdColorFor(otdLtv, thresholds)} />
       </div>
     </section>
   );

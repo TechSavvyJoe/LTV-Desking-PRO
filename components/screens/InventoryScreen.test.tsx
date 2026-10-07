@@ -164,7 +164,7 @@ describe("InventoryScreen rows", () => {
       .getAllByRole("row")[2]
       ?.querySelector('[data-col="approval"]') as HTMLElement;
     expect(cell.querySelector('[aria-hidden="true"]')?.textContent).toBe("—");
-    expect(cell.querySelector(".sr-only")?.textContent).toBe("Approval odds pending lender checks");
+    expect(cell.querySelector(".sr-only")?.textContent).toBe("Deal readiness not assessed");
   });
 
   it("does not repeat the STK prefix", () => {

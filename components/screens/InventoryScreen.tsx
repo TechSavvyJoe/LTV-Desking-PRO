@@ -4,7 +4,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useDealContext } from "../../context/DealContext";
 import { useInventoryImport } from "../../hooks/useInventoryImport";
 import { activeLenderCount } from "../../services/lenderFit";
-import { BAND_META } from "../../services/approvalScorer";
+import { assessmentColor } from "../../services/dealAssessment";
 import { ScoreRing } from "../common/ScoreRing";
 import Button from "../common/Button";
 import { EmptyState, DataLoading } from "../common/states";
@@ -56,7 +56,7 @@ const COLUMNS: {
   { key: "otdLtv", label: "OTD LTV", defaultDir: "desc", right: true },
   { key: "monthlyPayment", label: "Payment", defaultDir: "desc", right: true },
   { key: "fitCount", label: "Lenders", defaultDir: "desc", right: true },
-  { key: "approvalScore", label: "Approval", defaultDir: "desc", right: true },
+  { key: "readinessScore", label: "Ready %", defaultDir: "desc", right: true },
 ];
 
 /**
@@ -514,11 +514,11 @@ const InventoryScreenBase: React.FC = () => {
                     const v = sortedInventory[item.index];
                     if (!v) return null;
                     const isFocused = focusVin === v.vin;
-                    const fitCount = v.fitCount ?? 0;
-                    const score = v.approvalScore ?? 0;
-                    const ring = BAND_META[v.approvalBand ?? "none"].colorVar;
+                    const fitCount = v.assessment?.fitCount ?? 0;
+                    const score = v.readinessScore ?? 0;
+                    const ring = assessmentColor(v.assessment);
                     // Pending lender checks: odds unknown — "—", empty ring.
-                    const pending = v.approvalBand === "pending";
+                    const pending = !v.assessment;
                     return (
                       <div
                         key={v.vin}
@@ -707,7 +707,7 @@ const InventoryScreenBase: React.FC = () => {
                           </span>
                           <span
                             role="cell"
-                            data-label="Approval"
+                            data-label="Ready %"
                             data-col="approval"
                             style={{
                               display: "flex",
@@ -729,9 +729,7 @@ const InventoryScreenBase: React.FC = () => {
                               {pending ? (
                                 <>
                                   <span aria-hidden="true">—</span>
-                                  <span className="sr-only">
-                                    Approval odds pending lender checks
-                                  </span>
+                                  <span className="sr-only">Deal readiness not assessed</span>
                                 </>
                               ) : (
                                 score

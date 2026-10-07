@@ -188,7 +188,12 @@ describe("filterInventory — min odds vs pending [PR #25 review]", () => {
     monthlyPayment: "N/A",
     ...overrides,
   });
-  const ranked = scored({ id: "r", approvalScore: 60, approvalBand: "moderate" });
+  const ranked = scored({
+    id: "r",
+    approvalScore: 99,
+    readinessScore: 60,
+    approvalBand: "moderate",
+  });
   const pending = scored({ id: "p", approvalScore: 45, approvalBand: "pending" });
 
   it("never lets a pending unit's placeholder score satisfy a min-odds threshold", () => {

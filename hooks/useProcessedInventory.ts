@@ -12,6 +12,7 @@ import { INITIAL_FILTER_DATA } from "../constants";
 import { calculateFinancials } from "../services/calculator";
 import { lenderFitForVehicle } from "../services/lenderFit";
 import { scoreApprovalOdds } from "../services/approvalScorer";
+import { assessDeal, holdIncompleteFits, markTradeoffs } from "../services/dealAssessment";
 import { compareSortValues } from "../utils/sortComparator";
 
 export interface ProcessedInventoryInput {
@@ -42,6 +43,7 @@ interface ScoreInput {
   creditScore: number | null;
   monthlyIncome: number | null;
   monthlyDebt: number | null;
+  maxPayment?: number | null;
   settings: Settings;
 }
 
@@ -61,10 +63,18 @@ interface ScoreResult {
 // P1 #20 / perf B-]
 // ---------------------------------------------------------------------------
 
-/** Stage 1 (expensive): financials + lender fit + approval odds per unit. */
+/** Stage 1 (expensive): financials + lender constraints + checklist per unit. */
 export function scoreInventory(input: ScoreInput): ScoreResult {
-  const { inventory, lenderProfiles, dealData, creditScore, monthlyIncome, monthlyDebt, settings } =
-    input;
+  const {
+    inventory,
+    lenderProfiles,
+    dealData,
+    creditScore,
+    monthlyIncome,
+    monthlyDebt,
+    maxPayment,
+    settings,
+  } = input;
 
   // The rules engine only reads creditScore / monthlyIncome / monthlyDebt
   // (plus the deal), so scoring is keyed on those primitives rather than the
@@ -76,6 +86,7 @@ export function scoreInventory(input: ScoreInput): ScoreResult {
     creditScore,
     monthlyIncome,
     monthlyDebt,
+    maxPayment: maxPayment ?? null,
   } as DealData & FilterData;
   const credit = { creditScore, monthlyIncome };
 
@@ -86,12 +97,16 @@ export function scoreInventory(input: ScoreInput): ScoreResult {
 
   const processedInventory = inventory.map((item): CalculatedVehicle => {
     const calc = calculateFinancials(item, dealData, settings);
-    const fit = lenderFitForVehicle(calc, mergedDeal, lenderProfiles);
+    const fit = holdIncompleteFits(
+      lenderFitForVehicle(calc, mergedDeal, lenderProfiles),
+      mergedDeal
+    );
     for (const entry of fit.entries) {
       if (entry.eligible)
         unitsPerLender[entry.lenderId] = (unitsPerLender[entry.lenderId] ?? 0) + 1;
     }
     const appr = scoreApprovalOdds(calc, credit, fit.fitCount, fit.pendingCount, fit.pendingReason);
+    const assessment = assessDeal(calc, dealData, mergedDeal, lenderProfiles, fit);
     return {
       ...calc,
       approvalScore: appr.internalScore,
@@ -101,10 +116,12 @@ export function scoreInventory(input: ScoreInput): ScoreResult {
       pendingCount: fit.pendingCount,
       pendingCause: fit.pendingCause ?? undefined,
       fitNames: fit.fitNames,
+      assessment,
+      readinessScore: assessment.readiness,
     };
   });
 
-  return { processedInventory, unitsPerLender };
+  return { processedInventory: markTradeoffs(processedInventory), unitsPerLender };
 }
 
 /** Stage 2 (cheap): search + customer filters over already-scored units. */
@@ -120,13 +137,10 @@ export function filterInventory(
     const searchMatch =
       !query ||
       [item.vehicle, item.stock, item.vin].some((s) => (s || "").toLowerCase().includes(query));
-    // A pending unit's score is a capped placeholder shown everywhere as "—";
-    // it can never satisfy a numeric "min odds" threshold.
+    // Only the explicit checklist percentage satisfies a readiness threshold.
     const minScoreMatch =
       safeFilters.minScore == null ||
-      (item.approvalBand !== "pending" &&
-        typeof item.approvalScore === "number" &&
-        item.approvalScore >= safeFilters.minScore);
+      (typeof item.readinessScore === "number" && item.readinessScore >= safeFilters.minScore);
     const vehicleMatch =
       !safeFilters.vehicle ||
       (item.vehicle || "").toLowerCase().includes(safeFilters.vehicle.toLowerCase());
@@ -207,6 +221,7 @@ export function computeProcessedInventory(
     creditScore: safeFilters.creditScore ?? null,
     monthlyIncome: safeFilters.monthlyIncome ?? null,
     monthlyDebt: safeFilters.monthlyDebt ?? null,
+    maxPayment: safeFilters.maxPayment ?? null,
     settings,
   });
   const filteredInventory = filterInventory(processedInventory, safeFilters, searchQuery);
@@ -235,6 +250,7 @@ export function useProcessedInventory(input: ProcessedInventoryInput): Processed
   const creditScore = safeFilters.creditScore ?? null;
   const monthlyIncome = safeFilters.monthlyIncome ?? null;
   const monthlyDebt = safeFilters.monthlyDebt ?? null;
+  const maxPayment = safeFilters.maxPayment ?? null;
 
   const scored = useMemo(
     () =>
@@ -245,9 +261,19 @@ export function useProcessedInventory(input: ProcessedInventoryInput): Processed
         creditScore,
         monthlyIncome,
         monthlyDebt,
+        maxPayment,
         settings,
       }),
-    [inventory, lenderProfiles, dealData, creditScore, monthlyIncome, monthlyDebt, settings]
+    [
+      inventory,
+      lenderProfiles,
+      dealData,
+      creditScore,
+      monthlyIncome,
+      monthlyDebt,
+      maxPayment,
+      settings,
+    ]
   );
 
   const filteredInventory = useMemo(

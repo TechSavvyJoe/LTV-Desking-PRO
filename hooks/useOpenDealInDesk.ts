@@ -17,6 +17,7 @@ export function mergeFiltersFromDeal(prev: FilterData, deal: SavedDeal): FilterD
     creditScore: deal.customerFilters?.creditScore ?? null,
     monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
     monthlyDebt: deal.customerFilters?.monthlyDebt ?? null,
+    maxPayment: deal.customerFilters?.maxPayment ?? null,
   };
 }
 

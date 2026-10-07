@@ -100,6 +100,10 @@ onRecordEnrich((e) => {
       if (data && typeof data === "object" && !Array.isArray(data)) {
         delete data.unitCost;
         delete data.frontEndGross;
+        // rules-v1 assessments contain cost/gross and the readiness result
+        // incorporates a private gross target. Do not expose either to sales.
+        delete data.assessment;
+        delete data.readinessScore;
         e.record.set("vehicleData", data);
       } else if (data !== null) {
         // Not a vehicle snapshot (an array — e.g. the JSONRaw byte shape — or a
@@ -108,6 +112,22 @@ onRecordEnrich((e) => {
       }
     } catch (_) {
       e.record.hide("vehicleData");
+    }
+
+    // Manager-entered all-in costs, product costs and reserve live in the
+    // deal JSON. Read JSONRaw as text, just like the vehicle snapshot above.
+    try {
+      const text = typeof e.record.getString === "function"
+        ? e.record.getString("dealData") : String(e.record.get("dealData") || "null");
+      const deal = JSON.parse(text || "null");
+      if (deal && typeof deal === "object" && !Array.isArray(deal)) {
+        delete deal.profitInputs;
+        e.record.set("dealData", deal);
+      } else if (deal !== null) {
+        e.record.hide("dealData");
+      }
+    } catch (_) {
+      e.record.hide("dealData");
     }
 
     // calculatedData holds no cost fields by design (lenderEligibility, the
@@ -139,6 +159,17 @@ onRecordEnrich((e) => {
           "reservePercent",
           "markupPoints",
           "dealerReserve",
+          "assessment",
+          "readinessScore",
+          "profitInputs",
+          "allInUnitCosts",
+          "productCost",
+          "frontGross",
+          "productGross",
+          "totalGross",
+          "profitTargetPercent",
+          "profitHeadroom",
+          "reserve",
         ];
         var rateValue =
           /(baseInterestRate|buyRate|rateAdder|reservePct|reservePercent|markupPoints|dealerReserve)\s*[=:]\s*[^\s;,)]*/gi;

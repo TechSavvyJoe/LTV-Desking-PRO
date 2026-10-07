@@ -1,9 +1,10 @@
 import React from "react";
 
 interface ApprovalGaugeProps {
-  /** 0-100 approval-odds score. */
+  /** 0–100 value for the explicitly named metric. */
   score: number;
-  /** Band color (CSS var) — drives the arc, glow, and numeral. */
+  metricLabel?: string;
+  /** Band color (CSS var) — drives the arc and numeral. */
   colorVar: string;
   /** Band label, used for the accessible name. */
   label?: string;
@@ -21,18 +22,10 @@ interface ApprovalGaugeProps {
 // Arc length of the r=80 semicircle (M20 100 A80 80 0 0 1 180 100).
 const ARC_LEN = Math.PI * 80; // ≈ 251.33
 
-/**
- * The signature approval-odds gauge — a semicircle that fills with the band
- * color and shows the numeric score. Mirrors the gauge in LTV Desking
- * PRO.dc.html. role="img" with a value+status name; users read the number, not
- * the angle. The numeric is shown but is capped against real lender eligibility
- * upstream (see approvalScorer), and surfaces always carry the "estimate, not a
- * credit decision" disclaimer. When `indeterminate` (lender checks pending,
- * odds unknown) it shows the bare track and "—" rather than a capped number
- * that would read as a decline. [WS-C / dc-redesign]
- */
+/** Semicircle for a named 0–100 metric, with an accessible value and status. */
 const ApprovalGaugeComponent: React.FC<ApprovalGaugeProps> = ({
   score,
+  metricLabel = "Structure index",
   colorVar,
   label = "",
   width = 216,
@@ -51,7 +44,7 @@ const ApprovalGaugeComponent: React.FC<ApprovalGaugeProps> = ({
       style={{ overflow: "visible", position: "relative" }}
       role="img"
       aria-label={
-        indeterminate ? `Approval odds pending${suffix}` : `Approval odds ${s} of 100${suffix}`
+        indeterminate ? `${metricLabel} pending${suffix}` : `${metricLabel} ${s} of 100${suffix}`
       }
       aria-describedby={ariaDescribedBy}
     >
@@ -81,7 +74,6 @@ const ApprovalGaugeComponent: React.FC<ApprovalGaugeProps> = ({
           style={{
             stroke: colorVar,
             strokeDashoffset: offset,
-            filter: `drop-shadow(0 0 7px ${colorVar})`,
           }}
         />
       )}

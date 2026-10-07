@@ -46,7 +46,10 @@ const FinancialBreakdown: React.FC<FinancialBreakdownProps> = ({
     <div className="desk-breakdown-list">
       <Line label="Selling price" value={price === null ? "—" : fmt(price)} />
       <Line label="Tax + fees" value={taxFees === null ? "—" : fmt(taxFees)} />
-      <Line label="Down + trade + rebate" value={down ? `-${fmt(down)}` : "-$0"} />
+      <Line
+        label="Down + trade + rebate"
+        value={down < 0 ? `+${fmt(Math.abs(down))}` : down > 0 ? `-${fmt(down)}` : "$0"}
+      />
       <Line
         label="Payment-to-income"
         value={pti !== undefined ? `${pti.toFixed(1)}%` : "—"}

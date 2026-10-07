@@ -236,7 +236,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
         >
           <span style={perfHeadCell}>Dealership</span>
           <span style={{ ...perfHeadCell, textAlign: "right" }}>Units</span>
-          <span style={{ ...perfHeadCell, textAlign: "right" }}>Avg approval</span>
+          <span style={{ ...perfHeadCell, textAlign: "right" }}>Legacy structure index</span>
           <span style={{ ...perfHeadCell, textAlign: "right" }}>Deals</span>
           <span style={{ ...perfHeadCell, textAlign: "right" }}>Inventory value</span>
           <span style={{ ...perfHeadCell, textAlign: "right" }}>Status</span>

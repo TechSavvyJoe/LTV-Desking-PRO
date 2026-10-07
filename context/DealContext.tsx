@@ -172,10 +172,8 @@ interface DeskUiState {
 const DESK_UI_FALLBACK: DeskUiState = {
   v: 1,
   focusVin: null,
-  // "Ranked by odds" is the product's default ordering on BOTH the desk and
-  // the inventory screen — a null key left the Inventory screen unsorted
-  // (PB insertion order) on first run. [review/P2]
-  sort: { key: "approvalScore", direction: "desc" },
+  // Both inventory views default to the percentage of explicit checks passed.
+  sort: { key: "readinessScore", direction: "desc" },
 };
 
 const loadDeskUi = (): DeskUiState => {
@@ -191,7 +189,12 @@ const loadDeskUi = (): DeskUiState => {
       sort:
         parsed.sort && typeof parsed.sort === "object"
           ? {
-              key: typeof parsed.sort.key === "string" ? parsed.sort.key : null,
+              key:
+                parsed.sort.key === "approvalScore"
+                  ? "readinessScore"
+                  : typeof parsed.sort.key === "string"
+                    ? parsed.sort.key
+                    : null,
               direction: parsed.sort.direction === "desc" ? "desc" : "asc",
             }
           : DESK_UI_FALLBACK.sort,
@@ -255,6 +258,7 @@ const normalizeSavedDeal = (deal: Partial<SavedDeal>): SavedDeal | null => {
       creditScore: deal.customerFilters?.creditScore ?? null,
       monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
       monthlyDebt: deal.customerFilters?.monthlyDebt ?? null,
+      maxPayment: deal.customerFilters?.maxPayment ?? null,
     },
     notes: deal.notes || "",
     vehicleSnapshot: deal.vehicleSnapshot,

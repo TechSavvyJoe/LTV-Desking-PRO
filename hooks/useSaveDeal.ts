@@ -3,10 +3,10 @@ import { useMutation } from "@tanstack/react-query";
 import { useDealContext } from "../context/DealContext";
 import { saveDeal, logDealEvent } from "../lib/api";
 import { capture } from "../lib/analytics";
-import { checkBankEligibility } from "../services/lenderMatcher";
 import { calculateFinancials } from "../services/calculator";
 import { lenderFitForVehicle } from "../services/lenderFit";
 import { scoreApprovalOdds } from "../services/approvalScorer";
+import { assessDeal, holdIncompleteFits } from "../services/dealAssessment";
 import { normalizeBackendProductFields } from "../services/backendProducts";
 import { mapPocketBaseSavedDeal } from "../lib/dealMappers";
 import { queryClient, queryKeys } from "../lib/queryClient";
@@ -85,10 +85,13 @@ export function useSaveDeal() {
         ...normalizeBackendProductFields(dealData),
       };
       const freshVehicle = calculateFinancials(vehicleToSave, normalizedDealData, settings);
-      const freshFit = lenderFitForVehicle(
-        freshVehicle,
-        { ...normalizedDealData, ...filters },
-        safeLenderProfiles
+      const freshFit = holdIncompleteFits(
+        lenderFitForVehicle(
+          freshVehicle,
+          { ...normalizedDealData, ...filters },
+          safeLenderProfiles
+        ),
+        filters
       );
       const freshApproval = scoreApprovalOdds(
         freshVehicle,
@@ -106,23 +109,27 @@ export function useSaveDeal() {
         pendingCount: freshFit.pendingCount,
         pendingCause: freshFit.pendingCause ?? undefined,
         fitNames: freshFit.fitNames,
+        assessment: assessDeal(
+          freshVehicle,
+          normalizedDealData,
+          filters,
+          safeLenderProfiles,
+          freshFit
+        ),
       };
+      vehicleSnapshot.readinessScore = vehicleSnapshot.assessment?.readiness;
 
       // Lender grid + settings snapshot make the saved deal self-contained
       // evidence of what was on screen at save time. [G48]
       const eligibilitySnapshot = safeLenderProfiles.map((profile) => {
-        const result = checkBankEligibility(
-          vehicleSnapshot,
-          { ...normalizedDealData, ...filters },
-          profile
-        );
+        const result = freshFit.entries.find((entry) => entry.lenderId === profile.id);
         return {
           name: profile.name,
-          eligible: result.eligible,
-          status: result.status,
-          reasons: result.reasons,
-          matchedTier: result.matchedTier?.name ?? null,
-          uncheckedConstraints: result.uncheckedConstraints,
+          eligible: result?.eligible ?? false,
+          status: result?.status ?? "pending",
+          reasons: result?.reasons ?? ["Program was not evaluated."],
+          matchedTier: result?.matchedTier?.name ?? null,
+          uncheckedConstraints: result?.uncheckedConstraints ?? [],
         };
       });
 
@@ -137,6 +144,7 @@ export function useSaveDeal() {
           creditScore: filters.creditScore,
           monthlyIncome: filters.monthlyIncome,
           monthlyDebt: filters.monthlyDebt,
+          maxPayment: filters.maxPayment,
         } as unknown as NewSavedDealPayload["customerFilters"],
         notes: scratchPadNotes,
         // Desk saves land as "pending" (mockup's save-to-pipeline semantics) —
@@ -156,6 +164,8 @@ export function useSaveDeal() {
           otdLtv: vehicleSnapshot.otdLtv,
           amountToFinance: vehicleSnapshot.amountToFinance,
           approvalScore: vehicleSnapshot.approvalScore,
+          assessment: vehicleSnapshot.assessment,
+          readinessScore: vehicleSnapshot.readinessScore,
         } as Record<string, unknown>,
       };
 

@@ -69,6 +69,9 @@ export interface CalculatedVehicle extends Vehicle {
   pendingCount?: number; // # of active lenders whose result is held "pending" (not failed)
   pendingCause?: PendingCause; // what most actionably unblocks those pending checks
   fitNames?: string[]; // names of the active lenders the current deal fits
+  /** Explainable rules-v1 assessment; legacy approval fields are not probabilities. */
+  assessment?: import("./services/dealAssessment").DealAssessment;
+  readinessScore?: number;
 }
 
 export interface DealData {
@@ -113,6 +116,13 @@ export interface DealData {
    */
   vscAmount?: number;
   gapAmount?: number;
+  /** Manager-entered estimates. Unit costs are keyed by VIN to prevent cross-unit leakage. */
+  profitInputs?: {
+    allInUnitCosts?: Record<string, number>;
+    productCost?: number;
+    reserve?: number;
+    target?: number;
+  };
 }
 
 export interface FilterData {
@@ -249,6 +259,7 @@ export interface SavedDeal {
     creditScore: number | null;
     monthlyIncome: number | null;
     monthlyDebt?: number | null;
+    maxPayment?: number | null;
   };
   notes?: string;
   // Legacy/compat fields so older saves don't crash the UI

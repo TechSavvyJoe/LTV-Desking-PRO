@@ -3,11 +3,11 @@ import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { CalculatedVehicle } from "../../types";
 import { fmt, fmtN } from "../../utils/format";
 import { CarIcon, MagnifyingGlassIcon } from "../common/Icons";
+import { assessmentColor } from "../../services/dealAssessment";
 import { ScoreRing } from "../common/ScoreRing";
 import { EmptyState } from "../common/states";
 import {
   SORT_COLUMNS,
-  bandColor,
   metaItem,
   mono,
   nameShort,
@@ -164,7 +164,7 @@ const InventoryGridBase: React.FC<InventoryGridProps> = ({
           {/* Polite status on the count only: a search or filter change is
               announced once, never the repriced grid. */}
           <span className="desk-inventory-meta tabular-nums" role="status">
-            {rows.length} of {inventoryCount}, ranked by odds
+            {rows.length} of {inventoryCount}, deal checks shown
           </span>
           <span
             className="desk-inventory-shortcut-hint"
@@ -267,11 +267,11 @@ const InventoryGridBase: React.FC<InventoryGridProps> = ({
                 const vehicle = rows[virtualRow.index];
                 if (!vehicle) return null;
                 const focused = vehicle.vin === focusedVin;
-                const score = vehicle.approvalScore ?? 0;
-                const scoreColor = bandColor(vehicle);
+                const score = vehicle.readinessScore ?? 0;
+                const scoreColor = assessmentColor(vehicle.assessment);
                 // Pending lender checks: odds are unknown, so no number and no
                 // ring fill. The numeric score still drives the sort (unchanged).
-                const pending = vehicle.approvalBand === "pending";
+                const pending = !vehicle.assessment;
 
                 return (
                   <div
@@ -366,16 +366,18 @@ const InventoryGridBase: React.FC<InventoryGridProps> = ({
                       </span>
                       <span
                         role="cell"
-                        data-label="Odds"
+                        data-label="Ready"
                         className="desk-inventory-odds"
-                        title={pending ? "Pending lender checks" : undefined}
+                        title={
+                          vehicle.assessment
+                            ? `${vehicle.assessment.passed}/${vehicle.assessment.total} checks passed. ${vehicle.assessment.label}. Not approval odds.`
+                            : "Not assessed"
+                        }
                       >
                         <strong style={{ ...sansNum, color: scoreColor }}>
                           {pending ? <span aria-hidden="true">—</span> : score}
                         </strong>
-                        {pending && (
-                          <span className="sr-only">Approval odds pending lender checks</span>
-                        )}
+                        {pending && <span className="sr-only">Deal readiness not assessed</span>}
                         <ScoreRing
                           score={pending ? 0 : score}
                           size={20}

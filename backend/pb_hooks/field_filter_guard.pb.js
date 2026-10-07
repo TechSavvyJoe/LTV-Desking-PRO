@@ -79,6 +79,10 @@ onRecordsListRequest((e) => {
     "dealerReserve",
     "vehicleData",
     "calculatedData",
+    "dealData",
+    "assessment",
+    "readinessScore",
+    "profitInputs",
   ];
   const references = (text) => {
     const raw = String(text).toLowerCase();
@@ -174,6 +178,10 @@ onRealtimeSubscribeRequest((e) => {
     "dealerReserve",
     "vehicleData",
     "calculatedData",
+    "dealData",
+    "assessment",
+    "readinessScore",
+    "profitInputs",
   ];
   const references = (text) => {
     const raw = String(text).toLowerCase();
