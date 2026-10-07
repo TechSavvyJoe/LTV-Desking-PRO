@@ -65,7 +65,14 @@ const CompareStripBase: React.FC<CompareStripProps> = ({
               </span>
               <span className="desk-compare-metrics">
                 <strong style={{ ...sansNum, color: bandColor(vehicle) }}>
-                  {vehicle.approvalBand === "pending" ? "—" : (vehicle.approvalScore ?? "—")}
+                  {vehicle.approvalBand === "pending" ? (
+                    <>
+                      <span aria-hidden="true">—</span>
+                      <span className="sr-only">Approval odds pending lender checks</span>
+                    </>
+                  ) : (
+                    (vehicle.approvalScore ?? "—")
+                  )}
                 </strong>
                 <small>odds</small>
                 <span

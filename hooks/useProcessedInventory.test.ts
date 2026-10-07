@@ -3,6 +3,7 @@ import { renderHook } from "@testing-library/react";
 import {
   computeProcessedInventory,
   filterInventory,
+  sortInventory,
   useProcessedInventory,
 } from "./useProcessedInventory";
 import {
@@ -198,5 +199,21 @@ describe("filterInventory — min odds vs pending [PR #25 review]", () => {
   it("keeps pending units when no min-odds threshold is set", () => {
     const kept = filterInventory([ranked, pending], { ...INITIAL_FILTER_DATA, minScore: null }, "");
     expect(kept.map((v) => v.id)).toEqual(["r", "p"]);
+  });
+});
+
+describe("sortInventory — odds ordering ignores pending placeholders [PR #25 review]", () => {
+  const unit = (
+    id: string,
+    approvalScore: number,
+    approvalBand: CalculatedVehicle["approvalBand"]
+  ) => ({ ...sampleVehicle, id, approvalScore, approvalBand }) as CalculatedVehicle;
+
+  it("ranks a verified weak fit above a pending unit whose hidden score is higher", () => {
+    const sorted = sortInventory([unit("pending", 45, "pending"), unit("weak", 38, "weak")], {
+      key: "approvalScore",
+      direction: "desc",
+    });
+    expect(sorted.map((v) => v.id)).toEqual(["weak", "pending"]);
   });
 });

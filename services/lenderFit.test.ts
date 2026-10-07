@@ -315,4 +315,25 @@ describe("lenderFit", () => {
       expect(f.fitCount).toBe(0);
     });
   });
+
+  describe("summarizePending — manual advance verification is a hold [PR #25 review]", () => {
+    it("never asks for a FICO to check a lender that would still wait on a manual advance check", () => {
+      const summary = summarizePending([
+        {
+          lenderId: "adv",
+          name: "Advance Bank",
+          eligible: false,
+          status: "pending",
+          reasons: [],
+          matchedTier: null,
+          uncheckedConstraints: [
+            "credit score",
+            "max advance (verify lender-specific calculation)",
+          ],
+        },
+      ]);
+      expect(summary.pendingCause).toBe("advance");
+      expect(summary.pendingReason).not.toMatch(/FICO/);
+    });
+  });
 });

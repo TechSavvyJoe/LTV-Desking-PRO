@@ -204,6 +204,7 @@ const PROVENANCE_HOLDS: ReadonlySet<PendingCause> = new Set<PendingCause>([
   "sample",
   "review",
   "certified",
+  "advance",
 ]);
 
 export const summarizePending = (entries: readonly LenderFitEntry[]): PendingSummary => {

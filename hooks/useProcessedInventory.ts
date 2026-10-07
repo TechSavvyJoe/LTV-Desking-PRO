@@ -165,8 +165,13 @@ export function sortInventory(
 ): CalculatedVehicle[] {
   if (!inventorySort.key) return filteredInventory;
   const sortKey = inventorySort.key as keyof CalculatedVehicle;
+  // A pending unit's score is a capped placeholder shown as "—"; sorting by
+  // odds treats it as missing so it never outranks (or gets auto-focused
+  // over) a verified fit on the hidden number.
+  const valueOf = (v: CalculatedVehicle) =>
+    sortKey === "approvalScore" && v.approvalBand === "pending" ? null : v[sortKey];
   return [...filteredInventory].sort((a, b) =>
-    compareSortValues(a[sortKey], b[sortKey], inventorySort.direction, "none")
+    compareSortValues(valueOf(a), valueOf(b), inventorySort.direction, "none")
   );
 }
 

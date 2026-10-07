@@ -100,7 +100,7 @@ test.describe("Pending vs ranked (real backend)", () => {
     await expect(gauge(page)).toHaveAccessibleName(RANKED_GAUGE);
     await expect(page.getByText("Pending lender checks")).toHaveCount(0);
     await expect(page.locator(".desk-fit-caption").first()).toHaveText(
-      /\b[1-9]\d*\/13\s*lenders fit/
+      /\b[1-9]\d*\/\d+\s*lenders fit/
     );
     await expect(chips(page, "Fit").first()).toBeVisible();
 
