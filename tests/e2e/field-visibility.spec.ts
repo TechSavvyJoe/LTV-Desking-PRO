@@ -317,6 +317,29 @@ test.describe("Field visibility hook (real PocketBase)", () => {
         expect(record.vehicleData).not.toHaveProperty("assessment");
         expect(record.calculatedData).not.toHaveProperty("assessment");
       }
+      for (const changed of ["vehicleData", "calculatedData"]) {
+        const reset = await request.patch(`${pbUrl()}/api/collections/saved_deals/records/${id}`, {
+          headers: { Authorization: adminToken },
+          data: { vehicleData: payload.vehicleData, calculatedData: payload.calculatedData },
+        });
+        expect(reset.ok()).toBeTruthy();
+        const result = await request.patch(`${pbUrl()}/api/collections/saved_deals/records/${id}`, {
+          headers: { Authorization: salesToken },
+          data: {
+            [changed]:
+              changed === "vehicleData"
+                ? { vin: "1FVPROFIT00000001", price: 22000 }
+                : { monthlyPayment: 400 },
+          },
+        });
+        expect(result.ok()).toBeTruthy();
+        const revised = await readBoth(request, adminToken, "saved_deals", id);
+        for (const record of [revised.list, revised.view]) {
+          expect(record.vehicleData).not.toHaveProperty("assessment");
+          expect(record.calculatedData).not.toHaveProperty("assessment");
+          expect(record.dealData.profitInputs).toEqual(profitInputs);
+        }
+      }
     } finally {
       await deleteAsAdmin(request, adminToken, "saved_deals", id);
     }

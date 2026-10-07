@@ -31,7 +31,8 @@ const protectManagerProfit = (e) => {
 
   // Sales cannot manufacture a snapshot asserting that private gross checks passed.
   // Financial edits invalidate a previous snapshot; the desk recalculates it when opened.
-  if (touched("vehicleData") || touched("dealData") || touched("customerFilters")) {
+  const invalidates = touched("vehicleData") || touched("dealData") || touched("customerFilters") || touched("calculatedData");
+  if (invalidates) {
     const vehicle = read(e.record, "vehicleData");
     if (vehicle && typeof vehicle === "object" && !Array.isArray(vehicle)) {
       delete vehicle.assessment;
@@ -39,7 +40,7 @@ const protectManagerProfit = (e) => {
       e.record.set("vehicleData", vehicle);
     }
   }
-  if (touched("calculatedData") || touched("dealData") || touched("customerFilters")) {
+  if (invalidates) {
     const calc = read(e.record, "calculatedData");
     if (calc && typeof calc === "object" && !Array.isArray(calc)) {
       delete calc.assessment;
