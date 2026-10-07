@@ -79,7 +79,10 @@ test.describe("Pending vs ranked (real backend)", () => {
       .getByRole("table", { name: "Ranked inventory table" })
       .getByRole("row")
       .nth(1);
-    await expect(firstRow.getByRole("cell").last()).toHaveText("—");
+    // A dash on screen, the reason for screen readers (sr-only).
+    await expect(firstRow.getByRole("cell").last()).toHaveText(
+      /^—\s*Approval odds pending lender checks$/
+    );
 
     await openRoute(page, "/lenders");
     for (const pill of await lenderPills(page)) {

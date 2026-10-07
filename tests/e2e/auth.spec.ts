@@ -72,11 +72,14 @@ test.describe("Load desk", () => {
       // The seed source uses UI names (`modelYear`, `stock`) while PocketBase
       // stores `year`, `stockNumber`. Guard the mapping so a successful count
       // assertion cannot hide identity data being silently dropped.
-      const sampleRow = page.getByRole("row", {
-        name: /Focus 2020 Ford Explorer XLT on desk/i,
-      });
+      // Rows are found by their vehicle button (its name is make/model/trim);
+      // the stock prints once with its "STK" prefix, never doubled.
+      const sampleRow = page
+        .getByRole("row")
+        .filter({ has: page.getByRole("button", { name: "Ford Explorer XLT", exact: true }) });
       await expect(sampleRow).toBeVisible();
-      await expect(sampleRow).toContainText("STK STK1026");
+      await expect(sampleRow).toContainText("STK1026");
+      await expect(sampleRow).not.toContainText("STK STK");
     }
   });
 
@@ -85,7 +88,7 @@ test.describe("Load desk", () => {
   }) => {
     await setupTest(page, "/desk");
 
-    const inspectorTitle = page.locator(".desk-inspector-title-row h2");
+    const inspectorTitle = page.locator(".desk-inspector-title-row h3");
     await expect(inspectorTitle).toBeVisible();
     const selectedVehicle = await inspectorTitle.innerText();
 
@@ -842,7 +845,9 @@ test.describe("Administrative console login", () => {
       await expect(teamRow()).toBeVisible();
       await expect(teamRow().getByRole("combobox")).toHaveValue("manager");
 
-      await teamRow().getByRole("button", { name: "Deactivate", exact: true }).click();
+      await teamRow()
+        .getByRole("button", { name: `Deactivate ${email}`, exact: true })
+        .click();
       await expect(toast("User deactivated")).toBeVisible();
       await expect(teamRow().getByText("Inactive", { exact: true })).toBeVisible();
 
@@ -851,7 +856,9 @@ test.describe("Administrative console login", () => {
       });
       expect(blockedLogin.ok()).toBeFalsy();
 
-      await teamRow().getByRole("button", { name: "Reactivate", exact: true }).click();
+      await teamRow()
+        .getByRole("button", { name: `Reactivate ${email}`, exact: true })
+        .click();
       await expect(toast("User reactivated")).toBeVisible();
       await expect(teamRow().getByText("Inactive", { exact: true })).toHaveCount(0);
 
@@ -899,7 +906,7 @@ test.describe("Administrative console login", () => {
     await page.getByLabel(/password/i).fill("SuperAdminPass123!");
     await page.getByRole("button", { name: /Sign in to Admin Console/i }).click();
 
-    await expect(page.getByText("OWNER CONSOLE", { exact: true })).toBeVisible({
+    await expect(page.getByText("Owner console", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
     await expect(
@@ -918,7 +925,9 @@ test.describe("Inventory import", () => {
 
     // Toolbar buttons from InventoryScreen + useInventoryImport
     await expect(page.getByRole("button", { name: "Import inventory" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Download sample CSV", exact: true })
+    ).toBeVisible();
 
     const csvContent = `Stock #,Year,Make,Model,Trim,VIN,Mileage,Price,Cost,J.D. Power Trade In,J.D. Power Retail,Unit Cost
   E2E001,2024,Toyota,Camry,SE,1M8GDM9AXKP042788,12000,26500,22000,23500,27500,22000
@@ -997,7 +1006,9 @@ test.describe("Inventory import", () => {
   }) => {
     await setupTest(page, "/inventory");
 
-    await expect(page.getByRole("button", { name: "Sample CSV", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Download sample CSV", exact: true })
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: "Import inventory" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Compare PDF/i })).toBeVisible();
   });
