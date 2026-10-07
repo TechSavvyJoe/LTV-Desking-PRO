@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import type { LenderProfile, LenderTier } from "../types";
+import {
+  joinWithAnd,
+  markTierVerified as clearVerifiedHold,
+  resolveRangeFlag,
+  reviewFieldLabel,
+  reviewableFieldsIn,
+  tierNeedsReview,
+  unverifiedReviewFields,
+} from "../services/lenderMatcher";
 import Modal from "./common/Modal";
 import Button from "./common/Button";
 import Input from "./common/Input";
@@ -20,6 +29,29 @@ const NEW_PROFILE_TEMPLATE: Omit<LenderProfile, "id" | "name"> = {
   maxPti: 0,
   tiers: [{ name: "Default Tier", minFico: 600, maxLtv: 125, maxTerm: 72 }],
 };
+
+/**
+ * Tier fields the expanded card already edits. A flagged field outside this
+ * set (e.g. front-end LTV read as a 1.10 ratio) gets its own input under
+ * "Flagged limits" — otherwise it could never be corrected here and "Mark
+ * verified" (which needs every flagged field filled) would strand the tier.
+ * [ai-range-guard]
+ */
+const CARD_EDITED_FIELDS: ReadonlySet<string> = new Set([
+  "minFico",
+  "maxFico",
+  "maxLtv",
+  "maxTerm",
+  "minYear",
+  "maxYear",
+  "minMileage",
+  "maxMileage",
+  "minAmountFinanced",
+  "maxAmountFinanced",
+  "baseInterestRate",
+  "rateAdder",
+  "maxBackend",
+]);
 
 // Compact field component for tier cards
 const TierField = ({
@@ -95,6 +127,11 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
   const [formData, setFormData] = useState<LenderProfile>(getDefaultFormData());
   const [activeTierIndex, setActiveTierIndex] = useState<number | null>(null);
+  const idPrefix = useId();
+  // Each tier's rangeFlags as they were when editing began, carried across the
+  // copies every edit makes, so a flagged field that is typed into and then
+  // cleared is flagged again instead of silently losing its hold.
+  const reviewBaseline = useRef(new WeakMap<LenderTier, unknown>());
 
   useEffect(() => {
     if (profile) {
@@ -103,7 +140,23 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       setFormData(getDefaultFormData());
     }
     setActiveTierIndex(null);
+    reviewBaseline.current = new WeakMap();
   }, [profile, isOpen]);
+
+  const baselineFlagsOf = (tier: LenderTier): unknown =>
+    reviewBaseline.current.has(tier) ? reviewBaseline.current.get(tier) : tier.rangeFlags;
+
+  // Flagged fields the card has no input for. Taken from the baseline too, so
+  // the input stays mounted after its flag resolves (no focus loss mid-typing).
+  const flaggedOnlyFieldsOf = (tier: LenderTier): string[] =>
+    [
+      ...new Set([
+        ...reviewableFieldsIn(baselineFlagsOf(tier)),
+        ...reviewableFieldsIn(tier.rangeFlags),
+      ]),
+    ].filter((key) => !CARD_EDITED_FIELDS.has(key));
+
+  const verifyHintId = (index: number) => `${idPrefix}-tier-${index}-verify-hint`;
 
   const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -124,7 +177,31 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       // Narrow `name` to a real LenderTier key instead of writing through `any`. [B12]
       const key = name as keyof LenderTier;
       const parsed = type === "number" ? (value === "" ? undefined : Number(value)) : value;
-      tiers[index] = { ...tier, [key]: parsed } as LenderTier;
+      const baseline = baselineFlagsOf(tier);
+      // A number in a flagged field lifts THAT field's flag only; the hold stays
+      // until every flagged field is filled, and clearing a flagged field
+      // re-flags it. Unrelated edits (e.g. renaming) leave the hold alone.
+      // [ai-range-guard]
+      const updated = resolveRangeFlag(
+        { ...tier, [key]: parsed } as LenderTier,
+        key,
+        parsed,
+        baseline
+      );
+      reviewBaseline.current.set(updated, baseline);
+      tiers[index] = updated;
+    }
+    setFormData((prev) => ({ ...prev, tiers }));
+  };
+
+  const markTierVerified = (index: number) => {
+    const tiers = [...(formData.tiers || [])];
+    const tier = tiers[index];
+    if (tier) {
+      // No-op while a flagged field is still empty (the button is disabled too).
+      const verified = clearVerifiedHold(tier);
+      reviewBaseline.current.set(verified, baselineFlagsOf(tier));
+      tiers[index] = verified;
     }
     setFormData((prev) => ({ ...prev, tiers }));
   };
@@ -150,6 +227,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
         ...tiers[index],
         name: `${tiers[index].name} (Copy)`,
       };
+      reviewBaseline.current.set(duplicated, baselineFlagsOf(tiers[index]));
       tiers.splice(index + 1, 0, duplicated);
       setFormData((prev) => ({ ...prev, tiers }));
     }
@@ -176,8 +254,8 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={profile ? `Edit ${formData.name || "Lender"}` : "Add New Lender"}
-      description="Configure lending guidelines and credit tier structures"
+      title={profile ? `Edit ${formData.name || "lender program"}` : "Add lender program"}
+      description="Set the program's limits and credit tiers."
       size="xl"
       footer={
         <>
@@ -186,27 +264,51 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
           </Button>
           <Button variant="primary" onClick={handleSubmit} className="ml-auto">
             <Icons.SaveIcon className="w-4 h-4 mr-2" />
-            Save Lender
+            Save program
           </Button>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Sample programs are held pending by the rules engine until an admin
+            confirms the terms against the lender's current rate sheet. This is
+            the one place that conversion happens; saving persists it. */}
+        {formData.isSample && (
+          <div
+            role="group"
+            aria-label="Sample program"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning-subtle)] px-4 py-3"
+          >
+            <p className="m-0 text-sm text-[var(--color-text)]">
+              <strong>Sample program.</strong> Its terms are illustrative, so it never counts as a
+              lender fit. Check every tier against the lender&apos;s current rate sheet, then mark
+              it verified.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setFormData((prev) => ({ ...prev, isSample: false }))}
+            >
+              Mark program verified
+            </Button>
+          </div>
+        )}
         {/* General Settings - Premium Card */}
         <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] overflow-hidden shadow-sm">
           <div className="px-5 py-4 bg-[var(--color-primary)]">
-            <h4 className="flex items-center gap-2 text-sm font-bold text-white">
+            <h4 className="flex items-center gap-2 text-sm font-bold text-[var(--on-primary)]">
               <Icons.BuildingLibraryIcon className="w-5 h-5" />
-              Lender Settings
+              Lender settings
             </h4>
             <p className="text-[var(--on-primary)]/80 text-xs mt-0.5">
-              Required fields and global parameters
+              Program-wide limits that apply to every tier
             </p>
           </div>
           <div className="p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div className="sm:col-span-2 lg:col-span-1">
-                <InputGroup label="Lender Name*" htmlFor="name">
+                <InputGroup label="Lender name*" htmlFor="name">
                   <Input
                     type="text"
                     id="name"
@@ -218,7 +320,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                   />
                 </InputGroup>
               </div>
-              <InputGroup label="Book Value Source" htmlFor="bookValueSource">
+              <InputGroup label="Book value source" htmlFor="bookValueSource">
                 <Select
                   id="bookValueSource"
                   name="bookValueSource"
@@ -229,7 +331,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                   <option value="Retail">JD Power Retail</option>
                 </Select>
               </InputGroup>
-              <InputGroup label="Min Monthly Income" htmlFor="minIncome">
+              <InputGroup label="Min monthly income" htmlFor="minIncome">
                 <Input
                   type="number"
                   id="minIncome"
@@ -262,15 +364,15 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
             <div>
               <h4 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text)]">
                 <Icons.ListIcon className="w-5 h-5 text-[var(--color-primary)]" />
-                Credit Tiers
+                Credit tiers
               </h4>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Define credit tiers with specific LTV, term, and eligibility requirements
+                Each tier sets its own LTV, term and eligibility limits.
               </p>
             </div>
             <Button type="button" variant="primary" size="sm" onClick={addTier}>
               <Icons.PlusIcon className="w-4 h-4 mr-1" />
-              Add Tier
+              Add tier
             </Button>
           </div>
 
@@ -294,12 +396,12 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
                         index === 0
-                          ? "bg-[var(--color-success)] text-white"
+                          ? "bg-[var(--color-success)] text-[var(--on-success)]"
                           : index === 1
-                            ? "bg-[var(--color-primary)] text-white"
+                            ? "bg-[var(--color-primary)] text-[var(--on-primary)]"
                             : index === 2
-                              ? "bg-[var(--color-accent)] text-white"
-                              : "bg-[var(--color-accent)] text-white"
+                              ? "bg-[var(--color-accent)] text-[var(--on-accent)]"
+                              : "bg-[var(--color-accent)] text-[var(--on-accent)]"
                       }`}
                     >
                       {index + 1}
@@ -341,7 +443,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         duplicateTier(index);
                       }}
                       className="p-1.5 text-[var(--color-text-subtle)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] rounded transition-colors"
-                      title="Duplicate Tier"
+                      title="Duplicate tier"
                     >
                       <Icons.DocumentDuplicateIcon className="w-4 h-4" />
                     </button>
@@ -353,7 +455,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                       }}
                       disabled={(formData.tiers?.length || 0) <= 1}
                       className="p-1.5 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded transition-colors disabled:opacity-30"
-                      title="Remove Tier"
+                      title="Remove tier"
                     >
                       <Icons.TrashIcon className="w-4 h-4" />
                     </button>
@@ -365,12 +467,48 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                   </div>
                 </div>
 
+                {/* Needs-review warning (AI-flagged tier held pending until corrected) */}
+                {tierNeedsReview(tier) && (
+                  <div
+                    role="note"
+                    className="mx-4 mt-3 rounded-sm px-2 py-1.5 text-xs bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border border-[var(--color-warning)]/40"
+                  >
+                    <p>
+                      Needs review:{" "}
+                      {tier.rangeFlags && tier.rangeFlags.length > 0
+                        ? tier.rangeFlags.join(", ")
+                        : "flagged for review"}
+                      . Edit the flagged field or mark it verified.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={unverifiedReviewFields(tier).length > 0}
+                      aria-describedby={
+                        unverifiedReviewFields(tier).length > 0 ? verifyHintId(index) : undefined
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markTierVerified(index);
+                      }}
+                      className="mt-1 font-semibold underline hover:no-underline disabled:no-underline disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      Mark verified
+                    </button>
+                    {unverifiedReviewFields(tier).length > 0 && (
+                      <p id={verifyHintId(index)} className="mt-0.5">
+                        Enter {joinWithAnd(unverifiedReviewFields(tier).map(reviewFieldLabel))}{" "}
+                        first — a verified tier can&apos;t leave a flagged limit blank.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Expanded Tier Details */}
                 {activeTierIndex === index && (
                   <div className="p-4 space-y-4 bg-[var(--color-bg-subtle)]">
                     {/* Credit & LTV Row */}
                     <div className="grid grid-cols-3 gap-3">
-                      <TierField label="FICO Range">
+                      <TierField label="FICO range">
                         <RangeInputPair
                           minName="minFico"
                           maxName="maxFico"
@@ -391,7 +529,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                           className="!px-2 text-center text-xs"
                         />
                       </TierField>
-                      <TierField label="Max Term (mo)">
+                      <TierField label="Max term (mo)">
                         <Input
                           type="number"
                           name="maxTerm"
@@ -405,7 +543,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
                     {/* Vehicle Requirements Row */}
                     <div className="grid grid-cols-3 gap-3">
-                      <TierField label="Model Year">
+                      <TierField label="Model year">
                         <RangeInputPair
                           minName="minYear"
                           maxName="maxYear"
@@ -427,7 +565,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                           onChange={(e) => handleTierChange(index, e)}
                         />
                       </TierField>
-                      <TierField label="Amount Financed">
+                      <TierField label="Amount financed">
                         <RangeInputPair
                           minName="minAmountFinanced"
                           maxName="maxAmountFinanced"
@@ -443,10 +581,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                     {/* Advanced Options Row */}
                     <div className="pt-3 border-t border-[var(--color-border)]">
                       <p className="text-[10px] font-medium text-[var(--color-text-subtle)] mb-2">
-                        Advanced Options
+                        Advanced options
                       </p>
                       <div className="grid grid-cols-4 gap-3">
-                        <TierField label="Buy Rate %">
+                        <TierField label="Buy rate %">
                           <Input
                             type="number"
                             name="baseInterestRate"
@@ -457,7 +595,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                             className="!px-2 text-center text-xs"
                           />
                         </TierField>
-                        <TierField label="Rate Adder %">
+                        <TierField label="Rate adder %">
                           <Input
                             type="number"
                             name="rateAdder"
@@ -468,7 +606,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                             className="!px-2 text-center text-xs"
                           />
                         </TierField>
-                        <TierField label="Max Backend $">
+                        <TierField label="Max backend $">
                           <Input
                             type="number"
                             name="maxBackend"
@@ -478,7 +616,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                             className="!px-2 text-center text-xs"
                           />
                         </TierField>
-                        <TierField label="Vehicle Type">
+                        <TierField label="Vehicle type">
                           <select
                             name="vehicleType"
                             value={tier.vehicleType || ""}
@@ -493,6 +631,40 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                         </TierField>
                       </div>
                     </div>
+
+                    {/* Flagged fields this card has no input for (e.g. front-end
+                        LTV) — without these a flagged tier could never be fixed. */}
+                    {flaggedOnlyFieldsOf(tier).length > 0 && (
+                      <div className="pt-3 border-t border-[var(--color-border)]">
+                        <p className="text-[10px] font-medium text-[var(--color-warning)] mb-2">
+                          Flagged limits · re-enter from the lender&apos;s sheet
+                        </p>
+                        <div className="grid grid-cols-4 gap-3">
+                          {flaggedOnlyFieldsOf(tier).map((key) => {
+                            const label = reviewFieldLabel(key);
+                            const heading = label.charAt(0).toUpperCase() + label.slice(1);
+                            const current = (tier as unknown as Record<string, unknown>)[key];
+                            return (
+                              <TierField key={key} label={heading}>
+                                <Input
+                                  type="number"
+                                  name={key}
+                                  aria-label={heading}
+                                  value={
+                                    typeof current === "number" || typeof current === "string"
+                                      ? current
+                                      : ""
+                                  }
+                                  onChange={(e) => handleTierChange(index, e)}
+                                  step="any"
+                                  className="!px-2 text-center text-xs"
+                                />
+                              </TierField>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -509,7 +681,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
               </p>
               <Button type="button" variant="primary" size="sm" onClick={addTier}>
                 <Icons.PlusIcon className="w-4 h-4 mr-1" />
-                Add First Tier
+                Add first tier
               </Button>
             </div>
           )}

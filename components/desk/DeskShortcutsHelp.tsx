@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 
 const SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
+  { keys: "⌘/Ctrl+K", action: "Search deals and vehicles, or jump to any screen" },
   { keys: "/", action: "Focus inventory search" },
   { keys: "↑ / ↓", action: "Move focus through ranked inventory" },
   { keys: "C", action: "Pin or unpin focused vehicle to compare" },
@@ -56,8 +57,8 @@ export const DeskShortcutsHelp: React.FC<DeskShortcutsHelpProps> = ({ open, onCl
           width: "min(420px, 100%)",
           background: "var(--color-bg)",
           border: "1px solid var(--color-border)",
-          borderRadius: 12,
-          boxShadow: "var(--shadow)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-md)",
           padding: "18px 20px 16px",
         }}
         onClick={(event) => event.stopPropagation()}
@@ -123,7 +124,7 @@ export const DeskShortcutsHelp: React.FC<DeskShortcutsHelpProps> = ({ open, onCl
             >
               <kbd
                 style={{
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                  fontFamily: "var(--mono)",
                   fontSize: 11,
                   fontWeight: 600,
                   color: "var(--color-text-muted)",

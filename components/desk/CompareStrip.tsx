@@ -2,7 +2,18 @@ import React from "react";
 import type { CalculatedVehicle } from "../../types";
 import { fmt } from "../../utils/format";
 import { StarIcon, XMarkIcon } from "../common/Icons";
-import { bandColor, nameShort, numVal, otdBgFor, otdColorFor, pct } from "./deskConstants";
+import {
+  bandColor,
+  metaItem,
+  mono,
+  nameShort,
+  numVal,
+  otdBgFor,
+  otdColorFor,
+  pct,
+  sansNum,
+  stockLabel,
+} from "./deskConstants";
 
 interface CompareStripProps {
   vehicles: CalculatedVehicle[];
@@ -23,7 +34,12 @@ const CompareStripBase: React.FC<CompareStripProps> = ({
     <div className="desk-compare-header">
       <StarIcon className="desk-compare-star" aria-hidden="true" />
       <h2 id="desk-compare-title">Compare</h2>
-      <span>{vehicles.length} pinned · reprices live as you change the deal</span>
+      <span>
+        <span style={{ ...metaItem, ...sansNum }}>{vehicles.length} pinned</span>{" "}
+        <span style={{ color: "var(--color-text-muted)" }}>
+          — reprices live as you change the deal
+        </span>
+      </span>
     </div>
 
     <div className="desk-compare-list">
@@ -36,24 +52,33 @@ const CompareStripBase: React.FC<CompareStripProps> = ({
               type="button"
               className="desk-compare-focus"
               onClick={() => onFocus(vehicle.vin)}
-              aria-label={`Focus ${nameShort(vehicle)} on desk`}
+              aria-current={focused ? "true" : undefined}
             >
               <span className="desk-compare-name">{nameShort(vehicle)}</span>
               <span className="desk-compare-meta">
-                {vehicle.modelYear} · STK {vehicle.stock}
+                <span style={{ ...metaItem, ...sansNum }}>{vehicle.modelYear}</span>{" "}
+                <span style={{ fontFamily: mono }}>{stockLabel(vehicle.stock)}</span>
               </span>
               <span className="desk-compare-payment">
-                <strong>{payment === null ? "—" : fmt(payment)}</strong>
+                <strong style={sansNum}>{payment === null ? "—" : fmt(payment)}</strong>
                 <small>/mo</small>
               </span>
               <span className="desk-compare-metrics">
-                <strong style={{ color: bandColor(vehicle) }}>
-                  {vehicle.approvalScore ?? "—"}
+                <strong style={{ ...sansNum, color: bandColor(vehicle) }}>
+                  {vehicle.approvalBand === "pending" ? (
+                    <>
+                      <span aria-hidden="true">—</span>
+                      <span className="sr-only">Approval odds pending lender checks</span>
+                    </>
+                  ) : (
+                    (vehicle.approvalScore ?? "—")
+                  )}
                 </strong>
                 <small>odds</small>
                 <span
                   className="desk-compare-odds-pill"
                   style={{
+                    ...sansNum,
                     color: otdColorFor(vehicle.otdLtv, thresholds),
                     background: otdBgFor(vehicle.otdLtv, thresholds),
                   }}

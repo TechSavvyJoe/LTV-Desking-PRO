@@ -375,7 +375,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (inventoryQuery.isLoading || lenderProfilesQuery.isLoading || savedDealsQuery.isLoading);
   const dataError =
     inventoryQuery.error || lenderProfilesQuery.error || savedDealsQuery.error
-      ? "We couldn't load your data. Check your connection and try again."
+      ? "Check your connection, then retry."
       : null;
 
   const refetchData = useCallback(() => {
@@ -548,7 +548,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         gapPrice: newSettings.gapPrice,
       }).catch((err) => {
         dealContextLogger.error("Failed to persist settings", err);
-        toast.error("Couldn't sync settings to the server — local defaults still apply.");
+        toast.error("Server save failed — settings kept in this browser.");
       });
 
       return newSettings;
@@ -572,6 +572,11 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Debounce expensive calculation inputs
   const debouncedDealData = useDebouncedValue(dealData, 300);
   const debouncedFilters = useDebouncedValue(filters, 300);
+  // Search was the one input passed through raw, so every keystroke re-ran the
+  // pipeline. Scoring is now memoized on its own inputs (see
+  // useProcessedInventory), so search only re-runs the cheap filter stage; a
+  // short debounce keeps even that off the keystroke path on large lots.
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 150);
 
   const {
     processedInventory,
@@ -585,7 +590,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dealData: debouncedDealData,
     filters: debouncedFilters || INITIAL_FILTER_DATA,
     settings,
-    searchQuery,
+    searchQuery: debouncedSearchQuery,
     inventorySort,
     pagination,
   });
@@ -678,7 +683,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setFavorites(prevFavorites);
           setMessage({
             type: "error",
-            text: "Couldn't save that change to the server. Your edit was reverted.",
+            text: "Couldn't save that change, so it was undone. Try again.",
           });
         } else {
           const serverVehicle = mapInventoryItem(result);
@@ -752,7 +757,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     setMessage({
       type: "success",
-      text: "Sample inventory and lender programs loaded.",
+      text: "Sample data loaded",
     });
   }, [
     resetDealState,

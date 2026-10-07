@@ -3,6 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "jsdom",
+    // RTL/jsdom integration tests (palette focus, PDF generation) legitimately
+    // take a few seconds; the 5s default flaked on loaded dev machines and CI.
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
     exclude: ["**/node_modules/**", "**/dist/**", "**/tests/e2e/**", "**/tests/helpers/**"],
     // include only unit tests by default
     include: ["**/*.{test,spec}.?(c|m)[jt]s?(x)"],

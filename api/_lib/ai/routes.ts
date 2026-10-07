@@ -531,11 +531,27 @@ export const handleAiRequest = async (
     }
 
     if (method === "POST" && url.startsWith("/api/ai/lender-extract")) {
+      // Lender-extract writes into the lender-profile editor, which only
+      // superadmin/admin can save — sales/manager roles would spend a
+      // metered extraction call on a save that's rejected downstream.
+      // Reuse the role already resolved by requireAuth above; no extra PB
+      // round trip. [ship-gate SHOULD-FIX #3, API half]
+      if (auth.role !== "superadmin" && auth.role !== "admin") {
+        sendError(response, 403, "Lender extraction requires an admin or superadmin role.");
+        return;
+      }
       await handleLenderExtract(request, response);
       return;
     }
 
     if (method === "POST" && url.startsWith("/api/ai/lender-enrich")) {
+      // Same admin-only flow as lender-extract (services/aiProcessor.ts calls
+      // enrich from processLenderSheet); keep the two routes symmetric so a
+      // sales/manager token cannot spend the metered enrich call either.
+      if (auth.role !== "superadmin" && auth.role !== "admin") {
+        sendError(response, 403, "Lender enrichment requires an admin or superadmin role.");
+        return;
+      }
       await handleLenderEnrich(request, response);
       return;
     }

@@ -13,7 +13,7 @@ const SkipNavLink: React.FC<{ href?: string }> = ({ href = "#main-content" }) =>
         sr-only focus:not-sr-only
         fixed top-4 left-4 z-[9999]
         px-4 py-2
-        bg-[var(--color-primary)] text-white
+        bg-[var(--color-primary)] text-[var(--on-primary)]
         font-semibold text-sm
         rounded shadow-md
         focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2

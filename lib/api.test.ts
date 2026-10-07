@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getFullList: vi.fn(),
   getList: vi.fn(),
   create: vi.fn(),
+  update: vi.fn(),
   filter: vi.fn((_expr: string, _params: unknown) => "filtered"),
   authModel: { id: "user-1" } as { id: string } | null,
 }));
@@ -30,6 +31,7 @@ vi.mock("./pocketbase", () => ({
       getFullList: mocks.getFullList,
       getList: mocks.getList,
       create: mocks.create,
+      update: mocks.update,
     },
     lenderProfiles: {
       getFullList: mocks.getFullList,
@@ -80,6 +82,7 @@ import {
   getDealerSettings,
   saveDeal,
   shouldSwallowFetchError,
+  syncInventory,
 } from "./api";
 
 describe("shouldSwallowFetchError", () => {
@@ -120,6 +123,44 @@ describe("read APIs throw by default (C10)", () => {
     mocks.getFullList.mockRejectedValue(new Error("pb 500"));
     await expect(getLenderProfiles()).rejects.toThrow("pb 500");
     await expect(getLenderProfiles({ soft: true })).resolves.toEqual([]);
+  });
+
+  it("getLenderProfiles treats PocketBase's stored 0 on optional lender limits as not configured", async () => {
+    // NumberField columns can't hold "unset": an empty limit reads back as 0,
+    // and a $0 max amount financed / 0% PTI cap would decline every deal.
+    mocks.getFullList.mockResolvedValue([
+      {
+        id: "l1",
+        name: "Unset Bank",
+        tiers: [],
+        minAmountFinanced: 0,
+        maxAmountFinanced: 0,
+        minIncome: 0,
+        maxPti: 0,
+        reservePct: 0,
+      },
+      {
+        id: "l2",
+        name: "Capped Bank",
+        tiers: [],
+        minAmountFinanced: 7500,
+        maxAmountFinanced: 45000,
+        minIncome: 1800,
+        maxPti: 20,
+      },
+    ]);
+    const [unset, capped] = await getLenderProfiles();
+
+    for (const key of ["minAmountFinanced", "maxAmountFinanced", "minIncome", "maxPti"]) {
+      expect(unset).not.toHaveProperty(key);
+    }
+    expect(unset?.reservePct).toBe(0); // a real 0% reserve, not a limit — kept
+    expect(capped).toMatchObject({
+      minAmountFinanced: 7500,
+      maxAmountFinanced: 45000,
+      minIncome: 1800,
+      maxPti: 20,
+    });
   });
 
   it("getSavedDeals throws on failure unless soft", async () => {
@@ -163,5 +204,80 @@ describe("read APIs throw by default (C10)", () => {
       } as never)
     ).resolves.toBeNull();
     mocks.authModel = { id: "user-1" };
+  });
+
+  describe("syncInventory — markMissingSold data-loss guard [takeover-P1]", () => {
+    const existing = [
+      { id: "r1", vin: "VIN1", stockNumber: "S1" },
+      { id: "r2", vin: "VIN2", stockNumber: "S2" },
+    ];
+    const unit = (vin: string) =>
+      ({
+        vin,
+        stockNumber: `S-${vin}`,
+        year: 2021,
+        make: "Honda",
+        model: "Civic",
+        trim: "LX",
+        mileage: 30000,
+        price: 21000,
+      }) as never;
+
+    beforeEach(() => {
+      mocks.getCurrentDealerId.mockReturnValue("dealer-1");
+      mocks.getFullList.mockReset().mockResolvedValue(existing);
+      mocks.update.mockReset().mockResolvedValue({});
+      mocks.create.mockReset().mockResolvedValue({});
+    });
+
+    it("never marks absent units sold by default — a partial upload means 'not included', not 'sold'", async () => {
+      const result = await syncInventory([unit("VIN1")] as never);
+      expect(result).toMatchObject({ updated: 1, added: 0, removed: 0, failed: 0 });
+      expect(mocks.update).toHaveBeenCalledTimes(1);
+      expect(mocks.update).toHaveBeenCalledWith(
+        "r1",
+        expect.objectContaining({ status: "available" })
+      );
+      expect(mocks.update).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ status: "sold" })
+      );
+    });
+
+    it("marks only the absent units sold when an explicit full feed opts in", async () => {
+      const result = await syncInventory([unit("VIN1")] as never, { markMissingSold: true });
+      expect(result).toMatchObject({ updated: 1, added: 0, removed: 1, failed: 0 });
+      expect(mocks.update).toHaveBeenCalledWith("r2", { status: "sold" });
+      expect(mocks.update).not.toHaveBeenCalledWith("r1", { status: "sold" });
+    });
+
+    it("refuses to sell the whole lot from an EMPTY feed even with markMissingSold", async () => {
+      await expect(syncInventory([] as never, { markMissingSold: true })).rejects.toThrow(
+        /Refusing to mark inventory sold/
+      );
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses when every incoming row lacks a VIN (a feed with no identity cannot archive anything)", async () => {
+      await expect(
+        syncInventory([{ ...(unit("") as object), vin: "" }] as never, { markMissingSold: true })
+      ).rejects.toThrow(/Refusing to mark inventory sold/);
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a failed existing-inventory read instead of proceeding to writes", async () => {
+      mocks.getFullList.mockReset().mockRejectedValue(new Error("pb down"));
+      await expect(
+        syncInventory([unit("VIN1")] as never, { markMissingSold: true })
+      ).rejects.toThrow("pb down");
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.create).not.toHaveBeenCalled();
+    });
+
+    it("throws loudly when no dealership is selected instead of reporting a green 'synced 0'", async () => {
+      mocks.getCurrentDealerId.mockReturnValue(null as unknown as string);
+      await expect(syncInventory([unit("VIN1")] as never)).rejects.toThrow(/No dealership/);
+    });
   });
 });

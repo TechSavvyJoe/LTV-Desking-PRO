@@ -41,14 +41,14 @@ export const BrandMark: React.FC<BrandMarkProps> = ({
           width="32"
           height="32"
           rx="7"
-          fill="var(--color-bg-muted, #11161c)"
-          stroke="var(--color-border, #202830)"
+          fill="var(--color-bg-muted, #f1f3f6)"
+          stroke="var(--color-border, #e5e7eb)"
         />
       )}
-      <path d="M9 8v16h6v-2.5h-3.5V8H9z" fill="var(--color-primary, #34d399)" />
+      <path d="M9 8v16h6v-2.5h-3.5V8H9z" fill="var(--color-primary, #4f46e5)" />
       <path
         d="M16.5 8l3.25 11.5L23 8h2.5l-4.5 16h-2.5L14 8h2.5z"
-        fill="var(--color-primary-hover, #6ee7b7)"
+        fill="var(--color-primary-hover, #4338ca)"
       />
     </svg>
   );

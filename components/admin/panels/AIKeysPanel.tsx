@@ -20,6 +20,9 @@ const PROVIDER_META: { id: AiProviderId; label: string; placeholder: string }[] 
   { id: "gemini", label: "Google Gemini", placeholder: "AIza…" },
 ];
 
+const providerLabel = (id: AiProviderId): string =>
+  PROVIDER_META.find((p) => p.id === id)?.label ?? id;
+
 export const AIKeysPanel: React.FC = () => {
   const [data, setData] = useState<MaskedAiProviderKeys | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,14 +30,22 @@ export const AIKeysPanel: React.FC = () => {
   const [draft, setDraft] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<AiProviderId | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Title + detail so a save/test/remove failure is never headlined as a load failure.
+  // `retry` only for load failures: Retry re-fetches keys, which can't fix a validation or save error.
+  const [error, setError] = useState<{ title: string; detail: string; retry?: boolean } | null>(
+    null
+  );
 
   const refresh = useCallback(async () => {
     try {
       const next = await getMaskedAiProviderKeys();
       setData(next);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load AI provider keys");
+      setError({
+        retry: true,
+        title: "Couldn't load AI keys",
+        detail: e instanceof Error ? e.message : "Check your connection and retry.",
+      });
     } finally {
       setLoading(false);
     }
@@ -57,7 +68,7 @@ export const AIKeysPanel: React.FC = () => {
 
   const saveKey = async (provider: AiProviderId) => {
     if (!draft.trim()) {
-      setError("Paste a key before saving.");
+      setError({ title: "No key to save", detail: "Paste a key before saving." });
       return;
     }
     setSaving(true);
@@ -68,7 +79,10 @@ export const AIKeysPanel: React.FC = () => {
       setDraft("");
       await refresh();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save key");
+      setError({
+        title: "Couldn't save the key",
+        detail: e instanceof Error ? e.message : "Check the key and try again.",
+      });
     } finally {
       setSaving(false);
     }
@@ -76,10 +90,10 @@ export const AIKeysPanel: React.FC = () => {
 
   const clearKey = async (provider: AiProviderId) => {
     const ok = await confirmAction({
-      title: "Remove provider key",
-      message: `Remove the ${provider} key? AI requests routed to this provider will start failing.`,
+      title: `Remove the ${providerLabel(provider)} key?`,
+      message: `AI features that use ${providerLabel(provider)} stop working until you add a new key.`,
       tone: "danger",
-      confirmLabel: "Remove",
+      confirmLabel: "Remove key",
     });
     if (!ok) return;
     setSaving(true);
@@ -88,7 +102,10 @@ export const AIKeysPanel: React.FC = () => {
       await updateAiProviderKeys({ clear: [provider] });
       await refresh();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to clear key");
+      setError({
+        title: "Couldn't remove the key",
+        detail: e instanceof Error ? e.message : "Try again.",
+      });
     } finally {
       setSaving(false);
     }
@@ -101,7 +118,10 @@ export const AIKeysPanel: React.FC = () => {
       await testAiProviderKey(provider);
       await refresh();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Test failed");
+      setError({
+        title: "Key test didn't pass",
+        detail: e instanceof Error ? e.message : "Check the key and try again.",
+      });
     } finally {
       setTesting(null);
     }
@@ -111,11 +131,11 @@ export const AIKeysPanel: React.FC = () => {
     <div className="max-w-3xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg p-6 space-y-5">
       <div>
         <h3 className="text-base font-semibold text-[var(--color-text)] tracking-tight">
-          AI Providers
+          AI providers
         </h3>
         <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-          Keys are stored in your PocketBase backend and read by the AI proxy at request time. The
-          frontend never sees full keys.
+          Keys are stored on the server and used only when an AI request runs. This screen never
+          shows a full key.
         </p>
       </div>
 
@@ -123,12 +143,16 @@ export const AIKeysPanel: React.FC = () => {
 
       {error && !loading && (
         <DataError
-          title="Failed to load AI keys"
-          description={error}
-          onRetry={() => {
-            setError(null);
-            void refresh();
-          }}
+          title={error.title}
+          description={error.detail}
+          onRetry={
+            error.retry
+              ? () => {
+                  setError(null);
+                  void refresh();
+                }
+              : undefined
+          }
         />
       )}
 
@@ -151,6 +175,7 @@ export const AIKeysPanel: React.FC = () => {
                   {isEditing ? (
                     <input
                       type="password"
+                      aria-label={`${p.label} API key`}
                       autoComplete="off"
                       autoFocus
                       value={draft}
@@ -175,7 +200,7 @@ export const AIKeysPanel: React.FC = () => {
                         lastTest.ok ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
                       }`}
                     >
-                      {lastTest.ok ? "Live ✓" : "Failed ✗"} {" · "}
+                      {lastTest.ok ? "Test passed" : "Test failed"} {" · "}
                       {new Date(lastTest.at).toLocaleString()}
                       {lastTest.error && !lastTest.ok && (
                         <span className="text-[var(--color-danger)]"> — {lastTest.error}</span>

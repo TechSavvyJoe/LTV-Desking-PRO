@@ -23,7 +23,7 @@ interface Action {
 const ActionButton: React.FC<Action> = ({ label, onClick, variant = "primary" }) => {
   const classes =
     variant === "primary"
-      ? "px-4 py-2 rounded bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
+      ? "px-4 py-2 rounded bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--on-primary)] text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
       : "px-4 py-2 rounded bg-white dark:bg-[var(--color-bg-subtle)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-muted)] text-[var(--color-text)] text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]";
   return (
     <button type="button" onClick={onClick} className={classes}>
@@ -54,7 +54,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
         role="status"
         aria-live="polite"
       >
-        <Icons.SpinnerIcon className="w-4 h-4 animate-spin" />
+        <Icons.SpinnerIcon className="w-4 h-4 animate-spin motion-reduce:animate-none" />
         <span>{label}</span>
       </div>
     );
@@ -65,7 +65,7 @@ export const DataLoading: React.FC<DataLoadingProps> = ({
       role="status"
       aria-live="polite"
     >
-      <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+      <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       <p className="text-sm text-[var(--color-text-muted)]">{label}</p>
     </div>
   );
@@ -87,7 +87,7 @@ export interface DataErrorProps {
 }
 
 export const DataError: React.FC<DataErrorProps> = ({
-  title = "Something went wrong",
+  title = "Couldn't load this section",
   description,
   onRetry,
   secondaryAction,
@@ -124,7 +124,92 @@ export interface EmptyStateProps {
   primaryAction?: Action;
   /** Optional secondary action */
   secondaryAction?: Action;
+  /**
+   * Heading level for the title. Defaults to 2 (a screen's h1 sits above it);
+   * pass 3 when the empty state lives inside a panel that already has an h2.
+   */
+  headingLevel?: 2 | 3 | 4;
 }
+
+// ============================================
+// Skeleton — loading placeholders that mirror the destination layout
+// ============================================
+
+interface SkeletonProps {
+  className?: string;
+  /** CSS width (default 100%) */
+  width?: number | string;
+  /** Height in px (default 12) */
+  height?: number;
+  /** Pill / circle shape */
+  round?: boolean;
+}
+
+/**
+ * A single shimmering placeholder bar. Decorative on its own — wrap groups in
+ * <SkeletonRows> (or a role="status" container) so the load is announced once.
+ */
+export const Skeleton: React.FC<SkeletonProps> = ({
+  className = "",
+  width = "100%",
+  height = 12,
+  round,
+}) => (
+  <span
+    aria-hidden="true"
+    className={`skeleton block ${className}`}
+    style={{ width, height, borderRadius: round ? 9999 : undefined }}
+  />
+);
+
+export interface SkeletonRowsProps {
+  /** Number of placeholder rows (default 6) */
+  rows?: number;
+  /** Column width fractions, e.g. [2, 1, 1, 1] (default: a 5-column table) */
+  columns?: number[];
+  /** Announced once, e.g. "Loading inventory" */
+  label?: string;
+  /** Mirror the real table's compact density */
+  dense?: boolean;
+}
+
+/**
+ * Table-shaped loading state: rows of shimmer bars that mirror the destination
+ * grid so nothing jumps when data lands. Fetch paths should go skeleton → data
+ * or skeleton → <EmptyState/>, never skeleton → blank. [takeover design]
+ */
+export const SkeletonRows: React.FC<SkeletonRowsProps> = ({
+  rows = 6,
+  columns = [2, 1, 1, 1, 1],
+  label = "Loading",
+  dense,
+}) => (
+  <div role="status" aria-live="polite" aria-busy="true" aria-label={`${label}…`}>
+    {Array.from({ length: rows }).map((_, r) => (
+      <div
+        key={r}
+        aria-hidden="true"
+        style={{
+          display: "grid",
+          gridTemplateColumns: columns.map((c) => `${c}fr`).join(" "),
+          columnGap: 14,
+          alignItems: "center",
+          padding: dense ? "8px 18px" : "13px 18px",
+          borderBottom: "1px solid var(--color-border)",
+        }}
+      >
+        {columns.map((_, c) => (
+          <Skeleton
+            key={c}
+            height={c === 0 ? 14 : 12}
+            width={c === 0 ? "70%" : `${55 + ((r * 7 + c * 11) % 35)}%`}
+          />
+        ))}
+      </div>
+    ))}
+    <span className="sr-only">{label}…</span>
+  </div>
+);
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   icon,
@@ -132,27 +217,31 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   primaryAction,
   secondaryAction,
-}) => (
-  <div
-    className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3 max-w-md mx-auto"
-    role="status"
-    aria-live="polite"
-    aria-label={title}
-  >
-    {icon && (
-      <div className="w-12 h-12 text-[var(--color-text-subtle)] mb-2" aria-hidden="true">
-        {icon}
-      </div>
-    )}
-    <h3 className="text-lg font-semibold text-[var(--color-text)]">{title}</h3>
-    {description && (
-      <p className="text-sm text-[var(--color-text-muted)] max-w-sm">{description}</p>
-    )}
-    {(primaryAction || secondaryAction) && (
-      <div className="flex items-center gap-2 mt-3">
-        {primaryAction && <ActionButton {...primaryAction} variant="primary" />}
-        {secondaryAction && <ActionButton {...secondaryAction} variant="secondary" />}
-      </div>
-    )}
-  </div>
-);
+  headingLevel = 2,
+}) => {
+  const Heading = `h${headingLevel}` as "h2" | "h3" | "h4";
+  return (
+    <div
+      className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3 max-w-md mx-auto"
+      role="status"
+      aria-live="polite"
+      aria-label={title}
+    >
+      {icon && (
+        <div className="w-12 h-12 text-[var(--color-text-subtle)] mb-2" aria-hidden="true">
+          {icon}
+        </div>
+      )}
+      <Heading className="text-lg font-semibold text-[var(--color-text)]">{title}</Heading>
+      {description && (
+        <p className="text-sm text-[var(--color-text-muted)] max-w-sm">{description}</p>
+      )}
+      {(primaryAction || secondaryAction) && (
+        <div className="flex items-center gap-2 mt-3">
+          {primaryAction && <ActionButton {...primaryAction} variant="primary" />}
+          {secondaryAction && <ActionButton {...secondaryAction} variant="secondary" />}
+        </div>
+      )}
+    </div>
+  );
+};

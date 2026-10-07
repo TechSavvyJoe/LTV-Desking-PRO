@@ -61,7 +61,7 @@ export const AIDefaultsPanel: React.FC = () => {
       });
       setSavedAt(new Date());
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save AI defaults");
+      setError(e instanceof Error ? e.message : "Couldn't save AI defaults. Try again.");
     } finally {
       setSaving(false);
     }
@@ -72,7 +72,7 @@ export const AIDefaultsPanel: React.FC = () => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-base font-semibold text-[var(--color-text)] tracking-tight">
-            AI Defaults
+            AI defaults
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             Default provider and model per task. Dealer-level settings override these.
@@ -94,10 +94,14 @@ export const AIDefaultsPanel: React.FC = () => {
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          <label
+            htmlFor="ai-default-provider"
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
             Provider
           </label>
           <select
+            id="ai-default-provider"
             value={provider}
             onChange={(e) => {
               const val = e.target.value;
@@ -127,10 +131,14 @@ export const AIDefaultsPanel: React.FC = () => {
           ] as const
         ).map(([label, value, setter, task]) => (
           <div key={task}>
-            <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+            <label
+              htmlFor={`ai-model-${task}`}
+              className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+            >
               {label}
             </label>
             <select
+              id={`ai-model-${task}`}
               value={value}
               onChange={(e) => setter(e.target.value)}
               className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"

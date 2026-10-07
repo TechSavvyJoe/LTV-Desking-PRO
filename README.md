@@ -18,7 +18,7 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 ## Features
 
 - **Real-time LTV Calculations** — Front-end LTV, OTD LTV, gross profit, and monthly payments update instantly as deal parameters change
-- **AI Lender Upload** — Upload PDF rate sheets and the selected server-side model extracts lender tiers, LTV limits, FICO ranges, and restrictions
+- **Upload rate sheet** — Upload PDF rate sheets and the selected server-side model extracts lender tiers, LTV limits, FICO ranges, and restrictions
 - **Model Switching** — Choose current top, balanced, and fast OpenAI/ChatGPT, Anthropic, and Gemini models per workflow
 - **Multi-Lender Matching** — See which lenders approve a deal based on credit score, income, vehicle age, and mileage
 - **Deal Structuring Modal** — Full deal worksheet with down payment, trade equity, backend products, and term selection
@@ -26,6 +26,8 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 - **PDF Deal Sheets** — Download a two-page Letter-size deal jacket with structure, backend products, lender paths, assumptions, and disclosures
 - **Multi-Tenant** — PocketBase enforces dealer isolation; superadmins can switch between dealerships
 - **Dark Mode** — Full light/dark theme support
+- **⌘K Command Palette** — Search saved deals and inventory by customer, stock # or VIN, run actions, and jump to any screen from the keyboard
+- **Guided Setup** — A first-run checklist on the desk walks a new dealership through inventory import, lender programs, and its first saved deal
 
 ## Quick Start
 
@@ -143,7 +145,10 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 - Unit tests: `services/*.test.ts`, `lib/*.test.ts`, security/edge suites.
 - E2E: `tests/e2e/auth.spec.ts` (desk, auth, inventory import, AI lender, deal save, lender match, PDF); `playwright.config.ts` with webServer. Runs in CI.
 - Coverage: `npm run test:coverage` (v8 + thresholds configured; artifact in CI).
-- Audit: `npm run audit` + dedicated CI step. Current status (see docs/runbooks/secrets-rotation.md): safe `npm audit fix` applied; `npm audit --audit-level=moderate` reports 0 vulnerabilities. CI includes a dry-run audit-fix report.
+- Audit: `npm run audit` + dedicated CI step. Current status (2026-09-18, see docs/runbooks/secrets-rotation.md): `npm audit` reports **0 vulnerabilities at every severity** after the vitest 4→5 upgrade (the last open advisories were dev-only in the vitest/mocker chain). CI includes a dry-run audit-fix report; re-verify after any dependency change.
+- Model governance: [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) documents the approval-odds score — inputs, the exact formula, guardrails, fairness posture, known limitations, and the disclaimer language every score-bearing surface must carry. Any change to `APPROVAL_CONFIG` updates the card in the same PR.
+- Accessibility: [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md) is the WCAG 2.2 AA conformance summary; `tests/e2e/a11y.spec.ts` runs axe-core on every pull request into `main` and on pushes to `main`, and fails the build on serious/critical violations (on other branch pushes the e2e/axe steps are skipped).
+- Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — components, data model, tenant/field-confidentiality model and its known debt, recovery posture, scale limits, and the decisions to revisit.
 - CI (`.github/workflows/check.yml`): type/lint/test/coverage (v8 + thresholds + artifact)/audit + e2e (Playwright + report artifact) on every PR. Enhanced coverage + e2e hygiene.
 - Runbooks: see `docs/runbooks/README.md` (expanded index: breach response, dealer offboarding, plus quarterly dep audit notes). PostHog (deal_saved / lender_matched / pdf_generated / inventory_uploaded / sample_loaded + identify) + Sentry wired and gated.
 

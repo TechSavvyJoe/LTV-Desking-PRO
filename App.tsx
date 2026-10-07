@@ -1,4 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
+import { SectionErrorBoundary } from "./components/common/ErrorBoundary";
 import {
   Navigate,
   Route,
@@ -47,7 +48,7 @@ const DealerAdminDashboard = lazy(() =>
 
 const PageFallback = (
   <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
-    <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin" />
+    <Icons.SpinnerIcon className="w-8 h-8 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
   </div>
 );
 
@@ -63,14 +64,18 @@ const ToolsRoute: React.FC = () => {
   const liveVehicle =
     (activeVehicle && processedInventory.find((v) => v.vin === activeVehicle.vin)) || activeVehicle;
   return (
-    <Suspense fallback={<DataLoading label="Loading tools…" />}>
-      <FinanceTools
-        scratchPadNotes={scratchPadNotes}
-        setScratchPadNotes={setScratchPadNotes}
-        dealData={dealData}
-        activeVehicle={liveVehicle}
-      />
-    </Suspense>
+    // Page gutter: 16px on phones, 24px above 760px, matching the other
+    // screens, so the tools card no longer touches the viewport edges. [R27]
+    <div className="px-4 pt-4 pb-6 min-[761px]:px-6">
+      <Suspense fallback={<DataLoading label="Loading tools…" />}>
+        <FinanceTools
+          scratchPadNotes={scratchPadNotes}
+          setScratchPadNotes={setScratchPadNotes}
+          dealData={dealData}
+          activeVehicle={liveVehicle}
+        />
+      </Suspense>
+    </div>
   );
 };
 
@@ -272,45 +277,72 @@ const App: React.FC = () => {
         />
 
         {/* Owner console */}
-        <Route path="/admin" element={adminElement} />
+        <Route
+          path="/admin"
+          element={
+            <SectionErrorBoundary label="The owner console">{adminElement}</SectionErrorBoundary>
+          }
+        />
         <Route path="/owner" element={<Navigate to="/admin" replace />} />
 
         {/* Authed dealer app — AppShell hosts the routed screens */}
         <Route element={dealerShellElement}>
-          <Route path="/desk" element={<DeskRoute />} />
+          <Route
+            path="/desk"
+            element={
+              <SectionErrorBoundary label="The desk">
+                <DeskRoute />
+              </SectionErrorBoundary>
+            }
+          />
           <Route
             path="/pipeline"
             element={
-              <Suspense fallback={PageFallback}>
-                <PipelineScreen />
-              </Suspense>
+              <SectionErrorBoundary label="The pipeline">
+                <Suspense fallback={PageFallback}>
+                  <PipelineScreen />
+                </Suspense>
+              </SectionErrorBoundary>
             }
           />
           <Route
             path="/inventory"
             element={
-              <Suspense fallback={PageFallback}>
-                <InventoryScreen />
-              </Suspense>
+              <SectionErrorBoundary label="Inventory">
+                <Suspense fallback={PageFallback}>
+                  <InventoryScreen />
+                </Suspense>
+              </SectionErrorBoundary>
             }
           />
           <Route
             path="/lenders"
             element={
-              <Suspense fallback={PageFallback}>
-                <LendersScreen />
-              </Suspense>
+              <SectionErrorBoundary label="Lenders">
+                <Suspense fallback={PageFallback}>
+                  <LendersScreen />
+                </Suspense>
+              </SectionErrorBoundary>
             }
           />
           <Route
             path="/reports"
             element={
-              <Suspense fallback={PageFallback}>
-                <ReportsScreen />
-              </Suspense>
+              <SectionErrorBoundary label="Reports">
+                <Suspense fallback={PageFallback}>
+                  <ReportsScreen />
+                </Suspense>
+              </SectionErrorBoundary>
             }
           />
-          <Route path="/tools" element={<ToolsRoute />} />
+          <Route
+            path="/tools"
+            element={
+              <SectionErrorBoundary label="Finance tools">
+                <ToolsRoute />
+              </SectionErrorBoundary>
+            }
+          />
           <Route path="/" element={<LegacyTabRedirect />} />
           <Route path="*" element={<Navigate to="/desk" replace />} />
         </Route>

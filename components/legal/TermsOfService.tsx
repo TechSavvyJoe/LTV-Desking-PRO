@@ -8,13 +8,18 @@ import LegalLayout from "./LegalLayout";
  * Truth-passed 2026-06-11: false claims removed (Stripe billing that doesn't
  * exist, a 99.9% uptime target we can't honor, an always-today "Last updated"
  * stamp). Counsel review is still required before the first paid invoice.
+ *
+ * 2026-09-22: added an Acceptable use clause (§3) forbidding use of
+ * approval-odds scores or bands to steer, price, or discourage any consumer,
+ * cited by MODEL_CARD.md §7. `updated` bumped to match — see the 2026-06-11
+ * note above about not letting this stamp go stale again.
  */
 const TermsOfService: React.FC = () => {
   return (
     <LegalLayout
       title="Terms of Service"
       description="The operating terms for dealership access to LTV Desking PRO and its calculation and AI-assisted tools."
-      updated="June 11, 2026"
+      updated="September 22, 2026"
     >
       <section>
         <h2>1. Service</h2>
@@ -43,6 +48,10 @@ const TermsOfService: React.FC = () => {
           </li>
           <li>Reverse-engineer the platform or attempt to access another tenant&apos;s data.</li>
           <li>Resell the service without a written reseller agreement.</li>
+          <li>
+            Use approval-odds scores or bands (or any lender-fit indication derived from them) to
+            steer, price, or discourage any consumer.
+          </li>
         </ul>
       </section>
 

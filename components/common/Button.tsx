@@ -28,7 +28,7 @@ const Button: React.FC<ButtonProps> = ({
   const variantClasses = {
     primary: `
       bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]
-      text-white border border-transparent
+      text-[var(--on-primary)] border border-transparent
       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]
       disabled:opacity-50
     `,
@@ -42,7 +42,7 @@ const Button: React.FC<ButtonProps> = ({
     `,
     danger: `
       bg-[var(--color-danger)] hover:brightness-90
-      text-white border border-transparent
+      text-[var(--on-danger)] border border-transparent
       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-danger)]
       disabled:opacity-50
     `,
@@ -54,7 +54,7 @@ const Button: React.FC<ButtonProps> = ({
     `,
     success: `
       bg-[var(--color-success)] hover:brightness-90
-      text-white border border-transparent
+      text-[var(--on-success)] border border-transparent
       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-success)]
     `,
   };
@@ -86,7 +86,9 @@ const Button: React.FC<ButtonProps> = ({
       disabled={isDisabled}
       {...props}
     >
-      {isLoading && <SpinnerIcon className="w-4 h-4 animate-spin absolute" />}
+      {isLoading && (
+        <SpinnerIcon className="w-4 h-4 animate-spin motion-reduce:animate-none absolute" />
+      )}
       <span className={isLoading ? "opacity-0" : "inline-flex items-center gap-2"}>{children}</span>
     </button>
   );

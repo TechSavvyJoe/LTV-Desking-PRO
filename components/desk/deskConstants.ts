@@ -2,7 +2,21 @@ import React from "react";
 import { BAND_META } from "../../services/approvalScorer";
 import type { ApprovalBand, CalculatedVehicle, DealData, Settings } from "../../types";
 
+/** Identifiers only (VIN, stock number, shortcuts). Numerals use the sans + `sansNum`. */
 export const mono = "var(--mono)";
+
+/** Numeric data: body sans with tabular figures. */
+export const sansNum: React.CSSProperties = {
+  fontFamily: "var(--font-sans)",
+  fontVariantNumeric: "tabular-nums",
+};
+
+/**
+ * Spacing for the parts of a meta line. Render each part as its own inline
+ * span, put a plain space between them, and give every part but the last this
+ * margin; screen readers then get a real pause where a bullet used to be.
+ */
+export const metaItem: React.CSSProperties = { marginInlineEnd: 6 };
 
 /** Terms shipped by the dc design contract (chips + desking-grid rows). */
 export const DESK_TERMS = [60, 72, 84, 96];
@@ -53,8 +67,18 @@ export const ptiColorFor = (pti: number | undefined): string =>
         ? "var(--color-warning)"
         : "var(--color-danger)";
 
-export const fitCountColor = (n: number): string =>
-  n >= 4 ? "var(--color-success)" : n >= 1 ? "var(--color-warning)" : "var(--color-danger)";
+/**
+ * Color for an "N fit" count. A zero while lender checks are still pending is
+ * unknown, not a decline, so it reads neutral rather than danger.
+ */
+export const fitCountColor = (n: number, pending = false): string =>
+  n >= 4
+    ? "var(--color-success)"
+    : n >= 1
+      ? "var(--color-warning)"
+      : pending
+        ? "var(--color-text-muted)"
+        : "var(--color-danger)";
 
 export const bandColor = (v: CalculatedVehicle): string =>
   BAND_META[v.approvalBand ?? "none"].colorVar;
@@ -62,6 +86,15 @@ export const bandColor = (v: CalculatedVehicle): string =>
 /** "Make Model Trim" (year lives in the sub-meta), with a safe fallback. */
 export const nameShort = (v: CalculatedVehicle): string =>
   v.make && v.model ? `${v.make} ${v.model}${v.trim ? ` ${v.trim}` : ""}` : v.vehicle;
+
+/**
+ * Stock number with its "STK" prefix, added only when the value doesn't
+ * already carry one — "STK STK1034" reads (and looks) like a typo.
+ */
+export const stockLabel = (stock: string | number | undefined | null): string => {
+  const value = String(stock ?? "").trim();
+  return /^stk/i.test(value) ? value : `STK ${value}`.trim();
+};
 
 export const aprLabel = (rate: DealData["interestRate"]): string =>
   typeof rate === "number" && Number.isFinite(rate) ? `${rate}%` : "—";
@@ -76,12 +109,11 @@ export const labelStyle: React.CSSProperties = {
   marginBottom: 5,
 };
 export const sectionLabel: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: "0.12em",
-  color: "var(--color-text-subtle)",
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: 0,
+  color: "var(--color-text-muted)",
   marginBottom: 13,
-  fontFamily: mono,
 };
 export const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -94,19 +126,18 @@ export const inputStyle: React.CSSProperties = {
   fontFamily: "inherit",
   outline: "none",
 };
-export const monoInput: React.CSSProperties = { ...inputStyle, fontFamily: mono };
+/** Numeric input: sans with tabular figures (mono is for identifiers only). */
+export const monoInput: React.CSSProperties = { ...inputStyle, ...sansNum };
 export const cardStyle: React.CSSProperties = {
   background: "var(--color-bg)",
   border: "1px solid var(--color-border)",
-  borderRadius: 14,
-  boxShadow: "var(--shadow)",
+  borderRadius: "var(--radius-card)",
 };
 export const panelEyebrow: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: "0.1em",
-  fontFamily: mono,
-  color: "var(--color-text-subtle)",
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: 0,
+  color: "var(--color-text-muted)",
   marginBottom: 11,
 };
 
@@ -121,14 +152,19 @@ export type SortKey =
   | "monthlyPayment"
   | "approvalScore";
 
-export const SORT_COLUMNS: { key: SortKey; label: string; title: string }[] = [
-  { key: "vehicle", label: "Vehicle", title: "Sort by vehicle" },
-  { key: "price", label: "Price", title: "Sort by price" },
-  { key: "frontEndLtv", label: "Front LTV", title: "Front-end LTV" },
-  { key: "amountToFinance", label: "Financed", title: "Amount financed" },
-  { key: "otdLtv", label: "OTD LTV", title: "Out-the-door LTV" },
-  { key: "monthlyPayment", label: "Payment", title: "Monthly payment" },
-  { key: "approvalScore", label: "Approval", title: "Approval odds" },
+/**
+ * `label` is the visible header text and the header button's whole accessible
+ * name. `fullName` spells out an abbreviated label as a hover tooltip; it is
+ * omitted when the label already says it all.
+ */
+export const SORT_COLUMNS: { key: SortKey; label: string; fullName?: string }[] = [
+  { key: "vehicle", label: "Vehicle" },
+  { key: "price", label: "Price" },
+  { key: "frontEndLtv", label: "Front LTV", fullName: "Front-end LTV" },
+  { key: "amountToFinance", label: "Financed", fullName: "Amount financed" },
+  { key: "otdLtv", label: "OTD LTV", fullName: "Out-the-door LTV" },
+  { key: "monthlyPayment", label: "Payment", fullName: "Monthly payment" },
+  { key: "approvalScore", label: "Approval", fullName: "Approval odds" },
 ];
 
 /** Mockup per-key first-click directions: name ascends, every metric descends. */

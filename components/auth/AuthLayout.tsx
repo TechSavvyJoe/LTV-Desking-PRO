@@ -6,13 +6,11 @@ interface AuthLayoutProps {
   children: React.ReactNode;
 }
 
-const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
-
 /**
- * Auth shell for the dark/green redesign — a faint grid + radial glow
+ * Auth shell — a faint grid + radial tint
  * background (.auth-bg), a centered column (.auth-col, staggered entrance), the
  * gauge logomark + "Precision desking, repriced live" lockup, the card, and a
- * mono footer. Mirrors the LOGIN block of LTV Desking PRO.dc.html. [dc-redesign]
+ * footer. Mirrors the LOGIN block of LTV Desking PRO.dc.html. [dc-redesign]
  */
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
@@ -49,19 +47,16 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
           <div
             style={{
               fontSize: 14,
-              ...mono,
               color: "var(--color-text-subtle)",
               marginTop: 18,
             }}
           >
             LTV Desking
           </div>
-          <div className="auth-title">
-            Precision desking, <span style={{ color: "var(--color-primary)" }}>repriced live</span>
-          </div>
+          <h1 className="auth-title">Precision desking, repriced live</h1>
           <div
             style={{
-              fontSize: 14.5,
+              fontSize: 14,
               color: "var(--color-text-muted)",
               marginTop: 10,
               textAlign: "center",
@@ -84,16 +79,13 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
             gap: 14,
             marginTop: 22,
             fontSize: 12,
-            ...mono,
             color: "var(--color-text-subtle)",
           }}
         >
           <span>US dealerships</span>
-          <span style={{ opacity: 0.4 }}>/</span>
           <a href="/privacy" style={{ color: "inherit", textDecoration: "none" }}>
             Privacy
           </a>
-          <span style={{ opacity: 0.4 }}>/</span>
           <a href="/terms" style={{ color: "inherit", textDecoration: "none" }}>
             Terms
           </a>

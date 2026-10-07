@@ -1,26 +1,29 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LTV Desking PRO — Automotive desking, lender matching, F&amp;I tooling</title>
-    <meta name="description" content="LTV Desking PRO helps US dealerships structure deals, match lenders, and run F&I workflows — with AI-assisted rate-sheet extraction and integrated audit logging." />
+    <meta
+      name="description"
+      content="LTV Desking PRO helps US dealerships structure deals, match lenders, and run F&I workflows — with AI-assisted rate-sheet extraction and integrated audit logging."
+    />
     <!-- Per-scheme browser chrome tint — matches --color-bg-subtle (light) and
          --color-bg (dark) from index.css. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#05080b" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8f9fb" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1115" />
+    <meta name="color-scheme" content="light dark" />
 
     <!-- Theme bootstrap: set the <html> class before first paint to avoid a
-         flash. Dark is the default surface for the redesign. -->
+         flash. Light is the default; dark only when the user chose it. -->
     <script>
       (function () {
         try {
           var t = localStorage.getItem("ltvTheme_v1");
-          var dark = t !== "light"; // default dark unless explicitly "light"
+          var dark = t === "dark"; // default light unless explicitly "dark"
           document.documentElement.classList.add(dark ? "dark" : "light");
         } catch (e) {
-          document.documentElement.classList.add("dark");
+          document.documentElement.classList.add("light");
         }
       })();
     </script>
@@ -34,13 +37,19 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="LTV Desking PRO" />
     <meta property="og:title" content="LTV Desking PRO — Automotive desking + F&amp;I" />
-    <meta property="og:description" content="Structure deals, match lenders, and run F&I workflows for US dealerships. AI-assisted rate sheets, audit logging, multi-tenant by design." />
+    <meta
+      property="og:description"
+      content="Structure deals, match lenders, and run F&I workflows for US dealerships. AI-assisted rate sheets, audit logging, multi-tenant by design."
+    />
     <meta property="og:url" content="https://ltvdeskingpro.vercel.app/" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="LTV Desking PRO" />
-    <meta name="twitter:description" content="Automotive desking, lender matching, F&I tooling for US dealerships." />
+    <meta
+      name="twitter:description"
+      content="Automotive desking, lender matching, F&I tooling for US dealerships."
+    />
 
     <!-- Performance hints -->
     <link rel="preconnect" href="https://ltv-desking-pro-api.fly.dev" crossorigin />
@@ -49,21 +58,28 @@
       /* Pre-React paint — kept in sync with index.css tokens to avoid a flash.
          Geist Sans loads via @fontsource; system-ui covers the gap. */
       body {
-        font-family: "Geist Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-family:
+          "Geist Sans",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         font-size: 16px;
-        transition: background-color 0.3s, color 0.3s;
+        transition:
+          background-color 0.3s,
+          color 0.3s;
       }
       /* Light — mirrors index.css :root tokens (--color-bg-subtle / --color-text) */
       body {
-        background-color: #f8fafc;
-        color: #0f172a;
+        background-color: #f8f9fb;
+        color: #111827;
       }
-      /* Dark (default) — mirrors index.css .dark tokens (--color-bg / --color-text) */
+      /* Dark — mirrors index.css .dark tokens (--color-bg / --color-text) */
       .dark body {
-        background-color: #05080b;
-        color: #f5f7f8;
+        background-color: #0f1115;
+        color: #f3f4f6;
       }
       /* Custom scrollbar */
       ::-webkit-scrollbar {
@@ -82,7 +98,7 @@
         background-color: rgba(255, 255, 255, 0.18);
       }
     </style>
-    <link rel="stylesheet" href="/index.css">
+    <link rel="stylesheet" href="/index.css" />
   </head>
   <body>
     <div id="root"></div>

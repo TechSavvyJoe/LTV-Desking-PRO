@@ -42,7 +42,12 @@ export const SystemSettingsPanel: React.FC = () => {
       })
       .catch(
         (e: unknown) =>
-          !cancelled && setError(e instanceof Error ? e.message : "Failed to load settings")
+          !cancelled &&
+          setError(
+            e instanceof Error
+              ? e.message
+              : "Couldn't load system settings. Reload the page before saving."
+          )
       )
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -57,7 +62,7 @@ export const SystemSettingsPanel: React.FC = () => {
       try {
         thresholds = JSON.parse(form.defaultLtvThresholds);
       } catch {
-        setError("Default LTV thresholds must be valid JSON");
+        setError('Default LTV thresholds must be valid JSON, like {"700": 120}.');
         return;
       }
     }
@@ -72,7 +77,7 @@ export const SystemSettingsPanel: React.FC = () => {
       });
       setSavedAt(new Date());
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save settings");
+      setError(e instanceof Error ? e.message : "Couldn't save system settings. Try again.");
     } finally {
       setSaving(false);
     }
@@ -81,17 +86,17 @@ export const SystemSettingsPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Icons.SpinnerIcon className="w-6 h-6 text-[var(--color-primary)] animate-spin" />
+        <Icons.SpinnerIcon className="w-6 h-6 text-[var(--color-primary)] animate-spin motion-reduce:animate-none" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 animate-fadeIn">
+    <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text)] tracking-tight">
-            System Settings
+            System settings
           </h2>
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             Affects every dealership on the platform.
@@ -113,10 +118,14 @@ export const SystemSettingsPanel: React.FC = () => {
 
       <div className="max-w-3xl bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg p-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          <label
+            htmlFor="sys-support-email"
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
             Support email
           </label>
           <input
+            id="sys-support-email"
             type="email"
             value={form.supportEmail || ""}
             onChange={(e) => setForm({ ...form, supportEmail: e.target.value })}
@@ -124,15 +133,19 @@ export const SystemSettingsPanel: React.FC = () => {
             placeholder="support@ltvdesking.com"
           />
           <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
-            Shown to dealers in error messages and help screens.
+            Shown to dealerships in error messages and help screens.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          <label
+            htmlFor="sys-announcement-banner"
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
             Announcement banner
           </label>
           <textarea
+            id="sys-announcement-banner"
             value={form.announcementBanner || ""}
             onChange={(e) => setForm({ ...form, announcementBanner: e.target.value })}
             className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] min-h-[60px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
@@ -145,7 +158,9 @@ export const SystemSettingsPanel: React.FC = () => {
 
         <div className="flex items-center justify-between p-4 bg-[var(--color-bg-subtle)] ring-1 ring-[var(--color-border)] rounded-xl">
           <div>
-            <p className="text-sm font-medium text-[var(--color-text)]">Allow new dealer signups</p>
+            <p className="text-sm font-medium text-[var(--color-text)]">
+              Allow new dealership signups
+            </p>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
               When off, the public registration form on{" "}
               <code className="text-[var(--color-text-muted)]">/</code> is disabled.
@@ -155,18 +170,23 @@ export const SystemSettingsPanel: React.FC = () => {
             <input
               type="checkbox"
               className="sr-only peer"
+              aria-label="Allow new dealership signups"
               checked={form.signupsEnabled !== false}
               onChange={(e) => setForm({ ...form, signupsEnabled: e.target.checked })}
             />
-            <div className="w-11 h-6 bg-[var(--color-bg-muted)] peer-focus:ring-2 peer-focus:ring-[var(--color-primary)] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
+            <div className="w-11 h-6 bg-[var(--color-bg-muted)] peer-focus:ring-2 peer-focus:ring-[var(--color-primary)] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-transform after:duration-150 motion-reduce:after:transition-none peer-checked:bg-[var(--color-primary)]"></div>
           </label>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+          <label
+            htmlFor="sys-default-ltv-thresholds-json"
+            className="block text-sm font-medium text-[var(--color-text)] mb-1.5"
+          >
             Default LTV thresholds (JSON)
           </label>
           <textarea
+            id="sys-default-ltv-thresholds-json"
             value={
               typeof form.defaultLtvThresholds === "string"
                 ? form.defaultLtvThresholds

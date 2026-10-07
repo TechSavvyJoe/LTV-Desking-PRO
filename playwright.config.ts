@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import { configuredBackendUrl } from "./tests/e2e/fixtures/backend";
 
 const E2E_REAL = !!process.env.E2E_REAL_BACKEND || !!process.env.USE_SEED_BACKEND;
-const PB_URL = process.env.VITE_POCKETBASE_URL || process.env.PB_URL || "http://127.0.0.1:8090";
+// Same precedence as the API fixtures (E2E_PB_URL first), so a token they mint
+// is always valid for the dev server this config starts.
+const PB_URL = configuredBackendUrl();
 const FRONTEND_PORT = process.env.E2E_BASE_PORT || "3000";
 const BASE_URL = process.env.E2E_BASE_URL || `http://127.0.0.1:${FRONTEND_PORT}`;
 

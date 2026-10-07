@@ -15,6 +15,13 @@ import { SearchInput, SortHeader } from "./OwnerPanels";
 import { EmptyState } from "../../common/states";
 import { PASSWORD_MIN_LENGTH } from "../../../lib/passwordPolicy";
 
+const ROLE_LABELS: Record<User["role"], string> = {
+  sales: "Sales",
+  manager: "Manager",
+  admin: "Admin",
+  superadmin: "Owner",
+};
+
 /**
  * UsersPanel (extracted from SuperAdminDashboard.tsx)
  *
@@ -93,7 +100,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
       } else {
         // Create new user
         if (formData.password !== formData.passwordConfirm) {
-          setError("Passwords do not match");
+          setError("Passwords don't match");
           return;
         }
         if (formData.password.length < PASSWORD_MIN_LENGTH) {
@@ -114,7 +121,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
       const msg =
         (typeof data?.message === "string" ? data.message : null) ||
         (err instanceof Error ? err.message : null) ||
-        "Failed to save user";
+        "Couldn't save the user. Try again.";
       setError(msg);
     }
   };
@@ -183,14 +190,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
   const handleRoleChange = async (userId: string, newRole: User["role"]) => {
     const ok = await confirmAction({
       title: "Change role?",
-      message: `Change this user's role to ${newRole}? Their permissions update immediately.`,
+      message: `Change this user's role to ${ROLE_LABELS[newRole]}? Their permissions change immediately.`,
       confirmLabel: "Change role",
     });
     if (ok) {
       try {
         await updateUserRole(userId, newRole);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to change role");
+        toast.error(err instanceof Error ? err.message : "Couldn't change the role. Try again.");
       }
     }
     // Refresh in every path so the controlled <select> resyncs with the server
@@ -202,15 +209,16 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
     if (
       await confirmAction({
         title: "Delete user?",
-        message: "Are you sure you want to delete this user?",
-        confirmLabel: "Delete",
+        message:
+          "They lose access immediately and this can't be undone. To keep their deal history, deactivate them instead.",
+        confirmLabel: "Delete user",
         tone: "danger",
       })
     ) {
       try {
         await deleteUser(userId);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to delete user");
+        toast.error(err instanceof Error ? err.message : "Couldn't delete the user. Try again.");
         return;
       }
       onRefresh();
@@ -224,7 +232,13 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
     try {
       await setUserActive(user.id, !isActive);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update user status");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : isActive
+            ? "Couldn't deactivate the user. Try again."
+            : "Couldn't reactivate the user. Try again."
+      );
       return;
     }
     onRefresh();
@@ -249,7 +263,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
   };
 
   return (
-    <div className="space-y-5 animate-fadeIn">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -261,11 +275,12 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
         <div className="flex items-center gap-2 flex-wrap">
           <SearchInput value={search} onChange={setSearch} placeholder="Search name, email…" />
           <select
+            aria-label="Filter by dealership"
             value={filterDealer}
             onChange={(e) => setFilterDealer(e.target.value)}
             className="px-3 py-2 bg-[var(--color-bg-muted)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
           >
-            <option value="">All dealers</option>
+            <option value="">All dealerships</option>
             {dealers.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -273,6 +288,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
             ))}
           </select>
           <select
+            aria-label="Filter by role"
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
             className="px-3 py-2 bg-[var(--color-bg-muted)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
@@ -281,11 +297,11 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
             <option value="sales">Sales</option>
             <option value="manager">Manager</option>
             <option value="admin">Admin</option>
-            <option value="superadmin">SuperAdmin</option>
+            <option value="superadmin">Owner</option>
           </select>
           <Button onClick={() => setIsCreating(true)} className="gap-2 whitespace-nowrap">
             <Icons.PlusIcon className="w-4 h-4" />
-            Add User
+            Add user
           </Button>
         </div>
       </div>
@@ -299,14 +315,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
 
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
-        <div className="bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg overflow-hidden shadow-sm">
+        <div className="bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
             <div className="w-9 h-9 rounded-xl bg-[var(--color-bg-muted)] ring-1 ring-[var(--color-border)] flex items-center justify-center">
               <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-[var(--color-text)]">
-                {editingId ? "Edit user" : "Add new user"}
+                {editingId ? "Edit user" : "Add user"}
               </h3>
               <p className="text-xs text-[var(--color-text-muted)]">
                 {editingId
@@ -317,10 +333,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
-                First Name *
+              <label
+                htmlFor="user-first-name"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
+                First name *
               </label>
               <input
+                id="user-first-name"
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -329,10 +349,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
-                Last Name *
+              <label
+                htmlFor="user-last-name"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
+                Last name *
               </label>
               <input
+                id="user-last-name"
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -341,10 +365,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-email"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Email *
               </label>
               <input
+                id="user-email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -353,10 +381,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-phone"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Phone
               </label>
               <input
+                id="user-phone"
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -365,15 +397,19 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
-                Dealer *
+              <label
+                htmlFor="user-dealer"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
+                Dealership *
               </label>
               <select
+                id="user-dealer"
                 value={formData.dealer}
                 onChange={(e) => setFormData({ ...formData, dealer: e.target.value })}
                 className="w-full px-3 py-2 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)]"
               >
-                <option value="">Select Dealer</option>
+                <option value="">Select a dealership</option>
                 {dealers.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -382,10 +418,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+              <label
+                htmlFor="user-role"
+                className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+              >
                 Role *
               </label>
               <select
+                id="user-role"
                 value={formData.role}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -401,16 +441,20 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                 <option value="sales">Sales</option>
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
-                <option value="superadmin">SuperAdmin</option>
+                <option value="superadmin">Owner</option>
               </select>
             </div>
             {!editingId && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
+                  <label
+                    htmlFor="user-password"
+                    className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                  >
                     Password *
                   </label>
                   <input
+                    id="user-password"
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -419,10 +463,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5">
-                    Confirm Password *
+                  <label
+                    htmlFor="user-confirm-password"
+                    className="block text-xs font-medium text-[var(--color-text-muted)] mb-1.5"
+                  >
+                    Confirm password *
                   </label>
                   <input
+                    id="user-confirm-password"
                     type="password"
                     value={formData.passwordConfirm}
                     onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
@@ -454,14 +502,14 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
       )}
 
       {/* Users Table */}
-      <div className="bg-[var(--color-bg)] rounded-lg ring-1 ring-[var(--color-border)] overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="bg-[var(--color-bg)] rounded-lg ring-1 ring-[var(--color-border)] overflow-hidden">
+        <div className="admin-table-scroll relative overflow-x-auto">
           <table className="w-full" aria-label="Users list">
             <thead className="bg-[var(--color-bg)]">
               <tr className="border-b border-[var(--color-border)]">
                 <SortHeader label="User" field="name" current={sort} onSort={toggleSort} />
                 <SortHeader label="Email" field="email" current={sort} onSort={toggleSort} />
-                <SortHeader label="Dealer" field="dealer" current={sort} onSort={toggleSort} />
+                <SortHeader label="Dealership" field="dealer" current={sort} onSort={toggleSort} />
                 <SortHeader
                   label="Role"
                   field="role"
@@ -492,9 +540,12 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                       isActive ? "" : "opacity-60"
                     }`}
                   >
-                    <td className="px-4 py-3">
+                    <th scope="row" className="px-4 py-3 text-left font-normal">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-[var(--on-primary)] text-xs font-semibold ring-2 ring-[var(--color-bg)] flex-shrink-0">
+                        <div
+                          aria-hidden="true"
+                          className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-[var(--on-primary)] text-xs font-semibold ring-2 ring-[var(--color-bg)] flex-shrink-0"
+                        >
                           {user.firstName?.[0]}
                           {user.lastName?.[0]}
                         </div>
@@ -514,7 +565,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                           )}
                         </div>
                       </div>
-                    </td>
+                    </th>
                     <td className="px-4 py-3 text-[var(--color-text)] text-sm truncate max-w-[220px]">
                       {user.email}
                     </td>
@@ -527,6 +578,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                     </td>
                     <td className="px-4 py-3 text-center">
                       <select
+                        aria-label={`Role for ${user.email}`}
                         value={user.role}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -552,13 +604,13 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                         <option value="sales">Sales</option>
                         <option value="manager">Manager</option>
                         <option value="admin">Admin</option>
-                        <option value="superadmin">SuperAdmin</option>
+                        <option value="superadmin">Owner</option>
                       </select>
                     </td>
                     <td className="px-4 py-3 text-center text-[var(--color-text-muted)] text-xs tabular-nums">
                       {new Date(user.created).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleEdit(user)}
@@ -571,6 +623,8 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                         <button
                           onClick={() => handleToggleUserActive(user)}
                           disabled={isSelf}
+                          aria-label={`${isActive ? "Deactivate" : "Reactivate"} ${user.email}`}
+                          aria-describedby={isSelf ? `self-deactivate-${user.id}` : undefined}
                           className={`px-2.5 py-1 rounded-md text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                             isActive
                               ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)] hover:bg-[var(--color-warning-subtle)]"
@@ -584,8 +638,13 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                                 : "Reactivate user"
                           }
                         >
-                          {isActive ? "Deactivate" : "Activate"}
+                          {isActive ? "Deactivate" : "Reactivate"}
                         </button>
+                        {isSelf && (
+                          <span id={`self-deactivate-${user.id}`} className="sr-only">
+                            You can't deactivate your own account
+                          </span>
+                        )}
                         <button
                           onClick={() => handleDeleteUser(user.id)}
                           disabled={isSelf}
@@ -606,16 +665,27 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                 <tr>
                   <td colSpan={6} className="px-4 py-0">
                     <EmptyState
+                      headingLevel={3}
                       icon={<Icons.UserIcon className="w-5 h-5" />}
                       title={
-                        search || filterDealer || filterRole
-                          ? "No users match your filters"
-                          : "No users yet"
+                        search || filterDealer || filterRole ? "No users match" : "No users yet"
                       }
                       description={
                         search || filterDealer || filterRole
-                          ? "Try clearing the filters or adjusting your search."
-                          : "Click 'Add User' to create your first user."
+                          ? "Clear the filters or change your search."
+                          : "Add a user and assign them to a dealership."
+                      }
+                      primaryAction={
+                        search || filterDealer || filterRole
+                          ? {
+                              label: "Clear filters",
+                              onClick: () => {
+                                setSearch("");
+                                setFilterDealer("");
+                                setFilterRole("");
+                              },
+                            }
+                          : { label: "Add user", onClick: () => setIsCreating(true) }
                       }
                     />
                   </td>

@@ -45,7 +45,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
   const handleResetSubmit = async () => {
     const target = resetEmail.trim();
     if (!target) {
-      toast.error("Please enter your email address");
+      toast.error("Enter your email to get a reset link");
       return;
     }
     setResetLoading(true);
@@ -61,7 +61,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error("Please enter both email and password");
+      toast.error("Enter your email and password");
       return;
     }
 
@@ -69,14 +69,14 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
     try {
       const result = await login(email, password);
       if (result.success) {
-        toast.success("Welcome back!");
+        toast.success("Signed in");
         onSuccess();
       } else {
-        toast.error(result.error || "Invalid email or password");
+        toast.error(result.error || "Sign-in failed. Check your email and password.");
       }
     } catch (error) {
       // Login failure surfaced via UI toast; detailed in Sentry via boundary.
-      toast.error("An unexpected error occurred. Please try again.");
+      toast.error("Couldn't sign in. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -88,25 +88,21 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
       style={{
         background: "var(--color-bg)",
         border: "1px solid var(--color-border)",
-        borderRadius: 12 /* --radius-xl — matches the Register card radius fix */,
-        boxShadow: "var(--shadow-md)",
+        borderRadius: "var(--radius-card)",
         padding: "28px 28px 30px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-        <span
-          style={{
-            fontSize: 11 /* uppercase mono kicker — 11px readable floor */,
-            fontFamily: "var(--mono)",
-            letterSpacing: "0.12em",
-            color: "var(--color-text-subtle)",
-          }}
-        >
-          SIGN IN
-        </span>
-        <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
-      </div>
-
+      <h2
+        style={{
+          fontSize: 20,
+          fontWeight: 600,
+          letterSpacing: 0,
+          color: "var(--color-text)",
+          margin: "0 0 18px",
+        }}
+      >
+        Sign in
+      </h2>
       <label htmlFor="email" style={labelStyle}>
         Email address
       </label>
@@ -220,7 +216,8 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
               role="alert"
               style={{ fontSize: 12, color: "var(--color-danger)", margin: "8px 0 0" }}
             >
-              Could not send the reset email. Please try again, or contact your administrator.
+              Couldn&apos;t send the reset email. Try again, or ask your admin to reset your
+              password.
             </p>
           )}
         </div>
@@ -245,7 +242,11 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onRegisterClick }) => {
           opacity: loading ? 0.75 : 1,
         }}
       >
-        {loading ? <Icons.SpinnerIcon className="animate-spin h-5 w-5" /> : "Enter the desk"}
+        {loading ? (
+          <Icons.SpinnerIcon className="animate-spin motion-reduce:animate-none h-5 w-5" />
+        ) : (
+          "Enter the desk"
+        )}
       </button>
 
       <div

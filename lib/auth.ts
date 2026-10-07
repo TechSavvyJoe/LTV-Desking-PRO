@@ -26,9 +26,20 @@ export const login = async (email: string, password: string): Promise<AuthResult
     };
   } catch (error) {
     authLogger.error("Login failed", error as Error);
+    // PocketBase answers bad credentials with a bare "Failed to authenticate."
+    // and network loss with status 0 — translate both into next steps; pass
+    // any other server message (e.g. a deactivated account) through as-is.
+    const status = (error as { status?: unknown } | null)?.status;
+    const raw = error instanceof Error ? error.message : "";
+    const message =
+      status === 0
+        ? "Couldn't reach the server. Check your connection and try again."
+        : !raw || /failed to authenticate/i.test(raw)
+          ? "Sign-in failed. Check your email and password."
+          : raw;
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Login failed",
+      error: message,
     };
   }
 };

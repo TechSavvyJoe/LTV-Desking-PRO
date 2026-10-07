@@ -32,6 +32,29 @@ const asType = <T>(record: RecordModel): T => {
 };
 const asTypeArray = <T>(records: RecordModel[]): T[] => asRecordArray<T>(records);
 
+/**
+ * Lender-level limits stored in PocketBase NumberField columns. Those columns
+ * cannot hold "unset" — an empty field reads back as 0 — and for these limits
+ * 0 is never a real value (a $0 max amount financed or a 0% PTI cap would
+ * decline every deal; a 0 minimum constrains nothing). So a stored 0 means
+ * "not configured" and is dropped before the matcher sees it. Tier limits
+ * live in the `tiers` JSON field, which keeps absence, and are untouched.
+ */
+const OPTIONAL_LENDER_LIMITS = [
+  "minAmountFinanced",
+  "maxAmountFinanced",
+  "minIncome",
+  "maxPti",
+] as const;
+
+export const toLenderProfile = (record: RecordModel): LenderProfile => {
+  const profile = { ...asType<LenderProfile>(record) };
+  for (const key of OPTIONAL_LENDER_LIMITS) {
+    if (profile[key] === 0) delete profile[key];
+  }
+  return profile;
+};
+
 // ============================================
 // INVENTORY OPERATIONS
 // ============================================
@@ -225,6 +248,16 @@ export const syncInventory = async (
     // Archiving absent units is available only to an explicit full-feed caller.
     const removeOperations: Promise<unknown>[] = [];
     if (options.markMissingSold) {
+      // An empty or VIN-less feed combined with markMissingSold would archive
+      // the entire lot in one call — the single worst data-loss path in the
+      // app. A genuine full feed always carries VINs, so refuse rather than
+      // sell everything. Nothing is in flight yet at this point (no VINs means
+      // no update/create promises were queued). [takeover-P1 data-loss]
+      if (incomingVins.size === 0) {
+        throw new Error(
+          "Refusing to mark inventory sold: the import contained no vehicles with a VIN. Re-export the full feed and try again."
+        );
+      }
       for (const [vin, existing] of existingByVin) {
         if (!incomingVins.has(vin)) {
           removeOperations.push(collections.inventory.update(existing.id, { status: "sold" }));
@@ -285,7 +318,7 @@ export const getLenderProfiles = async (opts?: FetchOpts): Promise<LenderProfile
       { label: "getLenderProfiles" }
     );
     apiLogger.debug("getLenderProfiles loaded", { count: records.length, dealerId });
-    return asTypeArray<LenderProfile>(records);
+    return records.map(toLenderProfile);
   } catch (error) {
     apiLogger.error(
       "Failed to fetch lender profiles",
@@ -365,7 +398,7 @@ export const saveLenderProfile = async (
           );
         }
 
-        return asType<LenderProfile>(record);
+        return toLenderProfile(record);
       }
     }
 
@@ -377,7 +410,7 @@ export const saveLenderProfile = async (
       ...profile,
       dealer: dealerId,
     });
-    return asType<LenderProfile>(record);
+    return toLenderProfile(record);
   } catch (error) {
     apiLogger.error("Failed to save lender profile", error);
     return null;
@@ -390,7 +423,7 @@ export const updateLenderProfile = async (
 ): Promise<LenderProfile | null> => {
   try {
     const record = await collections.lenderProfiles.update(id, data);
-    return asType<LenderProfile>(record);
+    return toLenderProfile(record);
   } catch (error) {
     apiLogger.error("Failed to update lender profile", error);
     return null;

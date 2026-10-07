@@ -139,7 +139,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
     .slice(0, 5);
 
   return (
-    <div className="animate-fadeIn" style={{ maxWidth: 1200 }}>
+    <div style={{ maxWidth: 1200 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: 0, margin: "0 0 4px" }}>
           Overview
@@ -161,13 +161,13 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
         }}
       >
         <KpiTile
-          label="Total dealers"
+          label="Total dealerships"
           value={stats.totalDealers.toLocaleString()}
           sub={inactiveCount > 0 ? `${inactiveCount} inactive` : "All active"}
           icon={<Icons.BuildingLibraryIcon className="w-4 h-4" />}
         />
         <KpiTile
-          label="Active dealers"
+          label="Active dealerships"
           value={stats.activeDealers.toLocaleString()}
           sub={
             stats.totalDealers > 0
@@ -221,7 +221,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
         />
       </div>
 
-      {/* Dealer performance */}
+      {/* Dealership performance */}
       <div className="dc-card" style={{ ...panelCard, overflow: "hidden", marginBottom: 16 }}>
         <div
           style={{
@@ -234,7 +234,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
             borderBottom: "1px solid var(--color-border)",
           }}
         >
-          <span style={perfHeadCell}>Dealer</span>
+          <span style={perfHeadCell}>Dealership</span>
           <span style={{ ...perfHeadCell, textAlign: "right" }}>Units</span>
           <span style={{ ...perfHeadCell, textAlign: "right" }}>Avg approval</span>
           <span style={{ ...perfHeadCell, textAlign: "right" }}>Deals</span>
@@ -250,7 +250,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
               color: "var(--color-text-muted)",
             }}
           >
-            No dealerships yet — onboard your first dealer to get started.
+            No dealerships yet. Add one from Quick actions below.
           </div>
         )}
         {dealers.map((dealer) => {
@@ -261,7 +261,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
               className="inv-row"
               role="button"
               tabIndex={0}
-              title={dealer.active ? "View as this dealership" : "Dealer is inactive"}
+              title={dealer.active ? "View as this dealership" : "Dealership is inactive"}
               onClick={() => dealer.active && onImpersonate(dealer.id)}
               onKeyDown={(e) => {
                 if ((e.key === "Enter" || e.key === " ") && dealer.active) {
@@ -284,7 +284,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                   style={{
                     width: 34,
                     height: 34,
-                    borderRadius: 10,
+                    borderRadius: "var(--radius-lg)",
                     background: "var(--color-bg-muted)",
                     color: "var(--color-text-muted)",
                     display: "flex",
@@ -300,7 +300,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                 </div>
                 <span
                   style={{
-                    fontSize: 14.5,
+                    fontSize: 14,
                     fontWeight: 600,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -320,7 +320,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                   ...adminMono,
                   color: "var(--color-text-subtle)",
                 }}
-                title="Approval scoring runs inside a dealer context"
+                title="Approval scoring runs inside a dealership context"
               >
                 —
               </span>
@@ -398,7 +398,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
               gap: 7,
             }}
           >
-            <Icons.PlusIcon className="w-4 h-4" /> Onboard new dealer
+            <Icons.PlusIcon className="w-4 h-4" /> Add dealership
           </button>
           <button
             onClick={() => onJumpTab("users")}
@@ -443,14 +443,16 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
         </div>
       </div>
 
-      {/* Recent dealers + Recent users */}
+      {/* Recent dealerships + Recent users */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <ListCard title="Recent dealers" onViewAll={() => onJumpTab("dealers")}>
+        <ListCard title="Recent dealerships" onViewAll={() => onJumpTab("dealers")}>
           {recentDealers.length === 0 ? (
             <EmptyState
+              headingLevel={3}
               icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
-              title="No dealers yet"
-              description="Onboard your first dealership to get started."
+              title="No dealerships yet"
+              description="Add a dealership and its first admin to get started."
+              primaryAction={{ label: "Add dealership", onClick: onOnboard }}
             />
           ) : (
             recentDealers.map((dealer) => (
@@ -491,9 +493,11 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
         <ListCard title="Recent users" onViewAll={() => onJumpTab("users")}>
           {recentUsers.length === 0 ? (
             <EmptyState
+              headingLevel={3}
               icon={<Icons.UserIcon className="w-5 h-5" />}
               title="No users yet"
-              description="Users will appear here as they are added to dealerships."
+              description="Add a dealership to create its first admin user."
+              primaryAction={{ label: "Add dealership", onClick: onOnboard }}
             />
           ) : (
             recentUsers.map((user) => (

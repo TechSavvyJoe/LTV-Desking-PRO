@@ -1,7 +1,7 @@
 import React, { useMemo, useCallback } from "react";
 import { useDealContext } from "../../context/DealContext";
 import { APPROVAL_CONFIG } from "../../services/approvalScorer";
-import { activeLenderCount } from "../../services/lenderFit";
+import { PENDING_CAUSE_META, activeLenderCount } from "../../services/lenderFit";
 import {
   asPipelineDeal,
   pipelineMetricsFromCalculatedData,
@@ -10,30 +10,34 @@ import {
 import { fmt } from "../../utils/format";
 import { EmptyState } from "../common/states";
 import * as Icons from "../common/Icons";
-import type { CalculatedVehicle } from "../../types";
+import type { CalculatedVehicle, PendingCause } from "../../types";
 
-const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
+const tnum: React.CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
 const card: React.CSSProperties = {
   background: "var(--color-bg)",
   border: "1px solid var(--color-border)",
-  borderRadius: 14,
-  boxShadow: "var(--shadow)",
+  borderRadius: "var(--radius-card)",
+};
+
+/** KPI / inner tiles: 8px radius, no shadow. */
+const kpiTile: React.CSSProperties = {
+  background: "var(--color-bg)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-md)",
 };
 
 const kpiLabel: React.CSSProperties = {
   fontSize: 12,
-  fontWeight: 600,
-  ...mono,
+  fontWeight: 500,
   color: "var(--color-text-muted)",
 };
 
 const panelLabel: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  ...mono,
-  color: "var(--color-text-subtle)",
-  marginBottom: 16,
+  fontSize: 12,
+  fontWeight: 500,
+  color: "var(--color-text-muted)",
+  margin: "0 0 16px",
 };
 
 const numVal = (v: number | "Error" | "N/A" | undefined): number | null =>
@@ -68,6 +72,7 @@ const BarRowComponent: React.FC<BarRowProps> = ({
 }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
     <span
+      className="bar-row-label"
       style={{
         fontSize: 13,
         width: labelWidth,
@@ -100,12 +105,14 @@ const BarRowComponent: React.FC<BarRowProps> = ({
       />
     </div>
     <span
+      className="bar-row-value"
       style={{
         fontSize: 13,
-        ...mono,
+        ...tnum,
         fontWeight: 600,
         width: rightWidth,
         textAlign: "right",
+        whiteSpace: "nowrap",
         flexShrink: 0,
       }}
     >
@@ -117,6 +124,33 @@ const BarRowComponent: React.FC<BarRowProps> = ({
 const BarRow = React.memo(BarRowComponent);
 
 /**
+ * Count and share. Sighted users get the two-number layout; screen readers get
+ * one clean phrase ("12 units, 34%") instead of two bare numbers.
+ */
+const CountShare: React.FC<{ count: number; share: string }> = ({ count, share }) => (
+  <>
+    <span aria-hidden="true">{count}</span>{" "}
+    <span aria-hidden="true" style={{ marginLeft: 6 }}>
+      {share}
+    </span>
+    <span className="sr-only">
+      {count} {count === 1 ? "unit" : "units"}, {share}
+    </span>
+  </>
+);
+
+/**
+ * An unknown value: shows "—" to sighted users, and says why to screen readers
+ * (a bare dash is read as "dash").
+ */
+const Unknown: React.FC<{ reason?: string }> = ({ reason = "pending" }) => (
+  <>
+    <span aria-hidden="true">—</span>
+    <span className="sr-only">{reason}</span>
+  </>
+);
+
+/**
  * Reports — pure client aggregation over the context's single scoring pass
  * (processedInventory: the same set the desk ranks), savedDeals,
  * unitsPerLender and the active lender roster. Mirrors the REPORTS block of
@@ -124,44 +158,66 @@ const BarRow = React.memo(BarRowComponent);
  * derived from real scorer/calculator outputs. [P7]
  */
 const ReportsScreenBase: React.FC = () => {
-  const { settings, processedInventory, safeLenderProfiles, savedDeals, unitsPerLender } =
-    useDealContext();
+  const {
+    settings,
+    processedInventory,
+    safeLenderProfiles,
+    savedDeals,
+    unitsPerLender,
+    loadSampleData,
+  } = useDealContext();
 
   const totalLenders = activeLenderCount(safeLenderProfiles);
 
   const stats = useMemo(() => {
     const rows = processedInventory;
     const n = rows.length;
+    // Units whose lender checks are all held pending have UNKNOWN odds, not
+    // weak ones: they stay out of the distribution and the approval KPIs.
+    const ranked = rows.filter((v) => v.approvalBand !== "pending");
+    const rankedN = ranked.length;
+    const pendingRows = rows.filter((v) => v.approvalBand === "pending");
 
-    const scores = rows.map((v) => v.approvalScore ?? 0);
+    // Most common cause across pending units drives the note's call to action.
+    const causeCounts = new Map<PendingCause, number>();
+    for (const v of pendingRows) {
+      const cause = v.pendingCause ?? "other";
+      causeCounts.set(cause, (causeCounts.get(cause) ?? 0) + 1);
+    }
+    const pendingCause =
+      [...causeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ("other" as PendingCause);
+
+    const scores = ranked.map((v) => v.approvalScore ?? 0);
     const otds = rows.map((v) => numVal(v.otdLtv)).filter((x): x is number => x !== null);
     const pays = rows.map((v) => numVal(v.monthlyPayment)).filter((x): x is number => x !== null);
     const prices = rows.map((v) => numVal(v.price)).filter((x): x is number => x !== null);
 
-    const avgScore = n ? Math.round(scores.reduce((a, b) => a + b, 0) / n) : null;
+    const avgScore = rankedN ? Math.round(scores.reduce((a, b) => a + b, 0) / rankedN) : null;
     const avgOtd = otds.length ? Math.round(otds.reduce((a, b) => a + b, 0) / otds.length) : null;
     const avgPay = pays.length ? pays.reduce((a, b) => a + b, 0) / pays.length : null;
     const totalValue = prices.reduce((a, b) => a + b, 0);
 
-    const strong = rows.filter(
+    const strong = ranked.filter(
       (v) => (v.approvalScore ?? 0) >= APPROVAL_CONFIG.bands.strong
     ).length;
-    const moderate = rows.filter((v) => {
+    const moderate = ranked.filter((v) => {
       const s = v.approvalScore ?? 0;
       return s >= APPROVAL_CONFIG.bands.moderate && s < APPROVAL_CONFIG.bands.strong;
     }).length;
-    const weak = n - strong - moderate;
+    const weak = rankedN - strong - moderate;
 
-    const best = rows.reduce<CalculatedVehicle | null>(
+    const best = ranked.reduce<CalculatedVehicle | null>(
       (a, v) => (a === null || (v.approvalScore ?? 0) > (a.approvalScore ?? 0) ? v : a),
       null
     );
 
-    const avgLenders = n ? rows.reduce((a, v) => a + (v.fitCount ?? 0), 0) / n : null;
+    // Reach is measured over ranked units only: a pending unit's 0 fits means
+    // "not checked yet", not "no lender fits".
+    const avgLenders = rankedN ? ranked.reduce((a, v) => a + (v.fitCount ?? 0), 0) / rankedN : null;
 
-    // Approval by make — unparseable makes land in an "Other" bucket.
+    // Approval by make (ranked units only) — unparseable makes land in "Other".
     const makeMap = new Map<string, { n: number; sum: number }>();
-    for (const v of rows) {
+    for (const v of ranked) {
       let mk = (v.make || "").trim();
       if (!mk) {
         // vehicle strings are "YYYY Make Model Trim" — parse the second token.
@@ -180,6 +236,9 @@ const ReportsScreenBase: React.FC = () => {
 
     return {
       n,
+      rankedN,
+      pendingN: pendingRows.length,
+      pendingCause,
       avgScore,
       avgOtd,
       avgPay,
@@ -228,14 +287,16 @@ const ReportsScreenBase: React.FC = () => {
         ? "var(--color-warning)"
         : "var(--color-success)";
 
+  // Distribution shares are of the RANKED units (pending ones are excluded).
   const pct = (count: number): string =>
-    stats.n ? `${Math.round((count / stats.n) * 100)}%` : "0%";
+    stats.rankedN ? `${Math.round((count / stats.rankedN) * 100)}%` : "0%";
+  const share = (count: number): number => (stats.rankedN ? (count / stats.rankedN) * 100 : 0);
 
   const bestName = stats.best
     ? stats.best.make && stats.best.model
       ? `${stats.best.make} ${stats.best.model}${stats.best.trim ? " " + stats.best.trim : ""}`
       : stats.best.vehicle
-    : "—";
+    : null;
   const bestScore = stats.best?.approvalScore ?? null;
 
   const lenderReach = safeLenderProfiles.filter((l) => l.active !== false);
@@ -258,26 +319,12 @@ const ReportsScreenBase: React.FC = () => {
           className="reports-screen-summary"
           style={{ display: "flex", alignItems: "center", gap: 14 }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              ...mono,
-              letterSpacing: "0.18em",
-              color: "var(--color-text-subtle)",
-            }}
-          >
-            PERFORMANCE
-          </span>
-          <div
-            className="reports-screen-divider"
-            style={{ height: 20, width: 1, background: "var(--color-border)" }}
-          />
-          <span style={{ fontSize: 15, fontWeight: 600 }}>Inventory desirability</span>
+          <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Reports</h1>
           <span
             className="reports-screen-description"
-            style={{ fontSize: 13, color: "var(--color-text-subtle)" }}
+            style={{ fontSize: 13, color: "var(--color-text-muted)" }}
           >
-            live, against the current deal structure
+            Inventory desirability, live against the current deal structure
           </span>
         </div>
       </header>
@@ -286,8 +333,9 @@ const ReportsScreenBase: React.FC = () => {
         {stats.n === 0 ? (
           <EmptyState
             icon={<Icons.ChartIcon className="w-full h-full" />}
-            title="No inventory data"
-            description="Import inventory on the Inventory screen or load sample data to see performance reports, approval distribution, and lender reach."
+            title="No inventory to report on"
+            description="Reports appear once inventory is imported. Load sample data to preview them."
+            primaryAction={{ label: "Load sample data", onClick: loadSampleData }}
           />
         ) : (
           <>
@@ -301,7 +349,7 @@ const ReportsScreenBase: React.FC = () => {
                 marginBottom: 14,
               }}
             >
-              <div className="dc-card" style={{ ...card, padding: 18 }}>
+              <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
                 <div style={kpiLabel}>Avg approval</div>
                 <div
                   style={{
@@ -309,16 +357,17 @@ const ReportsScreenBase: React.FC = () => {
                     fontWeight: 700,
                     marginTop: 8,
                     letterSpacing: 0,
+                    ...tnum,
                     color:
                       stats.avgScore === null
-                        ? "var(--color-text-subtle)"
+                        ? "var(--color-text-muted)"
                         : approvalColor(stats.avgScore),
                   }}
                 >
-                  {stats.avgScore ?? "—"}
+                  {stats.avgScore ?? <Unknown />}
                 </div>
               </div>
-              <div className="dc-card" style={{ ...card, padding: 18 }}>
+              <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
                 <div style={kpiLabel}>Avg OTD LTV</div>
                 <div
                   style={{
@@ -326,22 +375,27 @@ const ReportsScreenBase: React.FC = () => {
                     fontWeight: 700,
                     marginTop: 8,
                     letterSpacing: 0,
+                    ...tnum,
                     color:
-                      stats.avgOtd === null ? "var(--color-text-subtle)" : otdColor(stats.avgOtd),
+                      stats.avgOtd === null ? "var(--color-text-muted)" : otdColor(stats.avgOtd),
                   }}
                 >
-                  {stats.avgOtd === null ? "—" : `${stats.avgOtd}%`}
+                  {stats.avgOtd === null ? <Unknown /> : `${stats.avgOtd}%`}
                 </div>
               </div>
-              <div className="dc-card" style={{ ...card, padding: 18 }}>
+              <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
                 <div style={kpiLabel}>Avg payment</div>
-                <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: 0 }}>
-                  {stats.avgPay === null ? "—" : `${fmt(stats.avgPay)}/mo`}
+                <div
+                  style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: 0, ...tnum }}
+                >
+                  {stats.avgPay === null ? <Unknown /> : `${fmt(stats.avgPay)}/mo`}
                 </div>
               </div>
-              <div className="dc-card" style={{ ...card, padding: 18 }}>
+              <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
                 <div style={kpiLabel}>Inventory value</div>
-                <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: 0 }}>
+                <div
+                  style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: 0, ...tnum }}
+                >
                   {fmt(stats.totalValue)}
                 </div>
               </div>
@@ -349,7 +403,11 @@ const ReportsScreenBase: React.FC = () => {
 
             {/* Approval distribution */}
             <div className="dc-card" style={{ ...card, padding: 20 }}>
-              <div style={panelLabel}>APPROVAL DISTRIBUTION · {stats.n} UNITS</div>
+              <h2 style={panelLabel}>
+                Approval distribution —{" "}
+                {stats.pendingN > 0 ? `${stats.rankedN} of ${stats.n}` : stats.n}{" "}
+                {stats.n === 1 ? "unit" : "units"}
+              </h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <BarRow
                   label={
@@ -361,11 +419,11 @@ const ReportsScreenBase: React.FC = () => {
                     </>
                   }
                   labelWidth={130}
-                  pct={stats.n ? (stats.strong / stats.n) * 100 : 0}
+                  pct={share(stats.strong)}
                   color="var(--color-success)"
                   height={10}
-                  right={`${stats.strong} · ${pct(stats.strong)}`}
-                  rightWidth={70}
+                  right={<CountShare count={stats.strong} share={pct(stats.strong)} />}
+                  rightWidth={92}
                 />
                 <BarRow
                   label={
@@ -377,11 +435,11 @@ const ReportsScreenBase: React.FC = () => {
                     </>
                   }
                   labelWidth={130}
-                  pct={stats.n ? (stats.moderate / stats.n) * 100 : 0}
+                  pct={share(stats.moderate)}
                   color="var(--color-warning)"
                   height={10}
-                  right={`${stats.moderate} · ${pct(stats.moderate)}`}
-                  rightWidth={70}
+                  right={<CountShare count={stats.moderate} share={pct(stats.moderate)} />}
+                  rightWidth={92}
                 />
                 <BarRow
                   label={
@@ -393,13 +451,22 @@ const ReportsScreenBase: React.FC = () => {
                     </>
                   }
                   labelWidth={130}
-                  pct={stats.n ? (stats.weak / stats.n) * 100 : 0}
+                  pct={share(stats.weak)}
                   color="var(--color-danger)"
                   height={10}
-                  right={`${stats.weak} · ${pct(stats.weak)}`}
-                  rightWidth={70}
+                  right={<CountShare count={stats.weak} share={pct(stats.weak)} />}
+                  rightWidth={92}
                 />
               </div>
+              {stats.pendingN > 0 && (
+                <div
+                  data-testid="reports-pending-note"
+                  style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 14 }}
+                >
+                  {stats.pendingN} of {stats.n} {stats.n === 1 ? "unit is" : "units are"} pending —{" "}
+                  {PENDING_CAUSE_META[stats.pendingCause].rank}
+                </div>
+              )}
             </div>
 
             {/* 3-card row */}
@@ -412,7 +479,7 @@ const ReportsScreenBase: React.FC = () => {
                 marginTop: 14,
               }}
             >
-              <div className="dc-card" style={{ ...card, padding: 18 }}>
+              <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
                 <div style={kpiLabel}>Most approvable</div>
                 <div
                   style={{
@@ -423,56 +490,70 @@ const ReportsScreenBase: React.FC = () => {
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
+                    ...(stats.best ? {} : { color: "var(--color-text-muted)" }),
                   }}
                 >
-                  {bestName}
+                  {bestName ?? <Unknown />}
                 </div>
                 <div
                   style={{
                     fontSize: 13,
-                    ...mono,
+                    ...tnum,
                     marginTop: 4,
                     color:
-                      bestScore === null ? "var(--color-text-subtle)" : approvalColor(bestScore),
+                      bestScore === null ? "var(--color-text-muted)" : approvalColor(bestScore),
                   }}
                 >
-                  {bestScore === null ? "—" : `${bestScore} / 100 odds`}
+                  {bestScore === null ? (
+                    // The unit name above already says "pending" to screen readers.
+                    <span aria-hidden="true">—</span>
+                  ) : (
+                    `${bestScore} / 100 odds`
+                  )}
                 </div>
               </div>
-              <div className="dc-card" style={{ ...card, padding: 18 }}>
+              <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
                 <div style={kpiLabel}>Payment range</div>
                 <div
                   style={{
                     fontSize: 20,
                     fontWeight: 700,
-                    ...mono,
+                    ...tnum,
                     marginTop: 10,
                     letterSpacing: 0,
+                    color:
+                      stats.payMin === null || stats.payMax === null
+                        ? "var(--color-text-muted)"
+                        : undefined,
                   }}
                 >
-                  {stats.payMin === null || stats.payMax === null
-                    ? "—"
-                    : `${fmt(stats.payMin)} – ${fmt(stats.payMax)}`}
+                  {stats.payMin === null || stats.payMax === null ? (
+                    <Unknown />
+                  ) : (
+                    `${fmt(stats.payMin)} – ${fmt(stats.payMax)}`
+                  )}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--color-text-subtle)", marginTop: 5 }}>
+                <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 5 }}>
                   per month, current deal
                 </div>
               </div>
-              <div className="dc-card" style={{ ...card, padding: 18 }}>
+              <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
                 <div style={kpiLabel}>Avg lenders / unit</div>
                 <div
                   style={{
                     fontSize: 32,
                     fontWeight: 700,
-                    ...mono,
+                    ...tnum,
                     marginTop: 8,
                     letterSpacing: 0,
                     color: "var(--color-primary)",
                   }}
                 >
-                  {stats.avgLenders === null
-                    ? "—"
-                    : `${stats.avgLenders.toFixed(1)} / ${totalLenders}`}
+                  {stats.avgLenders === null ? (
+                    <Unknown />
+                  ) : (
+                    `${stats.avgLenders.toFixed(1)} / ${totalLenders}`
+                  )}
                 </div>
               </div>
             </div>
@@ -483,21 +564,27 @@ const ReportsScreenBase: React.FC = () => {
               style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}
             >
               <div className="dc-card" style={{ ...card, padding: 20 }}>
-                <div style={panelLabel}>Approval by make</div>
+                <h2 style={panelLabel}>Approval by make</h2>
+                {stats.makeRows.length === 0 && (
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    style={{ fontSize: 13, color: "var(--color-text-muted)" }}
+                  >
+                    {stats.pendingN > 0
+                      ? "No ranked units yet — lender checks are pending."
+                      : "No inventory loaded."}
+                  </span>
+                )}
                 <div
                   role="list"
                   aria-label="Approval scores by make"
-                  style={{ display: "flex", flexDirection: "column", gap: 12 }}
+                  style={{
+                    display: stats.makeRows.length === 0 ? "none" : "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                  }}
                 >
-                  {stats.makeRows.length === 0 && (
-                    <span
-                      role="status"
-                      aria-live="polite"
-                      style={{ fontSize: 13, color: "var(--color-text-subtle)" }}
-                    >
-                      No inventory loaded.
-                    </span>
-                  )}
                   {stats.makeRows.map((m) => (
                     <div
                       key={m.mk}
@@ -539,7 +626,7 @@ const ReportsScreenBase: React.FC = () => {
                       <span
                         style={{
                           fontSize: 13,
-                          ...mono,
+                          ...tnum,
                           fontWeight: 700,
                           width: 26,
                           textAlign: "right",
@@ -551,8 +638,8 @@ const ReportsScreenBase: React.FC = () => {
                       </span>
                       <span
                         style={{
-                          fontSize: 11.5,
-                          ...mono,
+                          fontSize: 11,
+                          ...tnum,
                           color: "var(--color-text-subtle)",
                           width: 54,
                           textAlign: "right",
@@ -566,24 +653,28 @@ const ReportsScreenBase: React.FC = () => {
                 </div>
               </div>
               <div className="dc-card" style={{ ...card, padding: 20 }}>
-                <div style={panelLabel}>LENDER REACH · UNITS FITTING</div>
+                <h2 style={panelLabel}>Lender reach — units fitting</h2>
+                {lenderReach.length === 0 && (
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    style={{ fontSize: 13, color: "var(--color-text-muted)" }}
+                  >
+                    No active lenders.
+                  </span>
+                )}
                 <div
                   role="list"
                   aria-label="Lender reach and units fitting"
-                  style={{ display: "flex", flexDirection: "column", gap: 11 }}
+                  style={{
+                    display: lenderReach.length === 0 ? "none" : "flex",
+                    flexDirection: "column",
+                    gap: 11,
+                  }}
                 >
-                  {lenderReach.length === 0 && (
-                    <span
-                      role="status"
-                      aria-live="polite"
-                      style={{ fontSize: 13, color: "var(--color-text-subtle)" }}
-                    >
-                      No active lenders.
-                    </span>
-                  )}
                   {lenderReach.map((l) => {
                     const units = unitsPerLender[l.id] ?? 0;
-                    const barPct = stats.n ? (units / stats.n) * 100 : 0;
+                    const barPct = stats.rankedN ? (units / stats.rankedN) * 100 : 0;
                     return (
                       <div
                         key={l.id}
@@ -591,6 +682,7 @@ const ReportsScreenBase: React.FC = () => {
                         style={{ display: "flex", alignItems: "center", gap: 12 }}
                       >
                         <span
+                          className="lender-reach-label"
                           style={{
                             fontSize: 13,
                             width: 96,
@@ -626,7 +718,7 @@ const ReportsScreenBase: React.FC = () => {
                         <span
                           style={{
                             fontSize: 12,
-                            ...mono,
+                            ...tnum,
                             color: "var(--color-text-muted)",
                             width: 52,
                             textAlign: "right",
@@ -644,51 +736,55 @@ const ReportsScreenBase: React.FC = () => {
 
             {/* Pipeline snapshot */}
             <div className="dc-card" style={{ ...card, padding: 20, marginTop: 14 }}>
-              <div style={panelLabel}>Pipeline snapshot</div>
+              <h2 style={panelLabel}>Pipeline snapshot</h2>
               <div
                 className="reports-pipeline-grid"
                 style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}
               >
                 <div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-                    Financed in pipeline
-                  </div>
+                  <div style={kpiLabel}>Financed in pipeline</div>
                   <div
                     style={{
                       fontSize: 24,
                       fontWeight: 700,
-                      ...mono,
+                      ...tnum,
                       marginTop: 6,
                       letterSpacing: 0,
+                      ...(pStats.total ? {} : { color: "var(--color-text-muted)" }),
                     }}
                   >
-                    {pStats.total ? fmt(pStats.financed) : "—"}
+                    {pStats.total ? fmt(pStats.financed) : <Unknown reason="no deals yet" />}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-                    Approval rate
-                  </div>
+                  <div style={kpiLabel}>Approval rate</div>
                   <div
                     style={{
                       fontSize: 24,
                       fontWeight: 700,
-                      ...mono,
+                      ...tnum,
                       marginTop: 6,
                       letterSpacing: 0,
-                      color: "var(--color-success)",
+                      color:
+                        pStats.approvalRate === null || pStats.approvalRate === 0
+                          ? "var(--color-text-muted)"
+                          : "var(--color-success)",
                     }}
                   >
-                    {pStats.approvalRate === null ? "—" : `${pStats.approvalRate}%`}
+                    {pStats.approvalRate === null ? (
+                      <Unknown reason="no deals yet" />
+                    ) : (
+                      `${pStats.approvalRate}%`
+                    )}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Funded</div>
+                  <div style={kpiLabel}>Funded</div>
                   <div
                     style={{
                       fontSize: 24,
                       fontWeight: 700,
-                      ...mono,
+                      ...tnum,
                       marginTop: 6,
                       letterSpacing: 0,
                     }}
@@ -697,15 +793,16 @@ const ReportsScreenBase: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Declined</div>
+                  <div style={kpiLabel}>Declined</div>
                   <div
                     style={{
                       fontSize: 24,
                       fontWeight: 700,
-                      ...mono,
+                      ...tnum,
                       marginTop: 6,
                       letterSpacing: 0,
-                      color: "var(--color-danger)",
+                      color:
+                        pStats.declined > 0 ? "var(--color-danger)" : "var(--color-text-muted)",
                     }}
                   >
                     {pStats.declined}

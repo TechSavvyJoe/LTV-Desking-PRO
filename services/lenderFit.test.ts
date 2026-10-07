@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { lenderFitForVehicle, unitsForEachLender, activeLenderCount } from "./lenderFit";
+import {
+  PENDING_CAUSE_META,
+  activeLenderCount,
+  lenderFitForVehicle,
+  pendingCauseOf,
+  summarizePending,
+  unitsForEachLender,
+} from "./lenderFit";
 import { DEFAULT_LENDER_PROFILES, INITIAL_DEAL_DATA, INITIAL_FILTER_DATA } from "../constants";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile } from "../types";
 
@@ -179,11 +186,154 @@ describe("lenderFit", () => {
     expect(DEFAULT_LENDER_PROFILES.every((profile) => profile.isSample)).toBe(true);
   });
 
+  describe("AI-flagged tiers [ai-range-guard]", () => {
+    // minFico 6600 (a misread 660) was dropped server-side; the tier is held.
+    const flagged: LenderProfile = {
+      id: "flagged",
+      name: "Flagged AI Lender",
+      bookValueSource: "Trade",
+      tiers: [
+        {
+          name: "Tier A",
+          maxLtv: 130,
+          maxTerm: 84,
+          rangeFlags: ["minFico=6600 outside 300-850"],
+          needsReview: true,
+        },
+      ],
+    };
+
+    it("shows a flagged lender as pending with the review reason, never in fitCount", () => {
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ creditScore: 520 }), [flagged, alpha]);
+
+      const entry = fit.entries.find((e) => e.lenderId === "flagged");
+      expect(entry?.status).toBe("pending");
+      expect(entry?.eligible).toBe(false);
+      expect(entry?.reasons[0]).toMatch(
+        /needs review - implausible min FICO read from the rate sheet/
+      );
+      expect(entry?.reasons[0]).not.toMatch(/6600/);
+      expect(fit.fitCount).toBe(0);
+      expect(fit.fitNames).not.toContain("Flagged AI Lender");
+    });
+
+    it("counts no inventory units for a flagged-only lender", () => {
+      const counts = unitsForEachLender([mkVehicle(), mkVehicle({ vin: "VIN2TEST" })], mkDeal(), [
+        flagged,
+      ]);
+      expect(counts).toEqual({ flagged: 0 });
+    });
+  });
+
+  describe("pending summary", () => {
+    const sampleFico: LenderProfile = {
+      id: "s1",
+      name: "Sample FICO",
+      isSample: true,
+      tiers: [{ name: "T", minFico: 640, maxLtv: 130, maxTerm: 84 }],
+    };
+    const sampleNoFico: LenderProfile = {
+      id: "s2",
+      name: "Sample Open",
+      isSample: true,
+      tiers: [{ name: "T", maxLtv: 130, maxTerm: 84 }],
+    };
+
+    it("counts pending lenders and names the most actionable cause (FICO first)", () => {
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ creditScore: null }), [
+        sampleFico,
+        sampleNoFico,
+        alpha,
+      ]);
+      expect(fit.fitCount).toBe(0);
+      expect(fit.pendingCount).toBe(3);
+      expect(fit.pendingCause).toBe("fico");
+      // Only lenders a FICO would actually get a verdict from are counted: the
+      // sample that also needs a FICO stays held until it is verified.
+      expect(fit.pendingReason).toBe("Add a FICO score to check 1 lender");
+    });
+
+    it("names sample verification, not a FICO, when every pending lender is a sample", () => {
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ creditScore: null }), [
+        sampleFico,
+        sampleNoFico,
+      ]);
+      expect(fit.pendingCount).toBe(2);
+      expect(fit.pendingCause).toBe("sample");
+      expect(fit.pendingReason).toBe("Sample programs must be verified before they count");
+    });
+
+    it("moves on to sample verification once the FICO is in", () => {
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ creditScore: 700 }), [
+        sampleFico,
+        sampleNoFico,
+      ]);
+      expect(fit.pendingCount).toBe(2);
+      expect(fit.pendingCause).toBe("sample");
+      expect(fit.pendingReason).toBe("Sample programs must be verified before they count");
+    });
+
+    it("reports nothing pending for a genuine fail", () => {
+      const fit = lenderFitForVehicle(
+        mkVehicle({ amountToFinance: 26000, otdLtv: 130 }),
+        mkDeal({ creditScore: 720 }),
+        [alpha, beta]
+      );
+      expect(fit.pendingCount).toBe(0);
+      expect(fit.pendingCause).toBeNull();
+      expect(fit.pendingReason).toBeNull();
+    });
+
+    it("pendingCauseOf classifies field names, never values", () => {
+      expect(pendingCauseOf(["credit score", "vehicle mileage"])).toBe("fico");
+      expect(pendingCauseOf(["monthly income for tier max PTI"])).toBe("income");
+      expect(pendingCauseOf(["vehicle mileage"])).toBe("mileage");
+      // Certified status is confirmed by hand — never "set the condition" (new/used only).
+      expect(pendingCauseOf(["certified vehicle status"])).toBe("certified");
+      expect(pendingCauseOf(["vehicle condition"])).toBe("condition");
+      expect(pendingCauseOf(["something new"])).toBe("other");
+      expect(pendingCauseOf([])).toBe("other");
+      // Every pill label fits the ≤ 3-word Lenders status column.
+      for (const meta of Object.values(PENDING_CAUSE_META)) {
+        expect(meta.short.split(/\s+/).length).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it("summarizePending is empty for no pending entries", () => {
+      expect(summarizePending([])).toEqual({
+        pendingCount: 0,
+        pendingCause: null,
+        pendingReason: null,
+      });
+    });
+  });
+
   describe("lenderFit additional edges", () => {
     it("lenderFitForVehicle with no tiers returns fitCount 0", () => {
       const noTier: LenderProfile = { id: "nt", name: "NT", tiers: [] };
       const f = lenderFitForVehicle(mkVehicle(), mkDeal(), [noTier]);
       expect(f.fitCount).toBe(0);
+    });
+  });
+
+  describe("summarizePending — manual advance verification is a hold [PR #25 review]", () => {
+    it("never asks for a FICO to check a lender that would still wait on a manual advance check", () => {
+      const summary = summarizePending([
+        {
+          lenderId: "adv",
+          name: "Advance Bank",
+          eligible: false,
+          status: "pending",
+          reasons: [],
+          matchedTier: null,
+          uncheckedConstraints: [
+            "credit score",
+            "max advance (verify lender-specific calculation)",
+          ],
+        },
+      ]);
+      expect(summary.pendingCause).toBe("advance");
+      expect(summary.pendingReason).not.toMatch(/FICO/);
     });
   });
 });

@@ -3,6 +3,7 @@ import type {
   DealData,
   FilterData,
   LenderProfile,
+  LenderTier,
   Vehicle,
 } from "../../../types.js";
 
@@ -107,6 +108,17 @@ Return exactly:
 const SSN_PATTERN = /\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b/g;
 const redactSsnLike = (text: string): string => text.replace(SSN_PATTERN, "[REDACTED]");
 
+/**
+ * A tier the range guard flagged is held "pending" by the rules engine and is
+ * never an approval path (mirrors tierNeedsReview in services/lenderMatcher.ts;
+ * duplicated because the API bundle does not import client services). Its
+ * dropped bound would make the tier look wider than the sheet, and its
+ * rangeFlags can carry the misread rate, so the model gets only its name.
+ * [ai-range-guard]
+ */
+const isHeldTier = (tier: LenderTier): boolean =>
+  tier.needsReview === true || (Array.isArray(tier.rangeFlags) && tier.rangeFlags.length > 0);
+
 export const buildDealAnalysisPrompt = (
   vehicle: CalculatedVehicle,
   dealData: DealData,
@@ -125,14 +137,27 @@ export const buildDealAnalysisPrompt = (
     jdPowerRetail: item.jdPowerRetail,
   }));
 
-  const lenderSnapshot = lenderProfiles.map((profile) => ({
-    name: profile.name,
-    bookValueSource: profile.bookValueSource,
-    minIncome: profile.minIncome,
-    maxPti: profile.maxPti,
-    maxDti: profile.maxDti,
-    tiers: profile.tiers,
-  }));
+  const lenderSnapshot = lenderProfiles.map((profile) => {
+    const tiers = (Array.isArray(profile.tiers) ? profile.tiers : []).filter(
+      (tier): tier is LenderTier => Boolean(tier) && typeof tier === "object"
+    );
+    const held = tiers.filter(isHeldTier);
+    return {
+      name: profile.name,
+      bookValueSource: profile.bookValueSource,
+      minIncome: profile.minIncome,
+      maxPti: profile.maxPti,
+      maxDti: profile.maxDti,
+      tiers: tiers.filter((tier) => !isHeldTier(tier)),
+      ...(held.length > 0
+        ? {
+            tiersPendingVerification: held.map(
+              (tier) => tier.tierName || tier.name || "Unnamed tier"
+            ),
+          }
+        : {}),
+    };
+  });
 
   // Exclude free-text notes from the provider payload — the model doesn't
   // need them and they're the uncontrolled NPI channel. [G8/G15]
@@ -159,7 +184,8 @@ Tasks:
 1. Explain approval risk in plain dealership language.
 2. Suggest concrete deal changes that improve approval odds or gross.
 3. If the current unit is a poor fit, suggest one alternative inventory VIN from the provided list.
-4. Keep proposedChanges limited to these DealData fields: downPayment, tradeInValue, tradeInPayoff, backendProducts, vscAmount, gapAmount, loanTerm, interestRate, stateFees, buyerState, rebate. Never include "notes".
+4. Tiers listed under a lender's "tiersPendingVerification" are pending verification — not an approval path. Never present them as a route to approval or base a suggestion on them; at most say the lender may fit once those tiers are verified.
+5. Keep proposedChanges limited to these DealData fields: downPayment, tradeInValue, tradeInPayoff, backendProducts, vscAmount, gapAmount, loanTerm, interestRate, stateFees, buyerState, rebate. Never include "notes".
 
 Return exactly:
 {

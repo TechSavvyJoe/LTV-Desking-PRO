@@ -25,7 +25,7 @@ export const AnnouncementBanner: React.FC = () => {
 
   return (
     <div
-      className="bg-[var(--color-warning)] text-white dark:text-[var(--color-bg)] px-4 py-2 text-sm flex items-center gap-2 justify-center"
+      className="bg-[var(--color-warning)] text-[var(--on-warning)] px-4 py-2 text-sm flex items-center gap-2 justify-center"
       role="status"
       aria-live="polite"
     >

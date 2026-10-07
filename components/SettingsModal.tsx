@@ -110,11 +110,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     };
   }, [isOpen]);
 
-  // Close on Escape while open.
+  // Close on Escape while open. ConfirmDialog already consumes Escape before it
+  // reaches this listener (stopImmediatePropagation on the native event), but
+  // guard here too in case some other alert dialog is stacked on top without
+  // that consuming behavior — an open alertdialog should own Escape, not us. [P2]
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (document.querySelector('[role="alertdialog"][aria-modal="true"]')) return;
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -204,7 +209,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
       window.location.reload();
     } catch (err) {
       settingsModalLogger.error("Failed to reset local preferences", err);
-      toast.error("Could not reset preferences. Please clear site data manually in your browser.");
+      toast.error("Couldn't reset preferences. Clear this site's data in your browser settings.");
     }
   };
 
@@ -709,18 +714,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 if (
                   await confirmAction({
                     title: "Seed database?",
-                    message: "Seed database with default inventory and lenders?",
-                    confirmLabel: "Seed",
+                    message:
+                      "Adds sample inventory and lender programs to this dealership's database.",
+                    confirmLabel: "Seed database",
                   })
                 ) {
                   try {
                     const { seedDatabase } = await import("../lib/seeder");
                     await seedDatabase();
-                    toast.success("Database seeded! Reloading application...");
+                    toast.success("Database seeded. Reloading…");
                     setTimeout(() => window.location.reload(), 1500);
                   } catch (e) {
                     settingsModalLogger.error("Failed to seed database", e);
-                    toast.error(e instanceof Error ? e.message : "Failed to seed database.");
+                    toast.error(
+                      e instanceof Error
+                        ? e.message
+                        : "Couldn't seed the database. Check the console."
+                    );
                   }
                 }
               }}

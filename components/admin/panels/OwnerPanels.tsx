@@ -13,7 +13,7 @@ export const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
 export const panelCard: React.CSSProperties = {
   background: "var(--color-bg)",
   border: "1px solid var(--color-border)",
-  borderRadius: 14,
+  borderRadius: "var(--radius-card)",
   boxShadow: "var(--shadow)",
 };
 
@@ -90,7 +90,7 @@ export const ListCard: React.FC<{
         borderBottom: "1px solid var(--color-border)",
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 600 }}>{title}</span>
+      <h2 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{title}</h2>
       {onViewAll && (
         <button
           onClick={onViewAll}
@@ -144,7 +144,7 @@ export const PersonRow: React.FC<{
         style={{
           width: compact ? 33 : 36,
           height: compact ? 33 : 36,
-          borderRadius: 10,
+          borderRadius: "var(--radius-lg)",
           background: highlight ? "var(--color-primary-subtle)" : "var(--color-bg-muted)",
           color: highlight ? "var(--color-primary)" : "var(--color-text-muted)",
           display: "flex",
@@ -213,6 +213,13 @@ export const ActivePill: React.FC<{ label?: string }> = ({ label = "Active" }) =
 );
 
 /** Role chip (neutral) for user lists. Sentence case per Dealer Trust. */
+const ROLE_CHIP_LABELS: Record<string, string> = {
+  sales: "Sales",
+  manager: "Manager",
+  admin: "Admin",
+  superadmin: "Owner",
+};
+
 export const RoleChip: React.FC<{ role: string }> = ({ role }) => (
   <span
     style={{
@@ -225,11 +232,19 @@ export const RoleChip: React.FC<{ role: string }> = ({ role }) => (
       borderRadius: 6,
     }}
   >
-    {role}
+    {ROLE_CHIP_LABELS[role] ?? role}
   </span>
 );
 
-/** 58px console sub-header (label · title · sub · right action). */
+/**
+ * 58px console sub-header (label · title · sub · right action).
+ *
+ * The label and title are one <h1> ("Admin console — Dealer A") so the page has
+ * a heading for screen-reader users. At phone widths the left group clips with
+ * an ellipsis instead of running under the right-hand action, the label stays
+ * in the heading as screen-reader-only text, and the divider and sub-line
+ * drop out. [R19, R20, aria #16]
+ */
 export const ConsoleHeader: React.FC<{
   label: string;
   title: React.ReactNode;
@@ -237,6 +252,7 @@ export const ConsoleHeader: React.FC<{
   right?: React.ReactNode;
 }> = ({ label, title, sub, right }) => (
   <header
+    className="px-4 min-[761px]:px-6"
     style={{
       height: 58,
       borderBottom: "1px solid var(--color-border)",
@@ -244,25 +260,63 @@ export const ConsoleHeader: React.FC<{
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      padding: "0 24px",
+      gap: 12,
     }}
   >
-    <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-      <span
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        minWidth: 0,
+        flex: "1 1 auto",
+        overflow: "hidden",
+      }}
+    >
+      <h1
         style={{
-          fontSize: 11,
-          ...mono,
-          letterSpacing: "0.18em",
-          color: "var(--color-text-subtle)",
-          whiteSpace: "nowrap",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          minWidth: 0,
+          margin: 0,
+          fontSize: 15,
+          fontWeight: 600,
         }}
       >
-        {label}
-      </span>
-      <div style={{ height: 20, width: 1, background: "var(--color-border)", flexShrink: 0 }} />
-      <span style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap" }}>{title}</span>
+        <span
+          className="max-[760px]:sr-only"
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: "var(--color-text-subtle)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </span>
+        <span
+          aria-hidden="true"
+          className="max-[760px]:hidden"
+          style={{ height: 20, width: 1, background: "var(--color-border)", flexShrink: 0 }}
+        />
+        <span className="sr-only"> — </span>
+        <span
+          style={{
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {title}
+        </span>
+      </h1>
       {sub !== undefined && (
-        <span style={{ fontSize: 13, color: "var(--color-text-subtle)", whiteSpace: "nowrap" }}>
+        <span
+          className="max-[760px]:hidden"
+          style={{ fontSize: 13, color: "var(--color-text-subtle)", whiteSpace: "nowrap" }}
+        >
           {sub}
         </span>
       )}
@@ -282,6 +336,7 @@ export const ConsoleTab: React.FC<{
 }> = ({ active, onClick, label, badge }) => (
   <button
     onClick={onClick}
+    aria-current={active ? "true" : undefined}
     className="tab-btn"
     style={{
       display: "flex",
@@ -332,6 +387,7 @@ export const SearchInput: React.FC<{
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      aria-label={placeholder}
       autoFocus={autoFocus}
       className="pl-9 pr-3 py-2 w-full sm:w-64 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-subtle)] focus:border-[var(--color-primary)]"
     />
@@ -339,7 +395,7 @@ export const SearchInput: React.FC<{
       <button
         onClick={() => onChange("")}
         className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-        aria-label="Clear"
+        aria-label="Clear search"
         type="button"
       >
         <Icons.XMarkIcon className="w-4 h-4" />
@@ -445,7 +501,9 @@ export const RefreshBar: React.FC<{
       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] border border-[var(--color-border)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
       title="Refresh data"
     >
-      <Icons.ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+      <Icons.ArrowPathIcon
+        className={`w-3.5 h-3.5 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`}
+      />
       <span>{loading ? "Refreshing…" : `Updated ${relative || "just now"}`}</span>
     </button>
   );
