@@ -245,7 +245,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
       case "admin":
         return "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]";
       case "manager":
-        return "bg-[var(--color-warning-subtle)] text-[var(--color-warning)]";
+        return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
       default:
         return "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]";
     }

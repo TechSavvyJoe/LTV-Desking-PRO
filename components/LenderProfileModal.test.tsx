@@ -31,6 +31,37 @@ const flaggedProfile: LenderProfile = {
 };
 
 describe("LenderProfileModal", () => {
+  it("lets an admin convert a sample program to verified, and saving persists it", () => {
+    const onSave = vi.fn();
+    const sample: LenderProfile = {
+      id: "sample_1",
+      name: "Sample Bank",
+      bookValueSource: "Trade",
+      isSample: true,
+      tiers: [{ name: "Tier A", minFico: 640, maxLtv: 125, maxTerm: 84 }],
+    };
+    render(<LenderProfileModal profile={sample} isOpen={true} onClose={vi.fn()} onSave={onSave} />);
+
+    expect(screen.getByRole("group", { name: "Sample program" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Mark program verified" }));
+    expect(screen.queryByRole("group", { name: "Sample program" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save program" }));
+    expect((onSave.mock.calls[0]?.[0] as LenderProfile).isSample).toBe(false);
+  });
+
+  it("shows no sample notice for a verified program", () => {
+    render(
+      <LenderProfileModal
+        profile={flaggedProfile}
+        isOpen={true}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole("group", { name: "Sample program" })).toBeNull();
+  });
+
   it("shows a warning row for a tier flagged by the AI extraction", () => {
     render(
       <LenderProfileModal

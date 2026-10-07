@@ -380,9 +380,12 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
         if (existingProfile) {
           // Update existing profile in PocketBase
+          // Confirmed replacement from a current rate sheet: the terms are
+          // no longer the illustrative sample, so the program can count.
           const updatedProfile = await updateLenderProfile(existingProfile.id, {
             ...newProfileData,
             tiers: newProfileData.tiers || existingProfile.tiers,
+            isSample: false,
           });
 
           if (updatedProfile) {

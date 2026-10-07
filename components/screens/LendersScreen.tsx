@@ -55,7 +55,7 @@ const gridFor = (showBuyRate: boolean): string => {
   const cells = tracks.map((fr, i) =>
     i === tracks.length - 1 ? `minmax(max-content, ${fr}fr)` : `minmax(0, ${fr}fr)`
   );
-  return ["minmax(140px, 2.2fr)", ...cells].join(" ");
+  return ["var(--lender-track, minmax(140px, 1.7fr))", ...cells].join(" ");
 };
 
 const headCell: React.CSSProperties = {
@@ -142,7 +142,7 @@ const deriveTierBadge = (lender: LenderRow): TierBadge => {
       bg: "var(--color-warning-subtle)",
     };
   }
-  return { label: "Subprime", color: "var(--color-danger)", bg: "var(--color-danger-subtle)" };
+  return { label: "Subprime", color: "var(--color-text-muted)", bg: "var(--color-bg-muted)" };
 };
 
 /* --- Lender-wide aggregates (fallback when no tier matched) --------------- */

@@ -472,7 +472,9 @@ describe("LendersScreen", () => {
       expect(container.querySelector(".lenders-tier-count")?.textContent).toBe("2 tiers");
       expect(container.querySelector(".lenders-units-bar")).toBeTruthy();
       const first = screen.getByRole("row", { name: /Rate Bank program details/ });
-      expect(first.style.gridTemplateColumns.startsWith("minmax(140px, 2.2fr)")).toBe(true);
+      expect(
+        first.style.gridTemplateColumns.startsWith("var(--lender-track, minmax(140px, 1.7fr))")
+      ).toBe(true);
     });
 
     it("keeps the tier pill on one line", () => {

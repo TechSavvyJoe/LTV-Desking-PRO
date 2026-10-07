@@ -421,6 +421,28 @@ main {
   .reports-two-column-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+
+  /* An odd last card spans both columns instead of sitting alone at half width. */
+  .reports-three-column-grid > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 761px) {
+  .lender-reach-label {
+    width: 140px !important;
+  }
+}
+
+@media (max-width: 1199px) {
+  :root {
+    --lender-track: minmax(140px, 2.2fr);
+  }
+
+  .pipeline-screen-columns,
+  .pipeline-screen-row {
+    --pipeline-term-track: 0.5fr;
+  }
 }
 
 @media (max-width: 800px) {
@@ -2271,7 +2293,25 @@ select.dc-input:focus {
     display: inline-flex;
   }
 
+  /* Short pages: the desk fills main so the deal bar rests on the bottom edge. */
+  #main-content:has(> .desk-screen-root) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .desk-screen-root {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .desk-screen-root > .desk-body {
+    flex: 1 1 auto;
+  }
+
   .desk-deal-bar {
+    margin-top: auto;
     position: sticky;
     bottom: 0;
     z-index: 25;

@@ -22,7 +22,7 @@ import type { SavedDeal } from "../../types";
 const mono = "var(--mono)";
 
 /** 7-col grid per the mockup's PIPELINE table (lines 559/569). */
-const GRID = "1.6fr 2fr 0.8fr 1fr 0.9fr 1.2fr 1fr";
+const GRID = "1.6fr 2fr var(--pipeline-term-track, 0.8fr) 1fr 0.9fr 1.2fr 1fr";
 
 /**
  * Approval-score color, driven by the scorer's own band thresholds

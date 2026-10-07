@@ -133,13 +133,17 @@ const DeskScreenBase: React.FC = () => {
     const sorted = [...filteredInventory];
     // Shared invalid-aware comparator (utils/sortComparator); "stringify"
     // preserves this call site's historical mixed-type coercion.
+    // A pending unit's score is a capped placeholder shown as "—": sorting by
+    // odds treats it as missing, so it never outranks a verified fit or
+    // becomes the auto-focused/save target (rows[0]).
+    const valueOf = (vehicle: CalculatedVehicle) =>
+      sortKey === "vehicle"
+        ? displayName(vehicle)
+        : sortKey === "approvalScore" && vehicle.approvalBand === "pending"
+          ? null
+          : vehicle[sortKey];
     sorted.sort((left, right) =>
-      compareSortValues(
-        sortKey === "vehicle" ? displayName(left) : left[sortKey],
-        sortKey === "vehicle" ? displayName(right) : right[sortKey],
-        sortDirection,
-        "stringify"
-      )
+      compareSortValues(valueOf(left), valueOf(right), sortDirection, "stringify")
     );
     return sorted;
   }, [filteredInventory, sortDirection, sortKey]);
@@ -429,7 +433,7 @@ const DeskScreenBase: React.FC = () => {
   const focusedPayment = focused ? paymentText(focused) : null;
 
   return (
-    <div data-screen-label="Dealer desk">
+    <div className="desk-screen-root" data-screen-label="Dealer desk">
       <h1 className="sr-only">The Desk</h1>
       <div className="desk-body">
         <div className="desk-workspace">

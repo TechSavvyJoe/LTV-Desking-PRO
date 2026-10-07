@@ -270,6 +270,30 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Sample programs are held pending by the rules engine until an admin
+            confirms the terms against the lender's current rate sheet. This is
+            the one place that conversion happens; saving persists it. */}
+        {formData.isSample && (
+          <div
+            role="group"
+            aria-label="Sample program"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning-subtle)] px-4 py-3"
+          >
+            <p className="m-0 text-sm text-[var(--color-text)]">
+              <strong>Sample program.</strong> Its terms are illustrative, so it never counts as a
+              lender fit. Check every tier against the lender&apos;s current rate sheet, then mark
+              it verified.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setFormData((prev) => ({ ...prev, isSample: false }))}
+            >
+              Mark program verified
+            </Button>
+          </div>
+        )}
         {/* General Settings - Premium Card */}
         <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] overflow-hidden shadow-sm">
           <div className="px-5 py-4 bg-[var(--color-primary)]">

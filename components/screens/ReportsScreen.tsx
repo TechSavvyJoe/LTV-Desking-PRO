@@ -211,7 +211,9 @@ const ReportsScreenBase: React.FC = () => {
       null
     );
 
-    const avgLenders = n ? rows.reduce((a, v) => a + (v.fitCount ?? 0), 0) / n : null;
+    // Reach is measured over ranked units only: a pending unit's 0 fits means
+    // "not checked yet", not "no lender fits".
+    const avgLenders = rankedN ? ranked.reduce((a, v) => a + (v.fitCount ?? 0), 0) / rankedN : null;
 
     // Approval by make (ranked units only) — unparseable makes land in "Other".
     const makeMap = new Map<string, { n: number; sum: number }>();
@@ -672,7 +674,7 @@ const ReportsScreenBase: React.FC = () => {
                 >
                   {lenderReach.map((l) => {
                     const units = unitsPerLender[l.id] ?? 0;
-                    const barPct = stats.n ? (units / stats.n) * 100 : 0;
+                    const barPct = stats.rankedN ? (units / stats.rankedN) * 100 : 0;
                     return (
                       <div
                         key={l.id}
@@ -680,6 +682,7 @@ const ReportsScreenBase: React.FC = () => {
                         style={{ display: "flex", alignItems: "center", gap: 12 }}
                       >
                         <span
+                          className="lender-reach-label"
                           style={{
                             fontSize: 13,
                             width: 96,
@@ -763,7 +766,7 @@ const ReportsScreenBase: React.FC = () => {
                       marginTop: 6,
                       letterSpacing: 0,
                       color:
-                        pStats.approvalRate === null
+                        pStats.approvalRate === null || pStats.approvalRate === 0
                           ? "var(--color-text-muted)"
                           : "var(--color-success)",
                     }}
