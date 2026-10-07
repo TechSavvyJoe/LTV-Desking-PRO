@@ -265,15 +265,23 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           currentUser?.email
         }
         right={
-          <Button onClick={onSwitchToDealer} variant="primary" className="gap-2">
+          // Icon-only at phone widths so it can't cover the title; the label
+          // stays in the accessible name at every width. [R19]
+          <Button
+            onClick={onSwitchToDealer}
+            variant="primary"
+            aria-label="Back to the desk"
+            className="gap-2 max-[760px]:min-h-[44px] max-[760px]:min-w-[44px] max-[760px]:px-2.5"
+          >
             <Icons.ChevronLeftIcon className="w-4 h-4" />
-            Back to the desk
+            <span className="max-[760px]:sr-only">Back to the desk</span>
           </Button>
         }
       />
 
-      {/* Sub-tab bar — .tab-btn idiom */}
-      <div
+      {/* Section switcher — a labelled nav with the current section marked. [aria #15] */}
+      <nav
+        aria-label="Admin sections"
         style={{
           padding: "0 24px",
           background: "var(--color-bg)",
@@ -294,7 +302,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
           onClick={() => setActiveTab("dealership")}
           label="Dealership details"
         />
-      </div>
+      </nav>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -315,7 +323,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
             )}
 
             {(isCreatingUser || editingUserId) && (
-              <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)] shadow-sm">
+              <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)]">
                 <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
                   {editingUserId ? "Edit team member" : "Add team member"}
                 </h3>
@@ -475,161 +483,174 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               </div>
             )}
 
-            <div className="bg-[var(--color-bg)] rounded-md border border-[var(--color-border)] overflow-hidden shadow-sm">
-              <table className="w-full text-left" aria-label="Team users list">
-                <thead className="bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
-                    >
-                      User
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
-                    >
-                      Email
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
-                    >
-                      Role
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
-                    >
-                      Joined
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
-                    >
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
-                  {users.map((u) => {
-                    const isSelf = u.id === currentUser?.id;
-                    const isActive = u.active ?? true;
-                    return (
-                      <tr
-                        key={u.id}
-                        className={`hover:bg-[var(--color-bg-muted)] transition-colors ${
-                          isActive ? "" : "opacity-60"
-                        }`}
+            <div className="bg-[var(--color-bg)] rounded-md border border-[var(--color-border)] overflow-hidden">
+              <div className="admin-table-scroll relative overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left" aria-label="Team users list">
+                  <thead className="bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
                       >
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[var(--color-primary-subtle)] text-[var(--color-primary)] rounded-full flex items-center justify-center font-bold">
-                              {u.firstName?.[0]}
-                              {u.lastName?.[0]}
-                            </div>
-                            <div>
-                              <p className="font-medium text-[var(--color-text)]">
-                                {u.firstName} {u.lastName}
-                                {!isActive && (
-                                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] align-middle">
-                                    Inactive
-                                  </span>
-                                )}
-                              </p>
-                              <p className="text-xs text-[var(--color-text-subtle)]">{u.phone}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
-                          {u.email}
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <select
-                            value={u.role}
-                            aria-label={`Role for ${u.email}`}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              const role = (["sales", "manager", "admin"] as const).includes(
-                                val as Exclude<User["role"], "superadmin">
-                              )
-                                ? (val as Exclude<User["role"], "superadmin">)
-                                : "sales";
-                              handleRoleChange(u.id, role);
-                            }}
-                            disabled={isSelf}
-                            className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer outline-none ${getRoleBadgeColor(
-                              u.role
-                            )}`}
-                          >
-                            <option value="sales">Sales</option>
-                            <option value="manager">Manager</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                        </td>
-                        <td className="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
-                          {new Date(u.created).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleEditUser(u)}
-                              className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg-muted)] rounded-lg transition-colors"
-                              title="Edit"
-                              aria-label={`Edit ${u.email}`}
-                            >
-                              <Icons.PencilIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleToggleUserActive(u)}
-                              disabled={isSelf}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                                isActive
-                                  ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)] hover:bg-[var(--color-warning-subtle)]"
-                                  : "bg-[var(--color-success-subtle)] text-[var(--color-success)] ring-[var(--color-success)] hover:bg-[var(--color-success-subtle)]"
-                              }`}
-                              title={
-                                isSelf
-                                  ? "You can't deactivate your own account"
-                                  : isActive
-                                    ? "Deactivate user (keeps their history)"
-                                    : "Reactivate user"
-                              }
-                            >
-                              {isActive ? "Deactivate" : "Reactivate"}
-                            </button>
-                            {!isSelf && (
-                              <button
-                                onClick={() => handleDeleteUser(u.id)}
-                                className="p-2 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors"
-                                title="Delete permanently"
-                                aria-label={`Delete ${u.email} permanently`}
+                        User
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]"
+                      >
+                        Email
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                      >
+                        Role
+                      </th>
+                      <th
+                        scope="col"
+                        className="admin-col-joined px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                      >
+                        Joined
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] text-center"
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {users.map((u) => {
+                      const isSelf = u.id === currentUser?.id;
+                      const isActive = u.active ?? true;
+                      return (
+                        <tr
+                          key={u.id}
+                          className={`hover:bg-[var(--color-bg-muted)] transition-colors ${
+                            isActive ? "" : "opacity-60"
+                          }`}
+                        >
+                          <th scope="row" className="px-4 py-4 text-left font-normal">
+                            <div className="flex items-center gap-3">
+                              <div
+                                aria-hidden="true"
+                                className="w-10 h-10 bg-[var(--color-primary-subtle)] text-[var(--color-primary)] rounded-full flex items-center justify-center font-bold"
                               >
-                                <Icons.TrashIcon className="w-4 h-4" />
+                                {u.firstName?.[0]}
+                                {u.lastName?.[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium text-[var(--color-text)]">
+                                  {u.firstName} {u.lastName}
+                                  {!isActive && (
+                                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] align-middle">
+                                      Inactive
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-[var(--color-text-subtle)]">{u.phone}</p>
+                              </div>
+                            </div>
+                          </th>
+                          <td className="max-w-[220px] break-all px-4 py-4 text-sm text-[var(--color-text-muted)]">
+                            {u.email}
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <select
+                              value={u.role}
+                              aria-label={`Role for ${u.email}`}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const role = (["sales", "manager", "admin"] as const).includes(
+                                  val as Exclude<User["role"], "superadmin">
+                                )
+                                  ? (val as Exclude<User["role"], "superadmin">)
+                                  : "sales";
+                                handleRoleChange(u.id, role);
+                              }}
+                              disabled={isSelf}
+                              className={`px-3 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer outline-none ${getRoleBadgeColor(
+                                u.role
+                              )}`}
+                            >
+                              <option value="sales">Sales</option>
+                              <option value="manager">Manager</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          </td>
+                          <td className="admin-col-joined px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
+                            {new Date(u.created).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-4 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleEditUser(u)}
+                                className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg-muted)] rounded-lg transition-colors"
+                                title="Edit"
+                                aria-label={`Edit ${u.email}`}
+                              >
+                                <Icons.PencilIcon className="w-4 h-4" />
                               </button>
-                            )}
-                          </div>
+                              <button
+                                onClick={() => handleToggleUserActive(u)}
+                                disabled={isSelf}
+                                aria-label={`${isActive ? "Deactivate" : "Reactivate"} ${u.email}`}
+                                aria-describedby={isSelf ? `self-deactivate-${u.id}` : undefined}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                                  isActive
+                                    ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)] hover:bg-[var(--color-warning-subtle)]"
+                                    : "bg-[var(--color-success-subtle)] text-[var(--color-success)] ring-[var(--color-success)] hover:bg-[var(--color-success-subtle)]"
+                                }`}
+                                title={
+                                  isSelf
+                                    ? "You can't deactivate your own account"
+                                    : isActive
+                                      ? "Deactivate user (keeps their history)"
+                                      : "Reactivate user"
+                                }
+                              >
+                                {isActive ? "Deactivate" : "Reactivate"}
+                              </button>
+                              {isSelf && (
+                                <span id={`self-deactivate-${u.id}`} className="sr-only">
+                                  You can't deactivate your own account
+                                </span>
+                              )}
+                              {!isSelf && (
+                                <button
+                                  onClick={() => handleDeleteUser(u.id)}
+                                  className="p-2 text-[var(--color-text-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-lg transition-colors"
+                                  title="Delete permanently"
+                                  aria-label={`Delete ${u.email} permanently`}
+                                >
+                                  <Icons.TrashIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {users.length === 0 && (
+                      <tr>
+                        <td colSpan={5}>
+                          <EmptyState
+                            headingLevel={3}
+                            icon={<Icons.UserIcon className="w-8 h-8" />}
+                            title="No team members yet"
+                            description="Add your salespeople and managers so they can desk deals."
+                            primaryAction={{
+                              label: "Add user",
+                              onClick: () => setIsCreatingUser(true),
+                            }}
+                          />
                         </td>
                       </tr>
-                    );
-                  })}
-                  {users.length === 0 && (
-                    <tr>
-                      <td colSpan={5}>
-                        <EmptyState
-                          icon={<Icons.UserIcon className="w-8 h-8" />}
-                          title="No team members yet"
-                          description="Add your salespeople and managers so they can desk deals."
-                          primaryAction={{
-                            label: "Add user",
-                            onClick: () => setIsCreatingUser(true),
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -650,7 +671,7 @@ export const DealerAdminDashboard: React.FC<DealerAdminDashboardProps> = ({ onSw
               )}
             </div>
 
-            <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)] shadow-sm">
+            <div className="bg-[var(--color-bg)] rounded-md p-6 border border-[var(--color-border)]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label

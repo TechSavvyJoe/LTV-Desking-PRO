@@ -448,6 +448,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
         <ListCard title="Recent dealerships" onViewAll={() => onJumpTab("dealers")}>
           {recentDealers.length === 0 ? (
             <EmptyState
+              headingLevel={3}
               icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
               title="No dealerships yet"
               description="Add a dealership and its first admin to get started."
@@ -492,6 +493,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
         <ListCard title="Recent users" onViewAll={() => onJumpTab("users")}>
           {recentUsers.length === 0 ? (
             <EmptyState
+              headingLevel={3}
               icon={<Icons.UserIcon className="w-5 h-5" />}
               title="No users yet"
               description="Add a dealership to create its first admin user."

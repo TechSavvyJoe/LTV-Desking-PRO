@@ -10,14 +10,14 @@ import { applyBackendProductPatch, getBackendProductSplit } from "../../services
 import { activeLenderCount, lenderFitForVehicle } from "../../services/lenderFit";
 import type { LenderFitEntry } from "../../services/lenderFit";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile } from "../../types";
-import { fmt } from "../../utils/format";
+import { fmt, splitPay } from "../../utils/format";
 import { compareSortValues } from "../../utils/sortComparator";
 import { CompareStrip } from "./CompareStrip";
 import { DealInspector } from "./DealInspector";
 import { DeskShortcutsHelp } from "./DeskShortcutsHelp";
 import { DeskTermsRail } from "./DeskTermsRail";
 import { InventoryGrid } from "./InventoryGrid";
-import { DEFAULT_DIR, isSortKey } from "./deskConstants";
+import { DEFAULT_DIR, isSortKey, numVal } from "./deskConstants";
 import type { SortKey } from "./deskConstants";
 
 // PDF and OCR dependencies stay out of the initial desk bundle.
@@ -29,6 +29,31 @@ const DealSheetModal = lazy(() =>
 const DocumentScanner = lazy(() =>
   import("../DocumentScanner").then((module) => ({ default: module.DocumentScanner }))
 );
+
+/** The inspector becomes a bottom drawer at this width (matches index.css). */
+const DRAWER_QUERY = "(max-width: 900px)";
+/** Quiet time after a selection before it is announced (arrow-key runs say one thing). */
+const SELECTION_ANNOUNCE_DELAY_MS = 500;
+
+const paymentText = (vehicle: CalculatedVehicle): string | null => {
+  const payment = numVal(vehicle.monthlyPayment);
+  if (payment === null) return null;
+  const { whole, frac } = splitPay(payment);
+  return `${whole}${frac}`;
+};
+
+/** "2023 Kia Telluride LX on desk — $743.04 per month, approval odds pending" */
+const describeSelection = (vehicle: CalculatedVehicle): string => {
+  const payment = paymentText(vehicle);
+  const odds =
+    vehicle.approvalBand === "pending"
+      ? "approval odds pending"
+      : typeof vehicle.approvalScore === "number"
+        ? `approval odds ${Math.round(vehicle.approvalScore)} of 100`
+        : null;
+  const details = [payment ? `${payment} per month` : null, odds].filter(Boolean).join(", ");
+  return details ? `${vehicle.vehicle} on desk — ${details}` : `${vehicle.vehicle} on desk`;
+};
 
 /**
  * The Desk coordinates live deal inputs, ranked inventory, and the focused
@@ -72,7 +97,8 @@ const DeskScreenBase: React.FC = () => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const media = window.matchMedia("(max-width: 1199px)");
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(DRAWER_QUERY);
     const syncCompactInspector = () => setCompactInspector(media.matches);
     syncCompactInspector();
     media.addEventListener?.("change", syncCompactInspector);
@@ -330,12 +356,61 @@ const DeskScreenBase: React.FC = () => {
   const focusInventoryVin = useCallback(
     (vin: string) => {
       setFocusVin(vin);
-      if (typeof window !== "undefined" && window.matchMedia("(max-width: 1199px)").matches) {
+      if (
+        typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia(DRAWER_QUERY).matches
+      ) {
         setInspectorOpen(true);
       }
     },
     [setFocusVin]
   );
+
+  // Beside the grid, choosing a unit changes the inspector without moving
+  // focus, so say what landed on the desk — once per selection, after a
+  // short pause, and never for a reprice of the same unit. The first
+  // (automatic) selection on load is not announced. In the drawer layout the
+  // drawer opens and takes focus, which says it already.
+  const [selectionAnnouncement, setSelectionAnnouncement] = useState("");
+  const announcedVinRef = useRef<string | null>(null);
+  const focusedRef = useRef(focused);
+  useEffect(() => {
+    focusedRef.current = focused;
+  }, [focused]);
+  const focusedVinForAnnouncement = focused?.vin ?? null;
+  useEffect(() => {
+    if (!focusedVinForAnnouncement) return;
+    const previousVin = announcedVinRef.current;
+    announcedVinRef.current = focusedVinForAnnouncement;
+    if (previousVin === null || previousVin === focusedVinForAnnouncement || compactInspector) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const current = focusedRef.current;
+      if (current?.vin === focusedVinForAnnouncement) {
+        setSelectionAnnouncement(describeSelection(current));
+      }
+    }, SELECTION_ANNOUNCE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [compactInspector, focusedVinForAnnouncement]);
+
+  // Drawer layout with the drawer closed: the sticky deal bar is the one
+  // "View deal" button, so the grid header hides its copy.
+  const dealBarVisible = compactInspector && !inspectorOpen && Boolean(focused);
+  // The deal bar's "View deal" unmounts while the drawer is open, so the
+  // drawer can't hand focus back to it on close; do it here instead.
+  const dealBarButtonRef = useRef<HTMLButtonElement>(null);
+  const wasInspectorOpenRef = useRef(inspectorOpen);
+  useEffect(() => {
+    const wasOpen = wasInspectorOpenRef.current;
+    wasInspectorOpenRef.current = inspectorOpen;
+    if (!wasOpen || inspectorOpen) return;
+    const active = document.activeElement;
+    if (!active || active === document.body || !active.isConnected) {
+      dealBarButtonRef.current?.focus();
+    }
+  }, [inspectorOpen]);
 
   const orderedVins = useMemo(() => rows.map((row) => row.vin), [rows]);
   useDeskShortcuts({
@@ -351,9 +426,11 @@ const DeskScreenBase: React.FC = () => {
   });
 
   const buyerState = dealData.buyerState ?? settings.defaultState;
+  const focusedPayment = focused ? paymentText(focused) : null;
 
   return (
     <div data-screen-label="Dealer desk">
+      <h1 className="sr-only">The Desk</h1>
       <div className="desk-body">
         <div className="desk-workspace">
           <div className="desk-main-column">
@@ -398,6 +475,7 @@ const DeskScreenBase: React.FC = () => {
               onSort={handleSort}
               onFocus={focusInventoryVin}
               onOpenInspector={() => setInspectorOpen(true)}
+              showInspectorButton={!dealBarVisible}
               onLoadSampleData={loadSampleData}
               onClearFilters={clearFilters}
             />
@@ -438,6 +516,36 @@ const DeskScreenBase: React.FC = () => {
             />
           )}
         </div>
+
+        {/* Drawer layout only: the unit on the desk and a way to open it.
+            Last child of .desk-body so it sticks to the bottom edge. */}
+        {dealBarVisible && focused && (
+          <div className="desk-deal-bar">
+            <div className="desk-deal-bar-info min-w-0">
+              <span className="desk-deal-bar-name block truncate font-semibold">
+                {focused.vehicle}
+              </span>
+              {focusedPayment && (
+                <span className="desk-deal-bar-payment block tabular-nums">
+                  <span aria-hidden="true">{fmt(numVal(focused.monthlyPayment) as number)}/mo</span>
+                  <span className="sr-only">{focusedPayment} per month</span>
+                </span>
+              )}
+            </div>
+            <button
+              ref={dealBarButtonRef}
+              type="button"
+              className="desk-deal-bar-btn desk-primary-action min-h-11 shrink-0 px-4"
+              onClick={() => setInspectorOpen(true)}
+            >
+              View deal
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div role="status" className="sr-only">
+        {selectionAnnouncement}
       </div>
 
       {dealSheetOpen && focused && (

@@ -44,10 +44,19 @@ type LenderRow = LenderProfile & { reservePct?: number; fundingDays?: string };
  * roles below manager (field_visibility.pb.js), so for those roles the Buy
  * rate column is dropped entirely rather than rendering a column of "—".
  */
-const gridFor = (showBuyRate: boolean): string =>
-  showBuyRate
-    ? "1.7fr 0.95fr 0.8fr 0.85fr 0.8fr 0.85fr 1.5fr 1fr"
-    : "1.7fr 0.95fr 0.8fr 0.85fr 0.8fr 1.5fr 1fr";
+const gridFor = (showBuyRate: boolean): string => {
+  // minmax(0, Xfr) keeps a long cell from stretching its track, so columns line
+  // up row to row; the Lender track keeps a floor so a name is never cut to a
+  // few characters on a tablet.
+  const tracks = showBuyRate
+    ? [0.95, 0.8, 0.85, 0.8, 0.85, 1.5, 1]
+    : [0.95, 0.8, 0.85, 0.8, 1.5, 1];
+  // The last track (Status) is content-sized at minimum so its pill is never clipped.
+  const cells = tracks.map((fr, i) =>
+    i === tracks.length - 1 ? `minmax(max-content, ${fr}fr)` : `minmax(0, ${fr}fr)`
+  );
+  return ["minmax(140px, 2.2fr)", ...cells].join(" ");
+};
 
 const headCell: React.CSSProperties = {
   fontSize: 12,
@@ -94,6 +103,17 @@ const num = (e: React.ChangeEvent<HTMLInputElement>): number | undefined => {
   const x = parseFloat(String(e.target.value).replace(/[^0-9.]/g, ""));
   return Number.isNaN(x) ? undefined : x;
 };
+
+/**
+ * An empty value: a dash for the eye, "not set" for a screen reader (which
+ * would otherwise read the dash as "dash").
+ */
+const NotSet: React.FC = () => (
+  <>
+    <span aria-hidden="true">—</span>
+    <span className="sr-only">not set</span>
+  </>
+);
 
 /* --- Derived read-only tier badge (reconciliation 2) --------------------- */
 
@@ -510,7 +530,7 @@ export const LendersScreen: React.FC = () => {
             {/* Column header */}
             <div role="rowgroup">
               <div
-                className="lenders-screen-table-row"
+                className="lenders-screen-columns"
                 role="row"
                 style={{
                   display: "grid",
@@ -649,6 +669,7 @@ export const LendersScreen: React.FC = () => {
                         </span>
                         {tiers.length > 1 && (
                           <span
+                            className="lenders-tier-count"
                             style={{
                               fontSize: 10,
                               ...tabular,
@@ -663,10 +684,12 @@ export const LendersScreen: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <span role="cell">
+                      <span role="cell" data-label="Tier">
                         <span
                           title="Derived from program tiers"
                           style={{
+                            display: "inline-block",
+                            whiteSpace: "nowrap",
                             fontSize: 11,
                             fontWeight: 600,
                             padding: "2px 7px",
@@ -680,6 +703,7 @@ export const LendersScreen: React.FC = () => {
                       </span>
                       <span
                         role="cell"
+                        data-label="Max LTV"
                         style={{
                           fontSize: 14,
                           textAlign: "right",
@@ -687,10 +711,11 @@ export const LendersScreen: React.FC = () => {
                           color: valColor,
                         }}
                       >
-                        {rowLtv === null ? "—" : `${Math.round(rowLtv)}%`}
+                        {rowLtv === null ? <NotSet /> : `${Math.round(rowLtv)}%`}
                       </span>
                       <span
                         role="cell"
+                        data-label="Max term"
                         style={{
                           fontSize: 14,
                           textAlign: "right",
@@ -698,10 +723,11 @@ export const LendersScreen: React.FC = () => {
                           color: valColor ?? "var(--color-text-muted)",
                         }}
                       >
-                        {rowTerm === null ? "—" : `${rowTerm} mo`}
+                        {rowTerm === null ? <NotSet /> : `${rowTerm} mo`}
                       </span>
                       <span
                         role="cell"
+                        data-label="Min FICO"
                         style={{
                           fontSize: 14,
                           textAlign: "right",
@@ -709,11 +735,12 @@ export const LendersScreen: React.FC = () => {
                           color: valColor ?? "var(--color-text-muted)",
                         }}
                       >
-                        {rowFico === null ? "—" : rowFico}
+                        {rowFico === null ? <NotSet /> : rowFico}
                       </span>
                       {showBuyRate && (
                         <span
                           role="cell"
+                          data-label="Buy rate"
                           style={{
                             fontSize: 14,
                             textAlign: "right",
@@ -721,11 +748,16 @@ export const LendersScreen: React.FC = () => {
                             color: valColor,
                           }}
                         >
-                          {rowRate === null ? "—" : `${rowRate}%`}
+                          {rowRate === null ? <NotSet /> : `${rowRate}%`}
                         </span>
                       )}
-                      <div role="cell" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        role="cell"
+                        data-label="Units fitting"
+                        style={{ display: "flex", alignItems: "center", gap: 10 }}
+                      >
                         <div
+                          className="lenders-units-bar"
                           style={{
                             flex: 1,
                             height: 6,
@@ -756,7 +788,7 @@ export const LendersScreen: React.FC = () => {
                           {units}/{shownCount}
                         </span>
                       </div>
-                      <span role="cell" style={{ textAlign: "right" }}>
+                      <span role="cell" data-label="Status" style={{ textAlign: "right" }}>
                         <span
                           style={{
                             fontSize: 12,
@@ -778,6 +810,7 @@ export const LendersScreen: React.FC = () => {
                       <div role="row">
                         <div
                           role="cell"
+                          aria-colspan={showBuyRate ? 8 : 7}
                           id={`lender-panel-${l.id}`}
                           style={{
                             padding: "4px 20px 18px 37px",
@@ -794,16 +827,20 @@ export const LendersScreen: React.FC = () => {
                           >
                             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
                               <h2 style={{ ...sectionHeading, margin: 0 }}>
-                                Program parameters — adjust to rescore inventory
+                                {l.name} program parameters
                               </h2>
-                              {!canEdit && (
-                                <span style={{ ...sectionHeading, fontWeight: 400 }}>
-                                  Read-only for your role
-                                </span>
-                              )}
+                              <span style={{ ...sectionHeading, fontWeight: 400 }}>
+                                {canEdit
+                                  ? "Adjust to rescore inventory"
+                                  : "Read-only for your role"}
+                              </span>
                             </div>
                             {canEdit && (
                               <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isActive}
+                                aria-label={`${l.name} program active`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   queueSave(l.id, { active: !isActive });
@@ -829,6 +866,7 @@ export const LendersScreen: React.FC = () => {
                                 }}
                               >
                                 <span
+                                  aria-hidden="true"
                                   style={{
                                     width: 6,
                                     height: 6,
@@ -1047,7 +1085,7 @@ export const LendersScreen: React.FC = () => {
                                       type="button"
                                       aria-expanded={tOpen}
                                       aria-controls={`tier-panel-${l.id}-${idx}`}
-                                      aria-label={`${tOpen ? "Hide" : "Show"} details for ${tierLabel}${isMatched ? ", matched" : ""}${needsReview ? ", needs review" : ""}`}
+                                      aria-label={`${tOpen ? "Hide" : "Show"} details for ${tierLabel} at ${l.name}${isMatched ? ", matched" : ""}${needsReview ? ", needs review" : ""}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setExpandedTier(tOpen ? null : idx);
@@ -1392,11 +1430,13 @@ export const LendersScreen: React.FC = () => {
                                   fontVariantNumeric: "tabular-nums",
                                 }}
                               >
-                                {l.contactEmail || l.contactPhone || "—"}
+                                {l.contactEmail || l.contactPhone || <NotSet />}
                               </span>
                             </div>
                             {canEdit && (
                               <button
+                                type="button"
+                                aria-label={`Edit full program for ${l.name}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setModalProfile(l);
@@ -1413,7 +1453,7 @@ export const LendersScreen: React.FC = () => {
                                   padding: 0,
                                 }}
                               >
-                                Edit full program →
+                                Edit full program <span aria-hidden="true">→</span>
                               </button>
                             )}
                           </div>

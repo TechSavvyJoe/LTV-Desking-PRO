@@ -75,6 +75,7 @@ export const AuditLogCard: React.FC = () => {
 
       {!loading && !error && entries.length === 0 && (
         <EmptyState
+          headingLevel={4}
           title="No audit entries yet"
           description="Adding, testing or removing an AI key creates an entry here."
         />

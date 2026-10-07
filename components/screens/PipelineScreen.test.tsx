@@ -43,6 +43,18 @@ describe("PipelineScreen empty state", () => {
     expect(screen.getByText("No saved deals yet")).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
   });
+
+  it("titles the empty state as an h2 under the page's h1", () => {
+    render(
+      <MemoryRouter>
+        <PipelineScreen />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: "Pipeline" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "No saved deals yet" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 3 })).toBeNull();
+  });
 });
 
 describe("PipelineScreen deal row disclosure", () => {
@@ -78,5 +90,29 @@ describe("PipelineScreen deal row disclosure", () => {
     const hide = screen.getByRole("button", { name: "Hide details for 2021 Camry" });
     expect(hide.getAttribute("aria-expanded")).toBe("true");
     expect(document.getElementById("pipeline-panel-d1")).not.toBeNull();
+  });
+
+  it("does not repeat the STK prefix when the stock number already has one", () => {
+    const deal = (id: string, stock: string) => ({
+      id,
+      date: "2026-09-01",
+      customerName: `Buyer ${id}`,
+      salespersonName: "Sam",
+      status: "draft",
+      vehicle: { vin: `V${id}`, vehicle: "2021 Camry", stock },
+      dealData: {},
+      customerFilters: { creditScore: 700, monthlyIncome: 5000 },
+      calculatedData: { payment: 400, otdLtv: 100, financed: 20000, approvalScore: 80 },
+    });
+    mocks.savedDeals = [deal("a", "STK1034"), deal("b", "1035")];
+    render(
+      <MemoryRouter>
+        <PipelineScreen />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("STK1034")).toBeTruthy();
+    expect(screen.getByText("STK 1035")).toBeTruthy();
+    expect(screen.queryByText(/STK STK/)).toBeNull();
   });
 });

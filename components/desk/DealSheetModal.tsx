@@ -13,7 +13,7 @@ import { toast } from "../../lib/toast";
 import { BlobDownloadError, downloadBlob } from "../../utils/downloadBlob";
 import { useFocusTrap, useKeyboardShortcuts, useRestoreFocus } from "../../hooks/useKeyboard";
 import type { CalculatedVehicle, DealPdfData } from "../../types";
-import { metaItem, mono, sansNum } from "./deskConstants";
+import { metaItem, mono, sansNum, stockLabel } from "./deskConstants";
 
 const numVal = (v: number | "Error" | "N/A" | undefined): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
@@ -388,7 +388,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
           <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>{custName}</div>
           <div style={{ fontSize: 14, color: "var(--color-text-muted)", marginTop: 2 }}>
             <span style={metaItem}>{liveVehicle.vehicle}</span>{" "}
-            <span style={{ fontFamily: mono }}>STK {liveVehicle.stock}</span>
+            <span style={{ fontFamily: mono }}>{stockLabel(liveVehicle.stock)}</span>
           </div>
 
           <div

@@ -90,7 +90,7 @@ export const ListCard: React.FC<{
         borderBottom: "1px solid var(--color-border)",
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 600 }}>{title}</span>
+      <h2 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{title}</h2>
       {onViewAll && (
         <button
           onClick={onViewAll}
@@ -236,7 +236,15 @@ export const RoleChip: React.FC<{ role: string }> = ({ role }) => (
   </span>
 );
 
-/** 58px console sub-header (label · title · sub · right action). */
+/**
+ * 58px console sub-header (label · title · sub · right action).
+ *
+ * The label and title are one <h1> ("Admin console — Dealer A") so the page has
+ * a heading for screen-reader users. At phone widths the left group clips with
+ * an ellipsis instead of running under the right-hand action, the label stays
+ * in the heading as screen-reader-only text, and the divider and sub-line
+ * drop out. [R19, R20, aria #16]
+ */
 export const ConsoleHeader: React.FC<{
   label: string;
   title: React.ReactNode;
@@ -244,6 +252,7 @@ export const ConsoleHeader: React.FC<{
   right?: React.ReactNode;
 }> = ({ label, title, sub, right }) => (
   <header
+    className="px-4 min-[761px]:px-6"
     style={{
       height: 58,
       borderBottom: "1px solid var(--color-border)",
@@ -251,25 +260,63 @@ export const ConsoleHeader: React.FC<{
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      padding: "0 24px",
+      gap: 12,
     }}
   >
-    <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-      <span
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        minWidth: 0,
+        flex: "1 1 auto",
+        overflow: "hidden",
+      }}
+    >
+      <h1
         style={{
-          fontSize: 11,
-          ...mono,
-          letterSpacing: "0.18em",
-          color: "var(--color-text-subtle)",
-          whiteSpace: "nowrap",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          minWidth: 0,
+          margin: 0,
+          fontSize: 15,
+          fontWeight: 600,
         }}
       >
-        {label}
-      </span>
-      <div style={{ height: 20, width: 1, background: "var(--color-border)", flexShrink: 0 }} />
-      <span style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap" }}>{title}</span>
+        <span
+          className="max-[760px]:sr-only"
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: "var(--color-text-subtle)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </span>
+        <span
+          aria-hidden="true"
+          className="max-[760px]:hidden"
+          style={{ height: 20, width: 1, background: "var(--color-border)", flexShrink: 0 }}
+        />
+        <span className="sr-only"> — </span>
+        <span
+          style={{
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {title}
+        </span>
+      </h1>
       {sub !== undefined && (
-        <span style={{ fontSize: 13, color: "var(--color-text-subtle)", whiteSpace: "nowrap" }}>
+        <span
+          className="max-[760px]:hidden"
+          style={{ fontSize: 13, color: "var(--color-text-subtle)", whiteSpace: "nowrap" }}
+        >
           {sub}
         </span>
       )}
@@ -289,6 +336,7 @@ export const ConsoleTab: React.FC<{
 }> = ({ active, onClick, label, badge }) => (
   <button
     onClick={onClick}
+    aria-current={active ? "true" : undefined}
     className="tab-btn"
     style={{
       display: "flex",

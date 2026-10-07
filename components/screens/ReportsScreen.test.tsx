@@ -60,13 +60,15 @@ const pendingUnit = (vin: string) =>
     model: "Soul",
   });
 
-/** The text of the KPI card whose label is `label`. */
+/** The text of the KPI card whose label is `label` (visible text + screen-reader text). */
 const kpiValue = (label: string): string =>
   screen.getByText(label).parentElement?.textContent?.replace(label, "") ?? "";
 
-/** Full text of each distribution value cell whose share span reads `share`. */
+/** What a screen reader hears for each distribution value cell whose visible share reads `share`. */
 const valueCells = (share: string): string[] =>
-  screen.getAllByText(share).map((el) => el.parentElement?.textContent ?? "");
+  screen
+    .getAllByText(share)
+    .map((el) => el.parentElement?.querySelector(".sr-only")?.textContent ?? "");
 
 afterEach(() => {
   cleanup();
@@ -85,8 +87,8 @@ describe("ReportsScreen pending units", () => {
 
     expect(screen.getByText("Approval distribution — 2 of 4 units")).toBeTruthy();
     // Shares are of the 2 ranked units; the pending 45s are not "weak".
-    expect(valueCells("50%")).toEqual(["1 50%", "1 50%"]); // strong + moderate
-    expect(valueCells("0%")).toEqual(["0 0%"]); // weak
+    expect(valueCells("50%")).toEqual(["1 unit, 50%", "1 unit, 50%"]); // strong + moderate
+    expect(valueCells("0%")).toEqual(["0 units, 0%"]); // weak
     expect(screen.getByTestId("reports-pending-note").textContent).toBe(
       "2 of 4 units are pending — add a FICO on the desk to rank them"
     );
@@ -96,17 +98,21 @@ describe("ReportsScreen pending units", () => {
     expect(screen.queryByText("Kia")).toBeNull();
   });
 
-  it("shows '—' for the approval KPIs when every unit is pending", () => {
+  it("shows '—' for the approval KPIs when every unit is pending, and says 'pending' to screen readers", () => {
     mocks.inventory = [pendingUnit("C"), pendingUnit("D"), pendingUnit("E")];
     render(<ReportsScreen />);
 
-    expect(kpiValue("Avg approval")).toBe("—");
+    expect(kpiValue("Avg approval")).toBe("—pending");
+    const avgApproval = screen.getByText("Avg approval").parentElement as HTMLElement;
+    expect(avgApproval.querySelector('[aria-hidden="true"]')?.textContent).toBe("—");
+    expect(avgApproval.querySelector(".sr-only")?.textContent).toBe("pending");
+    // The unit name says "pending"; its score line is a bare, hidden dash.
     const mostApprovable = screen.getByText("Most approvable").parentElement;
-    expect(mostApprovable?.textContent).toBe("Most approvable——");
+    expect(mostApprovable?.textContent).toBe("Most approvable—pending—");
     expect(screen.getByTestId("reports-pending-note").textContent).toBe(
       "3 of 3 units are pending — add a FICO on the desk to rank them"
     );
-    expect(valueCells("0%")).toEqual(["0 0%", "0 0%", "0 0%"]);
+    expect(valueCells("0%")).toEqual(["0 units, 0%", "0 units, 0%", "0 units, 0%"]);
   });
 
   it("renders no note when nothing is pending", () => {
@@ -124,6 +130,8 @@ describe("ReportsScreen pending units", () => {
     render(<ReportsScreen />);
 
     const value = screen.getByText("100%").parentElement as HTMLElement;
+    expect(value.className).toContain("bar-row-value");
+    expect(document.querySelectorAll(".bar-row-label")).toHaveLength(3);
     expect(value.style.whiteSpace).toBe("nowrap");
     expect(value.style.width).toBe("92px");
   });

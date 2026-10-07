@@ -105,6 +105,50 @@ describe("AppShell", () => {
     expect(screen.queryByRole("button", { name: "Upload rate sheet" })).toBeNull();
   });
 
+  it("names the theme toggle for what it will do", () => {
+    renderShell();
+    const toggle = screen.getByRole("button", { name: "Switch to dark theme" });
+    expect(screen.queryByRole("button", { name: "Toggle theme" })).toBeNull();
+    expect(toggle.classList.contains("app-shell-icon-btn")).toBe(true);
+  });
+
+  it("gives the touch-sized header controls the shared icon-button class", () => {
+    renderShell();
+    expect(
+      screen
+        .getByRole("button", { name: "Upload rate sheet" })
+        .classList.contains("app-shell-icon-btn")
+    ).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Account menu" }).classList.contains("app-shell-icon-btn")
+    ).toBe(true);
+  });
+
+  it("reads nav counts with their unit", () => {
+    renderShell();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(nav.textContent).toContain("0 deals");
+    expect(nav.textContent).toContain("0 units");
+    expect(nav.textContent).toContain("0 programs");
+  });
+
+  it("scrolls only the nav to the active tab, instantly, after a route change", () => {
+    const scrollTo = vi.fn();
+    const scrollIntoView = vi.fn();
+    const originalTo = Element.prototype.scrollTo;
+    const originalInto = Element.prototype.scrollIntoView;
+    Element.prototype.scrollTo = scrollTo;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      renderShell();
+      expect(scrollTo).toHaveBeenCalledWith({ left: expect.any(Number), behavior: "instant" });
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    } finally {
+      Element.prototype.scrollTo = originalTo;
+      Element.prototype.scrollIntoView = originalInto;
+    }
+  });
+
   it("the ⌘K header button is a secondary action (hidden at phone widths)", () => {
     renderShell();
     const btn = screen.getByRole("button", { name: "Search and commands" });

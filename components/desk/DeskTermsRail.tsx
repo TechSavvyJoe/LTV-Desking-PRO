@@ -23,6 +23,8 @@ interface DeskTermsRailProps {
   onScanIncome: () => void;
 }
 
+const ADVANCED_ID = "desk-terms-advanced";
+
 const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
   customerName,
   setCustomerName,
@@ -66,8 +68,11 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
     <section className="desk-terms-card">
       <div className="desk-terms-head">
         <div className="desk-section-title">
-          <span>01</span>
-          <strong>Deal terms</strong>
+          <span aria-hidden="true">01</span>
+          {/* A real heading for the outline; the <strong> keeps its look. */}
+          <h2 style={{ margin: 0, fontSize: "inherit", fontWeight: "inherit" }}>
+            <strong>Deal terms</strong>
+          </h2>
           <span className="desk-live-pill">
             <span className="live-dot" />
             Live
@@ -79,11 +84,14 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             type="button"
             className="desk-ghost-btn transition-colors"
             onClick={onToggleAdvanced}
+            aria-expanded={advancedOpen}
+            aria-controls={advancedOpen ? ADVANCED_ID : undefined}
           >
-            {advancedOpen ? "Hide filters" : "More filters"}
+            More filters
           </button>
+          {/* Clears the customer, credit, terms and filters — say so. */}
           <button type="button" className="desk-ghost-btn transition-colors" onClick={onReset}>
-            Reset
+            Reset deal
           </button>
         </div>
       </div>
@@ -142,7 +150,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           </div>
         </div>
         <div className="desk-field compact">
-          <label htmlFor="desk-down">Down</label>
+          <label htmlFor="desk-down">Down ($)</label>
           <input
             id="desk-down"
             className="dc-input tabular-nums"
@@ -153,18 +161,15 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
         </div>
         <div className="desk-field term">
           <label id="desk-term-label">Term</label>
-          <div
-            className="desk-term-buttons"
-            role="group"
-            aria-labelledby="desk-term-label"
-            aria-label="Loan term"
-          >
+          <div className="desk-term-buttons" role="group" aria-labelledby="desk-term-label">
             {DESK_TERMS.map((term) => (
               <button
                 type="button"
                 key={term}
                 className="transition-colors"
                 data-active={dealData.loanTerm === term}
+                aria-pressed={dealData.loanTerm === term}
+                aria-label={`${term} months`}
                 onClick={() => setDeal({ loanTerm: term })}
               >
                 {term}
@@ -173,7 +178,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           </div>
         </div>
         <div className="desk-field compact">
-          <label htmlFor="desk-apr">APR</label>
+          <label htmlFor="desk-apr">APR (%)</label>
           <input
             id="desk-apr"
             className="dc-input tabular-nums"
@@ -191,7 +196,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
       </div>
 
       {advancedOpen && (
-        <div className="desk-terms-advanced">
+        <div id={ADVANCED_ID} className="desk-terms-advanced">
           <div className="desk-field">
             <label htmlFor="desk-buyer-state">Buyer state</label>
             <select

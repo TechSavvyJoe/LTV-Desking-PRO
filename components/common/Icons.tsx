@@ -370,9 +370,14 @@ export const CurrencyDollarIcon = ({ className = "w-6 h-6" }: IconProps) => (
     />
   </svg>
 );
+// Always decorative: it sits beside a labelled search input, so it is hidden
+// from assistive tech here rather than relying on callers to pass aria-hidden
+// (IconProps has no aria props, so a caller's aria-hidden was silently dropped).
 export const MagnifyingGlassIcon = ({ className = "w-5 h-5" }: IconProps) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    focusable="false"
     fill="none"
     viewBox="0 0 24 24"
     strokeWidth={1.5}

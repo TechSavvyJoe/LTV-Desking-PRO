@@ -110,6 +110,10 @@ const flaggedLender = (): LenderProfile => ({
   ],
 });
 
+/** Grid tracks are minmax(...) pairs, so count them rather than splitting on spaces. */
+const trackCount = (el: HTMLElement) =>
+  el.style.gridTemplateColumns.match(/minmax\(/g)?.length ?? 0;
+
 const lastWrittenTier = (): LenderTier | undefined => mocks.writes.at(-1)?.[0]?.tiers?.[0];
 
 const openLender = (name: string) =>
@@ -143,7 +147,9 @@ describe("LendersScreen", () => {
     render(<LendersScreen />);
     openLender("Bank A");
 
-    const tierRow = screen.getByRole("button", { name: "Show details for Tier A, needs review" });
+    const tierRow = screen.getByRole("button", {
+      name: "Show details for Tier A at Bank A, needs review",
+    });
     expect(screen.getByText("Needs review").getAttribute("title")).toBe(
       "Needs review: min FICO, buy rate"
     );
@@ -166,7 +172,7 @@ describe("LendersScreen", () => {
 
     expect(screen.queryByText("Matched")).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Show details for Tier A, needs review" })
+      screen.getByRole("button", { name: "Show details for Tier A at Bank A, needs review" })
     ).toBeTruthy();
   });
 
@@ -185,7 +191,9 @@ describe("LendersScreen", () => {
     openLender("Bank B");
 
     expect(screen.getByText("Matched")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Show details for Clean, matched" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Show details for Clean at Bank B, matched" })
+    ).toBeTruthy();
   });
 
   it("inline edits lift only the edited field's flag; type-then-delete re-flags it", () => {
@@ -319,7 +327,7 @@ describe("LendersScreen", () => {
       expect(headers).toHaveLength(7);
       const row = screen.getByRole("row", { name: /Rate Bank program details/ });
       expect(row.querySelectorAll('[role="cell"]')).toHaveLength(7);
-      expect(row.style.gridTemplateColumns.split(" ")).toHaveLength(7);
+      expect(trackCount(row)).toBe(7);
       expect(screen.queryByText("6.49%")).toBeNull();
     });
 
@@ -333,7 +341,7 @@ describe("LendersScreen", () => {
       expect(headers).toHaveLength(8);
       const row = screen.getByRole("row", { name: /Rate Bank program details/ });
       expect(row.querySelectorAll('[role="cell"]')).toHaveLength(8);
-      expect(row.style.gridTemplateColumns.split(" ")).toHaveLength(8);
+      expect(trackCount(row)).toBe(8);
       expect(screen.getByText("6.49%")).toBeTruthy();
     });
   });
@@ -407,5 +415,143 @@ describe("LendersScreen", () => {
     fireEvent.click(verify);
     expect(lastWrittenTier()?.needsReview).toBeUndefined();
     expect(screen.queryByText("Needs review")).toBeNull();
+  });
+
+  describe("responsive and screen-reader markup", () => {
+    const rated = (over: Partial<LenderProfile> = {}): LenderProfile => ({
+      id: "LR",
+      name: "Rate Bank",
+      bookValueSource: "Trade",
+      tiers: [
+        { name: "A", minFico: 640, maxLtv: 130, maxTerm: 84, baseInterestRate: 6.49 },
+        { name: "B", minFico: 600, maxLtv: 120, maxTerm: 72, baseInterestRate: 8.99 },
+      ],
+      ...over,
+    });
+
+    it("labels every body cell except Lender for the stacked layout (manager sees Buy rate)", () => {
+      mocks.role = "manager";
+      mocks.profiles = [rated()];
+      render(<LendersScreen />);
+
+      const row = screen.getByRole("row", { name: /Rate Bank program details/ });
+      const cells = Array.from(row.querySelectorAll('[role="cell"]'));
+      expect(cells.map((c) => c.getAttribute("data-label"))).toEqual([
+        null,
+        "Tier",
+        "Max LTV",
+        "Max term",
+        "Min FICO",
+        "Buy rate",
+        "Units fitting",
+        "Status",
+      ]);
+    });
+
+    it("drops the Buy rate data-label with the column for sales", () => {
+      mocks.role = "sales";
+      mocks.profiles = [rated()];
+      render(<LendersScreen />);
+
+      const row = screen.getByRole("row", { name: /Rate Bank program details/ });
+      const labels = Array.from(row.querySelectorAll('[role="cell"]')).map((c) =>
+        c.getAttribute("data-label")
+      );
+      expect(labels).not.toContain("Buy rate");
+      expect(labels).toHaveLength(7);
+    });
+
+    it("gives the header row, tier chip and units bar their layout hooks", () => {
+      mocks.role = "sales";
+      mocks.profiles = [rated()];
+      const { container } = render(<LendersScreen />);
+
+      const header = screen.getAllByRole("columnheader")[0]!.parentElement as HTMLElement;
+      expect(header.className).toContain("lenders-screen-columns");
+      expect(header.className).not.toContain("lenders-screen-table-row");
+      expect(container.querySelector(".lenders-tier-count")?.textContent).toBe("2 tiers");
+      expect(container.querySelector(".lenders-units-bar")).toBeTruthy();
+      const first = screen.getByRole("row", { name: /Rate Bank program details/ });
+      expect(first.style.gridTemplateColumns.startsWith("minmax(140px, 2.2fr)")).toBe(true);
+    });
+
+    it("keeps the tier pill on one line", () => {
+      mocks.role = "sales";
+      mocks.profiles = [rated()];
+      render(<LendersScreen />);
+      const pill = screen.getByTitle("Derived from program tiers");
+      expect(pill.style.whiteSpace).toBe("nowrap");
+      expect(pill.style.display).toBe("inline-block");
+    });
+
+    it("exposes the program on/off control as a named switch with its state", () => {
+      mocks.role = "admin";
+      mocks.profiles = [rated()];
+      render(<LendersScreen />);
+      openLender("Rate Bank");
+
+      const sw = screen.getByRole("switch", { name: "Rate Bank program active" });
+      expect(sw.getAttribute("aria-checked")).toBe("true");
+      expect(sw.textContent).toBe("Active");
+      fireEvent.click(sw);
+      const off = screen.getByRole("switch", { name: "Rate Bank program active" });
+      expect(off.getAttribute("aria-checked")).toBe("false");
+      expect(off.textContent).toBe("Disabled");
+      expect(mocks.writes.at(-1)?.[0]?.active).toBe(false);
+    });
+
+    it("hides the program switch from roles that cannot edit", () => {
+      mocks.role = "sales";
+      mocks.profiles = [rated()];
+      render(<LendersScreen />);
+      openLender("Rate Bank");
+      expect(screen.queryByRole("switch")).toBeNull();
+    });
+
+    it("names the lender in the drawer heading, tier toggles, and the colspan", () => {
+      mocks.role = "manager";
+      mocks.profiles = [rated()];
+      render(<LendersScreen />);
+      openLender("Rate Bank");
+
+      expect(screen.getByRole("heading", { name: "Rate Bank program parameters" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /Show details for A at Rate Bank/ })).toBeTruthy();
+      expect(document.getElementById("lender-panel-LR")?.getAttribute("aria-colspan")).toBe("8");
+      cleanup();
+
+      mocks.role = "sales";
+      render(<LendersScreen />);
+      openLender("Rate Bank");
+      expect(document.getElementById("lender-panel-LR")?.getAttribute("aria-colspan")).toBe("7");
+    });
+
+    it("reads an empty value as 'not set' and hides the dash", () => {
+      mocks.role = "manager";
+      mocks.profiles = [
+        { id: "LE", name: "Empty Bank", bookValueSource: "Trade", tiers: [] } as LenderProfile,
+      ];
+      render(<LendersScreen />);
+
+      const row = screen.getByRole("row", { name: /Empty Bank program details/ });
+      const ltv = row.querySelector('[data-label="Max LTV"]') as HTMLElement;
+      expect(ltv.querySelector('[aria-hidden="true"]')?.textContent).toBe("—");
+      expect(ltv.querySelector(".sr-only")?.textContent).toBe("not set");
+      expect(row.querySelectorAll(".sr-only")).toHaveLength(4);
+
+      openLender("Empty Bank");
+      const contact = screen.getByText("Buyer contact");
+      expect(contact.querySelector(".sr-only")?.textContent).toBe("not set");
+    });
+
+    it("names the lender on Edit full program and hides the arrow", () => {
+      mocks.role = "admin";
+      mocks.profiles = [rated()];
+      render(<LendersScreen />);
+      openLender("Rate Bank");
+
+      const edit = screen.getByRole("button", { name: "Edit full program for Rate Bank" });
+      expect(edit.textContent).toContain("Edit full program");
+      expect(edit.querySelector('[aria-hidden="true"]')?.textContent).toBe("→");
+    });
   });
 });

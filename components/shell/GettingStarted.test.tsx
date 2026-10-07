@@ -14,10 +14,24 @@ const base = {
   onDeskDeal: vi.fn(),
 };
 
+/** jsdom has no matchMedia; stub the one query GettingStarted asks about. */
+const stubCompact = (compact: boolean) => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn().mockImplementation((query: string) => ({
+      matches: compact && query.includes("1199px"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+  );
+};
+
 beforeEach(() => localStorage.clear());
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("GettingStarted [takeover: activation]", () => {
@@ -30,7 +44,7 @@ describe("GettingStarted [takeover: activation]", () => {
     expect(base.onImportInventory).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Upload a rate sheet" }));
     expect(base.onAddLenders).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Go to the desk" }));
+    fireEvent.click(screen.getByRole("button", { name: "Search inventory" }));
     expect(base.onDeskDeal).toHaveBeenCalledTimes(1);
   });
 
@@ -51,7 +65,7 @@ describe("GettingStarted [takeover: activation]", () => {
 
   it("Hide persists for that dealer only", () => {
     const first = render(<GettingStarted {...base} />);
-    fireEvent.click(screen.getByRole("button", { name: "Hide" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hide setup card" }));
     expect(screen.queryByRole("region")).toBeNull();
     first.unmount();
 
@@ -63,13 +77,69 @@ describe("GettingStarted [takeover: activation]", () => {
     expect(screen.getByRole("region", { name: "Set up your dealership" })).toBeTruthy();
   });
 
-  it("hides the import and lender-upload actions and points non-admins to their admin instead", () => {
+  it("shows non-admins only the step they can act on", () => {
     render(<GettingStarted {...base} canManageSetup={false} />);
     expect(screen.queryByRole("button", { name: "Import inventory" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Upload a rate sheet" })).toBeNull();
-    expect(screen.getByText("Ask your admin to import inventory.")).toBeTruthy();
-    expect(screen.getByText("Ask your admin to load lender programs.")).toBeTruthy();
+    // The admin-only steps are gone, not just their buttons.
+    expect(screen.queryByText("Import your inventory")).toBeNull();
+    expect(screen.queryByText("Load your lender programs")).toBeNull();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText(/Desk and save your first deal/)).toBeTruthy();
+    expect(screen.getByText(/your admin is finishing the rest of setup/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Search inventory" }));
+    expect(base.onDeskDeal).toHaveBeenCalledTimes(1);
     expect(base.onImportInventory).not.toHaveBeenCalled();
     expect(base.onAddLenders).not.toHaveBeenCalled();
+  });
+
+  it("renders nothing for a non-admin who has no step left to take", () => {
+    const { container } = render(
+      <GettingStarted {...base} canManageSetup={false} savedDealCount={1} />
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("keeps the full checklist open on wide screens", () => {
+    stubCompact(false);
+    render(<GettingStarted {...base} />);
+    expect(screen.queryByRole("button", { name: "Show steps" })).toBeNull();
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("starts as a one-line strip at tablet/phone widths and expands on demand", () => {
+    stubCompact(true);
+    render(<GettingStarted {...base} />);
+    expect(screen.getByRole("region", { name: "Set up your dealership" })).toBeTruthy();
+    expect(screen.getByText("0 of 3 done")).toBeTruthy();
+    expect(screen.queryByRole("listitem")).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show steps" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "Search inventory" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide steps" }));
+    expect(screen.queryByRole("listitem")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show steps" })).toBeTruthy();
+  });
+
+  it("keeps keyboard focus on the toggle when the steps expand and collapse", () => {
+    stubCompact(true);
+    render(<GettingStarted {...base} />);
+    const toggle = screen.getByRole("button", { name: "Show steps" });
+    toggle.focus();
+    expect(document.activeElement).toBe(toggle);
+
+    fireEvent.click(toggle);
+    const hide = screen.getByRole("button", { name: "Hide steps" });
+    expect(document.activeElement).toBe(hide);
+    expect(hide.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(hide);
+    const show = screen.getByRole("button", { name: "Show steps" });
+    expect(document.activeElement).toBe(show);
+    expect(show.getAttribute("aria-expanded")).toBe("false");
   });
 });

@@ -26,14 +26,40 @@ const lenderMeta = (entry: LenderFitEntry, profile: LenderProfile | undefined): 
     tier?.frontEndLtv ??
     maxOverTiers(profile, (t) => t.maxLtv ?? t.otdLtv ?? t.frontEndLtv);
   const term = tier?.maxTerm ?? maxOverTiers(profile, (t) => t.maxTerm);
-  if (ltv == null && term == null) return "—";
+  if (ltv == null && term == null) return <NoneListed label="limits" />;
   return (
     <>
-      <span style={{ ...metaItem, ...sansNum }}>{ltv != null ? `${Math.round(ltv)}%` : "—"}</span>{" "}
-      <span style={sansNum}>{term != null ? `${term} mo` : "—"}</span>
+      <span style={{ ...metaItem, ...sansNum }}>
+        {ltv != null ? (
+          <>
+            <span className="sr-only">max LTV </span>
+            {`${Math.round(ltv)}%`}
+          </>
+        ) : (
+          <NoneListed label="max LTV" />
+        )}
+      </span>{" "}
+      <span style={sansNum}>
+        {term != null ? (
+          <>
+            <span className="sr-only">max term </span>
+            {`${term} mo`}
+          </>
+        ) : (
+          <NoneListed label="max term" />
+        )}
+      </span>
     </>
   );
 };
+
+/** A missing limit: a dash on screen, "<label> none listed" to a screen reader. */
+const NoneListed: React.FC<{ label: string }> = ({ label }) => (
+  <>
+    <span aria-hidden="true">—</span>
+    <span className="sr-only">{label} none listed</span>
+  </>
+);
 
 interface LenderLadderProps {
   entries: LenderFitEntry[];
@@ -68,18 +94,25 @@ const LenderLadder: React.FC<LenderLadderProps> = ({
           {fitCount}/{totalLenders}
         </strong>
       </div>
+      {/* Lists, one item per lender, so each path is its own stop rather
+          than one run of text. role="list" keeps the semantics in Safari,
+          which drops them from unstyled lists. */}
       {fitNames.length > 0 && (
-        <div className="desk-lender-paths">
+        <ul className="desk-lender-paths" role="list" aria-label="Lenders that fit">
           {fitNames.slice(0, 3).map((name) => (
-            <span key={name}>{name}</span>
+            // A shrinkable flex box, so the pill is a block flex item again:
+            // its padding, max-width and ellipsis apply (inline spans ignore them).
+            <li key={name} className="flex min-w-0 max-w-full">
+              <span>{name}</span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-      <div className="desk-lender-list">
+      <ul className="desk-lender-list" role="list">
         {visible.map((entry) => {
           const profile = profilesById.get(entry.lenderId);
           return (
-            <div key={entry.lenderId} className="desk-lender-row">
+            <li key={entry.lenderId} className="desk-lender-row">
               {/* Three states, never conflated: fits / held pending a check / declined. */}
               <span
                 className="desk-lender-badge"
@@ -94,10 +127,10 @@ const LenderLadder: React.FC<LenderLadderProps> = ({
               <span className="desk-lender-meta" style={sansNum}>
                 {lenderMeta(entry, profile)}
               </span>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </section>
   );
 };

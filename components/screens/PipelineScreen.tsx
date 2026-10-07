@@ -46,6 +46,10 @@ const initialsOf = (name: string): string =>
     .slice(0, 2)
     .toUpperCase() || "?";
 
+/** "STK" prefix only when the stock value does not already carry one. */
+const stockLabel = (stock: string): string =>
+  /^stk/i.test(String(stock).trim()) ? String(stock) : `STK ${stock}`;
+
 const numVal = (v: number | "Error" | "N/A" | undefined): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
@@ -451,7 +455,7 @@ const PipelineScreenBase: React.FC = () => {
                             fontFamily: mono,
                           }}
                         >
-                          STK {deal.vehicle.stock}
+                          {stockLabel(deal.vehicle.stock)}
                         </div>
                       </div>
                       <span

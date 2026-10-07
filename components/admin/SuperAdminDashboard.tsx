@@ -103,7 +103,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
       style={{ background: "var(--color-bg-subtle)", fontFamily: "var(--font-sans)" }}
     >
       <ConsoleHeader
-        label="OWNER CONSOLE"
+        label="Owner console"
         title={
           `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim() ||
           currentUser?.email ||
@@ -193,28 +193,34 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           gap: 4,
         }}
       >
-        <ConsoleTab
-          active={activeTab === "overview"}
-          onClick={() => setActiveTab("overview")}
-          label="Overview"
-        />
-        <ConsoleTab
-          active={activeTab === "dealers"}
-          onClick={() => setActiveTab("dealers")}
-          label="Dealerships"
-          badge={stats.totalDealers}
-        />
-        <ConsoleTab
-          active={activeTab === "users"}
-          onClick={() => setActiveTab("users")}
-          label="Users"
-          badge={stats.totalUsers}
-        />
-        <ConsoleTab
-          active={activeTab === "settings"}
-          onClick={() => setActiveTab("settings")}
-          label="Settings"
-        />
+        {/* Section switcher — a labelled nav with the current section marked. [aria #15] */}
+        <nav
+          aria-label="Owner console sections"
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
+        >
+          <ConsoleTab
+            active={activeTab === "overview"}
+            onClick={() => setActiveTab("overview")}
+            label="Overview"
+          />
+          <ConsoleTab
+            active={activeTab === "dealers"}
+            onClick={() => setActiveTab("dealers")}
+            label="Dealerships"
+            badge={stats.totalDealers}
+          />
+          <ConsoleTab
+            active={activeTab === "users"}
+            onClick={() => setActiveTab("users")}
+            label="Users"
+            badge={stats.totalUsers}
+          />
+          <ConsoleTab
+            active={activeTab === "settings"}
+            onClick={() => setActiveTab("settings")}
+            label="Settings"
+          />
+        </nav>
         <div style={{ marginLeft: "auto" }}>{refreshBar}</div>
       </div>
 

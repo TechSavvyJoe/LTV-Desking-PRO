@@ -526,6 +526,7 @@ export const DealersPanel: React.FC<DealersPanelProps> = ({
                 <tr>
                   <td colSpan={7} className="px-4 py-0">
                     <EmptyState
+                      headingLevel={3}
                       icon={<Icons.BuildingLibraryIcon className="w-5 h-5" />}
                       title={search ? "No dealerships match" : "No dealerships yet"}
                       description={

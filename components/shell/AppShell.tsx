@@ -166,7 +166,16 @@ const tabStyle = (isActive: boolean): React.CSSProperties => ({
   whiteSpace: "nowrap",
 });
 
-const CountChip: React.FC<{ count: number }> = ({ count }) => (
+/**
+ * Live count beside a nav label. The unit is screen-reader-only text so
+ * "Pipeline 3" reads as "Pipeline 3 deals" without changing what sighted users
+ * see. [aria #25]
+ */
+const CountChip: React.FC<{ count: number; unit: string; units: string }> = ({
+  count,
+  unit,
+  units,
+}) => (
   <span
     style={{
       fontSize: 11,
@@ -178,6 +187,7 @@ const CountChip: React.FC<{ count: number }> = ({ count }) => (
     }}
   >
     {count}
+    <span className="sr-only"> {count === 1 ? unit : units}</span>
   </span>
 );
 
@@ -209,6 +219,23 @@ export const AppShell: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // On phones the tab row scrolls horizontally; bring the active tab into view
+  // after each route change. Instant (not smooth) so it is motion-safe by
+  // construction, and block:"nearest" so the page never scrolls vertically.
+  // [R22]
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    // Scroll only the nav, never the window (scrollIntoView can shift both).
+    if (nav && active) {
+      nav.scrollTo?.({
+        left: active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2,
+        behavior: "instant",
+      });
+    }
+  }, [location.pathname]);
 
   const currentUser = getCurrentUser();
   const isSuperAdmin = currentUser?.role === "superadmin";
@@ -730,7 +757,7 @@ export const AppShell: React.FC = () => {
           {(isSuperAdmin || isDealerAdmin) && (
             <button
               onClick={openAiUpload}
-              className="app-shell-ai-btn"
+              className="app-shell-ai-btn app-shell-icon-btn"
               aria-label="Upload rate sheet"
               title="Upload rate sheet"
               // Background + hover live in index.css (.app-shell-ai-btn) so the
@@ -757,8 +784,8 @@ export const AppShell: React.FC = () => {
 
           <button
             onClick={toggleTheme}
-            className="rail-btn"
-            aria-label="Toggle theme"
+            className="rail-btn app-shell-icon-btn"
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             style={railBtnStyle}
           >
             {theme === "dark" ? <SunIcon /> : <MoonIcon />}
@@ -787,7 +814,7 @@ export const AppShell: React.FC = () => {
             <button
               ref={accountBtnRef}
               onClick={() => setMenuOpen((v) => !v)}
-              className="rail-btn"
+              className="rail-btn app-shell-icon-btn"
               title="Account"
               aria-label="Account menu"
               aria-haspopup="menu"
@@ -912,6 +939,7 @@ export const AppShell: React.FC = () => {
         </div>
 
         <nav
+          ref={navRef}
           aria-label="Primary"
           className="app-shell-nav"
           style={{ display: "flex", alignItems: "center", gap: 2, padding: "0 14px" }}
@@ -921,15 +949,15 @@ export const AppShell: React.FC = () => {
           </NavLink>
           <NavLink to="/pipeline" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Pipeline
-            <CountChip count={savedDeals.length} />
+            <CountChip count={savedDeals.length} unit="deal" units="deals" />
           </NavLink>
           <NavLink to="/inventory" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Inventory
-            <CountChip count={inventory.length} />
+            <CountChip count={inventory.length} unit="unit" units="units" />
           </NavLink>
           <NavLink to="/lenders" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Lenders
-            <CountChip count={lenderProfiles.length} />
+            <CountChip count={lenderProfiles.length} unit="program" units="programs" />
           </NavLink>
           <NavLink to="/reports" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
             Reports

@@ -12,6 +12,7 @@ import {
   otdColorFor,
   pct,
   sansNum,
+  stockLabel,
 } from "./deskConstants";
 
 interface CompareStripProps {
@@ -51,12 +52,12 @@ const CompareStripBase: React.FC<CompareStripProps> = ({
               type="button"
               className="desk-compare-focus"
               onClick={() => onFocus(vehicle.vin)}
-              aria-label={`Focus ${nameShort(vehicle)} on desk`}
+              aria-current={focused ? "true" : undefined}
             >
               <span className="desk-compare-name">{nameShort(vehicle)}</span>
               <span className="desk-compare-meta">
                 <span style={{ ...metaItem, ...sansNum }}>{vehicle.modelYear}</span>{" "}
-                <span style={{ fontFamily: mono }}>STK {vehicle.stock}</span>
+                <span style={{ fontFamily: mono }}>{stockLabel(vehicle.stock)}</span>
               </span>
               <span className="desk-compare-payment">
                 <strong style={sansNum}>{payment === null ? "—" : fmt(payment)}</strong>

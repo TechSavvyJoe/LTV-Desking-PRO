@@ -26,6 +26,10 @@ const pctOrDash = (v: number | "Error" | "N/A"): string => {
   return n === null ? "—" : `${Math.round(n)}%`;
 };
 
+/** "STK" prefix only when the stock value does not already carry one. */
+const stockLabel = (stock: string): string =>
+  /^stk/i.test(String(stock).trim()) ? String(stock) : `STK ${stock}`;
+
 /** Mockup lendersColor: ≥4 success · ≥1 warning · 0 danger. */
 const lendersColor = (c: number): string =>
   c >= 4 ? "var(--color-success)" : c >= 1 ? "var(--color-warning)" : "var(--color-danger)";
@@ -221,7 +225,10 @@ const InventoryScreenBase: React.FC = () => {
           style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}
         >
           <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Inventory</h1>
-          <span style={{ fontSize: 13, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+          <span
+            role="status"
+            style={{ fontSize: 13, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}
+          >
             {sortedInventory.length} of {inventory.length}{" "}
             {inventory.length === 1 ? "unit" : "units"}
           </span>
@@ -264,7 +271,13 @@ const InventoryScreenBase: React.FC = () => {
             </>
           )}
 
-          <Button type="button" variant="secondary" size="sm" onClick={downloadSampleCsv}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            aria-label="Download sample CSV"
+            onClick={downloadSampleCsv}
+          >
             Sample CSV
           </Button>
 
@@ -367,6 +380,7 @@ const InventoryScreenBase: React.FC = () => {
             variant="secondary"
             size="sm"
             title="Download a PDF of the vehicles in Compare"
+            aria-label="Download Compare PDF"
             onClick={() => void handleDownloadFavorites()}
           >
             Compare PDF
@@ -427,7 +441,7 @@ const InventoryScreenBase: React.FC = () => {
             {/* Column headers — sortable with per-key default directions */}
             <div role="rowgroup">
               <div
-                className="inventory-screen-table-row"
+                className="inventory-screen-table-row inventory-screen-columns"
                 role="row"
                 aria-rowindex={1}
                 style={{
@@ -440,44 +454,49 @@ const InventoryScreenBase: React.FC = () => {
                   borderBottom: "1px solid var(--color-border)",
                 }}
               >
-                {COLUMNS.map((col) => (
-                  <button
-                    key={col.key as string}
-                    type="button"
-                    onClick={() => handleSort(col.key, col.defaultDir)}
-                    title={col.title}
-                    role="columnheader"
-                    aria-label={
-                      inventorySort.key === col.key
-                        ? `Sort by ${col.label}, sorted ${inventorySort.direction === "asc" ? "ascending" : "descending"}`
-                        : `Sort by ${col.label}`
-                    }
-                    aria-sort={
-                      inventorySort.key === col.key
-                        ? inventorySort.direction === "asc"
-                          ? "ascending"
-                          : "descending"
-                        : "none"
-                    }
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      letterSpacing: 0,
-                      color: "var(--color-text-muted)",
-                      textAlign: col.right ? "right" : "left",
-                      cursor: "pointer",
-                      userSelect: "none",
-                      whiteSpace: "nowrap",
-                      background: "transparent",
-                      border: "none",
-                      padding: 0,
-                      margin: 0,
-                    }}
-                  >
-                    {col.label}
-                    {sortArrow(col.key)}
-                  </button>
-                ))}
+                {COLUMNS.map((col) => {
+                  const sorted = inventorySort.key === col.key;
+                  return (
+                    <div
+                      key={col.key as string}
+                      role="columnheader"
+                      aria-sort={
+                        sorted
+                          ? inventorySort.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                      style={{ textAlign: col.right ? "right" : "left" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort(col.key, col.defaultDir)}
+                        title={col.title}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          letterSpacing: 0,
+                          color: "var(--color-text-muted)",
+                          textAlign: "inherit",
+                          cursor: "pointer",
+                          userSelect: "none",
+                          whiteSpace: "nowrap",
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          margin: 0,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {col.label}
+                        <span aria-hidden="true">{sortArrow(col.key)}</span>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -516,16 +535,8 @@ const InventoryScreenBase: React.FC = () => {
                         <div
                           className="inv-row inventory-screen-table-row"
                           onClick={() => openOnDesk(v)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              openOnDesk(v);
-                            }
-                          }}
                           role="row"
                           aria-rowindex={item.index + 2}
-                          tabIndex={0}
-                          aria-label={`Structure ${v.vehicle} on the desk`}
                           style={{
                             display: "grid",
                             gridTemplateColumns: GRID,
@@ -538,21 +549,44 @@ const InventoryScreenBase: React.FC = () => {
                             background: isFocused ? "var(--color-primary-subtle)" : "transparent",
                           }}
                         >
-                          <div role="cell" style={{ minWidth: 0 }}>
-                            <div
+                          <div role="cell" data-col="vehicle" style={{ minWidth: 0 }}>
+                            {/* The real control: opens this unit on the desk. aria-current marks the focused unit. */}
+                            <button
+                              type="button"
+                              aria-current={isFocused ? "true" : undefined}
+                              onClick={(e) => {
+                                // The row's own click handler would fire a second time.
+                                e.stopPropagation();
+                                openOnDesk(v);
+                              }}
                               style={{
-                                fontSize: 14,
-                                fontWeight: 600,
-                                letterSpacing: 0,
-                                lineHeight: 1.25,
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
+                                display: "block",
+                                width: "100%",
+                                background: "transparent",
+                                border: "none",
+                                padding: 0,
+                                margin: 0,
+                                cursor: "pointer",
+                                color: "inherit",
+                                fontFamily: "inherit",
+                                textAlign: "left",
                               }}
                             >
-                              {v.vehicle}
-                            </div>
+                              <span
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 600,
+                                  letterSpacing: 0,
+                                  lineHeight: 1.25,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {v.vehicle}
+                              </span>
+                            </button>
                             <div
                               style={{
                                 fontSize: 12,
@@ -563,7 +597,7 @@ const InventoryScreenBase: React.FC = () => {
                                 columnGap: 10,
                               }}
                             >
-                              <span style={{ fontFamily: mono }}>STK {v.stock}</span>
+                              <span style={{ fontFamily: mono }}>{stockLabel(v.stock)}</span>
                               <span style={{ fontVariantNumeric: "tabular-nums" }}>
                                 {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi
                               </span>
@@ -571,6 +605,8 @@ const InventoryScreenBase: React.FC = () => {
                           </div>
                           <span
                             role="cell"
+                            data-label="Price"
+                            data-col="price"
                             style={{
                               fontSize: 14,
                               textAlign: "right",
@@ -581,6 +617,8 @@ const InventoryScreenBase: React.FC = () => {
                           </span>
                           <span
                             role="cell"
+                            data-label="Book (trade)"
+                            data-col="book"
                             style={{
                               fontSize: 14,
                               textAlign: "right",
@@ -592,6 +630,8 @@ const InventoryScreenBase: React.FC = () => {
                           </span>
                           <span
                             role="cell"
+                            data-label="Front LTV"
+                            data-col="front-ltv"
                             style={{
                               fontSize: 14,
                               textAlign: "right",
@@ -603,6 +643,8 @@ const InventoryScreenBase: React.FC = () => {
                           </span>
                           <span
                             role="cell"
+                            data-label="Financed"
+                            data-col="financed"
                             style={{
                               fontSize: 14,
                               textAlign: "right",
@@ -614,7 +656,12 @@ const InventoryScreenBase: React.FC = () => {
                               ? "—"
                               : fmt(v.amountToFinance as number)}
                           </span>
-                          <span role="cell" style={{ textAlign: "right" }}>
+                          <span
+                            role="cell"
+                            data-label="OTD LTV"
+                            data-col="otd-ltv"
+                            style={{ textAlign: "right" }}
+                          >
                             <span
                               style={{
                                 fontSize: 13,
@@ -631,6 +678,8 @@ const InventoryScreenBase: React.FC = () => {
                           </span>
                           <span
                             role="cell"
+                            data-label="Payment"
+                            data-col="payment"
                             style={{
                               fontSize: 14,
                               textAlign: "right",
@@ -644,6 +693,8 @@ const InventoryScreenBase: React.FC = () => {
                           </span>
                           <span
                             role="cell"
+                            data-label="Lenders"
+                            data-col="lenders"
                             style={{
                               fontSize: 13,
                               textAlign: "right",
@@ -656,6 +707,8 @@ const InventoryScreenBase: React.FC = () => {
                           </span>
                           <span
                             role="cell"
+                            data-label="Approval"
+                            data-col="approval"
                             style={{
                               display: "flex",
                               alignItems: "center",
@@ -673,7 +726,16 @@ const InventoryScreenBase: React.FC = () => {
                                 textAlign: "right",
                               }}
                             >
-                              {pending ? "—" : score}
+                              {pending ? (
+                                <>
+                                  <span aria-hidden="true">—</span>
+                                  <span className="sr-only">
+                                    Approval odds pending lender checks
+                                  </span>
+                                </>
+                              ) : (
+                                score
+                              )}
                             </span>
                             <ScoreRing
                               score={pending ? 0 : score}

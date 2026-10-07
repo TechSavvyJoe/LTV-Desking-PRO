@@ -280,6 +280,7 @@ const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
       {data.length === 0 ? (
         <div className="h-64">
           <EmptyState
+            headingLevel={3}
             icon={<Icons.BuildingLibraryIcon className="w-full h-full" />}
             title={
               lenderProfiles.length === 0 ? "No lender programs yet" : "No lenders fit this deal"

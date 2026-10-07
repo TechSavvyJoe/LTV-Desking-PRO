@@ -315,7 +315,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
 
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
-        <div className="bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg overflow-hidden shadow-sm">
+        <div className="bg-[var(--color-bg)] ring-1 ring-[var(--color-border)] rounded-lg overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
             <div className="w-9 h-9 rounded-xl bg-[var(--color-bg-muted)] ring-1 ring-[var(--color-border)] flex items-center justify-center">
               <Icons.UserIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
@@ -502,8 +502,8 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
       )}
 
       {/* Users Table */}
-      <div className="bg-[var(--color-bg)] rounded-lg ring-1 ring-[var(--color-border)] overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="bg-[var(--color-bg)] rounded-lg ring-1 ring-[var(--color-border)] overflow-hidden">
+        <div className="admin-table-scroll relative overflow-x-auto">
           <table className="w-full" aria-label="Users list">
             <thead className="bg-[var(--color-bg)]">
               <tr className="border-b border-[var(--color-border)]">
@@ -540,9 +540,12 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                       isActive ? "" : "opacity-60"
                     }`}
                   >
-                    <td className="px-4 py-3">
+                    <th scope="row" className="px-4 py-3 text-left font-normal">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-[var(--on-primary)] text-xs font-semibold ring-2 ring-[var(--color-bg)] flex-shrink-0">
+                        <div
+                          aria-hidden="true"
+                          className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-[var(--on-primary)] text-xs font-semibold ring-2 ring-[var(--color-bg)] flex-shrink-0"
+                        >
                           {user.firstName?.[0]}
                           {user.lastName?.[0]}
                         </div>
@@ -562,7 +565,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                           )}
                         </div>
                       </div>
-                    </td>
+                    </th>
                     <td className="px-4 py-3 text-[var(--color-text)] text-sm truncate max-w-[220px]">
                       {user.email}
                     </td>
@@ -607,7 +610,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                     <td className="px-4 py-3 text-center text-[var(--color-text-muted)] text-xs tabular-nums">
                       {new Date(user.created).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleEdit(user)}
@@ -620,6 +623,8 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                         <button
                           onClick={() => handleToggleUserActive(user)}
                           disabled={isSelf}
+                          aria-label={`${isActive ? "Deactivate" : "Reactivate"} ${user.email}`}
+                          aria-describedby={isSelf ? `self-deactivate-${user.id}` : undefined}
                           className={`px-2.5 py-1 rounded-md text-xs font-medium ring-1 ring-inset transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                             isActive
                               ? "bg-[var(--color-warning-subtle)] text-[var(--color-warning)] ring-[var(--color-warning)] hover:bg-[var(--color-warning-subtle)]"
@@ -635,6 +640,11 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                         >
                           {isActive ? "Deactivate" : "Reactivate"}
                         </button>
+                        {isSelf && (
+                          <span id={`self-deactivate-${user.id}`} className="sr-only">
+                            You can't deactivate your own account
+                          </span>
+                        )}
                         <button
                           onClick={() => handleDeleteUser(user.id)}
                           disabled={isSelf}
@@ -655,6 +665,7 @@ export const UsersPanel: React.FC<UsersPanelProps> = ({ users, dealers, onRefres
                 <tr>
                   <td colSpan={6} className="px-4 py-0">
                     <EmptyState
+                      headingLevel={3}
                       icon={<Icons.UserIcon className="w-5 h-5" />}
                       title={
                         search || filterDealer || filterRole ? "No users match" : "No users yet"

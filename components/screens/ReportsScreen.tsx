@@ -72,6 +72,7 @@ const BarRowComponent: React.FC<BarRowProps> = ({
 }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
     <span
+      className="bar-row-label"
       style={{
         fontSize: 13,
         width: labelWidth,
@@ -104,6 +105,7 @@ const BarRowComponent: React.FC<BarRowProps> = ({
       />
     </div>
     <span
+      className="bar-row-value"
       style={{
         fontSize: 13,
         ...tnum,
@@ -121,10 +123,30 @@ const BarRowComponent: React.FC<BarRowProps> = ({
 
 const BarRow = React.memo(BarRowComponent);
 
-/** Count and share as separate spans — a real pause for screen readers, no bullet. */
+/**
+ * Count and share. Sighted users get the two-number layout; screen readers get
+ * one clean phrase ("12 units, 34%") instead of two bare numbers.
+ */
 const CountShare: React.FC<{ count: number; share: string }> = ({ count, share }) => (
   <>
-    <span>{count}</span> <span style={{ marginLeft: 6 }}>{share}</span>
+    <span aria-hidden="true">{count}</span>{" "}
+    <span aria-hidden="true" style={{ marginLeft: 6 }}>
+      {share}
+    </span>
+    <span className="sr-only">
+      {count} {count === 1 ? "unit" : "units"}, {share}
+    </span>
+  </>
+);
+
+/**
+ * An unknown value: shows "—" to sighted users, and says why to screen readers
+ * (a bare dash is read as "dash").
+ */
+const Unknown: React.FC<{ reason?: string }> = ({ reason = "pending" }) => (
+  <>
+    <span aria-hidden="true">—</span>
+    <span className="sr-only">{reason}</span>
   </>
 );
 
@@ -272,7 +294,7 @@ const ReportsScreenBase: React.FC = () => {
     ? stats.best.make && stats.best.model
       ? `${stats.best.make} ${stats.best.model}${stats.best.trim ? " " + stats.best.trim : ""}`
       : stats.best.vehicle
-    : "—";
+    : null;
   const bestScore = stats.best?.approvalScore ?? null;
 
   const lenderReach = safeLenderProfiles.filter((l) => l.active !== false);
@@ -340,7 +362,7 @@ const ReportsScreenBase: React.FC = () => {
                         : approvalColor(stats.avgScore),
                   }}
                 >
-                  {stats.avgScore ?? "—"}
+                  {stats.avgScore ?? <Unknown />}
                 </div>
               </div>
               <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
@@ -356,7 +378,7 @@ const ReportsScreenBase: React.FC = () => {
                       stats.avgOtd === null ? "var(--color-text-muted)" : otdColor(stats.avgOtd),
                   }}
                 >
-                  {stats.avgOtd === null ? "—" : `${stats.avgOtd}%`}
+                  {stats.avgOtd === null ? <Unknown /> : `${stats.avgOtd}%`}
                 </div>
               </div>
               <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
@@ -364,7 +386,7 @@ const ReportsScreenBase: React.FC = () => {
                 <div
                   style={{ fontSize: 32, fontWeight: 700, marginTop: 8, letterSpacing: 0, ...tnum }}
                 >
-                  {stats.avgPay === null ? "—" : `${fmt(stats.avgPay)}/mo`}
+                  {stats.avgPay === null ? <Unknown /> : `${fmt(stats.avgPay)}/mo`}
                 </div>
               </div>
               <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
@@ -469,7 +491,7 @@ const ReportsScreenBase: React.FC = () => {
                     ...(stats.best ? {} : { color: "var(--color-text-muted)" }),
                   }}
                 >
-                  {bestName}
+                  {bestName ?? <Unknown />}
                 </div>
                 <div
                   style={{
@@ -480,7 +502,12 @@ const ReportsScreenBase: React.FC = () => {
                       bestScore === null ? "var(--color-text-muted)" : approvalColor(bestScore),
                   }}
                 >
-                  {bestScore === null ? "—" : `${bestScore} / 100 odds`}
+                  {bestScore === null ? (
+                    // The unit name above already says "pending" to screen readers.
+                    <span aria-hidden="true">—</span>
+                  ) : (
+                    `${bestScore} / 100 odds`
+                  )}
                 </div>
               </div>
               <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
@@ -498,9 +525,11 @@ const ReportsScreenBase: React.FC = () => {
                         : undefined,
                   }}
                 >
-                  {stats.payMin === null || stats.payMax === null
-                    ? "—"
-                    : `${fmt(stats.payMin)} – ${fmt(stats.payMax)}`}
+                  {stats.payMin === null || stats.payMax === null ? (
+                    <Unknown />
+                  ) : (
+                    `${fmt(stats.payMin)} – ${fmt(stats.payMax)}`
+                  )}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 5 }}>
                   per month, current deal
@@ -518,9 +547,11 @@ const ReportsScreenBase: React.FC = () => {
                     color: "var(--color-primary)",
                   }}
                 >
-                  {stats.avgLenders === null
-                    ? "—"
-                    : `${stats.avgLenders.toFixed(1)} / ${totalLenders}`}
+                  {stats.avgLenders === null ? (
+                    <Unknown />
+                  ) : (
+                    `${stats.avgLenders.toFixed(1)} / ${totalLenders}`
+                  )}
                 </div>
               </div>
             </div>
@@ -719,7 +750,7 @@ const ReportsScreenBase: React.FC = () => {
                       ...(pStats.total ? {} : { color: "var(--color-text-muted)" }),
                     }}
                   >
-                    {pStats.total ? fmt(pStats.financed) : "—"}
+                    {pStats.total ? fmt(pStats.financed) : <Unknown reason="no deals yet" />}
                   </div>
                 </div>
                 <div>
@@ -737,7 +768,11 @@ const ReportsScreenBase: React.FC = () => {
                           : "var(--color-success)",
                     }}
                   >
-                    {pStats.approvalRate === null ? "—" : `${pStats.approvalRate}%`}
+                    {pStats.approvalRate === null ? (
+                      <Unknown reason="no deals yet" />
+                    ) : (
+                      `${pStats.approvalRate}%`
+                    )}
                   </div>
                 </div>
                 <div>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Button from "../common/Button";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 
@@ -64,6 +64,26 @@ const CheckGlyph: React.FC<{ done: boolean }> = ({ done }) => (
   </span>
 );
 
+/** Below this width the checklist starts as a one-line strip so it never pushes the desk down. */
+const COMPACT_QUERY = "(max-width: 1199px)";
+
+const useIsCompact = (): boolean => {
+  const [compact, setCompact] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia(COMPACT_QUERY).matches
+      : false
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(COMPACT_QUERY);
+    const sync = () => setCompact(media.matches);
+    sync();
+    media.addEventListener?.("change", sync);
+    return () => media.removeEventListener?.("change", sync);
+  }, []);
+  return compact;
+};
+
 /**
  * First-run activation checklist. A new dealership lands on an empty desk and
  * has no idea what to do first; this card turns the three setup steps into
@@ -84,6 +104,10 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
     `ltv.gettingStarted.dismissed.${dealerId}`,
     false
   );
+  // At tablet/phone widths the card defaults to a one-line strip the user can
+  // expand; on wide screens it is always open. [R24]
+  const isCompact = useIsCompact();
+  const [expanded, setExpanded] = useState(false);
 
   const steps: Step[] = [
     {
@@ -109,7 +133,7 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
       title: "Desk and save your first deal",
       body: "Pick a unit, set the terms, and save it to the pipeline.",
       done: savedDealCount > 0,
-      action: "Go to the desk",
+      action: "Search inventory",
       onAction: onDeskDeal,
     },
   ];
@@ -118,101 +142,182 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
   if (dismissed || doneCount === steps.length) return null;
   const pct = Math.round((doneCount / steps.length) * 100);
 
+  // Someone who can't import inventory or load lenders only needs the step they
+  // can actually take; the admin-only steps are noise for them. [R24]
+  const visibleSteps = canManageSetup ? steps : steps.filter((s) => !s.done && s.onAction);
+  if (visibleSteps.length === 0) return null;
+  const adminStepsPending = !canManageSetup && steps.some((s) => !s.done && !s.onAction);
+  const collapsed = isCompact && !expanded;
+
+  // One tree for both states: the header row, and the toggle button inside it,
+  // stay mounted at the same position, so keyboard focus survives expanding and
+  // collapsing. Only the count, the dismiss button and the body come and go. [R24]
   return (
     <section
       aria-labelledby="getting-started-title"
       className="getting-started-card"
-      style={{
-        margin: "16px 16px 0",
-        background: "var(--color-bg)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-md)",
-        boxShadow: "var(--shadow)",
-        padding: "16px 18px",
-      }}
+      style={
+        collapsed
+          ? {
+              margin: "12px 16px 0",
+              background: "var(--color-bg)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              padding: "6px 8px 6px 14px",
+            }
+          : {
+              margin: "16px 16px 0",
+              background: "var(--color-bg)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              boxShadow: "var(--shadow)",
+              padding: "16px 18px",
+            }
+      }
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: collapsed ? 10 : 12,
+          flexWrap: collapsed ? "nowrap" : "wrap",
+        }}
+      >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 id="getting-started-title" style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>
+          <h2
+            id="getting-started-title"
+            style={
+              collapsed
+                ? {
+                    margin: 0,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }
+                : { fontSize: 15, fontWeight: 700, margin: 0 }
+            }
+          >
             Set up your dealership
           </h2>
-          <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--color-text-muted)" }}>
-            {doneCount} of {steps.length} done — about ten minutes to a fully working desk.
-          </p>
+          {!collapsed && (
+            <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--color-text-muted)" }}>
+              {doneCount} of {steps.length} done —{" "}
+              {adminStepsPending
+                ? "your admin is finishing the rest of setup."
+                : "about ten minutes to a fully working desk."}
+            </p>
+          )}
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setDismissed(true)}>
-          Hide
-        </Button>
+        {collapsed && (
+          <span
+            style={{
+              fontSize: 13,
+              color: "var(--color-text-muted)",
+              whiteSpace: "nowrap",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {doneCount} of {steps.length} done
+          </span>
+        )}
+        {isCompact && (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={!collapsed}
+            onClick={() => setExpanded(collapsed)}
+          >
+            {collapsed ? "Show steps" : "Hide steps"}
+          </Button>
+        )}
+        {!collapsed && (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Hide setup card"
+            onClick={() => setDismissed(true)}
+          >
+            Hide
+          </Button>
+        )}
       </div>
 
-      <div
-        role="progressbar"
-        aria-label="Setup progress"
-        aria-valuemin={0}
-        aria-valuemax={steps.length}
-        aria-valuenow={doneCount}
-        style={{
-          height: 4,
-          borderRadius: 2,
-          background: "var(--color-bg-muted)",
-          margin: "12px 0 14px",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            background: "var(--color-primary)",
-            transition: "width var(--duration-fast, 150ms) ease",
-          }}
-        />
-      </div>
+      {!collapsed && (
+        <>
+          <div
+            role="progressbar"
+            aria-label="Setup progress"
+            aria-valuemin={0}
+            aria-valuemax={steps.length}
+            aria-valuenow={doneCount}
+            style={{
+              height: 4,
+              borderRadius: 2,
+              background: "var(--color-bg-muted)",
+              margin: "12px 0 14px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${pct}%`,
+                height: "100%",
+                background: "var(--color-primary)",
+                transition: "width var(--duration-fast, 150ms) ease",
+              }}
+            />
+          </div>
 
-      <ol
-        style={{
-          listStyle: "none",
-          margin: 0,
-          padding: 0,
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-        }}
-      >
-        {steps.map((s, i) => (
-          <li key={s.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <CheckGlyph done={s.done} />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  textDecoration: s.done ? "line-through" : "none",
-                  color: s.done ? "var(--color-text-muted)" : "var(--color-text)",
-                }}
-              >
-                <span className="sr-only">{s.done ? "Done: " : `Step ${i + 1}: `}</span>
-                {s.title}
-              </div>
-              <p
-                style={{
-                  margin: "2px 0 8px",
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  lineHeight: 1.45,
-                }}
-              >
-                {s.body}
-              </p>
-              {!s.done && s.action && s.onAction && (
-                <Button variant="secondary" size="sm" onClick={s.onAction}>
-                  {s.action}
-                </Button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
+          <ol
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              display: "grid",
+              gap: 12,
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            }}
+          >
+            {visibleSteps.map((s) => (
+              <li key={s.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <CheckGlyph done={s.done} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      textDecoration: s.done ? "line-through" : "none",
+                      color: s.done ? "var(--color-text-muted)" : "var(--color-text)",
+                    }}
+                  >
+                    <span className="sr-only">
+                      {s.done ? "Done: " : `Step ${steps.indexOf(s) + 1}: `}
+                    </span>
+                    {s.title}
+                  </div>
+                  <p
+                    style={{
+                      margin: "2px 0 8px",
+                      fontSize: 12,
+                      color: "var(--color-text-muted)",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {s.body}
+                  </p>
+                  {!s.done && s.action && s.onAction && (
+                    <Button variant="secondary" size="sm" onClick={s.onAction}>
+                      {s.action}
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
     </section>
   );
 };

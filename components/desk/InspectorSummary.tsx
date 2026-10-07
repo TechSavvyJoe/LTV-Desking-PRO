@@ -56,7 +56,9 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
           ariaDescribedBy={disclaimerId}
           indeterminate={pending}
         />
-        <div className="desk-score-label" style={{ color: gaugeColor }}>
+        {/* The gauge's accessible name already ends with the band label;
+            hide the visible copy so it isn't read twice. */}
+        <div className="desk-score-label" style={{ color: gaugeColor }} aria-hidden="true">
           {bandLabel}
         </div>
         {pending ? (
@@ -84,8 +86,16 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
       <div className="desk-payment-cell">
         <div className="desk-payment-label">Est. monthly payment</div>
         <div className="desk-payment-value">
-          <span style={sansNum}>{pay ? pay.whole : "—"}</span>
-          <small style={sansNum}>{pay ? pay.frac : ""}</small>
+          {/* Split dollars/cents are visual only; the reading is one amount. */}
+          <span style={sansNum} aria-hidden="true">
+            {pay ? pay.whole : "—"}
+          </span>
+          <small style={sansNum} aria-hidden="true">
+            {pay ? pay.frac : ""}
+          </small>
+          <span className="sr-only">
+            {pay ? `${pay.whole}${pay.frac} per month` : "No payment estimate"}
+          </span>
         </div>
         <div className="desk-payment-meta">
           <span style={{ ...metaItem, ...sansNum }}>{loanTerm} mo</span>{" "}
@@ -100,7 +110,7 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
         Estimate, not a credit decision or offer of credit. Final terms require a lender credit
         check.
       </div>
-      <div className="desk-summary-metrics" aria-label="Deal structure metrics">
+      <div className="desk-summary-metrics" role="group" aria-label="Deal structure metrics">
         <Metric
           label="Amount financed"
           value={financed === null ? "—" : fmt(financed)}

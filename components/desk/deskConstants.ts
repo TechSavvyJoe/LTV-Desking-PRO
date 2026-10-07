@@ -87,6 +87,15 @@ export const bandColor = (v: CalculatedVehicle): string =>
 export const nameShort = (v: CalculatedVehicle): string =>
   v.make && v.model ? `${v.make} ${v.model}${v.trim ? ` ${v.trim}` : ""}` : v.vehicle;
 
+/**
+ * Stock number with its "STK" prefix, added only when the value doesn't
+ * already carry one — "STK STK1034" reads (and looks) like a typo.
+ */
+export const stockLabel = (stock: string | number | undefined | null): string => {
+  const value = String(stock ?? "").trim();
+  return /^stk/i.test(value) ? value : `STK ${value}`.trim();
+};
+
 export const aprLabel = (rate: DealData["interestRate"]): string =>
   typeof rate === "number" && Number.isFinite(rate) ? `${rate}%` : "—";
 
@@ -143,14 +152,19 @@ export type SortKey =
   | "monthlyPayment"
   | "approvalScore";
 
-export const SORT_COLUMNS: { key: SortKey; label: string; title: string }[] = [
-  { key: "vehicle", label: "Vehicle", title: "Sort by vehicle" },
-  { key: "price", label: "Price", title: "Sort by price" },
-  { key: "frontEndLtv", label: "Front LTV", title: "Front-end LTV" },
-  { key: "amountToFinance", label: "Financed", title: "Amount financed" },
-  { key: "otdLtv", label: "OTD LTV", title: "Out-the-door LTV" },
-  { key: "monthlyPayment", label: "Payment", title: "Monthly payment" },
-  { key: "approvalScore", label: "Approval", title: "Approval odds" },
+/**
+ * `label` is the visible header text and the header button's whole accessible
+ * name. `fullName` spells out an abbreviated label as a hover tooltip; it is
+ * omitted when the label already says it all.
+ */
+export const SORT_COLUMNS: { key: SortKey; label: string; fullName?: string }[] = [
+  { key: "vehicle", label: "Vehicle" },
+  { key: "price", label: "Price" },
+  { key: "frontEndLtv", label: "Front LTV", fullName: "Front-end LTV" },
+  { key: "amountToFinance", label: "Financed", fullName: "Amount financed" },
+  { key: "otdLtv", label: "OTD LTV", fullName: "Out-the-door LTV" },
+  { key: "monthlyPayment", label: "Payment", fullName: "Monthly payment" },
+  { key: "approvalScore", label: "Approval", fullName: "Approval odds" },
 ];
 
 /** Mockup per-key first-click directions: name ascends, every metric descends. */

@@ -64,7 +64,10 @@ const Modal: React.FC<ModalProps> = ({
       document.body.style.top = "";
       document.body.style.width = "";
       document.body.style.left = "";
-      window.scrollTo(0, scrollPositionRef.current);
+      // The window is the page scroller. Restore the saved offset instantly so
+      // the page never animates down from the top after a close, whatever
+      // scroll-behavior the document or an embedder sets. [R28]
+      window.scrollTo({ top: scrollPositionRef.current, left: 0, behavior: "instant" });
     };
   }, [isOpen]);
 
