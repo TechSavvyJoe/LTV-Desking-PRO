@@ -172,10 +172,8 @@ interface DeskUiState {
 const DESK_UI_FALLBACK: DeskUiState = {
   v: 1,
   focusVin: null,
-  // "Ranked by odds" is the product's default ordering on BOTH the desk and
-  // the inventory screen — a null key left the Inventory screen unsorted
-  // (PB insertion order) on first run. [review/P2]
-  sort: { key: "approvalScore", direction: "desc" },
+  // Both inventory views default to the percentage of explicit checks passed.
+  sort: { key: "readinessScore", direction: "desc" },
 };
 
 const loadDeskUi = (): DeskUiState => {
@@ -191,7 +189,12 @@ const loadDeskUi = (): DeskUiState => {
       sort:
         parsed.sort && typeof parsed.sort === "object"
           ? {
-              key: typeof parsed.sort.key === "string" ? parsed.sort.key : null,
+              key:
+                parsed.sort.key === "approvalScore"
+                  ? "readinessScore"
+                  : typeof parsed.sort.key === "string"
+                    ? parsed.sort.key
+                    : null,
               direction: parsed.sort.direction === "desc" ? "desc" : "asc",
             }
           : DESK_UI_FALLBACK.sort,
@@ -255,6 +258,7 @@ const normalizeSavedDeal = (deal: Partial<SavedDeal>): SavedDeal | null => {
       creditScore: deal.customerFilters?.creditScore ?? null,
       monthlyIncome: deal.customerFilters?.monthlyIncome ?? null,
       monthlyDebt: deal.customerFilters?.monthlyDebt ?? null,
+      maxPayment: deal.customerFilters?.maxPayment ?? null,
     },
     notes: deal.notes || "",
     vehicleSnapshot: deal.vehicleSnapshot,
@@ -285,6 +289,11 @@ const mapInventoryItem = (i: InventoryItem): Vehicle => ({
   trim: i.trim,
 });
 
+// API inventory includes archived rows for sync/reconciliation. Every desk
+// refresh path must apply the same sold exclusion as the import's first read.
+const mapWorkingInventory = (items: InventoryItem[]): Vehicle[] =>
+  items.filter((item) => item.status !== "sold").map(mapInventoryItem);
+
 export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<Settings>(loadInitialSettings);
 
@@ -314,7 +323,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     queryKey: inventoryKey,
     queryFn: async () => {
       const raw = await getInventory();
-      return raw.map(mapInventoryItem);
+      return mapWorkingInventory(raw);
     },
     enabled: queriesEnabled,
   });
@@ -488,7 +497,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isAuthenticated()) return;
 
     const unsubInv = subscribeToInventory((data) => {
-      setInventory(data.map(mapInventoryItem));
+      setInventory(mapWorkingInventory(data));
     });
     const unsubDeals = subscribeToSavedDeals((data) => {
       setSavedDeals(data.map(mapPocketBaseSavedDeal));

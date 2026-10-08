@@ -64,8 +64,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
               lineHeight: 1.5,
             }}
           >
-            Structure every deal against real lender rules and see approval odds the instant a
-            number changes.
+            Compare customer budgets, configured lender rules and estimated dealer gross as the deal
+            changes.
           </div>
         </div>
 

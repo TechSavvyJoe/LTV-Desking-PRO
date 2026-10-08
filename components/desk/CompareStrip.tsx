@@ -1,9 +1,9 @@
 import React from "react";
 import type { CalculatedVehicle } from "../../types";
+import { assessmentColor } from "../../services/dealAssessment";
 import { fmt } from "../../utils/format";
 import { StarIcon, XMarkIcon } from "../common/Icons";
 import {
-  bandColor,
   metaItem,
   mono,
   nameShort,
@@ -64,17 +64,17 @@ const CompareStripBase: React.FC<CompareStripProps> = ({
                 <small>/mo</small>
               </span>
               <span className="desk-compare-metrics">
-                <strong style={{ ...sansNum, color: bandColor(vehicle) }}>
-                  {vehicle.approvalBand === "pending" ? (
+                <strong style={{ ...sansNum, color: assessmentColor(vehicle.assessment) }}>
+                  {!vehicle.assessment ? (
                     <>
                       <span aria-hidden="true">—</span>
-                      <span className="sr-only">Approval odds pending lender checks</span>
+                      <span className="sr-only">Deal readiness not assessed</span>
                     </>
                   ) : (
-                    (vehicle.approvalScore ?? "—")
+                    `${vehicle.readinessScore ?? "—"}%`
                   )}
                 </strong>
-                <small>odds</small>
+                <small>checks passed</small>
                 <span
                   className="desk-compare-odds-pill"
                   style={{
@@ -85,6 +85,16 @@ const CompareStripBase: React.FC<CompareStripProps> = ({
                 >
                   {pct(vehicle.otdLtv)}
                 </span>
+              </span>
+              <span className="desk-compare-details">
+                Gross{" "}
+                {vehicle.assessment?.totalGross == null
+                  ? "unknown"
+                  : fmt(vehicle.assessment.totalGross)}{" "}
+                · Interest{" "}
+                {vehicle.assessment?.totalInterest == null
+                  ? "unknown"
+                  : fmt(vehicle.assessment.totalInterest)}
               </span>
             </button>
             <button

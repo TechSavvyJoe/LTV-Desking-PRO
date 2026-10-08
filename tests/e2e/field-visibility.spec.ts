@@ -163,7 +163,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
     }
   });
 
-  test("saved_deals: sales gets vehicleData without unitCost / frontEndGross; managers get everything", async ({
+  test("saved_deals: sales cannot read manager costs, gross or profit-dependent ratings; managers get everything", async ({
     request,
   }) => {
     const adminToken = await login(request, "admin");
@@ -172,6 +172,12 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       price: 20000,
       unitCost: 15000,
       frontEndGross: 5000,
+      assessment: { version: "rules-v1", totalGross: 5300, profitTargetPercent: 212 },
+      readinessScore: 100,
+    };
+    const dealData = {
+      term: 72,
+      profitInputs: { allInUnitCosts: { [vehicleData.vin]: 15000 }, reserve: 300, target: 2500 },
     };
 
     // A manager-session save quotes the tier's rangeFlags in lenderEligibility reasons.
@@ -189,6 +195,8 @@ test.describe("Field visibility hook (real PocketBase)", () => {
         },
       ],
       monthlyPayment: 450,
+      assessment: vehicleData.assessment,
+      readinessScore: 100,
     };
 
     const created = await request.post(`${pbUrl()}/api/collections/saved_deals/records`, {
@@ -198,7 +206,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
         user: "adminaid123456x",
         name: `Field Visibility Probe ${Date.now()}`,
         vehicleData,
-        dealData: { term: 72 },
+        dealData,
         calculatedData,
       },
     });
@@ -210,6 +218,9 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       const sales = await readBoth(request, salesToken, "saved_deals", id);
       for (const record of [sales.list, sales.view]) {
         expect(record.vehicleData).toEqual({ vin: vehicleData.vin, price: vehicleData.price });
+        expect(record.dealData).toEqual({ term: 72 });
+        expect(record.calculatedData).not.toHaveProperty("assessment");
+        expect(record.calculatedData).not.toHaveProperty("readinessScore");
         const calc = record.calculatedData as typeof calculatedData;
         expect(calc.monthlyPayment).toBe(450);
         expect(calc.lenderEligibility[0]?.reasons[0]).toContain(
@@ -222,7 +233,112 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       const manager = await readBoth(request, managerToken, "saved_deals", id);
       for (const record of [manager.list, manager.view]) {
         expect(record.vehicleData).toEqual(vehicleData);
+        expect(record.dealData).toEqual(dealData);
         expect(record.calculatedData).toEqual(calculatedData);
+      }
+    } finally {
+      await deleteAsAdmin(request, adminToken, "saved_deals", id);
+    }
+  });
+
+  test("profit inputs require a manager; sales edits preserve costs and invalidate private ratings", async ({
+    request,
+  }) => {
+    const adminToken = await login(request, "admin");
+    const salesToken = await login(request, "sales");
+    const profitInputs = {
+      allInUnitCosts: { "1FVPROFIT00000001": 15000 },
+      reserve: 300,
+      target: 2500,
+    };
+    const payload = {
+      dealer: DEALER_A,
+      user: "adminaid123456x",
+      name: `Profit write probe ${Date.now()}`,
+      vehicleData: {
+        vin: "1FVPROFIT00000001",
+        price: 20000,
+        assessment: { totalGross: 5300 },
+        readinessScore: 100,
+      },
+      dealData: { term: 72, profitInputs },
+      calculatedData: {
+        assessment: { totalGross: 5300 },
+        readinessScore: 100,
+        monthlyPayment: 450,
+      },
+    };
+    const denied = await request.post(`${pbUrl()}/api/collections/saved_deals/records`, {
+      headers: { Authorization: salesToken },
+      data: payload,
+    });
+    expect(denied.status()).toBe(403);
+    const created = await request.post(`${pbUrl()}/api/collections/saved_deals/records`, {
+      headers: { Authorization: adminToken },
+      data: payload,
+    });
+    expect(created.ok(), await created.text()).toBeTruthy();
+    const { id } = await created.json();
+    try {
+      const deniedUpdate = await request.patch(
+        `${pbUrl()}/api/collections/saved_deals/records/${id}`,
+        { headers: { Authorization: salesToken }, data: { dealData: { term: 84, profitInputs } } }
+      );
+      expect(deniedUpdate.status()).toBe(403);
+      const edit = await request.patch(`${pbUrl()}/api/collections/saved_deals/records/${id}`, {
+        headers: { Authorization: salesToken },
+        data: { dealData: { term: 84 } },
+      });
+      expect(edit.ok(), await edit.text()).toBeTruthy();
+      const stored = await readBoth(request, adminToken, "saved_deals", id);
+      for (const record of [stored.list, stored.view]) {
+        expect(record.dealData).toEqual({ term: 84, profitInputs });
+        expect(record.vehicleData).not.toHaveProperty("assessment");
+        expect(record.vehicleData).not.toHaveProperty("readinessScore");
+        expect(record.calculatedData).not.toHaveProperty("assessment");
+        expect(record.calculatedData).toMatchObject({ monthlyPayment: 450 });
+      }
+      const refresh = await request.patch(`${pbUrl()}/api/collections/saved_deals/records/${id}`, {
+        headers: { Authorization: adminToken },
+        data: { vehicleData: payload.vehicleData, calculatedData: payload.calculatedData },
+      });
+      expect(refresh.ok()).toBeTruthy();
+      const budgetEdit = await request.patch(
+        `${pbUrl()}/api/collections/saved_deals/records/${id}`,
+        {
+          headers: { Authorization: salesToken },
+          data: { customerFilters: { maxPayment: 300 } },
+        }
+      );
+      expect(budgetEdit.ok()).toBeTruthy();
+      const afterBudget = await readBoth(request, adminToken, "saved_deals", id);
+      for (const record of [afterBudget.list, afterBudget.view]) {
+        expect(record.dealData).toEqual({ term: 84, profitInputs });
+        expect(record.vehicleData).not.toHaveProperty("assessment");
+        expect(record.calculatedData).not.toHaveProperty("assessment");
+      }
+      for (const changed of ["vehicleData", "calculatedData"]) {
+        const reset = await request.patch(`${pbUrl()}/api/collections/saved_deals/records/${id}`, {
+          headers: { Authorization: adminToken },
+          data: { vehicleData: payload.vehicleData, calculatedData: payload.calculatedData },
+        });
+        expect(reset.ok()).toBeTruthy();
+        const result = await request.patch(`${pbUrl()}/api/collections/saved_deals/records/${id}`, {
+          headers: { Authorization: salesToken },
+          data: {
+            [changed]:
+              changed === "vehicleData"
+                ? { vin: "1FVPROFIT00000001", price: 22000 }
+                : { monthlyPayment: 400 },
+          },
+        });
+        expect(result.ok()).toBeTruthy();
+        const revised = await readBoth(request, adminToken, "saved_deals", id);
+        for (const record of [revised.list, revised.view]) {
+          expect(record.vehicleData).not.toHaveProperty("assessment");
+          expect(record.calculatedData).not.toHaveProperty("assessment");
+          expect(record.dealData).toMatchObject({ profitInputs });
+        }
       }
     } finally {
       await deleteAsAdmin(request, adminToken, "saved_deals", id);
@@ -316,7 +432,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       vehicle: unitId,
       name: `Oracle Probe ${stamp}`,
       vehicleData: { vin: "1FVORACLE", price: 20000, unitCost: 15000, frontEndGross: 5000 },
-      dealData: { term: 72 },
+      dealData: { term: 72, profitInputs: { reserve: 300 } },
       calculatedData: {
         lenderEligibility: [{ name: "X", reasons: ["(rateAdder=25 outside -10-10)"] }],
       },
@@ -330,6 +446,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       ["inventory", { sort: "-unitCost", perPage: "1" }, null],
       ["saved_deals", { filter: `id = "${dealId}" && vehicleData.unitCost > 0` }, 1],
       ["saved_deals", { filter: `id = "${dealId}" && calculatedData ~ 'rateAdder'` }, 1],
+      ["saved_deals", { filter: `id = "${dealId}" && dealData.profitInputs.reserve > 0` }, 1],
       // Relations reach inventory.unitCost from collections that store no cost.
       ["saved_deals", { filter: `id = "${dealId}" && vehicle.unitCost > 0` }, 1],
       ["dealers", { filter: `id = "${DEALER_A}" && inventory_via_dealer.unitCost ?> 0` }, 1],
@@ -463,6 +580,8 @@ test.describe("Field visibility hook (real PocketBase)", () => {
       [withFilter("inventory/*", "unitCost > 14099")],
       [withFilter("lender_profiles/*", `tiers ~ '"baseInterestRate"'`)],
       [withFilter("saved_deals/*", "vehicleData.unitCost > 0")],
+      [withFilter("saved_deals/*", "dealData.profitInputs.reserve > 0")],
+      [withFilter("saved_deals/*", "vehicleData.assessment.totalGross > 0")],
       ["inventory/*?options=%7Bnot-json"],
     ]) {
       expect(await subscribe(salesToken, topics), `sales ${topics[0]}`).toBe(403);

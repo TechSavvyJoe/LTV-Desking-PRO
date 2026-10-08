@@ -6,6 +6,7 @@ import { checkBankEligibility } from "../../services/lenderMatcher";
 import { calculateFinancials, getRebateBreakdown } from "../../services/calculator";
 import { lenderFitForVehicle } from "../../services/lenderFit";
 import { scoreApprovalOdds } from "../../services/approvalScorer";
+import { assessDeal } from "../../services/dealAssessment";
 import { normalizeBackendProductFields } from "../../services/backendProducts";
 import { getCurrentDealerDetails, logDealEvent } from "../../lib/api";
 import { capture } from "../../lib/analytics";
@@ -141,6 +142,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
       fit.pendingCount,
       fit.pendingReason
     );
+    const assessment = assessDeal(calculated, normalizedDealData, filters, lenders, fit);
     return {
       ...calculated,
       approvalScore: approval.internalScore,
@@ -150,6 +152,8 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
       pendingCount: fit.pendingCount,
       pendingCause: fit.pendingCause ?? undefined,
       fitNames: fit.fitNames,
+      assessment,
+      readinessScore: assessment.readiness,
     };
   }, [filters, lenders, normalizedDealData, settings, vehicle]);
   const rebate = getRebateBreakdown(normalizedDealData);
@@ -216,7 +220,9 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         pendingCount: freshFit.pendingCount,
         pendingCause: freshFit.pendingCause ?? undefined,
         fitNames: freshFit.fitNames,
+        assessment: assessDeal(freshFinancials, normalizedDealData, filters, lenders, freshFit),
       };
+      freshVehicle.readinessScore = freshVehicle.assessment?.readiness;
       const pdfData: DealPdfData = {
         vehicle: freshVehicle,
         dealData: normalizedDealData,

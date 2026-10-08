@@ -8,6 +8,8 @@ import { logDealEvent } from "../../lib/api";
 import { toast } from "../../lib/toast";
 import { applyBackendProductPatch, getBackendProductSplit } from "../../services/backendProducts";
 import { activeLenderCount, lenderFitForVehicle } from "../../services/lenderFit";
+import { holdIncompleteFits } from "../../services/dealAssessment";
+import { getCurrentUser } from "../../lib/pocketbase";
 import type { LenderFitEntry } from "../../services/lenderFit";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile } from "../../types";
 import { fmt, splitPay } from "../../utils/format";
@@ -42,16 +44,14 @@ const paymentText = (vehicle: CalculatedVehicle): string | null => {
   return `${whole}${frac}`;
 };
 
-/** "2023 Kia Telluride LX on desk — $743.04 per month, approval odds pending" */
+/** Announce the selected vehicle, estimated payment and explicit checklist percentage. */
 const describeSelection = (vehicle: CalculatedVehicle): string => {
   const payment = paymentText(vehicle);
-  const odds =
-    vehicle.approvalBand === "pending"
-      ? "approval odds pending"
-      : typeof vehicle.approvalScore === "number"
-        ? `approval odds ${Math.round(vehicle.approvalScore)} of 100`
-        : null;
-  const details = [payment ? `${payment} per month` : null, odds].filter(Boolean).join(", ");
+  const readiness =
+    typeof vehicle.readinessScore === "number"
+      ? `deal readiness ${Math.round(vehicle.readinessScore)} percent`
+      : null;
+  const details = [payment ? `${payment} per month` : null, readiness].filter(Boolean).join(", ");
   return details ? `${vehicle.vehicle} on desk — ${details}` : `${vehicle.vehicle} on desk`;
 };
 
@@ -85,6 +85,7 @@ const DeskScreenBase: React.FC = () => {
   } = useDealContext();
 
   const { handleSaveDeal } = useSaveDeal();
+  const canViewProfit = ["admin", "manager", "superadmin"].includes(getCurrentUser()?.role ?? "");
   const totalLenders = activeLenderCount(safeLenderProfiles);
   const thresholds = settings.ltvThresholds;
 
@@ -105,7 +106,10 @@ const DeskScreenBase: React.FC = () => {
     return () => media.removeEventListener?.("change", syncCompactInspector);
   }, []);
 
-  const sortKey: SortKey = isSortKey(inventorySort.key) ? inventorySort.key : "approvalScore";
+  const sortKey: SortKey =
+    isSortKey(inventorySort.key) && inventorySort.key !== "approvalScore"
+      ? inventorySort.key
+      : "readinessScore";
   const sortDirection: "asc" | "desc" = isSortKey(inventorySort.key)
     ? inventorySort.direction
     : "desc";
@@ -133,15 +137,8 @@ const DeskScreenBase: React.FC = () => {
     const sorted = [...filteredInventory];
     // Shared invalid-aware comparator (utils/sortComparator); "stringify"
     // preserves this call site's historical mixed-type coercion.
-    // A pending unit's score is a capped placeholder shown as "—": sorting by
-    // odds treats it as missing, so it never outranks a verified fit or
-    // becomes the auto-focused/save target (rows[0]).
     const valueOf = (vehicle: CalculatedVehicle) =>
-      sortKey === "vehicle"
-        ? displayName(vehicle)
-        : sortKey === "approvalScore" && vehicle.approvalBand === "pending"
-          ? null
-          : vehicle[sortKey];
+      sortKey === "vehicle" ? displayName(vehicle) : vehicle[sortKey];
     sorted.sort((left, right) =>
       compareSortValues(valueOf(left), valueOf(right), sortDirection, "stringify")
     );
@@ -193,7 +190,10 @@ const DeskScreenBase: React.FC = () => {
 
   const focusedEntries = useMemo<LenderFitEntry[]>(() => {
     if (!focused) return [];
-    return lenderFitForVehicle(focused, { ...dealData, ...filters }, safeLenderProfiles).entries;
+    return holdIncompleteFits(
+      lenderFitForVehicle(focused, { ...dealData, ...filters }, safeLenderProfiles),
+      filters
+    ).entries;
   }, [dealData, filters, focused, safeLenderProfiles]);
 
   const profilesById = useMemo(() => {
@@ -500,6 +500,16 @@ const DeskScreenBase: React.FC = () => {
               profilesById={profilesById}
               totalLenders={totalLenders}
               dealData={dealData}
+              filters={filters}
+              onProfitChange={
+                canViewProfit
+                  ? (patch) =>
+                      setDealData((prev) => ({
+                        ...prev,
+                        profitInputs: { ...prev.profitInputs, ...patch },
+                      }))
+                  : undefined
+              }
               settings={settings}
               pinned={isPinned}
               onPin={toggleFocusedFavorite}

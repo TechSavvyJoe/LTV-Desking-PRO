@@ -102,7 +102,7 @@ const matchQueries = (...matching: string[]) => {
 const originalMatchMedia = window.matchMedia;
 
 const oddsCells = (container: HTMLElement) =>
-  Array.from(container.querySelectorAll<HTMLElement>('[data-label="Odds"]'));
+  Array.from(container.querySelectorAll<HTMLElement>('[data-label="Ready"]'));
 
 afterEach(() => {
   cleanup();
@@ -119,33 +119,31 @@ describe("InventoryGrid approval odds cell", () => {
     const [cell] = oddsCells(container);
     const strong = cell?.querySelector("strong") as HTMLElement;
     expect(strong.textContent).toBe("—");
-    expect(strong.style.color).toBe("var(--color-text-subtle)");
+    expect(strong.style.color).toBe("var(--color-text-muted)");
     // The dash is visual only; a screen reader hears what it means.
     expect(strong.querySelector('[aria-hidden="true"]')?.textContent).toBe("—");
-    expect(cell?.querySelector(".sr-only")?.textContent).toBe(
-      "Approval odds pending lender checks"
-    );
+    expect(cell?.querySelector(".sr-only")?.textContent).toBe("Deal readiness not assessed");
     const valueArc = cell?.querySelectorAll("circle")[1];
     expect(valueArc?.getAttribute("stroke")).toBe("transparent");
     expect(cell?.textContent).not.toContain("45");
   });
 
-  it("keeps the red number for a genuine no-fit unit and the given row order", () => {
+  it("never relabels legacy approval scores as readiness", () => {
     const { container } = renderGrid([
       { ...base, vin: "VIN-FIT", approvalScore: 80, approvalBand: "strong", fitCount: 3 },
       { ...base, vin: "VIN-PEND", approvalScore: 45, approvalBand: "pending", pendingCount: 4 },
       { ...base, vin: "VIN-NONE", approvalScore: 44, approvalBand: "none", fitCount: 0 },
     ]);
     const values = oddsCells(container).map((cell) => cell.querySelector("strong")?.textContent);
-    expect(values).toEqual(["80", "—", "44"]);
-    // Only the pending unit gets the screen-reader explanation.
+    expect(values).toEqual(["—", "—", "—"]);
+    // Every unassessed legacy unit gets the screen-reader explanation.
     expect(oddsCells(container).map((cell) => cell.querySelector(".sr-only") !== null)).toEqual([
-      false,
       true,
-      false,
+      true,
+      true,
     ]);
     const noneStrong = oddsCells(container)[2]?.querySelector("strong") as HTMLElement;
-    expect(noneStrong.style.color).toBe("var(--color-danger)");
+    expect(noneStrong.style.color).toBe("var(--color-text-muted)");
   });
 
   it("marks both virtualizer wrappers presentational so each row stays owned by the rowgroup", () => {
@@ -240,7 +238,7 @@ describe("InventoryGrid reading order", () => {
     );
     expect(screen.getByRole("heading", { level: 2, name: "Inventory" })).toBeTruthy();
     const status = screen.getByRole("status");
-    expect(status.textContent).toBe("1 of 1, ranked by odds");
+    expect(status.textContent).toBe("1 of 1, deal checks shown");
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
     // The decorative search icon stays out of the accessibility tree.
     const icon = container.querySelector(".desk-compare-search-icon");

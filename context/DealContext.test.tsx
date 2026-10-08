@@ -15,7 +15,9 @@ const mocks = vi.hoisted(() => ({
   getLenderProfiles: vi.fn(),
   getSavedDeals: vi.fn(),
   getDealerSettings: vi.fn(),
-  subscribeToInventory: vi.fn(() => () => {}),
+  subscribeToInventory: vi.fn<(callback: (data: InventoryItem[]) => void) => () => void>(
+    () => () => {}
+  ),
   subscribeToSavedDeals: vi.fn(() => () => {}),
   subscribeToLenderProfiles: vi.fn(() => () => {}),
   capture: vi.fn(),
@@ -94,6 +96,48 @@ describe("DealProvider derivations", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it("keeps sold units out of the working inventory on fetch, refetch and realtime updates", async () => {
+    const available: InventoryItem = {
+      id: "available-unit",
+      dealer: "dealer-test",
+      vin: "1AVAILABLE00000001",
+      year: 2024,
+      make: "Ford",
+      model: "Escape",
+      price: 26000,
+      status: "available",
+      created: "2026-01-01",
+      updated: "2026-01-01",
+    };
+    const sold: InventoryItem = {
+      ...available,
+      id: "sold-unit",
+      vin: "1SOLDUNIT00000001",
+      status: "sold",
+    };
+    mocks.getInventory.mockResolvedValue([available, sold]);
+    let ctx!: ReturnType<typeof useDealContext>;
+    renderProvider((c) => {
+      ctx = c;
+    });
+    await waitFor(() => expect(ctx.inventory.map((v) => v.id)).toEqual([available.id]));
+
+    await act(async () => {
+      await ctx.refetchData();
+    });
+    expect(ctx.inventory.map((v) => v.id)).toEqual([available.id]);
+
+    const onInventory = mocks.subscribeToInventory.mock.calls[0]?.[0];
+    if (!onInventory) throw new Error("Inventory subscription was not initialized.");
+    act(() => {
+      onInventory([
+        { ...available, status: "sold" },
+        { ...sold, status: "available" },
+      ]);
+    });
+    await waitFor(() => expect(ctx.inventory.map((v) => v.id)).toEqual([sold.id]));
   });
 
   it("runs the processedInventory scoring pass after sample data loads", async () => {

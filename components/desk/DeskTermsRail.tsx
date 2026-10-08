@@ -150,6 +150,17 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           </div>
         </div>
         <div className="desk-field compact">
+          <label htmlFor="desk-max-payment">Payment budget ($/mo)</label>
+          <input
+            id="desk-max-payment"
+            className="dc-input tabular-nums"
+            inputMode="numeric"
+            value={filters.maxPayment ?? ""}
+            onChange={setNumber((n) => setFilter({ maxPayment: n || null }))}
+            placeholder="Set ceiling"
+          />
+        </div>
+        <div className="desk-field compact">
           <label htmlFor="desk-down">Down ($)</label>
           <input
             id="desk-down"
@@ -326,17 +337,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
               placeholder="Any"
             />
           </div>
-          <div className="desk-field compact">
-            <label htmlFor="desk-max-payment">Max $/mo</label>
-            <input
-              id="desk-max-payment"
-              className="dc-input tabular-nums"
-              inputMode="numeric"
-              value={filters.maxPayment ?? ""}
-              onChange={setNumber((n) => setFilter({ maxPayment: n || null }))}
-              placeholder="Any"
-            />
-          </div>
+
           <div className="desk-field compact">
             <label htmlFor="desk-max-miles">Max miles</label>
             <input
@@ -349,7 +350,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             />
           </div>
           <div className="desk-field compact">
-            <label htmlFor="desk-min-score">Min odds</label>
+            <label htmlFor="desk-min-score">Min readiness %</label>
             <input
               id="desk-min-score"
               className="dc-input tabular-nums"

@@ -12,7 +12,6 @@ import {
 } from "../../lib/dealMappers";
 import type { CanonicalDealStatus, PipelineSavedDeal } from "../../lib/dealMappers";
 import { calculateFinancials } from "../../services/calculator";
-import { APPROVAL_CONFIG } from "../../services/approvalScorer";
 import Button from "../common/Button";
 import { EmptyState } from "../common/states";
 import * as Icons from "../common/Icons";
@@ -24,16 +23,9 @@ const mono = "var(--mono)";
 /** 7-col grid per the mockup's PIPELINE table (lines 559/569). */
 const GRID = "1.6fr 2fr var(--pipeline-term-track, 0.8fr) 1fr 0.9fr 1.2fr 1fr";
 
-/**
- * Approval-score color, driven by the scorer's own band thresholds
- * (APPROVAL_CONFIG.bands) so the pipeline can never drift from the gauge.
- */
-const approvalColor = (s: number): string =>
-  s >= APPROVAL_CONFIG.bands.strong
-    ? "var(--color-success)"
-    : s >= APPROVAL_CONFIG.bands.moderate
-      ? "var(--color-warning)"
-      : "var(--color-danger)";
+/** Completed checklists use the success color; incomplete progress stays neutral. */
+const readinessColor = (s: number): string =>
+  s === 100 ? "var(--color-success)" : "var(--color-text-muted)";
 
 const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -173,14 +165,10 @@ const PipelineScreenBase: React.FC = () => {
       otdLtv = otdLtv ?? numVal(calc.otdLtv) ?? numVal(deal.vehicle.otdLtv);
       financed = financed ?? numVal(calc.amountToFinance) ?? numVal(deal.vehicle.amountToFinance);
     }
-    // A "pending" band means the rules engine could not finish checking at
-    // least one lender at save time; its capped score is indeterminate, not a
-    // decline, so the column shows "—" rather than a failing red number.
-    const approvalPending = deal.vehicle.approvalBand === "pending";
-    const approvalScore = approvalPending
-      ? null
-      : (persisted.approvalScore ?? deal.vehicle.approvalScore ?? null);
-    return { payment, otdLtv, financed, approvalScore, approvalPending };
+    // Only versioned checklists have a saved readiness percentage.
+    const readinessUnknown = !deal.vehicle.assessment;
+    const readinessScore = deal.vehicle.assessment?.readiness ?? null;
+    return { payment, otdLtv, financed, readinessScore, readinessUnknown };
   };
 
   // --- Actions ---------------------------------------------------------------
@@ -339,7 +327,7 @@ const PipelineScreenBase: React.FC = () => {
                   Payment
                 </span>
                 <span role="columnheader" style={{ ...headerCell, textAlign: "right" }}>
-                  Approval
+                  Readiness
                 </span>
                 <span role="columnheader" style={headerCell}>
                   Lender
@@ -484,11 +472,11 @@ const PipelineScreenBase: React.FC = () => {
                       </span>
                       <span
                         role="cell"
-                        data-label="Approval"
-                        title={metrics.approvalPending ? "Pending lender checks" : undefined}
+                        data-label="Readiness"
+                        title={metrics.readinessUnknown ? "No saved checklist" : undefined}
                         aria-label={
-                          metrics.approvalPending
-                            ? "Approval odds pending lender checks"
+                          metrics.readinessUnknown
+                            ? "Legacy deal: readiness was not recorded"
                             : undefined
                         }
                         style={{
@@ -497,12 +485,12 @@ const PipelineScreenBase: React.FC = () => {
                           fontWeight: 700,
                           ...tnum,
                           color:
-                            metrics.approvalScore === null
+                            metrics.readinessScore === null
                               ? "var(--color-text-subtle)"
-                              : approvalColor(metrics.approvalScore),
+                              : readinessColor(metrics.readinessScore),
                         }}
                       >
-                        {metrics.approvalScore === null ? "—" : Math.round(metrics.approvalScore)}
+                        {metrics.readinessScore === null ? "—" : Math.round(metrics.readinessScore)}
                       </span>
                       <span
                         role="cell"

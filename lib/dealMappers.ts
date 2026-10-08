@@ -8,6 +8,7 @@ import type {
   SavedDeal as AppSavedDeal,
 } from "../types";
 import { normalizeBackendProductFields } from "../services/backendProducts";
+import { ProfitInputsSchema, readAssessment } from "../services/dealAssessment";
 import { PENDING_CAUSE_META } from "../services/lenderFit";
 import type { SavedDeal as PocketBaseSavedDeal } from "./pocketbase";
 
@@ -197,6 +198,9 @@ export const mapDealData = (value: unknown): DealData => {
     dealerRebate: toFiniteNumber(record.dealerRebate),
     transactionFees: toFiniteNumber(record.transactionFees ?? record.transactionFee),
     transactionFee: toFiniteNumber(record.transactionFee),
+    profitInputs: ProfitInputsSchema.safeParse(record.profitInputs).success
+      ? ProfitInputsSchema.parse(record.profitInputs)
+      : undefined,
   };
 };
 
@@ -245,9 +249,10 @@ export const mapCalculatedVehicle = (value: unknown): CalculatedVehicle => {
     amountToFinance: toNumberErrorOrNA(record.amountToFinance),
     otdLtv: toNumberErrorOrNA(record.otdLtv),
     monthlyPayment: toNumberErrorOrNA(record.monthlyPayment),
-    // Score snapshot carried through persistence so the Pipeline APPROVAL
-    // column can render the odds shown at save time. [Phase 6]
+    // Keep the legacy structure index for compatibility; readiness uses its own versioned snapshot.
     approvalScore: toFiniteNumber(record.approvalScore),
+    assessment: readAssessment(record.assessment),
+    readinessScore: readAssessment(record.assessment)?.readiness,
     fitCount: toFiniteNumber(record.fitCount),
     // The band must survive the round trip too: a "pending" snapshot's score
     // is a capped placeholder, and without the band the pipeline would show
@@ -300,6 +305,7 @@ export const mapPocketBaseSavedDeal = (deal: PocketBaseSavedDeal): PipelineSaved
       creditScore: toOptionalNumber(customerFilterSource.creditScore),
       monthlyIncome: toOptionalNumber(customerFilterSource.monthlyIncome),
       monthlyDebt: toOptionalNumber(customerFilterSource.monthlyDebt),
+      maxPayment: toOptionalNumber(customerFilterSource.maxPayment),
     },
     notes: deal.notes || "",
     status: toCanonicalStatus(deal.status),

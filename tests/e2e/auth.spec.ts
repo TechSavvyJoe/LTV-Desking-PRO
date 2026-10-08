@@ -95,15 +95,15 @@ test.describe("Load desk", () => {
     const metricValue = (label: string) =>
       page.locator(".desk-summary-metrics > div").filter({ hasText: label }).locator("strong");
     const parseCurrency = (value: string | null) => Number((value ?? "").replace(/[^0-9.-]/g, ""));
-    const financedBefore = parseCurrency(await metricValue("Amount financed").textContent());
+    const financedBefore = parseCurrency(await metricValue("Financed").textContent());
 
     await page.getByRole("tab", { name: "Add-ons" }).click();
     await page.getByRole("button", { name: /Service contract/ }).click();
 
-    await expect(metricValue("Back-end products")).toHaveText("$2,495");
+    await expect(page.locator(".desk-backend-total strong")).toHaveText("$2,495");
     await expect(inspectorTitle).toHaveText(selectedVehicle);
     await expect
-      .poll(async () => parseCurrency(await metricValue("Amount financed").textContent()))
+      .poll(async () => parseCurrency(await metricValue("Financed").textContent()))
       .toBe(financedBefore + 2_495);
   });
 
@@ -999,6 +999,11 @@ test.describe("Inventory import", () => {
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
     await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
+    await expect(page.getByRole("status").filter({ hasText: /^1 of 1 unit$/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(/STK SAVED01/)).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: /^1 of 1 unit$/ })).toBeVisible();
+    await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
   });
 
   test("keeps inventory import admin-only while sales can use read-only tools", async ({
@@ -1139,6 +1144,12 @@ test.describe("Lender match", () => {
     await page.locator("#desk-income").fill("6500");
     await page.locator("#desk-down").fill("4000");
 
+    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByLabel("Monthly debt", { exact: true }).fill("500");
+    await page.getByLabel("Vehicle condition", { exact: true }).selectOption("used");
+    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("tab", { name: "Lenders", exact: true }).click();
+
     // Lender paths / fit section in inspector
     await expect(page.getByText(/Lender paths/i)).toBeVisible();
     await expect(
@@ -1147,7 +1158,7 @@ test.describe("Lender match", () => {
 
     // Mocked profiles and the seed's verified programs (VERIFIED_FOR_DEALER_A in
     // tests/helpers/seed-test-db.ts) both fit this profile: "N/M lenders fit".
-    await expect(page.locator(".desk-fit-caption").first()).toContainText(/lenders fit/i);
+    await expect(page.locator(".desk-fit-caption").first()).toContainText(/checked programs fit/i);
 
     // Lower profile -> fewer fits (still renders)
     await page.locator("#desk-fico").fill("500");

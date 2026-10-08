@@ -7,6 +7,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
 import { splitPay } from "../../utils/format";
+import { calculateFinancials } from "../../services/calculator";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../../types";
 import type { LenderFitEntry } from "../../services/lenderFit";
 import { ApprovalGauge } from "../common/ApprovalGauge";
@@ -206,11 +207,13 @@ describe("desk subcomponents", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "$545" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "60 months, $0 down, $545 estimated payment" })
+    );
     expect(onSetTermDown).toHaveBeenCalledWith(60, 0);
   });
 
-  it("keeps top lender paths visible above the inspector tabs", () => {
+  it("keeps lender details reachable without squeezing the tab panel", () => {
     render(
       <DealInspector
         vehicle={vehicle}
@@ -238,9 +241,52 @@ describe("desk subcomponents", () => {
       />
     );
 
+    fireEvent.click(screen.getByRole("tab", { name: "Lenders" }));
     const fordCredit = screen.getAllByText("Ford Credit");
     expect(fordCredit.length).toBeGreaterThan(0);
     expect(screen.getByRole("tab", { name: "Add-ons" })).toBeTruthy();
+  });
+
+  it("separates dealer discounts from tax and adds negative equity without a double minus", () => {
+    const structure = {
+      ...dealData,
+      dealerDiscount: 2000,
+      manufacturerRebate: 1000,
+      tradeInValue: 5000,
+      tradeInPayoff: 10000,
+    };
+    const zeroTaxSettings = { ...settings, customTaxRate: 0 };
+    render(
+      <DealInspector
+        vehicle={calculateFinancials(vehicle, structure, zeroTaxSettings)}
+        entries={entries}
+        profilesById={new Map()}
+        totalLenders={2}
+        dealData={structure}
+        settings={zeroTaxSettings}
+        pinned={false}
+        onPin={vi.fn()}
+        onSetTermDown={vi.fn()}
+        compactMode={false}
+        compactOpen={false}
+        onCloseCompact={vi.fn()}
+        vscAmount={2495}
+        gapAmount={895}
+        otherBackend={0}
+        onToggleVsc={vi.fn()}
+        onToggleGap={vi.fn()}
+        onVscAmountChange={vi.fn()}
+        onGapAmountChange={vi.fn()}
+        onOtherBackendChange={vi.fn()}
+        onDealSheet={vi.fn()}
+        onSaveDeal={vi.fn()}
+      />
+    );
+    const breakdown = screen.getByText("Selling price").closest("section")!;
+    expect(within(breakdown).getByText("$22,500")).toBeTruthy();
+    expect(within(breakdown).getByText("$335")).toBeTruthy();
+    expect(within(breakdown).getByText("+$3,000")).toBeTruthy();
+    expect(breakdown.textContent).not.toContain("--$");
   });
 
   it("makes the inspector tab panel keyboard-focusable so its scroll region is reachable", () => {
@@ -303,7 +349,7 @@ describe("desk subcomponents", () => {
     );
 
     const disclaimer = screen.getByText(
-      /Estimate, not a credit decision or offer of credit\. Final terms require a lender credit check\./
+      /Readiness counts passed checks\. Estimates require confirmed inputs and a lender decision\./
     );
     expect(disclaimer).toBeTruthy();
     // The describedby must land on the gauge's own role="img" svg (its
@@ -324,13 +370,13 @@ describe("desk subcomponents", () => {
       />
     );
     const gauge = screen.getByRole("img");
-    expect(gauge.getAttribute("aria-label")).toBe("Approval odds pending, Pending lender checks");
+    expect(gauge.getAttribute("aria-label")).toBe("Structure index pending, Pending lender checks");
     expect(container.querySelector("[data-gauge-value]")).toBeNull();
     expect(gauge.textContent).toBe("—");
 
     rerender(<ApprovalGauge score={45} colorVar="var(--color-danger)" label="No lender fit" />);
     expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
-      "Approval odds 45 of 100, No lender fit"
+      "Structure index 45 of 100, No lender fit"
     );
     expect(container.querySelector("[data-gauge-value]")).toBeTruthy();
     expect(screen.getByRole("img").textContent).toBe("45");
@@ -379,12 +425,12 @@ describe("desk subcomponents", () => {
       />
     );
 
-    const gauge = screen.getByRole("img", { name: /Approval odds/ });
-    expect(gauge.getAttribute("aria-label")).toBe("Approval odds pending, Pending lender checks");
+    const gauge = screen.getByRole("img", { name: /Deal readiness/ });
+    expect(gauge.getAttribute("aria-label")).toBe("Deal readiness pending, Not assessed");
     expect(gauge.textContent).toBe("—");
     const label = container.querySelector(".desk-score-label") as HTMLElement;
-    expect(label.textContent).toBe("Pending lender checks");
-    expect(label.style.color).toBe("var(--color-text-subtle)");
+    expect(label.textContent).toBe("Not assessed");
+    expect(label.style.color).toBe("var(--color-text-muted)");
     expect(screen.queryByText("No lender fit")).toBeNull();
 
     const caption = container.querySelector(".desk-score-cell .desk-fit-caption") as HTMLElement;
@@ -419,7 +465,7 @@ describe("desk subcomponents", () => {
       "var(--color-danger)"
     );
     expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
-      "Approval odds 45 of 100, No lender fit"
+      "Deal readiness 45 of 100, No lender fit"
     );
   });
 
@@ -761,7 +807,7 @@ describe("desk reading order", () => {
 
     // The gauge's name already ends with the band label.
     expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
-      "Approval odds 68 of 100, Moderate"
+      "Deal readiness 68 of 100, Moderate"
     );
     expect(container.querySelector(".desk-score-label")?.getAttribute("aria-hidden")).toBe("true");
     expect(screen.getByRole("group", { name: "Deal structure metrics" })).toBeTruthy();

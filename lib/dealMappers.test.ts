@@ -185,6 +185,7 @@ describe("mapPocketBaseSavedDeal", () => {
     expect(mapped.dealData.gapAmount).toBe(895);
 
     expect(mapped.customerFilters).toEqual({
+      maxPayment: null,
       creditScore: 712,
       monthlyIncome: 4800,
       monthlyDebt: null,

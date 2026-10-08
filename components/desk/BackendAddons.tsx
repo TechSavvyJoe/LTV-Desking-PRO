@@ -36,7 +36,7 @@ const BackendAddons: React.FC<BackendAddonsProps> = ({
   return (
     <section className="desk-panel-section">
       <div className="desk-panel-heading">
-        <span>Back-end add-ons</span>
+        <span>Optional products</span>
         <strong>{fmt(total)}</strong>
       </div>
       <div className="desk-backend-list">
@@ -91,7 +91,7 @@ const BackendAddons: React.FC<BackendAddonsProps> = ({
         </div>
       </div>
       <div className="desk-backend-total">
-        <span>Calculator total</span>
+        <span>Product retail total</span>
         <strong>{fmt(total)}</strong>
       </div>
     </section>

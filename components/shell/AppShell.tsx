@@ -137,34 +137,16 @@ const ShieldIcon = () => (
 const railBtnStyle: React.CSSProperties = {
   width: 34,
   height: 34,
-  borderRadius: 9,
-  border: "none",
+  borderRadius: 7,
+  border: "1px solid var(--shell-control-border)",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  background: "transparent",
-  color: "var(--color-text-subtle)",
+  background: "var(--shell-control-bg)",
+  color: "var(--shell-ink)",
   flexShrink: 0,
 };
-
-/** Row-2 tab styling — active = 2px primary bottom bar + text color + weight 600. */
-const tabStyle = (isActive: boolean): React.CSSProperties => ({
-  display: "flex",
-  alignItems: "center",
-  gap: 7,
-  background: "transparent",
-  border: "none",
-  borderBottom: `2px solid ${isActive ? "var(--color-primary)" : "transparent"}`,
-  color: isActive ? "var(--color-text)" : "var(--color-text-muted)",
-  padding: "9px 12px 10px",
-  fontSize: 14,
-  fontWeight: isActive ? 600 : 500,
-  cursor: "pointer",
-  fontFamily: "inherit",
-  textDecoration: "none",
-  whiteSpace: "nowrap",
-});
 
 /**
  * Live count beside a nav label. The unit is screen-reader-only text so
@@ -176,16 +158,7 @@ const CountChip: React.FC<{ count: number; unit: string; units: string }> = ({
   unit,
   units,
 }) => (
-  <span
-    style={{
-      fontSize: 11,
-      fontVariantNumeric: "tabular-nums",
-      background: "var(--color-bg-muted)",
-      color: "var(--color-text-muted)",
-      padding: "1px 6px",
-      borderRadius: 5,
-    }}
-  >
+  <span className="app-shell-count">
     {count}
     <span className="sr-only"> {count === 1 ? unit : units}</span>
   </span>
@@ -556,41 +529,16 @@ export const AppShell: React.FC = () => {
         </div>
       )}
 
-      {/* TOP NAV — mockup lines 141-177 */}
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
-          background: "var(--color-bg)",
-          borderBottom: "1px solid var(--color-border)",
-        }}
-      >
-        <div
-          className="app-shell-topbar"
-          style={{ height: 54, display: "flex", alignItems: "center", gap: 12, padding: "0 20px" }}
-        >
-          <div
-            className="app-shell-brand"
-            style={{ display: "flex", alignItems: "center", gap: 10 }}
-          >
-            <GaugeMark size={30} radius={9} />
-            <span
-              className="app-shell-wordmark"
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                letterSpacing: 0,
-                whiteSpace: "nowrap",
-              }}
-            >
-              LTV Desking <span style={{ color: "var(--color-primary)" }}>PRO</span>
+      <header className="app-shell-header">
+        <div className="app-shell-topbar">
+          <div className="app-shell-brand">
+            <GaugeMark size={32} radius={8} className="app-shell-logo" />
+            <span className="app-shell-wordmark">
+              LTV <span className="app-shell-product">Desking</span>{" "}
+              <span className="app-shell-pro">PRO</span>
             </span>
           </div>
-          <div
-            className="app-shell-divider"
-            style={{ height: 22, width: 1, background: "var(--color-border)" }}
-          />
+          <div className="app-shell-divider" />
 
           {isSuperAdmin ? (
             dealersError ? (
@@ -612,12 +560,12 @@ export const AppShell: React.FC = () => {
                   style={{
                     flexShrink: 0,
                     background: "transparent",
-                    border: "1px solid var(--color-border-strong)",
+                    border: "1px solid var(--shell-control-border)",
                     borderRadius: 8,
                     padding: "5px 10px",
                     fontSize: 13,
                     fontWeight: 600,
-                    color: "var(--color-text)",
+                    color: "var(--shell-ink)",
                     fontFamily: "inherit",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
@@ -631,7 +579,7 @@ export const AppShell: React.FC = () => {
                   style={{
                     fontSize: 13,
                     fontWeight: 600,
-                    color: "var(--color-danger)",
+                    color: "#ffb9b9",
                   }}
                 >
                   Couldn't load dealerships
@@ -645,13 +593,13 @@ export const AppShell: React.FC = () => {
                 onChange={(e) => handleDealerSwitch(e.target.value)}
                 disabled={dealers.length === 0}
                 style={{
-                  background: "var(--color-bg-subtle)",
-                  border: "1px solid var(--color-border)",
+                  background: "var(--shell-control-bg)",
+                  border: "1px solid var(--shell-control-border)",
                   borderRadius: 8,
                   padding: "6px 11px",
                   fontSize: 13,
                   fontWeight: 600,
-                  color: "var(--color-text)",
+                  color: "var(--shell-ink)",
                   fontFamily: "inherit",
                   outline: "none",
                   cursor: "pointer",
@@ -669,17 +617,9 @@ export const AppShell: React.FC = () => {
               </select>
             )
           ) : (
-            <span
-              className="app-shell-dealer"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--color-text)",
-                padding: "6px 0",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {dealerName || "—"}
+            <span className="app-shell-dealer" title={dealerName || undefined}>
+              <span className="app-shell-dealer-label">Dealership</span>
+              <strong className="app-shell-dealer-name">{dealerName || "—"}</strong>
             </span>
           )}
 
@@ -763,7 +703,7 @@ export const AppShell: React.FC = () => {
               // Background + hover live in index.css (.app-shell-ai-btn) so the
               // hover state is plain CSS instead of JS style mutation.
               style={{
-                color: "var(--on-primary, white)",
+                color: "var(--shell-ink)",
                 border: "1px solid transparent",
                 borderRadius: 6,
                 padding: "7px 12px",
@@ -814,7 +754,7 @@ export const AppShell: React.FC = () => {
             <button
               ref={accountBtnRef}
               onClick={() => setMenuOpen((v) => !v)}
-              className="rail-btn app-shell-icon-btn"
+              className="rail-btn app-shell-icon-btn app-shell-account"
               title="Account"
               aria-label="Account menu"
               aria-haspopup="menu"
@@ -822,15 +762,15 @@ export const AppShell: React.FC = () => {
               style={{
                 width: 32,
                 height: 32,
-                borderRadius: 9,
-                background: "var(--color-primary-subtle)",
-                color: "var(--color-primary)",
+                borderRadius: 7,
+                background: "var(--shell-control-bg)",
+                color: "var(--shell-ink)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 12,
                 fontWeight: 700,
-                border: "none",
+                border: "1px solid var(--shell-control-border)",
                 cursor: "pointer",
               }}
             >
@@ -938,33 +878,28 @@ export const AppShell: React.FC = () => {
           </div>
         </div>
 
-        <nav
-          ref={navRef}
-          aria-label="Primary"
-          className="app-shell-nav"
-          style={{ display: "flex", alignItems: "center", gap: 2, padding: "0 14px" }}
-        >
-          <NavLink to="/desk" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
+        <nav ref={navRef} aria-label="Primary" className="app-shell-nav">
+          <NavLink to="/desk" className="tab-btn">
             The Desk
           </NavLink>
-          <NavLink to="/pipeline" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
+          <NavLink to="/pipeline" className="tab-btn">
             Pipeline
             <CountChip count={savedDeals.length} unit="deal" units="deals" />
           </NavLink>
-          <NavLink to="/inventory" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
+          <NavLink to="/inventory" className="tab-btn">
             Inventory
             <CountChip count={inventory.length} unit="unit" units="units" />
           </NavLink>
-          <NavLink to="/lenders" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
+          <NavLink to="/lenders" className="tab-btn">
             Lenders
             <CountChip count={lenderProfiles.length} unit="program" units="programs" />
           </NavLink>
-          <NavLink to="/reports" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
+          <NavLink to="/reports" className="tab-btn">
             Reports
           </NavLink>
           <div className="app-shell-spacer" style={{ flex: 1 }} />
           {(isSuperAdmin || isDealerAdmin) && (
-            <NavLink to="/admin" className="tab-btn" style={({ isActive }) => tabStyle(isActive)}>
+            <NavLink to="/admin" className="tab-btn">
               <ShieldIcon />
               {isSuperAdmin ? "Owner console" : "Admin"}
             </NavLink>

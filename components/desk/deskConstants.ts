@@ -150,7 +150,8 @@ export type SortKey =
   | "amountToFinance"
   | "otdLtv"
   | "monthlyPayment"
-  | "approvalScore";
+  | "approvalScore"
+  | "readinessScore";
 
 /**
  * `label` is the visible header text and the header button's whole accessible
@@ -164,7 +165,7 @@ export const SORT_COLUMNS: { key: SortKey; label: string; fullName?: string }[] 
   { key: "amountToFinance", label: "Financed", fullName: "Amount financed" },
   { key: "otdLtv", label: "OTD LTV", fullName: "Out-the-door LTV" },
   { key: "monthlyPayment", label: "Payment", fullName: "Monthly payment" },
-  { key: "approvalScore", label: "Approval", fullName: "Approval odds" },
+  { key: "readinessScore", label: "Ready", fullName: "Percentage of deal checks passed" },
 ];
 
 /** Mockup per-key first-click directions: name ascends, every metric descends. */
@@ -176,6 +177,7 @@ export const DEFAULT_DIR: Record<SortKey, "asc" | "desc"> = {
   otdLtv: "desc",
   monthlyPayment: "desc",
   approvalScore: "desc",
+  readinessScore: "desc",
 };
 
 export const isSortKey = (k: string | null): k is SortKey => !!k && k in DEFAULT_DIR;

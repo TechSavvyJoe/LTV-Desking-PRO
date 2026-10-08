@@ -362,7 +362,7 @@ describe("PocketBase hook runtime hardening", () => {
 
     it("strips unitCost / frontEndGross from saved_deals.vehicleData for sales only", () => {
       const handlers = loadEnrichHandlers();
-      const vehicle = { vin: "1ABC", price: 20000, unitCost: 15000, frontEndGross: 5000 };
+      const vehicle = { vin: "1ABC", price: 20000, unitCost: 15000, frontEndGross: 5000, readinessScore: 100, assessment: { totalGross: 5000 } };
 
       const sales = makeRecord({ vehicleData: { ...vehicle } }, ["vehicleData"]);
       enrich(handlers.saved_deals, authFor("sales"), sales.record);
@@ -380,6 +380,23 @@ describe("PocketBase hook runtime hardening", () => {
         enrich(handlers.saved_deals, authFor("sales"), rec.record);
         expect(rec.hidden).toContain("vehicleData");
         expect(rec.setCalls).not.toContain("vehicleData");
+      }
+    });
+
+    it("strips manager profit inputs from saved deals, failing closed on malformed JSON", () => {
+      const handlers = loadEnrichHandlers();
+      const dealData = { loanTerm: 72, profitInputs: { allInUnitCosts: { "1ABC": 15000 }, reserve: 300, target: 2500 } };
+      const sales = makeRecord({ dealData }, ["dealData"]);
+      enrich(handlers.saved_deals, authFor("sales"), sales.record);
+      expect(sales.json("dealData")).toEqual({ loanTerm: 72 });
+      const manager = makeRecord({ dealData }, ["dealData"]);
+      enrich(handlers.saved_deals, authFor("manager"), manager.record);
+      expect(manager.json("dealData")).toEqual(dealData);
+      expect(manager.setCalls).toHaveLength(0);
+      for (const bad of ["{not json", "[123,34]", '\"profitInputs\"']) {
+        const rec = makeRecord({ dealData: bad }, ["dealData"]);
+        enrich(handlers.saved_deals, authFor("sales"), rec.record);
+        expect(rec.hidden).toContain("dealData");
       }
     });
 
@@ -484,6 +501,9 @@ describe("PocketBase hook runtime hardening", () => {
         // Legacy snapshot keys that carried cost / buy rate.
         effectiveRate: 6.74,
         unitCost: 15000,
+        assessment: { totalGross: 5000, profitTargetPercent: 200 },
+        readinessScore: 100,
+        nested: { profitInputs: { reserve: 300 }, totalGross: 5000, publicPayment: 450 },
       };
 
       const sales = makeRecord({ vehicleData: { vin: "1ABC" }, calculatedData }, [
@@ -499,6 +519,9 @@ describe("PocketBase hook runtime hardening", () => {
       expect(reason).not.toMatch(/649|=25/);
       expect(calc).not.toHaveProperty("effectiveRate");
       expect(calc).not.toHaveProperty("unitCost");
+      expect(calc).not.toHaveProperty("assessment");
+      expect(calc).not.toHaveProperty("readinessScore");
+      expect(calc.nested).toEqual({ publicPayment: 450 });
       expect(calc.settings).toEqual({ docFee: 200, defaultApr: 9.9 });
       expect(calc.monthlyPayment).toBe(450);
 
@@ -576,6 +599,9 @@ describe("PocketBase hook runtime hardening", () => {
       { filter: "UNITCOST>14099" },
       { filter: 'id = "D1" && vehicleData.unitCost > 14999' },
       { filter: "calculatedData ~ 'rateAdder=25'" },
+      { filter: "dealData.profitInputs.reserve > 0" },
+      { filter: "vehicleData.assessment.totalGross > 0" },
+      { sort: "-vehicleData.readinessScore" },
       // Through relations / back-relations from collections that store no cost.
       { filter: 'id = "D1" && vehicle.unitCost > 14099' },
       { filter: "inventory_via_dealer.unitCost ?> 14099" },

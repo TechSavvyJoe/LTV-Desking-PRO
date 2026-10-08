@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo, useEffect, useRef, useState } from "react";
-import { calculateFinancials } from "../../services/calculator";
-import { APPROVAL_CONFIG, BAND_META } from "../../services/approvalScorer";
+import { calculateFinancials, getRebateBreakdown } from "../../services/calculator";
+import { assessDeal, assessmentColor } from "../../services/dealAssessment";
+import { lenderFitForVehicle } from "../../services/lenderFit";
+import { DealRatings } from "./DealRatings";
 import { useAnimatedNumber } from "../../hooks/useAnimatedNumber";
 import { useRovingTabs } from "../../hooks/useRovingTabs";
 import { fmtN, splitPay } from "../../utils/format";
@@ -10,13 +12,7 @@ import LenderLadder from "./LenderLadder";
 import FinancialBreakdown from "./FinancialBreakdown";
 import BackendAddons from "./BackendAddons";
 import StructureMatrix from "./StructureMatrix";
-import type {
-  ApprovalBand,
-  CalculatedVehicle,
-  DealData,
-  LenderProfile,
-  Settings,
-} from "../../types";
+import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../../types";
 import { summarizePending } from "../../services/lenderFit";
 import type { LenderFitEntry } from "../../services/lenderFit";
 
@@ -26,6 +22,8 @@ interface DealInspectorProps {
   profilesById: Map<string, LenderProfile>;
   totalLenders: number;
   dealData: DealData;
+  filters?: FilterData;
+  onProfitChange?: (patch: NonNullable<DealData["profitInputs"]>) => void;
   settings: Settings;
   pinned: boolean;
   onPin: () => void;
@@ -61,6 +59,8 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   profilesById,
   totalLenders,
   dealData,
+  filters,
+  onProfitChange,
   settings,
   pinned,
   onPin,
@@ -89,43 +89,46 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   });
   const panelRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const previousTabRef = useRef(tab);
+  useEffect(() => {
+    if (previousTabRef.current === tab) return;
+    previousTabRef.current = tab;
+    const panel = panelRef.current;
+    const nav = panel?.querySelector<HTMLElement>(".desk-inspector-tabs");
+    if (panel && nav) {
+      // Long tabs start at their navigation; short tabs retain the complete header.
+      // Never stop partway through the header when the content cannot scroll that far.
+      const top =
+        panel.scrollTop + nav.getBoundingClientRect().top - panel.getBoundingClientRect().top - 1;
+      const canReachTabs = panel.scrollHeight - panel.clientHeight >= top;
+      panel.scrollTo?.({ top: canReachTabs ? Math.max(0, top) : 0, behavior: "auto" });
+    }
+  }, [tab]);
   const thresholds = settings.ltvThresholds;
-  const band = v.approvalBand ?? "none";
-  const fitCount = v.fitCount ?? 0;
-  const pendingCount = v.pendingCount ?? 0;
-  const fitNames = v.fitNames ?? [];
+  const fitCount = v.assessment?.fitCount ?? v.fitCount ?? 0;
+  const pendingCount = v.assessment?.pendingLenders ?? v.pendingCount ?? 0;
+  const fitNames = entries.filter((e) => e.eligible).map((e) => e.name);
   const pendingReason = useMemo(() => summarizePending(entries).pendingReason, [entries]);
 
-  // Tweens — arc + numeral + color + payment move together off the SAME
-  // animated values (600ms easeOutCubic; reduced-motion snaps).
-  const scoreTarget = v.approvalScore ?? 0;
+  // Readiness and payment animate; reduced-motion users see the final values immediately.
+  const scoreTarget = v.assessment?.readiness ?? 0;
   const payN = numVal(v.monthlyPayment);
   const dispScore = useAnimatedNumber(scoreTarget);
   const dispPay = useAnimatedNumber(payN ?? 0);
 
-  // Color AND zone label follow the tweened score through the mockup's bands
-  // so arc/number/color/label all move together; "none" (no lender fit) and
-  // "pending" (checks held, odds unknown) stay authoritative regardless of the
-  // animated number.
-  const dispBand: ApprovalBand =
-    band === "none" || band === "pending"
-      ? band
-      : dispScore >= APPROVAL_CONFIG.bands.strong
-        ? "strong"
-        : dispScore >= APPROVAL_CONFIG.bands.moderate
-          ? "moderate"
-          : "weak";
-  const gaugeColor = BAND_META[dispBand].colorVar;
+  const gaugeColor = v.assessment ? assessmentColor(v.assessment) : "var(--color-text-muted)";
 
   const pay = payN === null ? null : splitPay(dispPay);
 
-  const price = numVal(v.price);
+  const stickerPrice = numVal(v.price);
+  const { dealerDiscount, manufacturerRebate } = getRebateBreakdown(dealData);
+  const price = stickerPrice === null ? null : Math.max(0, stickerPrice - dealerDiscount);
   const baseOtd = numVal(v.baseOutTheDoorPrice);
   const taxFees = price !== null && baseOtd !== null ? baseOtd - price : numVal(v.salesTax);
   const down =
     (dealData.downPayment || 0) +
     ((dealData.tradeInValue || 0) - (dealData.tradeInPayoff || 0)) +
-    (dealData.rebate || 0);
+    manufacturerRebate;
   const financed = numVal(v.amountToFinance);
   const pti = v.ptiRatio;
 
@@ -140,10 +143,21 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
             { ...dealData, loanTerm: term, downPayment: dn },
             settings
           );
-          return { down: dn, pay: numVal(calc.monthlyPayment) };
+          if (!filters) return { down: dn, pay: numVal(calc.monthlyPayment) };
+          const structure = { ...dealData, loanTerm: term, downPayment: dn };
+          const profiles = Array.from(profilesById.values());
+          const fit = lenderFitForVehicle(calc, { ...structure, ...filters }, profiles);
+          const a = assessDeal(calc, structure, filters, profiles, fit);
+          return {
+            down: dn,
+            pay: numVal(calc.monthlyPayment),
+            fits: a.fitCount,
+            pending: a.pendingLenders,
+            interest: a.totalInterest,
+          };
         }),
       })),
-    [v, dealData, settings]
+    [v, dealData, settings, filters, profilesById]
   );
 
   useEffect(() => {
@@ -259,14 +273,14 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
 
       <InspectorSummary
         score={dispScore}
-        bandLabel={BAND_META[dispBand].label}
+        bandLabel={v.assessment?.label ?? "Not assessed"}
         gaugeColor={gaugeColor}
         pay={pay}
         loanTerm={dealData.loanTerm}
         apr={aprLabel(dealData.interestRate)}
         fitCount={fitCount}
         totalLenders={totalLenders}
-        pending={dispBand === "pending"}
+        pending={!v.assessment}
         pendingCount={pendingCount}
         pendingReason={pendingReason}
         financed={financed}
@@ -274,19 +288,8 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
         otdLtv={v.otdLtv}
         pti={pti}
         thresholds={thresholds}
+        assessment={v.assessment}
       />
-
-      <div className="desk-inspector-lender-snapshot">
-        <LenderLadder
-          entries={entries}
-          fitNames={fitNames}
-          profilesById={profilesById}
-          fitCount={fitCount}
-          totalLenders={totalLenders}
-          pendingCount={pendingCount}
-          limit={3}
-        />
-      </div>
 
       <div
         className="desk-inspector-tabs"
@@ -307,15 +310,18 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
 
       <div className="desk-inspector-body" {...tabs.getPanelProps(tab, { focusable: true })}>
         {tab === "summary" && (
-          <FinancialBreakdown
-            price={price}
-            taxFees={taxFees}
-            down={down}
-            otdLtv={v.otdLtv}
-            pti={pti}
-            financed={financed}
-            thresholds={thresholds}
-          />
+          <>
+            <DealRatings vehicle={v} dealData={dealData} onProfitChange={onProfitChange} />
+            <FinancialBreakdown
+              price={price}
+              taxFees={taxFees}
+              down={down}
+              otdLtv={v.otdLtv}
+              pti={pti}
+              financed={financed}
+              thresholds={thresholds}
+            />
+          </>
         )}
         {tab === "lenders" && (
           <LenderLadder

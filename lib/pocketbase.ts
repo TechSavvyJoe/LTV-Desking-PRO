@@ -289,6 +289,8 @@ export interface SavedDeal {
   customerFilters?: {
     creditScore: number | null;
     monthlyIncome: number | null;
+    monthlyDebt?: number | null;
+    maxPayment?: number | null;
   };
   calculatedData?: Record<string, unknown>;
   status: "draft" | "pending" | "submitted" | "approved" | "funded" | "cancelled" | "declined";

@@ -1,7 +1,6 @@
 import React, { useMemo, useCallback } from "react";
 import { useDealContext } from "../../context/DealContext";
-import { APPROVAL_CONFIG } from "../../services/approvalScorer";
-import { PENDING_CAUSE_META, activeLenderCount } from "../../services/lenderFit";
+import { activeLenderCount } from "../../services/lenderFit";
 import {
   asPipelineDeal,
   pipelineMetricsFromCalculatedData,
@@ -10,7 +9,9 @@ import {
 import { fmt } from "../../utils/format";
 import { EmptyState } from "../common/states";
 import * as Icons from "../common/Icons";
-import type { CalculatedVehicle, PendingCause } from "../../types";
+import type { CalculatedVehicle } from "../../types";
+
+const READINESS_CONFIG = { bands: { strong: 100, moderate: 50 } };
 
 const tnum: React.CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
@@ -43,13 +44,13 @@ const panelLabel: React.CSSProperties = {
 const numVal = (v: number | "Error" | "N/A" | undefined): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
-/** Approval color by the scorer's band thresholds (strong/moderate). */
-const approvalColor = (s: number): string =>
-  s >= APPROVAL_CONFIG.bands.strong
+/** Checklist progress: complete, partial or early stage. */
+const readinessColor = (s: number): string =>
+  s >= READINESS_CONFIG.bands.strong
     ? "var(--color-success)"
-    : s >= APPROVAL_CONFIG.bands.moderate
+    : s >= READINESS_CONFIG.bands.moderate
       ? "var(--color-warning)"
-      : "var(--color-danger)";
+      : "var(--color-text-muted)";
 
 interface BarRowProps {
   label: React.ReactNode;
@@ -172,22 +173,12 @@ const ReportsScreenBase: React.FC = () => {
   const stats = useMemo(() => {
     const rows = processedInventory;
     const n = rows.length;
-    // Units whose lender checks are all held pending have UNKNOWN odds, not
-    // weak ones: they stay out of the distribution and the approval KPIs.
-    const ranked = rows.filter((v) => v.approvalBand !== "pending");
+    // Missing inputs still have a known checklist count; legacy ratings do not.
+    const ranked = rows.filter((v) => v.assessment !== undefined);
     const rankedN = ranked.length;
-    const pendingRows = rows.filter((v) => v.approvalBand === "pending");
+    const pendingRows = rows.filter((v) => v.assessment?.label === "Inputs needed");
 
-    // Most common cause across pending units drives the note's call to action.
-    const causeCounts = new Map<PendingCause, number>();
-    for (const v of pendingRows) {
-      const cause = v.pendingCause ?? "other";
-      causeCounts.set(cause, (causeCounts.get(cause) ?? 0) + 1);
-    }
-    const pendingCause =
-      [...causeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ("other" as PendingCause);
-
-    const scores = ranked.map((v) => v.approvalScore ?? 0);
+    const scores = ranked.map((v) => v.readinessScore ?? 0);
     const otds = rows.map((v) => numVal(v.otdLtv)).filter((x): x is number => x !== null);
     const pays = rows.map((v) => numVal(v.monthlyPayment)).filter((x): x is number => x !== null);
     const prices = rows.map((v) => numVal(v.price)).filter((x): x is number => x !== null);
@@ -198,24 +189,26 @@ const ReportsScreenBase: React.FC = () => {
     const totalValue = prices.reduce((a, b) => a + b, 0);
 
     const strong = ranked.filter(
-      (v) => (v.approvalScore ?? 0) >= APPROVAL_CONFIG.bands.strong
+      (v) => (v.readinessScore ?? 0) >= READINESS_CONFIG.bands.strong
     ).length;
     const moderate = ranked.filter((v) => {
-      const s = v.approvalScore ?? 0;
-      return s >= APPROVAL_CONFIG.bands.moderate && s < APPROVAL_CONFIG.bands.strong;
+      const s = v.readinessScore ?? 0;
+      return s >= READINESS_CONFIG.bands.moderate && s < READINESS_CONFIG.bands.strong;
     }).length;
     const weak = rankedN - strong - moderate;
 
     const best = ranked.reduce<CalculatedVehicle | null>(
-      (a, v) => (a === null || (v.approvalScore ?? 0) > (a.approvalScore ?? 0) ? v : a),
+      (a, v) => (a === null || (v.readinessScore ?? 0) > (a.readinessScore ?? 0) ? v : a),
       null
     );
 
     // Reach is measured over ranked units only: a pending unit's 0 fits means
     // "not checked yet", not "no lender fits".
-    const avgLenders = rankedN ? ranked.reduce((a, v) => a + (v.fitCount ?? 0), 0) / rankedN : null;
+    const avgLenders = rankedN
+      ? ranked.reduce((a, v) => a + (v.assessment?.fitCount ?? 0), 0) / rankedN
+      : null;
 
-    // Approval by make (ranked units only) — unparseable makes land in "Other".
+    // Readiness by make (ranked units only) — unparseable makes land in "Other".
     const makeMap = new Map<string, { n: number; sum: number }>();
     for (const v of ranked) {
       let mk = (v.make || "").trim();
@@ -227,7 +220,7 @@ const ReportsScreenBase: React.FC = () => {
       if (!mk) mk = "Other";
       const cur = makeMap.get(mk) ?? { n: 0, sum: 0 };
       cur.n += 1;
-      cur.sum += v.approvalScore ?? 0;
+      cur.sum += v.readinessScore ?? 0;
       makeMap.set(mk, cur);
     }
     const makeRows = [...makeMap.entries()]
@@ -238,7 +231,6 @@ const ReportsScreenBase: React.FC = () => {
       n,
       rankedN,
       pendingN: pendingRows.length,
-      pendingCause,
       avgScore,
       avgOtd,
       avgPay,
@@ -297,7 +289,7 @@ const ReportsScreenBase: React.FC = () => {
       ? `${stats.best.make} ${stats.best.model}${stats.best.trim ? " " + stats.best.trim : ""}`
       : stats.best.vehicle
     : null;
-  const bestScore = stats.best?.approvalScore ?? null;
+  const bestScore = stats.best?.readinessScore ?? null;
 
   const lenderReach = safeLenderProfiles.filter((l) => l.active !== false);
 
@@ -324,7 +316,7 @@ const ReportsScreenBase: React.FC = () => {
             className="reports-screen-description"
             style={{ fontSize: 13, color: "var(--color-text-muted)" }}
           >
-            Inventory desirability, live against the current deal structure
+            Deal checklist results against the current structure
           </span>
         </div>
       </header>
@@ -350,7 +342,7 @@ const ReportsScreenBase: React.FC = () => {
               }}
             >
               <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
-                <div style={kpiLabel}>Avg approval</div>
+                <div style={kpiLabel}>Avg readiness</div>
                 <div
                   style={{
                     fontSize: 32,
@@ -361,7 +353,7 @@ const ReportsScreenBase: React.FC = () => {
                     color:
                       stats.avgScore === null
                         ? "var(--color-text-muted)"
-                        : approvalColor(stats.avgScore),
+                        : readinessColor(stats.avgScore),
                   }}
                 >
                   {stats.avgScore ?? <Unknown />}
@@ -401,20 +393,18 @@ const ReportsScreenBase: React.FC = () => {
               </div>
             </div>
 
-            {/* Approval distribution */}
+            {/* Readiness distribution */}
             <div className="dc-card" style={{ ...card, padding: 20 }}>
               <h2 style={panelLabel}>
-                Approval distribution —{" "}
-                {stats.pendingN > 0 ? `${stats.rankedN} of ${stats.n}` : stats.n}{" "}
-                {stats.n === 1 ? "unit" : "units"}
+                Readiness distribution — {stats.n} {stats.n === 1 ? "unit" : "units"}
               </h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <BarRow
                   label={
                     <>
-                      Strong{" "}
+                      All checks passed{" "}
                       <span style={{ color: "var(--color-text-subtle)" }}>
-                        ({APPROVAL_CONFIG.bands.strong}+)
+                        ({READINESS_CONFIG.bands.strong}+)
                       </span>
                     </>
                   }
@@ -428,9 +418,9 @@ const ReportsScreenBase: React.FC = () => {
                 <BarRow
                   label={
                     <>
-                      Moderate{" "}
+                      Partial{" "}
                       <span style={{ color: "var(--color-text-subtle)" }}>
-                        ({APPROVAL_CONFIG.bands.moderate}–{APPROVAL_CONFIG.bands.strong - 1})
+                        ({READINESS_CONFIG.bands.moderate}–{READINESS_CONFIG.bands.strong - 1})
                       </span>
                     </>
                   }
@@ -444,15 +434,15 @@ const ReportsScreenBase: React.FC = () => {
                 <BarRow
                   label={
                     <>
-                      Weak{" "}
+                      Early stage{" "}
                       <span style={{ color: "var(--color-text-subtle)" }}>
-                        (&lt;{APPROVAL_CONFIG.bands.moderate})
+                        (&lt;{READINESS_CONFIG.bands.moderate})
                       </span>
                     </>
                   }
                   labelWidth={130}
                   pct={share(stats.weak)}
-                  color="var(--color-danger)"
+                  color="var(--color-text-muted)"
                   height={10}
                   right={<CountShare count={stats.weak} share={pct(stats.weak)} />}
                   rightWidth={92}
@@ -464,7 +454,7 @@ const ReportsScreenBase: React.FC = () => {
                   style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 14 }}
                 >
                   {stats.pendingN} of {stats.n} {stats.n === 1 ? "unit is" : "units are"} pending —{" "}
-                  {PENDING_CAUSE_META[stats.pendingCause].rank}
+                  complete missing checks on the desk
                 </div>
               )}
             </div>
@@ -480,7 +470,7 @@ const ReportsScreenBase: React.FC = () => {
               }}
             >
               <div className="dc-card" style={{ ...kpiTile, padding: 18 }}>
-                <div style={kpiLabel}>Most approvable</div>
+                <div style={kpiLabel}>Most checks passed</div>
                 <div
                   style={{
                     fontSize: 17,
@@ -501,14 +491,14 @@ const ReportsScreenBase: React.FC = () => {
                     ...tnum,
                     marginTop: 4,
                     color:
-                      bestScore === null ? "var(--color-text-muted)" : approvalColor(bestScore),
+                      bestScore === null ? "var(--color-text-muted)" : readinessColor(bestScore),
                   }}
                 >
                   {bestScore === null ? (
                     // The unit name above already says "pending" to screen readers.
                     <span aria-hidden="true">—</span>
                   ) : (
-                    `${bestScore} / 100 odds`
+                    `${bestScore}% checks passed`
                   )}
                 </div>
               </div>
@@ -564,7 +554,7 @@ const ReportsScreenBase: React.FC = () => {
               style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}
             >
               <div className="dc-card" style={{ ...card, padding: 20 }}>
-                <h2 style={panelLabel}>Approval by make</h2>
+                <h2 style={panelLabel}>Readiness by make</h2>
                 {stats.makeRows.length === 0 && (
                   <span
                     role="status"
@@ -578,7 +568,7 @@ const ReportsScreenBase: React.FC = () => {
                 )}
                 <div
                   role="list"
-                  aria-label="Approval scores by make"
+                  aria-label="Deal readiness by make"
                   style={{
                     display: stats.makeRows.length === 0 ? "none" : "flex",
                     flexDirection: "column",
@@ -618,7 +608,7 @@ const ReportsScreenBase: React.FC = () => {
                           style={{
                             height: "100%",
                             width: `${m.avg}%`,
-                            background: approvalColor(m.avg),
+                            background: readinessColor(m.avg),
                             borderRadius: 5,
                           }}
                         />
@@ -630,7 +620,7 @@ const ReportsScreenBase: React.FC = () => {
                           fontWeight: 700,
                           width: 26,
                           textAlign: "right",
-                          color: approvalColor(m.avg),
+                          color: readinessColor(m.avg),
                           flexShrink: 0,
                         }}
                       >

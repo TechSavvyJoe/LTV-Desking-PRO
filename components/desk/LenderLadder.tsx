@@ -2,7 +2,7 @@ import React from "react";
 import { entryStatus } from "../../services/lenderFit";
 import type { LenderFitEntry } from "../../services/lenderFit";
 import type { LenderProfile } from "../../types";
-import { fitCountColor, metaItem, sansNum } from "./deskConstants";
+import { metaItem, sansNum } from "./deskConstants";
 
 /** Max of a tier field across a lender's tiers — the honest lender-level ceiling. */
 const maxOverTiers = (
@@ -88,10 +88,20 @@ const LenderLadder: React.FC<LenderLadderProps> = ({
       <div className="desk-panel-heading">
         <span>Lender paths</span>
         <strong
-          style={{ ...sansNum, color: fitCountColor(fitCount, pending) }}
+          style={{
+            ...sansNum,
+            color:
+              fitCount > 0
+                ? "var(--color-success)"
+                : pending
+                  ? "var(--color-text-muted)"
+                  : "var(--color-warning)",
+          }}
           title={pending ? `${pendingCount} pending lender checks` : undefined}
         >
-          {fitCount}/{totalLenders}
+          {pendingCount > 0
+            ? `${fitCount} fit · ${pendingCount} pending`
+            : `${fitCount}/${totalLenders} fit`}
         </strong>
       </div>
       {/* Lists, one item per lender, so each path is its own stop rather
@@ -127,6 +137,35 @@ const LenderLadder: React.FC<LenderLadderProps> = ({
               <span className="desk-lender-meta" style={sansNum}>
                 {lenderMeta(entry, profile)}
               </span>
+              {!limit && (
+                <details className="desk-lender-evidence">
+                  <summary aria-label={`${entry.name} program details`}>Program details</summary>
+                  <p>
+                    {entry.evaluatedConstraints ?? 0} configured constraints evaluated. Book basis:{" "}
+                    {profile?.bookValueSource ?? "Trade, retail fallback"}.
+                  </p>
+                  {entry.effectiveRate != null && (
+                    <p>
+                      Listed buy rate + adder: {entry.effectiveRate.toFixed(2)}%. Payment uses the
+                      APR entered on the desk.
+                    </p>
+                  )}
+                  {entry.reasons.length > 0 ? (
+                    <ul>
+                      {entry.reasons.map((reason, i) => (
+                        <li key={i}>{reason}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>
+                      Configured rules pass for the entered structure. This is not a lender
+                      approval.
+                    </p>
+                  )}
+                  {profile?.effectiveDate && <p>Program effective date: {profile.effectiveDate}</p>}
+                  {profile?.stipulations && <p>Stipulations: {profile.stipulations}</p>}
+                </details>
+              )}
             </li>
           );
         })}

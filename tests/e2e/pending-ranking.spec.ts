@@ -18,8 +18,8 @@ const REAL_BACKEND_SKIP_REASON =
 
 const SAMPLE_PROGRAMS = 10;
 
-const PENDING_GAUGE = /Approval odds pending/;
-const RANKED_GAUGE = /Approval odds \d+ of 100/;
+const PENDING_GAUGE = /Deal readiness \d+ of 100, Inputs needed/;
+const RANKED_GAUGE = /Deal readiness \d+ of 100/;
 
 async function openRoute(page: Page, route: string) {
   await page.goto(route);
@@ -36,7 +36,7 @@ async function goInApp(page: Page, link: RegExp, screen: string) {
   await expect(page.locator(`[data-screen-label="${screen}"]`)).toBeVisible({ timeout: 20000 });
 }
 
-const gauge = (page: Page) => page.getByRole("img", { name: /^Approval odds/ }).first();
+const gauge = (page: Page) => page.getByRole("img", { name: /^Deal readiness/ }).first();
 const chips = (page: Page, text: string) => page.getByText(text, { exact: true });
 
 async function enterCredit(page: Page) {
@@ -44,6 +44,10 @@ async function enterCredit(page: Page) {
   await page.getByLabel("FICO", { exact: true }).fill("720");
   await page.getByLabel("Income / mo").fill("");
   await page.getByLabel("Income / mo").fill("6500");
+  await page.getByRole("button", { name: "More filters", exact: true }).click();
+  await page.getByLabel("Monthly debt", { exact: true }).fill("500");
+  await page.getByLabel("Vehicle condition", { exact: true }).selectOption("used");
+  await page.getByRole("button", { name: "More filters", exact: true }).click();
   await page.keyboard.press("Tab");
 }
 
@@ -70,8 +74,9 @@ test.describe("Pending vs ranked (real backend)", () => {
     await openRoute(page, "/desk");
 
     await expect(gauge(page)).toHaveAccessibleName(PENDING_GAUGE);
-    await expect(page.getByText("Pending lender checks").first()).toBeVisible();
-    await expect(page.locator(".desk-fit-caption").first()).toHaveText(/0 fit, \d+ pending/);
+    await expect(page.getByText("Inputs needed", { exact: true }).first()).toBeVisible();
+    await expect(page.locator(".desk-fit-caption").first()).toHaveText(/0\/0 checked programs fit/);
+    await page.getByRole("tab", { name: "Lenders", exact: true }).click();
     await expect(chips(page, "Pending").first()).toBeVisible();
     await expect(chips(page, "No fit")).toHaveCount(0);
 
@@ -80,9 +85,7 @@ test.describe("Pending vs ranked (real backend)", () => {
       .getByRole("row")
       .nth(1);
     // A dash on screen, the reason for screen readers (sr-only).
-    await expect(firstRow.getByRole("cell").last()).toHaveText(
-      /^—\s*Approval odds pending lender checks$/
-    );
+    await expect(firstRow.getByRole("cell").last()).toHaveText(/^\d+$/);
 
     await openRoute(page, "/lenders");
     for (const pill of await lenderPills(page)) {
@@ -98,10 +101,11 @@ test.describe("Pending vs ranked (real backend)", () => {
     await enterCredit(page);
 
     await expect(gauge(page)).toHaveAccessibleName(RANKED_GAUGE);
-    await expect(page.getByText("Pending lender checks")).toHaveCount(0);
+    await expect(page.getByText("Strong approval")).toHaveCount(0);
     await expect(page.locator(".desk-fit-caption").first()).toHaveText(
-      /\b[1-9]\d*\/\d+\s*lenders fit/
+      /\b[1-9]\d*\/\d+\s*checked programs fit/
     );
+    await page.getByRole("tab", { name: "Lenders", exact: true }).click();
     await expect(chips(page, "Fit").first()).toBeVisible();
 
     await goInApp(page, /^Lenders/, "Lenders");
@@ -112,10 +116,8 @@ test.describe("Pending vs ranked (real backend)", () => {
     expect(pills.filter((pill) => pill === "Verify sample")).toHaveLength(SAMPLE_PROGRAMS);
 
     await goInApp(page, /^Reports/, "Reports");
-    const heading = page.getByText(/Approval distribution — \d+ of \d+ units?/).first();
-    const [, ranked, total] = (await heading.innerText()).match(/(\d+) of (\d+)/) ?? [];
-    expect(Number(ranked)).toBeGreaterThan(0);
-    expect(Number(ranked)).toBeLessThanOrEqual(Number(total));
+    const heading = page.getByText(/Readiness distribution — \d+ units?/).first();
+    expect(await heading.innerText()).toMatch(/Readiness distribution — \d+ units?/);
   });
 
   test("clearing the FICO returns the desk to pending", async ({ page }) => {
@@ -127,6 +129,6 @@ test.describe("Pending vs ranked (real backend)", () => {
     await page.keyboard.press("Tab");
 
     await expect(gauge(page)).toHaveAccessibleName(PENDING_GAUGE);
-    await expect(page.getByText("Pending lender checks").first()).toBeVisible();
+    await expect(page.getByText("Inputs needed", { exact: true }).first()).toBeVisible();
   });
 });
