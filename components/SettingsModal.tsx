@@ -542,8 +542,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               </div>
             )}
             <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--color-text-subtle)" }}>
-              Leave off to use the modeled buyer-state tax rules. Enable only after confirming the
-              rate for this transaction; 0% requires an explicit override.
+              Applies to every deal estimate for this dealership. Leave off to use modeled
+              buyer-state tax rules. Confirm the custom rate before enabling; 0% requires an
+              explicit override.
             </p>
           </section>
           {hr}
