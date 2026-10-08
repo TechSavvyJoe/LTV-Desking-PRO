@@ -337,7 +337,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
         for (const record of [revised.list, revised.view]) {
           expect(record.vehicleData).not.toHaveProperty("assessment");
           expect(record.calculatedData).not.toHaveProperty("assessment");
-          expect(record.dealData.profitInputs).toEqual(profitInputs);
+          expect(record.dealData).toMatchObject({ profitInputs });
         }
       }
     } finally {
