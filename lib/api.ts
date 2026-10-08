@@ -115,6 +115,7 @@ export const addInventoryItem = async (
   try {
     const record = await collections.inventory.create({
       ...item,
+      mileageUnknown: typeof item.mileage !== "number" || !Number.isFinite(item.mileage),
       dealer: dealerId,
     });
     return asType<InventoryItem>(record);
@@ -129,7 +130,11 @@ export const updateInventoryItem = async (
   data: Partial<InventoryItem>
 ): Promise<InventoryItem | null> => {
   try {
-    const record = await collections.inventory.update(id, data);
+    const payload = { ...data };
+    if (Object.prototype.hasOwnProperty.call(data, "mileage")) {
+      payload.mileageUnknown = typeof data.mileage !== "number" || !Number.isFinite(data.mileage);
+    }
+    const record = await collections.inventory.update(id, payload);
     return asType<InventoryItem>(record);
   } catch (error) {
     apiLogger.error("Failed to update inventory item", error);
@@ -164,7 +169,13 @@ export const syncInventory = async (
     jdPowerRetail?: number;
   }>,
   options: { markMissingSold?: boolean } = {}
-): Promise<{ added: number; updated: number; removed: number; failed: number }> => {
+): Promise<{
+  added: number;
+  updated: number;
+  removed: number;
+  failed: number;
+  archivingSkipped: boolean;
+}> => {
   const dealerId = getCurrentDealerId();
   // Fail loudly instead of returning zeros that the UI would render as a green
   // "Synced 0 vehicles" success while nothing was persisted. [data-import]
@@ -189,64 +200,78 @@ export const syncInventory = async (
     for (const record of existingRecords) {
       const item = asType<InventoryItem>(record);
       if (item.vin) {
-        existingByVin.set(item.vin.toUpperCase(), item);
+        existingByVin.set(item.vin.trim().toUpperCase(), item);
       }
     }
 
     const incomingVins = new Set<string>();
-    const updateOperations: Promise<unknown>[] = [];
-    const createOperations: Promise<unknown>[] = [];
+    const upsertOperations: Array<{ kind: "updated" | "added"; run: () => Promise<unknown> }> = [];
 
     // Prepare operations (don't execute yet)
     for (const item of items) {
-      if (!item.vin) continue;
-      const vinUpper = item.vin.toUpperCase();
+      const vinUpper = item.vin?.trim().toUpperCase();
+      if (!vinUpper) {
+        throw new Error(
+          "Refusing to mark inventory sold or sync a feed containing a row without a VIN."
+        );
+      }
+      if (incomingVins.has(vinUpper)) {
+        throw new Error(
+          `Inventory contains a duplicate VIN (${vinUpper}). Correct the feed and try again.`
+        );
+      }
       incomingVins.add(vinUpper);
 
       const existing = existingByVin.get(vinUpper);
       if (existing) {
         // Queue update operation
-        updateOperations.push(
-          collections.inventory.update(existing.id, {
-            stockNumber: item.stockNumber,
-            year: item.year,
-            make: item.make,
-            model: item.model,
-            trim: item.trim,
-            mileage: item.mileage,
-            price: item.price,
-            unitCost: item.unitCost,
-            jdPower: item.jdPower,
-            jdPowerRetail: item.jdPowerRetail,
-            status: "available",
-          })
-        );
+        upsertOperations.push({
+          kind: "updated",
+          run: () =>
+            collections.inventory.update(existing.id, {
+              stockNumber: item.stockNumber,
+              year: item.year,
+              make: item.make,
+              model: item.model,
+              trim: item.trim,
+              mileage: item.mileage,
+              mileageUnknown: typeof item.mileage !== "number" || !Number.isFinite(item.mileage),
+              price: item.price,
+              unitCost: item.unitCost,
+              jdPower: item.jdPower,
+              jdPowerRetail: item.jdPowerRetail,
+              status: "available",
+            }),
+        });
       } else {
         // Queue create operation
-        createOperations.push(
-          collections.inventory.create({
-            dealer: dealerId,
-            vin: item.vin,
-            stockNumber: item.stockNumber,
-            year: item.year,
-            make: item.make,
-            model: item.model,
-            trim: item.trim,
-            mileage: item.mileage,
-            price: item.price,
-            unitCost: item.unitCost,
-            jdPower: item.jdPower,
-            jdPowerRetail: item.jdPowerRetail,
-            status: "available",
-          })
-        );
+        upsertOperations.push({
+          kind: "added",
+          run: () =>
+            collections.inventory.create({
+              dealer: dealerId,
+              vin: vinUpper,
+              stockNumber: item.stockNumber,
+              year: item.year,
+              make: item.make,
+              model: item.model,
+              trim: item.trim,
+              mileage: item.mileage,
+              mileageUnknown: typeof item.mileage !== "number" || !Number.isFinite(item.mileage),
+              price: item.price,
+              unitCost: item.unitCost,
+              jdPower: item.jdPower,
+              jdPowerRetail: item.jdPowerRetail,
+              status: "available",
+            }),
+        });
       }
     }
 
     // A partial file upload and the one-item VIN decoder both use this helper.
     // Missing rows therefore mean "not included in this import", not "sold".
     // Archiving absent units is available only to an explicit full-feed caller.
-    const removeOperations: Promise<unknown>[] = [];
+    const removeOperations: Array<() => Promise<unknown>> = [];
     if (options.markMissingSold) {
       // An empty or VIN-less feed combined with markMissingSold would archive
       // the entire lot in one call — the single worst data-loss path in the
@@ -260,34 +285,51 @@ export const syncInventory = async (
       }
       for (const [vin, existing] of existingByVin) {
         if (!incomingVins.has(vin)) {
-          removeOperations.push(collections.inventory.update(existing.id, { status: "sold" }));
+          if (existing.status !== "sold") {
+            removeOperations.push(() =>
+              collections.inventory.update(existing.id, { status: "sold" })
+            );
+          }
         }
       }
     }
 
-    // Execute all operations in parallel batches, tracking both successes and
-    // failures so partial failures are reported rather than hidden. [data-import]
-    const processBatch = async (operations: Promise<unknown>[]) => {
+    // Defer starting each request until its batch is reached. Constructing
+    // promises above starts every request immediately and defeats the limit.
+    const processBatch = async (operations: Array<() => Promise<unknown>>) => {
       const results = [];
       for (let i = 0; i < operations.length; i += BATCH_SIZE) {
         const batch = operations.slice(i, i + BATCH_SIZE);
-        results.push(...(await Promise.allSettled(batch)));
+        results.push(
+          ...(await Promise.allSettled(batch.map((run) => Promise.resolve().then(run))))
+        );
       }
-      const ok = results.filter((r) => r.status === "fulfilled").length;
-      return { ok, failed: results.length - ok };
+      return results;
     };
 
-    const [updated, added, removed] = await Promise.all([
-      processBatch(updateOperations),
-      processBatch(createOperations),
-      processBatch(removeOperations),
-    ]);
+    const upserts = await processBatch(upsertOperations.map((operation) => operation.run));
+    let added = 0;
+    let updated = 0;
+    let failed = 0;
+    upserts.forEach((result, index) => {
+      if (result.status === "rejected") failed++;
+      else if (upsertOperations[index]?.kind === "added") added++;
+      else updated++;
+    });
+
+    // A failed feed is not a trustworthy inventory reconciliation. Save the
+    // successful rows, but retain all omitted units until a complete retry.
+    const archivingSkipped = Boolean(options.markMissingSold && failed > 0);
+    const removals = archivingSkipped ? [] : await processBatch(removeOperations);
+    const removed = removals.filter((result) => result.status === "fulfilled").length;
+    failed += removals.length - removed;
 
     return {
-      added: added.ok,
-      updated: updated.ok,
-      removed: removed.ok,
-      failed: added.failed + updated.failed + removed.failed,
+      added,
+      updated,
+      removed,
+      failed,
+      archivingSkipped,
     };
   } catch (error) {
     // Re-throw so the caller surfaces an error toast instead of a false success.
@@ -685,16 +727,22 @@ export const updateDealerSettings = async (
   if (!dealerId) return null;
 
   try {
-    // Soft read: update path has its own catch and should not surface a
-    // settings-fetch blip as an unhandled rejection from a fire-and-forget sync.
-    const existing = await getDealerSettings({ soft: true });
+    const payload = { ...data };
+    if (Object.prototype.hasOwnProperty.call(data, "customTaxRate")) {
+      const rate = data.customTaxRate;
+      payload.customTaxRateEnabled = typeof rate === "number" && Number.isFinite(rate) && rate >= 0;
+      payload.customTaxRate = payload.customTaxRateEnabled ? rate : 0;
+    }
+    // A failed read is not evidence of a missing record. Keep it within this
+    // catch rather than creating a duplicate settings row after a network error.
+    const existing = await getDealerSettings();
 
     if (existing) {
-      const record = await collections.dealerSettings.update(existing.id, data);
+      const record = await collections.dealerSettings.update(existing.id, payload);
       return asType<DealerSettings>(record);
     } else {
       const record = await collections.dealerSettings.create({
-        ...data,
+        ...payload,
         dealer: dealerId,
       });
       return asType<DealerSettings>(record);

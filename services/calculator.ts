@@ -20,8 +20,12 @@ import { selectBookValue } from "./bookValue";
  * form keeps negative amounts symmetric with positive ones (a bare Math.round
  * would round -0.125 to -0.12 but 0.125 to 0.13).
  */
-export const roundCents = (value: number): number =>
-  (Math.sign(value) * Math.round(Math.abs(value) * 100)) / 100;
+export const roundCents = (value: number): number => {
+  const magnitude = Math.abs(value) * 100;
+  // Decimal halves such as 1.005 can land just below x.5 in binary. Correct
+  // only the representation error before applying the half-up policy.
+  return (Math.sign(value) * Math.round(magnitude + Number.EPSILON * magnitude)) / 100;
+};
 
 /**
  * Coerce a possibly-blank numeric deal field to a number, treating empty string /

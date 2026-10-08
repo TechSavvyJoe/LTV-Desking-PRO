@@ -502,6 +502,52 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
           {hr}
 
+          <section>
+            <h3 style={sectionH}>Tax override</h3>
+            <label className="flex items-center gap-2 text-sm text-[var(--color-text)]">
+              <input
+                type="checkbox"
+                disabled={!canEdit}
+                checked={typeof localSettings.customTaxRate === "number"}
+                onChange={(e) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    customTaxRate: e.target.checked ? 6 : null,
+                  }))
+                }
+              />
+              Use a custom tax rate
+            </label>
+            {typeof localSettings.customTaxRate === "number" && (
+              <div className="mt-3">
+                <label style={fieldLabel} htmlFor="settings-custom-tax-rate">
+                  Custom tax rate (%)
+                </label>
+                <input
+                  id="settings-custom-tax-rate"
+                  className="dc-input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.001"
+                  disabled={!canEdit}
+                  value={localSettings.customTaxRate}
+                  onChange={(e) => {
+                    const rate = Number(e.target.value);
+                    if (Number.isFinite(rate) && rate >= 0 && rate <= 100)
+                      setLocalSettings((prev) => ({ ...prev, customTaxRate: rate }));
+                  }}
+                  style={numInput}
+                />
+              </div>
+            )}
+            <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--color-text-subtle)" }}>
+              Leave off to use the modeled buyer-state tax rules. Enable only after confirming the
+              rate for this transaction; 0% requires an explicit override.
+            </p>
+          </section>
+          {hr}
+
           {/* LTV THRESHOLDS */}
           <section>
             <h3 style={{ ...sectionH, margin: "0 0 5px" }}>LTV thresholds</h3>

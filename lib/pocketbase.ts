@@ -227,6 +227,7 @@ export interface InventoryItem {
   model: string;
   trim?: string;
   mileage?: number;
+  mileageUnknown?: boolean;
   price: number;
   unitCost?: number;
   jdPower?: number;
@@ -313,7 +314,8 @@ export interface DealerSettings {
   defaultStateFees: number;
   defaultState: string;
   outOfStateTransitFee: number;
-  customTaxRate?: number;
+  customTaxRate?: number | null;
+  customTaxRateEnabled?: boolean;
   /** REAL PB column (1746999005 baseline): default loan term in months. */
   defaultTerm?: number;
   /** REAL PB column (1746999005 baseline): default APR %. */

@@ -785,7 +785,7 @@ export const LendersScreen: React.FC = () => {
                             textAlign: "right",
                           }}
                         >
-                          {units}/{shownCount}
+                          {status.pending && units === 0 ? "Pending" : `${units}/${shownCount}`}
                         </span>
                       </div>
                       <span role="cell" data-label="Status" style={{ textAlign: "right" }}>

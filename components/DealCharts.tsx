@@ -1,20 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from "recharts";
 import { DealData, CalculatedVehicle, LenderProfile, FilterData } from "../types";
 import { calculateMonthlyPayment } from "../services/calculator";
-import { checkBankEligibility } from "../services/lenderMatcher";
+import { lenderFitForVehicle } from "../services/lenderFit";
+import { holdIncompleteFits } from "../services/dealAssessment";
 import { EmptyState } from "./common/states";
 import * as Icons from "./common/Icons";
 
@@ -29,11 +17,7 @@ interface LenderComparisonChartProps extends DealChartsProps {
 }
 
 // ---------------------------------------------------------------------------
-// Theme plumbing. Recharts renders SVG and needs literal color strings — it
-// cannot consume `var(--color-*)`. We resolve the design tokens from the
-// document at render time and re-resolve when the theme class on <html>
-// flips, so charts follow dark/light instead of bleeding light-mode hex into
-// dark mode. [takeover-P1 #15]
+// Resolve theme tokens for the SVG and refresh when the theme changes.
 // ---------------------------------------------------------------------------
 
 interface ChartPalette {
@@ -92,63 +76,36 @@ const useChartPalette = (): ChartPalette => {
   return palette;
 };
 
-/** Recharts' JS entrance animations are not covered by the CSS reduced-motion reset. */
-const usePrefersReducedMotion = (): boolean => {
-  const [reduce, setReduce] = useState<boolean>(() =>
-    typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false
-  );
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onChange = (e: MediaQueryListEvent) => setReduce(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return reduce;
-};
-
 const formatUsd = (value: unknown): string =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     typeof value === "number" ? value : Number(value ?? 0)
   );
 
-const formatUsdCompact = (value: number): string =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-
-const tooltipStyle = (p: ChartPalette): React.CSSProperties => ({
-  backgroundColor: p.surface,
-  color: p.text,
-  borderRadius: 8,
-  border: `1px solid ${p.border}`,
-  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.18)",
-  fontSize: 12,
-});
-
 const PaymentBreakdownChartBase: React.FC<DealChartsProps> = ({ dealData, activeVehicle }) => {
   const palette = useChartPalette();
-  const reduceMotion = usePrefersReducedMotion();
 
   const data = useMemo(() => {
     if (!activeVehicle) return [];
 
     const principal =
       typeof activeVehicle.amountToFinance === "number" ? activeVehicle.amountToFinance : 0;
-    const interestRate = dealData.interestRate || 0;
-    const term = dealData.loanTerm || 72;
+    const interestRate = dealData.interestRate;
+    const term = Math.floor(dealData.loanTerm);
+    if (
+      typeof interestRate !== "number" ||
+      !Number.isFinite(interestRate) ||
+      interestRate < 0 ||
+      !Number.isFinite(term) ||
+      term <= 0 ||
+      !Number.isFinite(principal) ||
+      principal <= 0
+    )
+      return [];
 
     const monthlyPayment = calculateMonthlyPayment(principal, interestRate, term);
 
     if (monthlyPayment === "Error") {
-      return [
-        { name: "Principal", value: principal },
-        { name: "Interest", value: 0 },
-      ];
+      return [];
     }
 
     const totalCost = monthlyPayment * term;
@@ -162,50 +119,66 @@ const PaymentBreakdownChartBase: React.FC<DealChartsProps> = ({ dealData, active
     ];
   }, [dealData, activeVehicle]);
 
-  // Principal = brand green (the money that becomes the car); interest = amber
-  // (cost of financing). Two hues that remain distinguishable for common CVD.
-  const sliceColors = [palette.primary, palette.warning];
-
   if (!activeVehicle)
     return (
       <div className="flex items-center justify-center h-64 text-[var(--color-text-subtle)]">
-        No vehicle selected
+        Select a vehicle on the desk to see loan costs.
+      </div>
+    );
+  if (data.length === 0)
+    return (
+      <div className="flex items-center justify-center h-64 text-[var(--color-text-subtle)]">
+        Enter an amount financed, APR and term to see loan costs.
       </div>
     );
 
+  const principal = data[0]!.value;
+  const interest = data[1]!.value;
+  const total = principal + interest;
+  const circumference = 2 * Math.PI * 46;
+  const interestArc = total > 0 ? (interest / total) * circumference : 0;
   return (
-    <div className="h-64 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={80}
-            fill={palette.primary}
-            stroke={palette.surface}
-            paddingAngle={5}
-            dataKey="value"
-            isAnimationActive={!reduceMotion}
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={sliceColors[index % sliceColors.length]} />
-            ))}
-          </Pie>
-          <Tooltip
-            formatter={(value) => formatUsd(value)}
-            contentStyle={tooltipStyle(palette)}
-            itemStyle={{ color: palette.text }}
-            labelStyle={{ color: palette.muted }}
-          />
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            wrapperStyle={{ color: palette.muted, fontSize: 12 }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+    <div className="grid gap-5 sm:grid-cols-[140px_1fr] items-center py-3">
+      <svg
+        viewBox="0 0 120 120"
+        className="w-36 h-36 mx-auto"
+        role="img"
+        aria-label={`Loan costs: ${formatUsd(principal)} principal and ${formatUsd(interest)} estimated interest`}
+      >
+        <circle cx="60" cy="60" r="46" fill="none" stroke={palette.primary} strokeWidth="14" />
+        <circle
+          cx="60"
+          cy="60"
+          r="46"
+          fill="none"
+          stroke={palette.warning}
+          strokeWidth="14"
+          strokeDasharray={`${interestArc} ${circumference}`}
+          transform="rotate(-90 60 60)"
+        />
+        <text x="60" y="57" textAnchor="middle" fill={palette.text} fontSize="18" fontWeight="700">
+          {Math.round((interest / total) * 100)}%
+        </text>
+        <text x="60" y="73" textAnchor="middle" fill={palette.muted} fontSize="10">
+          interest share
+        </text>
+      </svg>
+      <dl className="space-y-3 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt>Financed principal</dt>
+          <dd className="font-semibold tabular-nums">{formatUsd(principal)}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt>Estimated interest</dt>
+          <dd className="font-semibold tabular-nums" style={{ color: palette.warning }}>
+            {formatUsd(interest)}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3 pt-3 border-t border-[var(--color-border)]">
+          <dt>Total loan payments</dt>
+          <dd className="font-semibold tabular-nums">{formatUsd(total)}</dd>
+        </div>
+      </dl>
     </div>
   );
 };
@@ -236,7 +209,6 @@ const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
   customerFilters = EMPTY_FILTERS,
 }) => {
   const palette = useChartPalette();
-  const reduceMotion = usePrefersReducedMotion();
 
   // Real data: run each dealer-entered lender program through the eligibility
   // matcher and chart the estimated payment for programs that actually fit.
@@ -244,33 +216,34 @@ const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
     if (!activeVehicle) return [];
 
     const principal = activeVehicle.amountToFinance;
-    if (typeof principal !== "number" || !Number.isFinite(principal)) return [];
+    if (typeof principal !== "number" || !Number.isFinite(principal) || principal <= 0) return [];
 
     const dealWithFilters = { ...dealData, ...customerFilters };
 
-    return lenderProfiles
-      .filter((profile): profile is LenderProfile => Boolean(profile))
-      .flatMap((profile) => {
-        const result = checkBankEligibility(activeVehicle, dealWithFilters, profile);
-        if (!result.eligible || !result.matchedTier) return [];
-
-        const { baseInterestRate, rateAdder } = result.matchedTier;
-        if (typeof baseInterestRate !== "number" || !Number.isFinite(baseInterestRate)) return [];
-
-        const rate =
-          baseInterestRate +
-          (typeof rateAdder === "number" && Number.isFinite(rateAdder) ? rateAdder : 0);
+    return holdIncompleteFits(
+      lenderFitForVehicle(activeVehicle, dealWithFilters, lenderProfiles),
+      customerFilters
+    )
+      .entries.flatMap((result) => {
+        if (!result.eligible || result.status !== "eligible") return [];
+        const rate = result.effectiveRate;
+        if (typeof rate !== "number" || !Number.isFinite(rate)) return [];
 
         const payment = calculateMonthlyPayment(principal, rate, dealData.loanTerm);
         if (typeof payment !== "number" || !Number.isFinite(payment)) return [];
 
-        return [{ name: profile.name, rate, payment }];
+        return [{ id: result.lenderId, name: result.name, rate, payment }];
       })
       .sort((a, b) => a.payment - b.payment)
       .slice(0, MAX_CHARTED_LENDERS);
   }, [dealData, activeVehicle, lenderProfiles, customerFilters]);
 
-  if (!activeVehicle) return null;
+  if (!activeVehicle)
+    return (
+      <div className="flex items-center justify-center h-64 text-[var(--color-text-subtle)]">
+        Select a vehicle on the desk to compare lender payments.
+      </div>
+    );
 
   return (
     <div className="w-full">
@@ -280,56 +253,49 @@ const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
       {data.length === 0 ? (
         <div className="h-64">
           <EmptyState
-            headingLevel={3}
+            headingLevel={4}
             icon={<Icons.BuildingLibraryIcon className="w-full h-full" />}
             title={
-              lenderProfiles.length === 0 ? "No lender programs yet" : "No lenders fit this deal"
+              lenderProfiles.length === 0 ? "No lender programs yet" : "No checked lender quotes"
             }
             description={
               lenderProfiles.length === 0
                 ? "Add lender programs on the Lenders screen to compare payments."
-                : "Adjust the down payment, term or price to bring a lender into range."
+                : "Complete customer inputs and confirm program rules and APRs, then review lender results on the desk."
             }
           />
         </div>
       ) : (
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 5, right: 16, left: 4, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={palette.border} />
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: palette.subtle, fontSize: 11 }}
-              />
-              {/* A labeled Y axis so magnitudes are readable without hover
-                  (keyboard/touch users, and length is the most accurately
-                  read encoding). */}
-              <YAxis
-                width={64}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v: number) => formatUsdCompact(v)}
-                tick={{ fill: palette.subtle, fontSize: 11 }}
-              />
-              <Tooltip
-                cursor={{ fill: "transparent" }}
-                formatter={(value) => formatUsd(value)}
-                contentStyle={tooltipStyle(palette)}
-                itemStyle={{ color: palette.text }}
-                labelStyle={{ color: palette.muted }}
-              />
-              <Bar
-                dataKey="payment"
-                fill={palette.primary}
-                radius={[4, 4, 0, 0]}
-                name="Monthly Payment"
-                isAnimationActive={!reduceMotion}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <ol className="space-y-4 py-2" aria-label="Checked lender payment estimates">
+          {data.map((quote) => (
+            <li key={quote.id} className="space-y-2">
+              <div className="flex justify-between gap-3 items-start">
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm break-words">{quote.name}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {quote.rate.toFixed(2)}% APR estimate
+                  </p>
+                </div>
+                <p className="font-semibold tabular-nums whitespace-nowrap">
+                  {formatUsd(quote.payment)}
+                  <span className="text-xs font-normal text-[var(--color-text-muted)]"> /mo</span>
+                </p>
+              </div>
+              <div
+                className="h-2 rounded bg-[var(--color-bg-muted)] overflow-hidden"
+                aria-hidden="true"
+              >
+                <div
+                  className="h-full rounded"
+                  style={{
+                    width: `${(quote.payment / Math.max(...data.map((row) => row.payment))) * 100}%`,
+                    background: palette.primary,
+                  }}
+                />
+              </div>
+            </li>
+          ))}
+        </ol>
       )}
     </div>
   );

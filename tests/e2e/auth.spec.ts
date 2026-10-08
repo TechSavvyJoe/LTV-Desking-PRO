@@ -107,7 +107,7 @@ test.describe("Load desk", () => {
       .toBe(financedBefore + 2_495);
   });
 
-  test("opens the deal sheet above the compact mobile inspector", async ({ page }) => {
+  test("opens the deal sheet above the compact mobile inspector", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await setupTest(page, "/desk");
 
@@ -146,6 +146,7 @@ test.describe("Load desk", () => {
     await expect(lenderRow.locator('[data-label="OTD cap"]')).toBeVisible();
     await expect(lenderRow.locator('[data-label="Term range"]')).toBeVisible();
     expect(await preview.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("mobile-deal-sheet.png") });
   });
 });
 
@@ -947,6 +948,7 @@ test.describe("Administrative console login", () => {
 // INVENTORY IMPORT
 // ---------------------------------------------------------------------------
 test.describe("Inventory import", () => {
+  test.describe.configure({ mode: "serial" });
   test("imports CSV via hidden input and shows success state", async ({ page }) => {
     await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
 
@@ -1026,10 +1028,16 @@ test.describe("Inventory import", () => {
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
     await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
-    await expect(page.getByRole("status").filter({ hasText: /^1 of 1 unit$/ })).toBeVisible();
+    // A failed reconciliation must retain omitted units rather than silently
+    // marking the rest of the lot sold. This was previously asserted as 1/1.
+    const beforeReload = await page
+      .getByRole("status")
+      .filter({ hasText: /^\d+ of \d+ units?$/ })
+      .innerText();
+    expect(beforeReload).not.toBe("1 of 1 unit");
     await page.reload();
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
-    await expect(page.getByRole("status").filter({ hasText: /^1 of 1 unit$/ })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: beforeReload })).toBeVisible();
     await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
   });
 
@@ -1042,7 +1050,57 @@ test.describe("Inventory import", () => {
       page.getByRole("button", { name: "Download sample CSV", exact: true })
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Import inventory" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "VIN decode", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Compare PDF/i })).toBeVisible();
+  });
+
+  test("retains a rejected row's existing vehicle when a CSV contains invalid data", async ({
+    page,
+  }) => {
+    await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
+    const input = page.locator('input[type="file"]');
+    const headers = "Stock #,Year,Make,Model,VIN,Mileage,Price";
+    await input.setInputFiles({
+      name: "complete.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(`${headers}\nKEEP01,2024,Ford,Escape,1M8GDM9AXKP042788,10000,25000`),
+    });
+    await expect(page.getByText(/STK KEEP01/)).toBeVisible();
+    await input.setInputFiles({
+      name: "rejected-row.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        `${headers}\nKEEP01,2024,Ford,Escape,1M8GDM9AXKP042788,10000,INVALID\nGOOD01,2023,Honda,Civic,2T1BURHE0JC000001,18000,22000`
+      ),
+    });
+    await expect(
+      page.getByRole("alert").filter({ hasText: /Omitted vehicles were kept available/ })
+    ).toBeVisible();
+    await expect(page.getByText(/STK KEEP01/)).toBeVisible();
+    await expect(page.getByText(/STK GOOD01/)).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(/STK KEEP01/)).toBeVisible();
+    await expect(page.getByText(/STK GOOD01/)).toBeVisible();
+  });
+
+  test("imports a real Excel workbook and preserves cents on the server", async ({ page }) => {
+    await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
+    const savedRow = page.waitForResponse((response) => {
+      const request = response.request();
+      return (
+        response.url().includes("/api/collections/inventory/records") &&
+        ["POST", "PATCH"].includes(request.method()) &&
+        request.postDataJSON()?.stockNumber === "XLSX01"
+      );
+    });
+    await page.locator('input[type="file"]').setInputFiles("tests/e2e/fixtures/inventory.xlsx");
+    const persisted = await savedRow;
+    expect(persisted.ok()).toBe(true);
+    expect((await persisted.json()).price).toBe(30000.5);
+    await expect(page.getByRole("status").filter({ hasText: /Inventory imported:/ })).toBeVisible();
+    await expect(page.getByText(/STK XLSX01/)).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(/STK XLSX01/)).toBeVisible();
   });
 });
 
@@ -1247,7 +1305,9 @@ test.describe("PDF generation", () => {
     await dealSheetBtn.click();
 
     // Modal appears (header inside modal)
-    await expect(page.getByText("Deal sheet")).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("dialog", { name: "Deal sheet", exact: true })).toBeVisible({
+      timeout: 8000,
+    });
 
     // Trigger download
     const [download] = await Promise.all([

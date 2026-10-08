@@ -277,7 +277,7 @@ const mapInventoryItem = (i: InventoryItem): Vehicle => ({
   modelYear: i.year,
   // typeof, not ||: a legitimate 0-mile unit must stay 0 — `0 || "N/A"`
   // coerced new/in-transit units to "N/A", which blocked Structure Deal. [C-tables]
-  mileage: typeof i.mileage === "number" ? i.mileage : "N/A",
+  mileage: !i.mileageUnknown && typeof i.mileage === "number" ? i.mileage : "N/A",
   price: i.price,
   jdPower: typeof i.jdPower === "number" && i.jdPower > 0 ? i.jdPower : "N/A",
   jdPowerRetail:
@@ -471,7 +471,12 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       cvrFee: dealerSettings.cvrFee,
       defaultState: toAppState(dealerSettings.defaultState, prev.defaultState),
       outOfStateTransitFee: dealerSettings.outOfStateTransitFee,
-      customTaxRate: normalizeStoredTaxRate(dealerSettings.customTaxRate),
+      customTaxRate:
+        dealerSettings.customTaxRateEnabled === false
+          ? null
+          : dealerSettings.customTaxRateEnabled === true || Number(dealerSettings.customTaxRate) > 0
+            ? normalizeStoredTaxRate(dealerSettings.customTaxRate)
+            : null,
       miTradeInCreditCap: dealerSettings.miTradeInCreditCap ?? prev.miTradeInCreditCap,
       vscPrice: dealerSettings.vscPrice ?? prev.vscPrice,
       gapPrice: dealerSettings.gapPrice ?? prev.gapPrice,
@@ -526,43 +531,50 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDealDirty, activeVehicle]);
 
-  // Sync settings changes to PocketBase
-  const updateSettings: React.Dispatch<React.SetStateAction<Settings>> = useCallback((action) => {
-    setSettings((prev) => {
-      const newSettings =
-        typeof action === "function" ? (action as (prev: Settings) => Settings)(prev) : action;
-
-      // Fire and forget update
+  // Keep the updater pure: StrictMode may invoke state updater functions twice.
+  // Serialize server writes so rapid saves cannot persist an older value last.
+  const settingsRef = useRef(settings);
+  const settingsSavesRef = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+  const updateSettings: React.Dispatch<React.SetStateAction<Settings>> = useCallback(
+    (action) => {
+      const newSettings = typeof action === "function" ? action(settingsRef.current) : action;
+      settingsRef.current = newSettings;
+      setSettings(newSettings);
+      const scope = getCurrentDealerId();
       try {
         window.localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
-        // Same-tab notification for consumers reading settings outside this
-        // provider (hooks/useSettings) — the native "storage" event only
-        // fires in OTHER tabs. [settings-staleness]
         window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
       } catch (error) {
         dealContextLogger.warn("Failed to persist local settings", { error });
       }
-
-      updateDealerSettings({
-        defaultTerm: newSettings.defaultTerm,
-        defaultApr: newSettings.defaultApr,
-        defaultStateFees: newSettings.defaultStateFees,
-        docFee: newSettings.docFee,
-        cvrFee: newSettings.cvrFee,
-        defaultState: newSettings.defaultState,
-        outOfStateTransitFee: newSettings.outOfStateTransitFee,
-        customTaxRate: newSettings.customTaxRate ?? undefined,
-        miTradeInCreditCap: newSettings.miTradeInCreditCap,
-        vscPrice: newSettings.vscPrice,
-        gapPrice: newSettings.gapPrice,
-      }).catch((err) => {
-        dealContextLogger.error("Failed to persist settings", err);
-        toast.error("Server save failed — settings kept in this browser.");
-      });
-
-      return newSettings;
-    });
-  }, []);
+      settingsSavesRef.current = settingsSavesRef.current
+        .then(async () => {
+          if (getCurrentDealerId() !== scope) return;
+          const saved = await updateDealerSettings({
+            defaultTerm: newSettings.defaultTerm,
+            defaultApr: newSettings.defaultApr,
+            defaultStateFees: newSettings.defaultStateFees,
+            docFee: newSettings.docFee,
+            cvrFee: newSettings.cvrFee,
+            defaultState: newSettings.defaultState,
+            outOfStateTransitFee: newSettings.outOfStateTransitFee,
+            customTaxRate: newSettings.customTaxRate ?? null,
+            miTradeInCreditCap: newSettings.miTradeInCreditCap,
+            vscPrice: newSettings.vscPrice,
+            gapPrice: newSettings.gapPrice,
+          });
+          if (!saved) toast.error("Server save failed — settings kept in this browser.");
+        })
+        .catch((err) => {
+          dealContextLogger.error("Failed to persist settings", err);
+          toast.error("Server save failed — settings kept in this browser.");
+        });
+    },
+    [setSettings]
+  );
 
   // Mark the deal dirty only on USER edits while a vehicle is active. The desk
   // auto-focuses the top-ranked row (which sets activeVehicle), and that

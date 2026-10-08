@@ -10,6 +10,11 @@ import { Vehicle, DealData, Settings } from "../types";
 import { DEFAULT_AI_SETTINGS } from "../lib/aiModelRegistry";
 
 describe("Calculator Service", () => {
+  it("rounds decimal half cents away from zero despite binary representation", () => {
+    expect(roundCents(1.005)).toBe(1.01);
+    expect(roundCents(10.075)).toBe(10.08);
+    expect(roundCents(-10.075)).toBe(-10.08);
+  });
   describe("calculateMonthlyPayment", () => {
     it("should calculate correct payment for standard loan", () => {
       // $30,000 at 5% for 60 months

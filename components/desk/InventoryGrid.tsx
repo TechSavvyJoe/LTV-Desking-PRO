@@ -120,6 +120,7 @@ const InventoryGridBase: React.FC<InventoryGridProps> = ({
   }, [windowMode, hasRows]);
 
   const elementVirtualizer = useVirtualizer({
+    useFlushSync: false,
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_ESTIMATE,
@@ -127,6 +128,7 @@ const InventoryGridBase: React.FC<InventoryGridProps> = ({
     enabled: !windowMode,
   });
   const pageVirtualizer = useWindowVirtualizer({
+    useFlushSync: false,
     count: rows.length,
     estimateSize: () => PHONE_ROW_ESTIMATE,
     overscan: 4,

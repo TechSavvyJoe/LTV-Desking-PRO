@@ -5,13 +5,19 @@ interface VinDetails {
   trim?: string;
 }
 
+import { isValidVinFormat } from "./vinValidator";
+
 export const decodeVin = async (vin: string): Promise<VinDetails> => {
-  if (!vin || vin.length !== 17) {
-    throw new Error("Invalid VIN. Must be 17 characters long.");
+  const normalizedVin = vin.trim().toUpperCase();
+  if (!isValidVinFormat(normalizedVin)) {
+    throw new Error("Invalid VIN. Enter 17 letters and digits, without I, O or Q.");
   }
 
   // The NHTSA vPIC API is a free service for decoding vehicle VINs.
-  const url = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`;
+  const url = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${normalizedVin}?format=json`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
     if (typeof fetch !== "function") {
@@ -19,11 +25,7 @@ export const decodeVin = async (vin: string): Promise<VinDetails> => {
     }
 
     // Add a timeout to avoid hanging UI on bad networks.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
     const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`NHTSA API failed with status: ${response.status}`);
@@ -63,5 +65,7 @@ export const decodeVin = async (vin: string): Promise<VinDetails> => {
     }
     // Catch fetch network errors or other unexpected issues.
     throw new Error("An unexpected network error occurred during VIN lookup.");
+  } finally {
+    clearTimeout(timeoutId);
   }
 };

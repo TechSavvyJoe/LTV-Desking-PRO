@@ -33,7 +33,7 @@ const ReportsScreen = lazy(() => import("./components/screens/ReportsScreen"));
 
 // Code-split the heavy, conditionally-rendered surfaces so a salesperson on the
 // default route never downloads the admin dashboards (~3,200 lines), the legal
-// pages, or recharts (via FinanceTools) on first paint. [perf]
+// pages, or finance tools on first paint. [perf]
 const PrivacyPolicy = lazy(() => import("./components/legal/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./components/legal/TermsOfService"));
 const FinanceTools = lazy(() => import("./components/FinanceTools"));
@@ -57,8 +57,15 @@ const DeskRoute: React.FC = () => <DeskScreen />;
 
 /** Finance tools drawer route — the old "scratchpad" tab, now at /tools. */
 const ToolsRoute: React.FC = () => {
-  const { scratchPadNotes, setScratchPadNotes, dealData, activeVehicle, processedInventory } =
-    useDealContext();
+  const {
+    scratchPadNotes,
+    setScratchPadNotes,
+    dealData,
+    activeVehicle,
+    processedInventory,
+    safeLenderProfiles,
+    filters,
+  } = useDealContext();
   // activeVehicle is a snapshot frozen at focus time; resolve the LIVE
   // computed vehicle so the tools' charts reprice with the deal. [review/P2]
   const liveVehicle =
@@ -73,6 +80,8 @@ const ToolsRoute: React.FC = () => {
           setScratchPadNotes={setScratchPadNotes}
           dealData={dealData}
           activeVehicle={liveVehicle}
+          lenderProfiles={safeLenderProfiles}
+          customerFilters={filters}
         />
       </Suspense>
     </div>

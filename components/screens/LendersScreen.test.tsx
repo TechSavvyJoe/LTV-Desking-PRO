@@ -274,6 +274,7 @@ describe("LendersScreen", () => {
 
       expect(pill("Verify sample")).toBeTruthy();
       expect(pill("No vehicle fit")).toBeNull();
+      expect(document.querySelector('[data-label="Units fitting"]')?.textContent).toBe("Pending");
     });
 
     it("never shows a sample as a decline, even when its FICO floor is above the deal's [PR #25 review]", () => {
