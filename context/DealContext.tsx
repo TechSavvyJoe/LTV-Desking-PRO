@@ -289,6 +289,11 @@ const mapInventoryItem = (i: InventoryItem): Vehicle => ({
   trim: i.trim,
 });
 
+// API inventory includes archived rows for sync/reconciliation. Every desk
+// refresh path must apply the same sold exclusion as the import's first read.
+const mapWorkingInventory = (items: InventoryItem[]): Vehicle[] =>
+  items.filter((item) => item.status !== "sold").map(mapInventoryItem);
+
 export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<Settings>(loadInitialSettings);
 
@@ -318,7 +323,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     queryKey: inventoryKey,
     queryFn: async () => {
       const raw = await getInventory();
-      return raw.map(mapInventoryItem);
+      return mapWorkingInventory(raw);
     },
     enabled: queriesEnabled,
   });
@@ -492,7 +497,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isAuthenticated()) return;
 
     const unsubInv = subscribeToInventory((data) => {
-      setInventory(data.map(mapInventoryItem));
+      setInventory(mapWorkingInventory(data));
     });
     const unsubDeals = subscribeToSavedDeals((data) => {
       setSavedDeals(data.map(mapPocketBaseSavedDeal));

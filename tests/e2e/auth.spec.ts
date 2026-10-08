@@ -999,6 +999,11 @@ test.describe("Inventory import", () => {
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
     await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
+    await expect(page.getByRole("status").filter({ hasText: /^1 of 1 unit$/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(/STK SAVED01/)).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: /^1 of 1 unit$/ })).toBeVisible();
+    await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
   });
 
   test("keeps inventory import admin-only while sales can use read-only tools", async ({
