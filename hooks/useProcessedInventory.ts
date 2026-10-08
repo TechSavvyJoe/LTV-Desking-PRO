@@ -9,6 +9,7 @@ import type {
   Vehicle,
 } from "../types";
 import { INITIAL_FILTER_DATA } from "../constants";
+import { scopeDealToVehicle } from "../services/vehicleCondition";
 import { calculateFinancials } from "../services/calculator";
 import { lenderFitForVehicle } from "../services/lenderFit";
 import { scoreApprovalOdds } from "../services/approvalScorer";
@@ -96,17 +97,19 @@ export function scoreInventory(input: ScoreInput): ScoreResult {
   }
 
   const processedInventory = inventory.map((item): CalculatedVehicle => {
-    const calc = calculateFinancials(item, dealData, settings);
+    const unitDeal = scopeDealToVehicle(item, dealData);
+    const unitMergedDeal = scopeDealToVehicle(item, mergedDeal);
+    const calc = calculateFinancials(item, unitDeal, settings);
     const fit = holdIncompleteFits(
-      lenderFitForVehicle(calc, mergedDeal, lenderProfiles),
-      mergedDeal
+      lenderFitForVehicle(calc, unitMergedDeal, lenderProfiles),
+      unitMergedDeal
     );
     for (const entry of fit.entries) {
       if (entry.eligible)
         unitsPerLender[entry.lenderId] = (unitsPerLender[entry.lenderId] ?? 0) + 1;
     }
     const appr = scoreApprovalOdds(calc, credit, fit.fitCount, fit.pendingCount, fit.pendingReason);
-    const assessment = assessDeal(calc, dealData, mergedDeal, lenderProfiles, fit);
+    const assessment = assessDeal(calc, unitDeal, unitMergedDeal, lenderProfiles, fit);
     return {
       ...calc,
       approvalScore: appr.internalScore,

@@ -203,11 +203,9 @@ const callGeminiJson = async (request: AiJsonRequest, signal: AbortSignal): Prom
   }
   parts.push({ text: request.userPrompt });
 
-  // GLBA/Safeguards (SEC-002): generateContent defaults to store=false, but
-  // set it explicitly so project-level AI Studio logging cannot silently
-  // retain deal payloads. Paid Gemini keys + ZDR guidance: see
-  // docs/runbooks/ai-data-retention.md.
-  // `store` is documented by Google; @google/genai types lag the API.
+  // `store` belongs to the REST request, not generationConfig. The SDK drops
+  // unknown config fields; extraBody merges this top-level logging opt-out
+  // into the actual wire body. This does not disable abuse-monitoring retention.
   const response = await ai.models.generateContent({
     model: request.model,
     contents: { role: "user", parts },
@@ -217,8 +215,8 @@ const callGeminiJson = async (request: AiJsonRequest, signal: AbortSignal): Prom
       temperature: request.temperature ?? 0.1,
       responseMimeType: "application/json",
       responseJsonSchema: request.jsonSchema,
-      store: false,
-    } as import("@google/genai").GenerateContentConfig,
+      httpOptions: { extraBody: { store: false } },
+    },
   });
 
   return extractJsonFromText(response.text ?? "");
@@ -241,8 +239,7 @@ const callGeminiGroundedJson = async (
   signal: AbortSignal
 ): Promise<GroundedAiJsonResponse> => {
   const ai = new GoogleGenAI({ apiKey: request.apiKey });
-  // SEC-002: explicit store:false — see callGeminiJson comment above.
-  // `store` is documented by Google; @google/genai types lag the API.
+  // Request logging opt-out; provider abuse-retention is a separate policy.
   const response = await ai.models.generateContent({
     model: request.model,
     contents: { role: "user", parts: [{ text: request.userPrompt }] },
@@ -251,8 +248,8 @@ const callGeminiGroundedJson = async (
       systemInstruction: request.systemPrompt,
       temperature: request.temperature ?? 0.2,
       tools: [{ googleSearch: {} }],
-      store: false,
-    } as import("@google/genai").GenerateContentConfig,
+      httpOptions: { extraBody: { store: false } },
+    },
   });
 
   const text = response.text ?? "";

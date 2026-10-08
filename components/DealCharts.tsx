@@ -128,7 +128,7 @@ const PaymentBreakdownChartBase: React.FC<DealChartsProps> = ({ dealData, active
   if (data.length === 0)
     return (
       <div className="flex items-center justify-center h-64 text-[var(--color-text-subtle)]">
-        Enter an amount financed, APR and term to see loan costs.
+        Enter an amount financed, interest rate and term to see loan costs.
       </div>
     );
 
@@ -261,7 +261,7 @@ const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
             description={
               lenderProfiles.length === 0
                 ? "Add lender programs on the Lenders screen to compare payments."
-                : "Complete customer inputs and confirm program rules and APRs, then review lender results on the desk."
+                : "Complete customer inputs and confirm program rules and rates, then review lender results on the desk."
             }
           />
         </div>
@@ -273,7 +273,7 @@ const LenderComparisonChartBase: React.FC<LenderComparisonChartProps> = ({
                 <div className="min-w-0">
                   <p className="font-semibold text-sm break-words">{quote.name}</p>
                   <p className="text-xs text-[var(--color-text-muted)]">
-                    {quote.rate.toFixed(2)}% APR estimate
+                    {quote.rate.toFixed(2)}% rate estimate
                   </p>
                 </div>
                 <p className="font-semibold tabular-nums whitespace-nowrap">

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { authenticateAs, loginViaApi } from "./fixtures/auth";
 import { appBackendUrl, USE_REAL_BACKEND } from "./fixtures/backend";
 
-test("VIN decoding preserves unknown mileage after reload and an explicit zero after editing", async ({
+test("inventory preserves unknown mileage and explicit condition changes after reload", async ({
   page,
   request,
 }) => {
@@ -38,6 +38,21 @@ test("VIN decoding preserves unknown mileage after reload and an explicit zero a
     await page.getByRole("textbox", { name: "Search inventory", exact: true }).fill(vin);
     const row = page.getByRole("row").filter({ hasText: "Honda Accord VIN QA" });
     await expect(row).toContainText("— mi");
+    const condition = row.getByRole("combobox", {
+      name: `Inventory condition for ${record.stockNumber}`,
+      exact: true,
+    });
+    await expect(condition).toHaveValue("");
+    await condition.selectOption("certified");
+    await expect
+      .poll(
+        async () =>
+          (await (await request.get(`${recordsUrl}/${record.id}`, { headers })).json()).condition
+      )
+      .toBe("certified");
+    await page.reload();
+    await page.getByRole("textbox", { name: "Search inventory", exact: true }).fill(vin);
+    await expect(condition).toHaveValue("certified");
     const edited = await request.patch(`${recordsUrl}/${record.id}`, {
       headers,
       data: { mileage: 0, mileageUnknown: false },
@@ -46,6 +61,17 @@ test("VIN decoding preserves unknown mileage after reload and an explicit zero a
     await page.reload();
     await page.getByRole("textbox", { name: "Search inventory", exact: true }).fill(vin);
     await expect(row).toContainText("0 mi");
+    await expect(condition).toHaveValue("certified");
+    await condition.selectOption("");
+    await expect
+      .poll(
+        async () =>
+          (await (await request.get(`${recordsUrl}/${record.id}`, { headers })).json()).condition
+      )
+      .toBe("");
+    await page.reload();
+    await page.getByRole("textbox", { name: "Search inventory", exact: true }).fill(vin);
+    await expect(condition).toHaveValue("");
   } finally {
     await request.delete(`${recordsUrl}/${record.id}`, { headers });
   }

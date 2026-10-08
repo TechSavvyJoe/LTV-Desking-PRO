@@ -142,12 +142,12 @@ const LenderLadder: React.FC<LenderLadderProps> = ({
                   <summary aria-label={`${entry.name} program details`}>Program details</summary>
                   <p>
                     {entry.evaluatedConstraints ?? 0} configured constraints evaluated. Book basis:{" "}
-                    {profile?.bookValueSource ?? "Trade, retail fallback"}.
+                    {profile?.bookValueSource ?? "Trade (required)"}.
                   </p>
                   {entry.effectiveRate != null && (
                     <p>
                       Listed buy rate + adder: {entry.effectiveRate.toFixed(2)}%. Payment uses the
-                      APR entered on the desk.
+                      interest rate entered on the desk.
                     </p>
                   )}
                   {entry.reasons.length > 0 ? (
@@ -163,6 +163,18 @@ const LenderLadder: React.FC<LenderLadderProps> = ({
                     </p>
                   )}
                   {profile?.effectiveDate && <p>Program effective date: {profile.effectiveDate}</p>}
+                  <p>Source: {profile?.sourceReference || "No source reference recorded"}</p>
+                  <p>
+                    Valid through: {profile?.expiresOn || "Not specified — confirm with lender"}
+                  </p>
+                  <p>
+                    Source review:{" "}
+                    {profile?.reviewRequired
+                      ? "Pending"
+                      : profile?.verifiedAt
+                        ? new Date(profile.verifiedAt).toLocaleDateString("en-US")
+                        : "Not recorded"}
+                  </p>
                   {profile?.stipulations && <p>Stipulations: {profile.stipulations}</p>}
                 </details>
               )}

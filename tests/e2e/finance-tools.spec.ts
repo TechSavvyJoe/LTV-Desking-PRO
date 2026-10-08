@@ -56,11 +56,13 @@ test("lender analytics receives the desk programs and holds incomplete credit in
     await page.getByRole("link", { name: "The Desk", exact: true }).click();
     await expect(page).toHaveURL(/\/desk$/);
     await expect(page.getByLabel("FICO", { exact: true })).toBeVisible();
-    await page.getByLabel("APR (%)", { exact: true }).fill("");
+    await page.getByLabel("Interest rate (%)", { exact: true }).fill("");
     await page.getByRole("button", { name: "Finance tools", exact: true }).click();
     await page.getByRole("tab", { name: "Analytics", exact: true }).click();
     await expect(
-      page.getByText("Enter an amount financed, APR and term to see loan costs.", { exact: true })
+      page.getByText("Enter an amount financed, interest rate and term to see loan costs.", {
+        exact: true,
+      })
     ).toBeVisible();
     expect(browserErrors).toEqual([]);
   } finally {

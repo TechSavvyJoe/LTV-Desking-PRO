@@ -299,7 +299,7 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings; previewPa
                 <strong>{term === null ? "—" : `${term} mo`}</strong>
               </div>
               <div className="field">
-                <span>APR estimate</span>
+                <span>Interest rate</span>
                 <strong>{pct(dealData.interestRate, 2)}</strong>
               </div>
             </div>
@@ -396,9 +396,10 @@ export const PdfTemplate: React.FC<DealPdfData & { settings: Settings; previewPa
             <div>
               <InternalUseNotice />
               <p>
-                Estimate only. Not a retail installment contract, Truth-in-Lending disclosure,
-                credit approval, or offer of credit. Verify taxes, fees, APR, term, payment and
-                product pricing before contracting.
+                Equal monthly estimate at the entered nominal rate. Not a retail installment
+                contract or Truth-in-Lending disclosure; not credit approval or an offer of credit.
+                Verify taxes, fees, disclosure APR, term, payment and product pricing before
+                contracting.
               </p>
             </div>
             <span className="page-number">Page 1 of 2</span>

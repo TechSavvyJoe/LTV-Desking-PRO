@@ -41,6 +41,7 @@ interface DealInspectorProps {
   onOtherBackendChange: (n: number) => void;
   onDealSheet: () => void;
   onSaveDeal: () => void;
+  isSaving?: boolean;
 }
 
 type InspectorTab = "summary" | "lenders" | "addons" | "matrix";
@@ -68,6 +69,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   compactMode,
   compactOpen,
   onCloseCompact,
+  isSaving = false,
   vscAmount,
   gapAmount,
   otherBackend,
@@ -380,6 +382,8 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
         <button
           type="button"
           onClick={onSaveDeal}
+          disabled={isSaving}
+          aria-busy={isSaving}
           className="desk-primary-action transition-colors"
         >
           <svg
@@ -394,7 +398,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
             <path d="M17 21v-8H7v8M7 3v5h8" />
           </svg>
-          Save deal
+          {isSaving ? "Saving…" : "Save deal"}
         </button>
       </div>
     </Panel>

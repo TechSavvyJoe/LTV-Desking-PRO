@@ -92,6 +92,33 @@ async function lookup(
 }
 
 describe("Inventory import safety", () => {
+  it("persists explicit condition and reloads the confirmed server value", async () => {
+    const vehicle = { ...SAMPLE_INVENTORY[0]!, condition: "certified" as const };
+    mocks.parseFile.mockResolvedValue({ vehicles: [vehicle], skipped: 0, reasons: [] });
+    mocks.getInventory.mockResolvedValue([
+      {
+        id: "saved",
+        vin: vehicle.vin,
+        year: 2024,
+        make: "Ford",
+        model: "Escape",
+        price: 30000,
+        mileage: 20000,
+        condition: "certified",
+        status: "available",
+      },
+    ]);
+    const { result } = renderHook(useInventoryImport);
+    await act(async () => result.current.handleFileUpload(uploadEvent()));
+    expect(mocks.syncInventory).toHaveBeenCalledWith(
+      [expect.objectContaining({ condition: "certified" })],
+      { markMissingSold: true }
+    );
+    expect(mocks.setInventory).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "saved", condition: "certified" }),
+    ]);
+  });
+
   it("retains omitted units when the parser rejects any rows", async () => {
     mocks.parseFile.mockResolvedValue({
       vehicles: [SAMPLE_INVENTORY[0]],

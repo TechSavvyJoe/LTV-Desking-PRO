@@ -102,8 +102,13 @@ function SaveProbe({ onSave }: { onSave: () => void }) {
 }
 
 function SaveHarness() {
-  const { handleSaveDeal } = useSaveDeal();
-  return <SaveProbe onSave={() => handleSaveDeal(staleVehicle)} />;
+  const { handleSaveDeal, isSaving } = useSaveDeal();
+  return (
+    <>
+      <SaveProbe onSave={() => handleSaveDeal(staleVehicle)} />
+      <output role="status">{isSaving ? "Saving" : "Ready"}</output>
+    </>
+  );
 }
 
 describe("useSaveDeal", () => {
@@ -168,5 +173,31 @@ describe("useSaveDeal", () => {
 
     await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledOnce());
     expect(mocks.logDealEvent).not.toHaveBeenCalled();
+  });
+
+  it("permits only one pending write, then releases the guard after failure", async () => {
+    let rejectWrite!: (error: Error) => void;
+    mocks.saveDeal.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectWrite = reject;
+        })
+    );
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DealProvider>
+          <SaveHarness />
+        </DealProvider>
+      </QueryClientProvider>
+    );
+    const button = await screen.findByRole("button", { name: /save deal/i });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledOnce());
+    rejectWrite(new Error("write failed"));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Ready"));
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledTimes(2));
   });
 });

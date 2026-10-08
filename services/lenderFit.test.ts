@@ -123,7 +123,10 @@ describe("lenderFit", () => {
         tiers: [{ name: "Rate", minFico: 600, baseInterestRate: 6.25 }],
       };
 
-      const fit = lenderFitForVehicle(mkVehicle(), mkDeal(), [expensive, lowerRate]);
+      const fit = lenderFitForVehicle(mkVehicle(), mkDeal({ interestRate: 10 }), [
+        expensive,
+        lowerRate,
+      ]);
 
       expect(fit.fitNames).toEqual(["Z Lower Rate CU", "A Expensive Bank"]);
       expect(fit.entries[0]?.effectiveRate).toBe(6.25);
@@ -288,7 +291,7 @@ describe("lenderFit", () => {
       expect(pendingCauseOf(["credit score", "vehicle mileage"])).toBe("fico");
       expect(pendingCauseOf(["monthly income for tier max PTI"])).toBe("income");
       expect(pendingCauseOf(["vehicle mileage"])).toBe("mileage");
-      // Certified status is confirmed by hand — never "set the condition" (new/used only).
+      // Certified-only constraints retain their specific pending explanation.
       expect(pendingCauseOf(["certified vehicle status"])).toBe("certified");
       expect(pendingCauseOf(["vehicle condition"])).toBe("condition");
       expect(pendingCauseOf(["something new"])).toBe("other");

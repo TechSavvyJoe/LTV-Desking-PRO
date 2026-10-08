@@ -11,6 +11,7 @@ import { EmptyState, DataLoading } from "../common/states";
 import * as Icons from "../common/Icons";
 import { fmt, fmtN } from "../../utils/format";
 import type { CalculatedVehicle } from "../../types";
+import { normalizeVehicleCondition } from "../../services/vehicleCondition";
 import { getCurrentUser } from "../../lib/pocketbase";
 
 const mono = "var(--mono)";
@@ -80,6 +81,7 @@ const InventoryScreenBase: React.FC = () => {
     setFocusVin,
     setActiveVehicle,
     safeLenderProfiles,
+    handleInventoryUpdate,
   } = useDealContext();
 
   const {
@@ -600,6 +602,41 @@ const InventoryScreenBase: React.FC = () => {
                               }}
                             >
                               <span style={{ fontFamily: mono }}>{stockLabel(v.stock)}</span>
+                              {canManageInventory ? (
+                                <select
+                                  aria-label={`Inventory condition for ${v.stock}`}
+                                  value={v.condition ?? ""}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={(event) => {
+                                    event.stopPropagation();
+                                    void handleInventoryUpdate(v.vin, {
+                                      condition: normalizeVehicleCondition(event.target.value),
+                                    });
+                                  }}
+                                  style={{
+                                    maxWidth: 135,
+                                    color: "inherit",
+                                    background: "var(--color-bg)",
+                                    border: "1px solid var(--color-border)",
+                                    borderRadius: 4,
+                                  }}
+                                >
+                                  <option value="">Unknown condition</option>
+                                  <option value="new">New</option>
+                                  <option value="used">Used</option>
+                                  <option value="certified">Certified pre-owned</option>
+                                </select>
+                              ) : (
+                                <span>
+                                  {v.condition === "certified"
+                                    ? "Certified pre-owned"
+                                    : v.condition === "new"
+                                      ? "New"
+                                      : v.condition === "used"
+                                        ? "Used"
+                                        : "Unknown condition"}
+                                </span>
+                              )}
                               <span style={{ fontVariantNumeric: "tabular-nums" }}>
                                 {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi
                               </span>

@@ -1,3 +1,4 @@
+import { normalizeVehicleCondition } from "../services/vehicleCondition";
 import {
   pb,
   collections,
@@ -131,6 +132,9 @@ export const updateInventoryItem = async (
 ): Promise<InventoryItem | null> => {
   try {
     const payload = { ...data };
+    if (Object.prototype.hasOwnProperty.call(data, "condition")) {
+      payload.condition = normalizeVehicleCondition(data.condition) ?? "";
+    }
     if (Object.prototype.hasOwnProperty.call(data, "mileage")) {
       payload.mileageUnknown = typeof data.mileage !== "number" || !Number.isFinite(data.mileage);
     }
@@ -158,6 +162,7 @@ export const syncInventory = async (
   items: Array<{
     vin: string;
     stockNumber?: string;
+    condition?: InventoryItem["condition"];
     year: number;
     make: string;
     model: string;
@@ -230,6 +235,10 @@ export const syncInventory = async (
           run: () =>
             collections.inventory.update(existing.id, {
               stockNumber: item.stockNumber,
+              // Feeds lacking this optional column preserve a manual confirmation.
+              ...(normalizeVehicleCondition(item.condition)
+                ? { condition: normalizeVehicleCondition(item.condition) }
+                : {}),
               year: item.year,
               make: item.make,
               model: item.model,
@@ -252,6 +261,7 @@ export const syncInventory = async (
               dealer: dealerId,
               vin: vinUpper,
               stockNumber: item.stockNumber,
+              condition: normalizeVehicleCondition(item.condition) ?? "",
               year: item.year,
               make: item.make,
               model: item.model,

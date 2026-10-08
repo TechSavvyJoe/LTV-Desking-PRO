@@ -1,4 +1,5 @@
 import type { Vehicle } from "../types";
+import { normalizeVehicleCondition } from "./vehicleCondition";
 
 /**
  * Result of parsing an inventory file. `skipped`/`reasons` make data loss
@@ -163,6 +164,7 @@ const parseVehicleDescription = (
 };
 
 type InventoryField =
+  | "condition"
   | "vehicle"
   | "make"
   | "model"
@@ -188,6 +190,15 @@ const normalizeHeader = (h: string): string => h.toLowerCase().replace(/[^a-z0-9
  * accept NADA / KBB / Black Book / MMR, not only J.D. Power. [takeover-P1]
  */
 export const HEADER_ALIASES: Record<InventoryField, readonly string[]> = {
+  condition: [
+    "condition",
+    "vehiclecondition",
+    "vehicletype",
+    "newused",
+    "neworused",
+    "newusedcertified",
+    "inventorytype",
+  ],
   vehicle: [
     "vehicle",
     "vehicledescription",
@@ -316,6 +327,7 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
   // Resolve every column through the alias table so real DMS exports import
   // on the first try; book values fall back to a fuzzy source+qualifier match.
   const idx = {
+    condition: findColumn(normalized, "condition"),
     vehicle: findColumn(normalized, "vehicle"),
     make: findColumn(normalized, "make"),
     model: findColumn(normalized, "model"),
@@ -456,6 +468,7 @@ export const parseInventoryCsv = (csvContent: string, isExcel: boolean): ParseRe
     }
 
     vehicles.push({
+      condition: normalizeVehicleCondition(vals[idx.condition]),
       vehicle: vehicleDescription,
       make,
       model,

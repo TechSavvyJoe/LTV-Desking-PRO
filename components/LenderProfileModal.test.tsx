@@ -44,10 +44,16 @@ describe("LenderProfileModal", () => {
 
     expect(screen.getByRole("group", { name: "Sample program" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Mark program verified" }));
+    expect(screen.getByRole("alert").textContent).toMatch(/source document/);
+    fireEvent.change(screen.getByLabelText("Source document / version"), {
+      target: { value: "Synthetic official sheet v1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mark program verified" }));
     expect(screen.queryByRole("group", { name: "Sample program" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Save program" }));
     expect((onSave.mock.calls[0]?.[0] as LenderProfile).isSample).toBe(false);
+    expect((onSave.mock.calls[0]?.[0] as LenderProfile).verifiedAt).toMatch(/^\d{4}-\d{2}/);
   });
 
   it("shows no sample notice for a verified program", () => {
@@ -60,6 +66,30 @@ describe("LenderProfileModal", () => {
       />
     );
     expect(screen.queryByRole("group", { name: "Sample program" })).toBeNull();
+  });
+
+  it("holds a changed reviewed program and refuses verification after explicit expiry", () => {
+    const onSave = vi.fn();
+    render(
+      <LenderProfileModal
+        profile={{
+          ...flaggedProfile,
+          tiers: [{ name: "Tier A", minFico: 600 }],
+          sourceReference: "Synthetic sheet",
+          verifiedAt: "2026-01-01T00:00:00Z",
+        }}
+        isOpen={true}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+    fireEvent.change(screen.getByLabelText("Valid through (if specified)"), {
+      target: { value: "2000-01-01" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mark program verified" }));
+    expect(screen.getByRole("alert").textContent).toMatch(/expired/);
+    fireEvent.click(screen.getByRole("button", { name: "Save program" }));
+    expect(onSave.mock.calls[0]?.[0]).toMatchObject({ reviewRequired: true, verifiedAt: "" });
   });
 
   it("shows a warning row for a tier flagged by the AI extraction", () => {

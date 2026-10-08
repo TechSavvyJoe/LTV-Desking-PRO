@@ -115,7 +115,7 @@ describe("AI provider clients", () => {
         config: expect.objectContaining({
           responseMimeType: "application/json",
           responseJsonSchema: lenderExtractJsonSchema,
-          store: false,
+          httpOptions: { extraBody: { store: false } },
         }),
       })
     );

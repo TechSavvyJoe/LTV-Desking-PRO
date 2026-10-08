@@ -1,5 +1,7 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { appBackendUrl, USE_REAL_BACKEND } from "./fixtures/backend";
+import { checkBankEligibility } from "../../services/lenderMatcher";
+import type { CalculatedVehicle, DealData, FilterData, LenderProfile } from "../../types";
 
 /**
  * Real-backend proof of backend/pb_hooks/field_visibility.pb.js.
@@ -116,6 +118,12 @@ test.describe("Field visibility hook (real PocketBase)", () => {
         name: `Field Visibility Probe ${Date.now()}`,
         active: true,
         reservePct: 2,
+        // Explicit bank limits avoid PocketBase's optional-number zero sentinels;
+        // the application mapper removes those sentinels before matching.
+        minIncome: 1000,
+        maxPti: 100,
+        minAmountFinanced: 0,
+        maxAmountFinanced: 1000000,
         tiers,
       },
     });
@@ -138,6 +146,7 @@ test.describe("Field visibility hook (real PocketBase)", () => {
             minFico: tiers[i]?.minFico,
             maxLtv: tiers[i]?.maxLtv,
             maxTerm: tiers[i]?.maxTerm,
+            rateCheckRequired: true,
           });
           expect(tier).not.toHaveProperty("baseInterestRate");
           expect(tier).not.toHaveProperty("rateAdder");
@@ -150,6 +159,32 @@ test.describe("Field visibility hook (real PocketBase)", () => {
         expect(record.reservePct).toBe(2);
         expect(record.tiers).toEqual(tiers);
       }
+
+      // Evaluate exactly what each role receives: a quote below a hidden buy
+      // rate must remain pending for sales, while a manager can reject it.
+      const vehicle = {
+        modelYear: 2021,
+        mileage: 25000,
+        otdLtv: 100,
+        frontEndLtv: 100,
+        monthlyPayment: 450,
+        amountToFinance: 25000,
+        jdPower: 25000,
+      } as CalculatedVehicle;
+      const deal = {
+        creditScore: 720,
+        monthlyIncome: 5000,
+        loanTerm: 60,
+        interestRate: 0,
+      } as DealData & FilterData;
+      const asProfile = (record: PbRecord) =>
+        ({ ...record, bookValueSource: "Trade" }) as unknown as LenderProfile;
+      const salesResult = checkBankEligibility(vehicle, deal, asProfile(sales.view));
+      const managerResult = checkBankEligibility(vehicle, deal, asProfile(manager.view));
+      expect(salesResult.status).toBe("pending");
+      expect(salesResult.effectiveRate).toBeNull();
+      expect(salesResult.reasons).toContain("Program rate check requires manager review.");
+      expect(managerResult.status).toBe("ineligible");
 
       // The dashboard round-trips what it reads; a stripped blob would be saved back.
       const superuserToken = await login(request, "superuser");

@@ -2,7 +2,12 @@ import React from "react";
 import { parseMoneyInput } from "../../services/backendProducts";
 import { getRebateBreakdown } from "../../services/calculator";
 import { DESK_TERMS, metaItem, sansNum } from "./deskConstants";
-import type { AppState, DealData, FilterData } from "../../types";
+import {
+  conditionVinKey,
+  normalizeVehicleCondition,
+  resolveVehicleCondition,
+} from "../../services/vehicleCondition";
+import type { AppState, DealData, FilterData, Vehicle } from "../../types";
 
 interface DeskTermsRailProps {
   customerName: string;
@@ -10,6 +15,7 @@ interface DeskTermsRailProps {
   filters: FilterData;
   setFilter: (patch: Partial<FilterData>) => void;
   dealData: DealData;
+  selectedVehicle?: Pick<Vehicle, "vin" | "condition"> | null;
   setDeal: (patch: Partial<DealData>) => void;
   buyerState: AppState;
   aprText: string;
@@ -31,6 +37,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
   filters,
   setFilter,
   dealData,
+  selectedVehicle,
   setDeal,
   buyerState,
   aprText,
@@ -189,7 +196,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
           </div>
         </div>
         <div className="desk-field compact">
-          <label htmlFor="desk-apr">APR (%)</label>
+          <label htmlFor="desk-apr">Interest rate (%)</label>
           <input
             id="desk-apr"
             className="dc-input tabular-nums"
@@ -285,19 +292,28 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             <select
               id="desk-vehicle-condition"
               className="dc-input"
-              value={dealData.vehicleCondition ?? ""}
-              onChange={(event) =>
-                setDeal({
-                  vehicleCondition:
-                    event.target.value === "new" || event.target.value === "used"
-                      ? event.target.value
-                      : undefined,
-                })
+              value={
+                selectedVehicle ? (resolveVehicleCondition(selectedVehicle, dealData) ?? "") : ""
               }
+              disabled={!selectedVehicle}
+              title={
+                selectedVehicle ? `Condition for ${selectedVehicle.vin}` : "Select a vehicle first"
+              }
+              onChange={(event) => {
+                if (!selectedVehicle) return;
+                setDeal({
+                  vehicleConditions: {
+                    ...dealData.vehicleConditions,
+                    [conditionVinKey(selectedVehicle.vin)]:
+                      normalizeVehicleCondition(event.target.value) ?? null,
+                  },
+                });
+              }}
             >
-              <option value="">Select</option>
+              <option value="">Unknown</option>
               <option value="new">New</option>
               <option value="used">Used</option>
+              <option value="certified">Certified pre-owned</option>
             </select>
           </div>
           <div className="desk-field">

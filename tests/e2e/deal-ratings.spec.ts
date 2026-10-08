@@ -18,7 +18,7 @@ test.describe("Explainable dealership ratings", () => {
     await page.getByLabel("FICO", { exact: true }).fill("720");
     await page.getByLabel("Income / mo").fill("6500");
     await page.getByLabel("Payment budget ($/mo)").fill("900");
-    await page.getByLabel("APR (%)", { exact: true }).fill("8.9");
+    await page.getByLabel("Interest rate (%)", { exact: true }).fill("8.9");
     await page.getByRole("button", { name: "72 months", exact: true }).click();
     await page.getByRole("button", { name: "More filters", exact: true }).click();
     await page.getByLabel("Monthly debt", { exact: true }).fill("500");

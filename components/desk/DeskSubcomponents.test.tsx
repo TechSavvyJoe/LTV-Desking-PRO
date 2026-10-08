@@ -615,7 +615,10 @@ const emptyFilters: FilterData = {
   minScore: null,
 };
 
-const renderTermsRail = (advancedOpen = false) =>
+const renderTermsRail = (
+  advancedOpen = false,
+  overrides: Partial<React.ComponentProps<typeof DeskTermsRail>> = {}
+) =>
   render(
     <DeskTermsRail
       customerName=""
@@ -634,6 +637,7 @@ const renderTermsRail = (advancedOpen = false) =>
       onReset={vi.fn()}
       onClearFilters={vi.fn()}
       onScanIncome={vi.fn()}
+      {...overrides}
     />
   );
 
@@ -723,7 +727,7 @@ describe("desk reading order", () => {
 
     // Units are part of the field names.
     expect(screen.getByLabelText("Down ($)").id).toBe("desk-down");
-    expect(screen.getByLabelText("APR (%)").id).toBe("desk-apr");
+    expect(screen.getByLabelText("Interest rate (%)").id).toBe("desk-apr");
     unmount();
 
     renderTermsRail(true);
@@ -865,5 +869,30 @@ describe("desk reading order", () => {
     const bareMeta = rows[2]?.querySelector(".desk-lender-meta") as HTMLElement;
     expect(bareMeta.querySelector('[aria-hidden="true"]')?.textContent).toBe("—");
     expect(bareMeta.querySelector(".sr-only")?.textContent).toBe("limits none listed");
+  });
+});
+
+describe("DeskTermsRail unit condition confirmation", () => {
+  afterEach(cleanup);
+  it("confirms only the selected VIN and shows its independent value on the next unit", () => {
+    const setDeal = vi.fn();
+    const { unmount } = renderTermsRail(true, {
+      selectedVehicle: { vin: "VIN-A", condition: "new" },
+      setDeal,
+      dealData: { ...dealData, vehicleConditions: { "VIN-B": "used" } },
+    });
+    const condition = screen.getByLabelText("Vehicle condition") as HTMLSelectElement;
+    expect(condition.value).toBe("new");
+    fireEvent.change(condition, { target: { value: "certified" } });
+    expect(setDeal).toHaveBeenCalledWith({
+      vehicleConditions: { "VIN-A": "certified", "VIN-B": "used" },
+    });
+    unmount();
+    renderTermsRail(true, { selectedVehicle: { vin: "VIN-B", condition: "used" }, setDeal });
+    expect((screen.getByLabelText("Vehicle condition") as HTMLSelectElement).value).toBe("used");
+  });
+  it("does not allow a condition confirmation without a selected unit", () => {
+    renderTermsRail(true);
+    expect((screen.getByLabelText("Vehicle condition") as HTMLSelectElement).disabled).toBe(true);
   });
 });

@@ -3,6 +3,8 @@ export interface Vehicle {
   vehicle: string;
   stock: string;
   vin: string;
+  /** Confirmed inventory status; missing means unknown, never inferred from age/mileage. */
+  condition?: VehicleCondition;
   modelYear: number | "N/A";
   mileage: number | "N/A";
   price: number | "N/A";
@@ -51,7 +53,7 @@ export type PendingCause =
   | "review"
   | "sample";
 export type RebateType = "manufacturer" | "dealer";
-export type VehicleCondition = "new" | "used";
+export type VehicleCondition = "new" | "used" | "certified";
 
 export interface CalculatedVehicle extends Vehicle {
   salesTax: number | "Error" | "N/A";
@@ -92,6 +94,10 @@ export interface DealData {
   buyerState?: AppState;
   /** Explicit condition of the vehicle being purchased; never inferred from age or mileage. */
   vehicleCondition?: VehicleCondition;
+  /** VIN scope for legacy condition values; an unscoped value never applies to a lot. */
+  vehicleConditionVin?: string;
+  /** Per-unit confirmation; null explicitly clears the condition to unknown. */
+  vehicleConditions?: Record<string, VehicleCondition | null>;
   /**
    * Legacy rebate amount. Records without a rebateType retain the historical
    * manufacturer-rebate behavior (taxable, then deducted from amount financed).
@@ -173,6 +179,8 @@ export interface LenderTier {
   baseInterestRate?: number; // Base APR/buy rate for this tier
   rateAdder?: number; // Additional rate adjustment (e.g., +0.25% for 80+ months)
   maxRate?: number; // Maximum rate cap
+  /** Safe server signal when the private program-rate floor is redacted for sales. */
+  rateCheckRequired?: boolean;
 
   // Vehicle restrictions
   vehicleType?: "new" | "used" | "certified" | "all";
@@ -222,6 +230,12 @@ export interface LenderProfile {
   maxAmountFinanced?: number;
   stipulations?: string;
   effectiveDate?: string;
+  /** Imported or edited terms remain pending until explicit human source review. */
+  reviewRequired?: boolean;
+  sourceReference?: string;
+  verifiedAt?: string;
+  /** Inclusive YYYY-MM-DD from the source; blank does not imply evergreen. */
+  expiresOn?: string;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useDealContext } from "../context/DealContext";
 import { saveDeal, logDealEvent } from "../lib/api";
@@ -40,16 +40,33 @@ export function useSaveDeal() {
     setIsDealDirty,
   } = useDealContext();
 
+  // A ref closes the same-event-loop double-click window before React paints
+  // the disabled button. The request is released on both success and failure.
+  const saving = useRef(false);
+  const signature = JSON.stringify([
+    customerName,
+    salespersonName,
+    dealData,
+    filters,
+    scratchPadNotes,
+    activeVehicle?.vin,
+  ]);
+  const currentSignature = useRef(signature);
+  useEffect(() => {
+    currentSignature.current = signature;
+  }, [signature]);
+
   const saveMutation = useMutation({
     mutationFn: (payload: NewSavedDealPayload) => saveDeal(payload),
   });
 
   const handleSaveDeal = useCallback(
     (vehicleOverride?: CalculatedVehicle) => {
+      if (saving.current) return false;
       const vehicleToSave = vehicleOverride || activeVehicle;
       if (!vehicleToSave) {
         setMessage({ type: "error", text: "Pick a vehicle on the desk before saving." });
-        return;
+        return false;
       }
       if (
         typeof vehicleToSave.price !== "number" ||
@@ -63,15 +80,16 @@ export function useSaveDeal() {
           type: "error",
           text: "Add the vehicle's price, mileage and VIN before saving.",
         });
-        return;
+        return false;
       }
-      if (!customerName) {
+      const trimmedName = customerName.trim();
+      if (!trimmedName) {
         setErrors((prev) => ({
           ...prev,
           customerName: "Enter the customer's name",
         }));
         setMessage({ type: "error", text: "Enter the customer's name to save the deal." });
-        return;
+        return false;
       }
 
       const now = new Date().toISOString();
@@ -134,9 +152,9 @@ export function useSaveDeal() {
       });
 
       const newDealData: NewSavedDealPayload = {
-        name: `${now.split("T")[0]} - ${customerName}`,
-        customerName,
-        salespersonName,
+        name: `${now.split("T")[0]} - ${trimmedName}`,
+        customerName: trimmedName,
+        salespersonName: salespersonName.trim(),
         vehicle: vehicleToSave.id, // Assuming calculated vehicle has ID matching inventory
         vehicleData: { ...vehicleSnapshot } as Record<string, unknown>, // Serialized to JSON in PocketBase
         dealData: { ...normalizedDealData } as Record<string, unknown>,
@@ -169,6 +187,8 @@ export function useSaveDeal() {
         } as Record<string, unknown>,
       };
 
+      saving.current = true;
+      const savedSignature = signature;
       saveMutation.mutate(newDealData, {
         onSuccess: (saved) => {
           if (!saved) {
@@ -179,10 +199,11 @@ export function useSaveDeal() {
             return;
           }
           const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
-          setSavedDeals((prev) => [mappedSaved, ...prev]);
+          setSavedDeals((prev) => [mappedSaved, ...prev.filter((deal) => deal.id !== saved.id)]);
           void queryClient.invalidateQueries({ queryKey: queryKeys.savedDeals });
           setMessage({ type: "success", text: "Deal saved" });
-          setIsDealDirty(false);
+          // A delayed response must not mark newer customer edits as saved.
+          if (currentSignature.current === savedSignature) setIsDealDirty(false);
           void logDealEvent({
             action: "deal_saved",
             customerName,
@@ -200,7 +221,11 @@ export function useSaveDeal() {
             text: "Couldn't save the deal. Check your connection and try again.",
           });
         },
+        onSettled: () => {
+          saving.current = false;
+        },
       });
+      return true;
     },
     [
       activeVehicle,
@@ -216,10 +241,11 @@ export function useSaveDeal() {
       setErrors,
       setIsDealDirty,
       saveMutation,
+      signature,
     ]
   );
 
-  return { handleSaveDeal };
+  return { handleSaveDeal, isSaving: saveMutation.isPending };
 }
 
 export default useSaveDeal;

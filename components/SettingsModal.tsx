@@ -359,7 +359,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               </div>
               <div>
                 <label style={fieldLabel} htmlFor="settings-default-apr">
-                  Default APR (%)
+                  Default interest rate (%)
                 </label>
                 <input
                   id="settings-default-apr"
@@ -374,7 +374,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               </div>
               <div>
                 <label style={fieldLabel} htmlFor="settings-default-state">
-                  Default state
+                  Default buyer state (Michigan dealership)
                 </label>
                 <select
                   id="settings-default-state"
@@ -395,6 +395,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                     </option>
                   ))}
                 </select>
+                <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6 }}>
+                  Estimates model a sale by a Michigan dealership. Other dealership locations, local
+                  taxes and delivery exceptions require an external tax calculation.
+                </p>
               </div>
             </div>
           </section>

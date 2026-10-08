@@ -8,6 +8,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../lib/aiModelRegistry";
 import type { LenderProfile, Settings } from "../types";
 import AiLenderManagerModal from "./AiLenderManagerModal";
+import { saveLenderProfile, updateLenderProfile } from "../lib/api";
+
+vi.mock("../lib/api", () => ({
+  saveLenderProfile: vi.fn(async (data) => ({ ...data, id: "new-program" })),
+  updateLenderProfile: vi.fn(async (id, data) => ({ ...data, id })),
+}));
 
 vi.mock("../services/aiProcessor", () => ({
   processLenderSheet: vi.fn(
@@ -86,4 +92,58 @@ describe("AiLenderManagerModal", () => {
       )
     ).toBeTruthy();
   });
+
+  it.each([false, true])(
+    "saves extraction as a source-linked draft, existing=%s",
+    async (existing) => {
+      render(
+        <AiLenderManagerModal
+          isOpen={true}
+          onClose={vi.fn()}
+          currentProfiles={
+            existing
+              ? [
+                  {
+                    id: "existing",
+                    name: "Flagged Bank",
+                    tiers: [],
+                    verifiedAt: "old-review",
+                    reviewRequired: false,
+                  },
+                ]
+              : []
+          }
+          onUpdateProfiles={vi.fn()}
+          settings={settings}
+        />
+      );
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      await act(async () => {
+        fireEvent.change(fileInput, {
+          target: {
+            files: [new File(["synthetic"], "current-program.pdf", { type: "application/pdf" })],
+          },
+        });
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Extract programs" }));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Save lender programs" }));
+      });
+      const expected = expect.objectContaining({
+        sourceReference: "current-program.pdf",
+        reviewRequired: true,
+        verifiedAt: "",
+        isSample: false,
+      });
+      if (existing) {
+        expect(updateLenderProfile).toHaveBeenCalledWith("existing", expected);
+        expect(saveLenderProfile).not.toHaveBeenCalled();
+      } else {
+        expect(saveLenderProfile).toHaveBeenCalledWith(expected);
+        expect(updateLenderProfile).not.toHaveBeenCalled();
+      }
+    }
+  );
 });

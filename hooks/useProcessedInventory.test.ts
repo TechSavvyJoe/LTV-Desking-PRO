@@ -222,3 +222,46 @@ describe("sortInventory — odds ordering ignores pending placeholders [PR #25 r
     expect(sorted.map((v) => v.id)).toEqual(["weak", "pending"]);
   });
 });
+
+describe("mixed condition inventory scoring", () => {
+  it("keeps condition fits and trade tax scoped across new, used, certified and unknown units", () => {
+    const vehicles: Vehicle[] = [
+      { ...sampleVehicle, vin: "NEW", condition: "new" },
+      { ...sampleVehicle, vin: "USED", condition: "used" },
+      { ...sampleVehicle, vin: "CERTIFIED", condition: "certified" },
+      { ...sampleVehicle, vin: "UNKNOWN", modelYear: new Date().getFullYear(), mileage: 0 },
+    ];
+    const types = ["new", "used", "certified", "all"] as const;
+    const profiles = types.map((vehicleType) => ({
+      id: vehicleType,
+      name: vehicleType,
+      tiers: [{ name: "Confirmed", minFico: 600, vehicleType }],
+    }));
+    const result = computeProcessedInventory({
+      inventory: vehicles,
+      lenderProfiles: profiles,
+      dealData: {
+        ...INITIAL_DEAL_DATA,
+        loanTerm: 60,
+        interestRate: 8.9,
+        tradeInValue: 10000,
+        buyerState: "OH",
+        vehicleCondition: "new",
+      },
+      filters: { ...INITIAL_FILTER_DATA, creditScore: 720, monthlyIncome: 6500, monthlyDebt: 0 },
+      settings: INITIAL_SETTINGS,
+      searchQuery: "",
+      inventorySort: { key: null, direction: "asc" },
+      pagination: { currentPage: 1, itemsPerPage: 15 },
+    });
+    expect(result.unitsPerLender).toEqual({ new: 1, used: 2, certified: 1, all: 4 });
+    const [newUnit, usedUnit, certifiedUnit, unknownUnit] = result.processedInventory;
+    expect(newUnit?.fitNames).toEqual(["new", "all"]);
+    expect(usedUnit?.fitNames).toEqual(["used", "all"]);
+    expect(certifiedUnit?.fitNames).toEqual(expect.arrayContaining(["used", "certified", "all"]));
+    expect(unknownUnit?.fitNames).toEqual(["all"]);
+    expect(unknownUnit?.pendingCount).toBe(3);
+    expect(Number(newUnit?.salesTax)).toBeLessThan(Number(usedUnit?.salesTax));
+    expect(certifiedUnit?.salesTax).toBe(usedUnit?.salesTax);
+  });
+});

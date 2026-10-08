@@ -1,3 +1,8 @@
+import {
+  conditionVinKey,
+  normalizeVehicleCondition,
+  scopeLegacyVehicleCondition,
+} from "../services/vehicleCondition";
 import { INITIAL_DEAL_DATA } from "../constants";
 import type {
   AppState,
@@ -164,10 +169,15 @@ export const mapDealData = (value: unknown): DealData => {
     record.rebateType === "dealer" || record.rebateType === "manufacturer"
       ? record.rebateType
       : undefined;
-  const vehicleCondition =
-    record.vehicleCondition === "new" || record.vehicleCondition === "used"
-      ? record.vehicleCondition
-      : undefined;
+  const vehicleCondition = normalizeVehicleCondition(record.vehicleCondition);
+  const vehicleConditions: DealData["vehicleConditions"] = {};
+  if (isRecord(record.vehicleConditions)) {
+    for (const [vin, value] of Object.entries(record.vehicleConditions)) {
+      const key = conditionVinKey(vin);
+      const condition = normalizeVehicleCondition(value);
+      if (key && (value === null || condition)) vehicleConditions[key] = condition ?? null;
+    }
+  }
 
   return {
     downPayment: toNumberOr(record.downPayment, INITIAL_DEAL_DATA.downPayment),
@@ -188,6 +198,8 @@ export const mapDealData = (value: unknown): DealData => {
         ? (record.buyerState as AppState)
         : undefined,
     vehicleCondition,
+    vehicleConditionVin: toOptionalString(record.vehicleConditionVin),
+    vehicleConditions,
     // Round-trip the add-on split and rebate: dropping them made a restored
     // deal misreport VSC/GAP (re-toggling would double-count into
     // backendProducts) and silently discard the rebate. [review/P1]
@@ -233,6 +245,7 @@ export const mapCalculatedVehicle = (value: unknown): CalculatedVehicle => {
     vehicle: toStringOr(record.vehicle, nameFallback || "Unknown Vehicle"),
     stock: toStringOr(record.stock ?? record.stockNumber, "N/A"),
     vin: toStringOr(record.vin, "N/A"),
+    condition: normalizeVehicleCondition(record.condition),
     modelYear,
     mileage: toNumberOrNA(record.mileage),
     price: toNumberOrNA(record.price),
@@ -300,7 +313,10 @@ export const mapPocketBaseSavedDeal = (deal: PocketBaseSavedDeal): PipelineSaved
     vehicle,
     vehicleSnapshot: vehicle,
     vehicleVin: vehicle.vin !== "N/A" ? vehicle.vin : undefined,
-    dealData: mapDealData(deal.dealData),
+    dealData: scopeLegacyVehicleCondition(
+      mapDealData(deal.dealData),
+      vehicle.vin !== "N/A" ? vehicle.vin : undefined
+    ),
     customerFilters: {
       creditScore: toOptionalNumber(customerFilterSource.creditScore),
       monthlyIncome: toOptionalNumber(customerFilterSource.monthlyIncome),

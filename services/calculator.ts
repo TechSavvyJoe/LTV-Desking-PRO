@@ -9,6 +9,7 @@ import type {
 import { getMiTradeInCreditCap, TAX_RATES } from "../constants";
 import { getBackendProductSplit } from "./backendProducts";
 import { selectBookValue } from "./bookValue";
+import { resolveVehicleCondition } from "./vehicleCondition";
 
 /**
  * Round a monetary value to whole cents. All currency leaving the calculator is
@@ -157,7 +158,9 @@ const outOfStateTradeCredit = (
 ): number => {
   if (!buyerStateWasExplicit || !vehicleCondition) return 0;
   const supportedConditions = OUT_OF_STATE_TRADE_CREDIT[state];
-  return supportedConditions.includes(vehicleCondition) ? tradeInValue : 0;
+  return supportedConditions.includes(vehicleCondition === "certified" ? "used" : vehicleCondition)
+    ? tradeInValue
+    : 0;
 };
 
 const calculateSalesTax = (
@@ -309,7 +312,7 @@ export const calculateFinancials = (
       transactionFees,
       settings,
       dealData.buyerState,
-      dealData.vehicleCondition
+      resolveVehicleCondition(vehicle, dealData)
     );
     salesTax = tax;
 

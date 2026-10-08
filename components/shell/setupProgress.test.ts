@@ -26,6 +26,12 @@ describe("setupProgress [codex review: seeded samples must not complete setup]",
     });
   });
 
+  it("keeps setup open for imported drafts and expired programs", () => {
+    expect(
+      setupProgress([], [{ reviewRequired: true }, { expiresOn: "2000-01-01" }, {}], []).lenderCount
+    ).toBe(1);
+  });
+
   it("classifies units and programs by the seed conventions only", () => {
     expect(isSampleVehicle({ vin: "SAMPLE07AAAA1006" })).toBe(true);
     expect(isSampleVehicle({ vin: "5YJSA1E26MF000000" })).toBe(false);

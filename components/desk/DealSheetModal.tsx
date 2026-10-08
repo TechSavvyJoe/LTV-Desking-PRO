@@ -24,6 +24,7 @@ interface DealSheetModalProps {
    * success toast (z-80) never renders under the modal backdrop. [dc-redesign]
    */
   onSaveToPipeline: () => void;
+  isSaving?: boolean;
 }
 
 type PdfUiState =
@@ -54,6 +55,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
   vehicle,
   onClose,
   onSaveToPipeline,
+  isSaving = false,
 }) => {
   const { settings, dealData, filters, customerName, salespersonName, safeLenderProfiles } =
     useDealContext();
@@ -344,8 +346,13 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               </svg>
               {pdfBusy ? "Generating…" : "Download PDF"}
             </button>
-            <button onClick={onSaveToPipeline} className="deal-sheet-button deal-sheet-save">
-              Save deal
+            <button
+              onClick={onSaveToPipeline}
+              disabled={isSaving}
+              aria-busy={isSaving}
+              className="deal-sheet-button deal-sheet-save"
+            >
+              {isSaving ? "Saving…" : "Save deal"}
             </button>
           </div>
         </footer>

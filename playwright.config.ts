@@ -35,7 +35,15 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
-    // Future: add firefox/webkit for matrix if needed; kept minimal for speed
+    ...(process.env.PLAYWRIGHT_CROSS_BROWSER === "1"
+      ? [
+          {
+            name: "webkit-smoke",
+            testMatch: "browser-smoke.spec.ts",
+            use: { ...devices["Desktop Safari"] },
+          },
+        ]
+      : []),
   ],
   webServer: E2E_REAL
     ? undefined

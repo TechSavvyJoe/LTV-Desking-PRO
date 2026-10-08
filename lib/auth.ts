@@ -1,5 +1,5 @@
 import { pb, User, clearSuperadminDealerOverride, asRecord } from "./pocketbase";
-import { STORAGE_KEYS } from "../constants";
+import { clearPrivateSessionStorage } from "./privateSession";
 import { createLogger } from "./logger";
 
 const authLogger = createLogger("auth");
@@ -69,19 +69,7 @@ export const logout = (): void => {
   // Shared-desk hygiene: remove the previous user's in-progress deal, customer
   // identifiers, favorites, and notes — they used to survive logout in
   // localStorage and bleed into the next login on the same machine. [C1]
-  try {
-    for (const key of [
-      STORAGE_KEYS.DEAL_DATA,
-      STORAGE_KEYS.FILTERS,
-      STORAGE_KEYS.FAVORITES,
-      STORAGE_KEYS.SCRATCH_PAD,
-      STORAGE_KEYS.SETTINGS,
-    ]) {
-      window.localStorage.removeItem(key);
-    }
-  } catch {
-    // localStorage unavailable — nothing to clear
-  }
+  clearPrivateSessionStorage();
   pb.authStore.clear();
   // Reload to clear all cached data (inventory, deals, lender profiles) from the previous session
   window.location.reload();

@@ -6,6 +6,14 @@
 signals. There is no PagerDuty / Opsgenie / Better Stack on-call integration yet.
 Treat the recommendations below as the minimum bar before multi-dealer GA.
 
+Process supervision is not a backup-health check. Litestream 0.5.14 logs
+remote sync failures and retries with backoff while PocketBase can continue
+serving. `/api/health` and the deployment workflow's process checks therefore
+prove API/process liveness, not current remote durability. See the
+[version-pinned replication monitor](https://github.com/benbjohnson/litestream/blob/v0.5.14/replica.go#L325-L450)
+(reviewed 2026-10-08). Configure a backup heartbeat/freshness alert and verify
+an actual remote restore before asserting a recovery point objective.
+
 ## External uptime check
 
 Point an external monitor (Better Stack, UptimeRobot, Checkly, or Fly's own
@@ -50,6 +58,11 @@ quarterly rotations accordingly; there is no hot standby today.
 1. External uptime check on `/api/health` with SMS/email (minimum).
 2. Fly log shipper → Better Stack (or equivalent) with FATAL / Litestream rules.
 3. Optional: Sentry metric alerts for Vercel AI proxy 5xx rate.
-4. Before multi-region HA: document RPO/RTO in [`db-restore.md`](db-restore.md)
+4. Backup freshness monitoring: use a dead-man heartbeat or measured remote
+   sync age, and prove the alert fires when remote writes fail. The
+   [Litestream heartbeat settings](https://litestream.io/reference/config/#heartbeat-monitoring)
+   are available but not configured here. Record the monitor URL, owner,
+   maximum tolerated lag, and tested alert receipt outside source control.
+5. Before multi-region HA: document RPO/RTO in [`db-restore.md`](db-restore.md)
    and decide whether a second machine + volume is worth the Litestream
    complexity.

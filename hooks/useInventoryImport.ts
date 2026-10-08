@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useDealContext } from "../context/DealContext";
+import { normalizeVehicleCondition } from "../services/vehicleCondition";
 import { parseFile } from "../services/fileParser";
 import { decodeVin } from "../services/vinDecoder";
 import { calculateFinancials } from "../services/calculator";
@@ -18,6 +19,7 @@ const inventoryImportLogger = createLogger("inventory-import");
 
 const mapPersistedInventoryItem = (item: InventoryItem): Vehicle => ({
   id: item.id,
+  condition: normalizeVehicleCondition(item.condition),
   vehicle: `${item.year} ${item.make} ${item.model} ${item.trim || ""}`.trim(),
   stock: item.stockNumber || "N/A",
   vin: item.vin,
@@ -147,6 +149,7 @@ export function useInventoryImport() {
       // Prepare items for sync
       const itemsToSync = data.map((v) => ({
         vin: v.vin,
+        condition: v.condition,
         stockNumber: v.stock !== "N/A" ? v.stock : undefined,
         year: typeof v.modelYear === "number" ? v.modelYear : new Date().getFullYear(),
         make: v.make || "",
@@ -234,6 +237,7 @@ export function useInventoryImport() {
       "J.D. Power Trade In",
       "J.D. Power Retail",
       "Unit Cost",
+      "Condition",
     ];
     const sampleData = [
       [
@@ -249,6 +253,7 @@ export function useInventoryImport() {
         "24000",
         "29000",
         "25000",
+        "used",
       ],
     ];
     const csvContent = [headers.join(","), ...sampleData.map((r) => r.join(","))].join("\n");

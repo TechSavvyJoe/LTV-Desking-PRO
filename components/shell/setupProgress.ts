@@ -1,4 +1,5 @@
 import type { LenderProfile, SavedDeal, Vehicle } from "../../types";
+import { programReviewHold } from "../../services/programTrust";
 
 /** Exact shape the empty-dealer seed migration stamps on illustrative units
  * (e.g. SAMPLE01AAAA1000) — a real 17-character VIN can never match it. */
@@ -27,12 +28,12 @@ export interface SetupProgress {
  */
 export function setupProgress(
   inventory: readonly Pick<Vehicle, "vin">[],
-  lenderProfiles: readonly Pick<LenderProfile, "isSample">[],
+  lenderProfiles: readonly Pick<LenderProfile, "isSample" | "reviewRequired" | "expiresOn">[],
   savedDeals: readonly Pick<SavedDeal, "id">[]
 ): SetupProgress {
   return {
     inventoryCount: inventory.filter((v) => !isSampleVehicle(v)).length,
-    lenderCount: lenderProfiles.filter((p) => !isSampleLender(p)).length,
+    lenderCount: lenderProfiles.filter((p) => !isSampleLender(p) && !programReviewHold(p)).length,
     savedDealCount: savedDeals.length,
   };
 }

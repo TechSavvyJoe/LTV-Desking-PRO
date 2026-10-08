@@ -67,7 +67,7 @@ jobs:
           retention-days: 30
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       # ----------------------------------------------------------------------
       # E2E with real backend via seed helper (reliable full-stack integration)
@@ -99,9 +99,10 @@ jobs:
 
       - name: Run E2E tests (real backend via seed helper)
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-        run: E2E_REAL_BACKEND=1 VITE_POCKETBASE_URL=http://127.0.0.1:8090 npm run test:e2e
+        run: E2E_REAL_BACKEND=1 PLAYWRIGHT_CROSS_BROWSER=1 VITE_POCKETBASE_URL=http://127.0.0.1:8090 npm run test:e2e
         env:
           E2E_REAL_BACKEND: "1"
+          PLAYWRIGHT_CROSS_BROWSER: "1"
           VITE_POCKETBASE_URL: "http://127.0.0.1:8090"
 
       - name: Upload E2E report (on failure or always for review)

@@ -90,9 +90,9 @@ export const PENDING_CAUSE_META: Record<PendingCause, PendingCauseMeta> = {
     rank: "set a loan term on the desk to rank them",
   },
   apr: {
-    short: "Needs APR",
-    reason: addTo("a quoted APR"),
-    rank: "add a quoted APR on the desk to rank them",
+    short: "Needs rate",
+    reason: addTo("a quoted rate"),
+    rank: "add a quoted rate on the desk to rank them",
   },
   backend: {
     short: "Needs backend",
@@ -146,8 +146,8 @@ export const PENDING_CAUSE_META: Record<PendingCause, PendingCauseMeta> = {
   },
   review: {
     short: "Needs review",
-    reason: () => "Flagged tiers must be reviewed before they count",
-    rank: "review the flagged tiers on Lenders to rank them",
+    reason: () => "Program sources, rates or flagged terms need review before they count",
+    rank: "review the program on Lenders to rank them",
   },
   sample: {
     short: "Verify sample",
@@ -163,16 +163,17 @@ const causeOfConstraint = (constraint: string): PendingCause => {
   if (constraint === SAMPLE_CONSTRAINT) return "sample";
   if (constraint === REVIEW_CONSTRAINT) return "review";
   const c = constraint.toLowerCase();
+  if (c === "program source needs review" || c === "program rate check requires manager review")
+    return "review";
   if (c === "credit score") return "fico";
   if (c.startsWith("monthly income")) return "income";
   if (c.startsWith("monthly debt")) return "debt";
   if (c.startsWith("computed payment")) return "payment";
   if (c === "loan term") return "term";
-  if (c === "quoted apr") return "apr";
+  if (c === "quoted rate" || c === "quoted apr") return "apr";
   if (c.startsWith("backend amount")) return "backend";
   if (c === "vehicle condition") return "condition";
-  // The desk's condition selector is new/used only; certified status is
-  // confirmed by hand, so it must not send the user to that selector.
+  // A certified-only program needs explicit per-unit certification confirmation.
   if (c === "certified vehicle status") return "certified";
   if (c === "vehicle mileage") return "mileage";
   if (c === "vehicle model year") return "year";

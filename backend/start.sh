@@ -13,6 +13,7 @@
 
 DATA_DIR="/pb/pb_data"
 DB_PATH="$DATA_DIR/data.db"
+RESTORE_PATH="$DATA_DIR/data.db.restore"
 PB_BIN="/pb/pocketbase"
 LITESTREAM_BIN="/pb/litestream"
 
@@ -70,11 +71,22 @@ fi
 # environment that has no backup to restore (e.g.
 # `fly secrets set ALLOW_FRESH_DB=1`, boot once, then unset it).
 if [ ! -f "$DB_PATH" ]; then
+  # Litestream renames its output before checking integrity. Cancellation
+  # during that check can leave the output behind (v0.5.14 replica.go).
+  # Restore to a separate candidate, then publish it only after success, so a
+  # timeout/crash can never make the next boot trust an unvalidated data.db.
+  # A leftover candidate belongs only to this interrupted restore attempt.
+  rm -f "$RESTORE_PATH" "$RESTORE_PATH.tmp" "$RESTORE_PATH-wal" "$RESTORE_PATH-shm"
   log "No data.db on volume — attempting Litestream restore from R2 (300s budget)…"
   if timeout 300s "$LITESTREAM_BIN" restore -if-replica-exists -integrity-check quick \
-       -config /pb/litestream.yml "$DB_PATH" && [ -f "$DB_PATH" ]; then
+       -config /pb/litestream.yml -o "$RESTORE_PATH" "$DB_PATH" && [ -s "$RESTORE_PATH" ]; then
+    if ! mv "$RESTORE_PATH" "$DB_PATH"; then
+      log "FATAL: Could not publish the validated restore candidate."
+      exit 1
+    fi
     log "Restore succeeded."
   elif [ "$ALLOW_FRESH_DB" = "1" ]; then
+    rm -f "$RESTORE_PATH" "$RESTORE_PATH.tmp" "$RESTORE_PATH-wal" "$RESTORE_PATH-shm"
     log "WARNING: restore failed or no replica found, but ALLOW_FRESH_DB=1 is set."
     log "WARNING: Starting with a fresh EMPTY DB — Litestream will replicate it to R2 as the newest generation."
   else
@@ -94,8 +106,8 @@ if [ ! -f "$DB_PATH" ]; then
   fi
 fi
 
-# Litestream supervises PocketBase. If either process fails the container exits,
-# allowing Fly to restart it instead of serving without continuous backups.
+# Litestream supervises PocketBase's process. Remote sync failures can retry
+# while both processes remain alive; backup freshness needs separate monitoring.
 log "Booting PocketBase under supervised Litestream replication."
 PB_COMMAND="$PB_BIN serve --http=0.0.0.0:8080 --dir=$DATA_DIR --migrationsDir=/pb/pb_migrations --hooksDir=/pb/pb_hooks --hooksWatch=false"
 exec "$LITESTREAM_BIN" replicate -config /pb/litestream.yml -exec "$PB_COMMAND"

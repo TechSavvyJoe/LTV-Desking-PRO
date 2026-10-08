@@ -7,6 +7,8 @@ import type {
   LenderTier,
 } from "../types";
 import { selectBookValue } from "./bookValue";
+import { resolveVehicleCondition } from "./vehicleCondition";
+import { programReviewHold } from "./programTrust";
 
 const formatCurrencySimple = (value: number | string | undefined): string => {
   if (typeof value !== "number") return String(value || "0");
@@ -41,11 +43,13 @@ const compareText = (left: string, right: string): number => {
 const effectiveTierRate = (tier: LenderTier): number | null => {
   const base = finiteNumber(tier.baseInterestRate);
   if (base === null) return null;
-  return base + (finiteNumber(tier.rateAdder) ?? 0);
+  const rate = base + (finiteNumber(tier.rateAdder) ?? 0);
+  return Number.isFinite(rate) && rate >= 0 && rate <= 50 ? rate : null;
 };
 
 /** Exported so lenderFit can classify pending holds without string drift. */
 export const SAMPLE_CONSTRAINT = "sample program - verify or convert before use";
+const RATE_CHECK_CONSTRAINT = "program rate check requires manager review";
 const SAMPLE_REASON =
   "Sample program - illustrative only; verify or convert it before using it as an approval path.";
 
@@ -256,6 +260,11 @@ const fail = (reasons: string[], unchecked: string[] = []): EligibilityResult =>
   evaluatedConstraints: 0,
 });
 
+const hold = (reasons: string[], unchecked: string[]): EligibilityResult => ({
+  ...fail(reasons, unchecked),
+  status: "pending",
+});
+
 interface TierCandidate {
   tier: LenderTier;
   unchecked: string[];
@@ -288,8 +297,12 @@ const pendingResult = (candidate: TierCandidate): EligibilityResult => {
   const reasons: string[] = [];
   if (candidate.unchecked.includes(SAMPLE_CONSTRAINT)) reasons.push(SAMPLE_REASON);
   if (candidate.unchecked.includes(REVIEW_CONSTRAINT)) reasons.push(reviewReason(candidate.tier));
+  if (candidate.unchecked.includes(RATE_CHECK_CONSTRAINT)) {
+    reasons.push("Program rate check requires manager review.");
+  }
   const otherUnchecked = candidate.unchecked.filter(
-    (item) => item !== SAMPLE_CONSTRAINT && item !== REVIEW_CONSTRAINT
+    (item) =>
+      item !== SAMPLE_CONSTRAINT && item !== REVIEW_CONSTRAINT && item !== RATE_CHECK_CONSTRAINT
   );
   if (otherUnchecked.length > 0) {
     reasons.push(`Pending required information: ${otherUnchecked.join(", ")}.`);
@@ -332,13 +345,37 @@ export const checkBankEligibility = (
   vehicle: CalculatedVehicle,
   deal: DealData & FilterData,
   bank: LenderProfile,
-  asOfYear: number = new Date().getFullYear()
+  asOfYear: number = new Date().getFullYear(),
+  asOfDate: Date = new Date()
 ): EligibilityResult => {
   if (!bank || typeof bank !== "object") return fail(["Invalid bank profile data."]);
+  const programHold = programReviewHold(bank, asOfDate);
+  if (programHold) return hold([programHold], ["program source needs review"]);
   if (!deal || typeof deal !== "object") {
     return bank.isSample
       ? samplePendingResult([], 0, ["Deal data is invalid and cannot be evaluated."])
       : fail(["Invalid deal data."]);
+  }
+
+  // An effective date is not an expiry date. Only enforce what is actually
+  // recorded: an invalid date needs review, and a future program cannot fit
+  // today's deal. Never invent a shelf life for a past effective date.
+  const effectiveDate = bank.effectiveDate?.trim();
+  if (effectiveDate) {
+    const parsed = new Date(`${effectiveDate}T00:00:00Z`);
+    const valid =
+      /^\d{4}-\d{2}-\d{2}$/.test(effectiveDate) &&
+      Number.isFinite(parsed.getTime()) &&
+      parsed.toISOString().slice(0, 10) === effectiveDate;
+    if (!valid || effectiveDate > asOfDate.toISOString().slice(0, 10)) {
+      const reasons = [
+        valid
+          ? "Program is not yet effective; confirm a program valid for the deal date."
+          : "Program effective date needs review; enter a verified date as YYYY-MM-DD.",
+      ];
+      const unchecked = ["program effective date"];
+      return bank.isSample ? samplePendingResult(unchecked, 0, reasons) : hold(reasons, unchecked);
+    }
   }
 
   const amountFinanced = finiteNumber(vehicle?.amountToFinance);
@@ -346,7 +383,8 @@ export const checkBankEligibility = (
     const reasons = [
       "Cannot evaluate - financed amount unavailable (vehicle is missing a price or the deal can't be calculated).",
     ];
-    return bank.isSample ? samplePendingResult([], 0, reasons) : fail(reasons);
+    const unchecked = ["computed payment inputs / financed amount"];
+    return bank.isSample ? samplePendingResult(unchecked, 0, reasons) : hold(reasons, unchecked);
   }
   if (amountFinanced <= 0) {
     const reasons = ["Amount financed must be greater than $0 for lender matching."];
@@ -606,11 +644,27 @@ export const checkBankEligibility = (
 
     const maxRate = configuredLimit(tier.maxRate);
     if (maxRate !== null) {
-      if (quotedRate === null) unchecked.add("quoted APR");
+      if (quotedRate === null) unchecked.add("quoted rate");
       else {
         evaluated++;
         if (quotedRate > maxRate) rejected = true;
       }
+    }
+
+    // PTI/DTI above use the entered quote's payment. A quote below a known
+    // program rate would otherwise make that same program look affordable.
+    // Keep private buy-rate numbers out of reasons printed or shown to sales.
+    if (!tierNeedsReview(tier) && finiteNumber(tier.baseInterestRate) !== null) {
+      const publishedRate = effectiveTierRate(tier);
+      if (publishedRate === null) unchecked.add("published program rate needs review");
+      else if (quotedRate === null) unchecked.add("quoted rate");
+      else {
+        evaluated++;
+        if (quotedRate < publishedRate) rejected = true;
+      }
+    }
+    if (tier.rateCheckRequired === true && finiteNumber(tier.baseInterestRate) === null) {
+      unchecked.add(RATE_CHECK_CONSTRAINT);
     }
 
     const tierMaxBackend = configuredLimit(tier.maxBackend);
@@ -663,11 +717,17 @@ export const checkBankEligibility = (
     }
 
     if (tier.vehicleType && tier.vehicleType !== "all") {
-      if (tier.vehicleType === "certified") unchecked.add("certified vehicle status");
-      else if (!deal.vehicleCondition) unchecked.add("vehicle condition");
-      else {
+      const condition = resolveVehicleCondition(vehicle, deal);
+      if (!condition) {
+        unchecked.add(
+          tier.vehicleType === "certified" ? "certified vehicle status" : "vehicle condition"
+        );
+      } else {
         evaluated++;
-        if (deal.vehicleCondition !== tier.vehicleType) rejected = true;
+        const matches =
+          condition === tier.vehicleType ||
+          (condition === "certified" && tier.vehicleType === "used");
+        if (!matches) rejected = true;
       }
     }
 

@@ -353,7 +353,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
       if (result.status === "success" && result.lenders && result.lenders.length > 0) {
         result.lenders.forEach((lender, lenderIndex) => {
           if (includedLenders.has(`${resultIndex}-${lenderIndex}`)) {
-            allLenders.push(lender);
+            allLenders.push({ ...lender, sourceReference: result.fileName });
           }
         });
       }
@@ -380,12 +380,13 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
         if (existingProfile) {
           // Update existing profile in PocketBase
-          // Confirmed replacement from a current rate sheet: the terms are
-          // no longer the illustrative sample, so the program can count.
+          // Extraction is a draft. Source review is a separate human action.
           const updatedProfile = await updateLenderProfile(existingProfile.id, {
             ...newProfileData,
             tiers: newProfileData.tiers || existingProfile.tiers,
             isSample: false,
+            reviewRequired: true,
+            verifiedAt: "",
           });
 
           if (updatedProfile) {
@@ -404,6 +405,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
             ...createData,
             name: newProfileData.name!,
             active: true,
+            isSample: false,
+            reviewRequired: true,
+            verifiedAt: "",
             tiers: newProfileData.tiers || [],
           } satisfies Parameters<typeof saveLenderProfile>[0]);
 
@@ -572,6 +576,10 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
               <h3 className="text-lg font-semibold text-[var(--color-text)] mb-3">
                 Programs found
               </h3>
+              <p className="text-sm text-[var(--color-text-muted)] mb-3">
+                Imported programs stay pending. Review the saved terms and source document in the
+                program editor, then mark the program verified.
+              </p>
               <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {results.map((res, i) => (
                   <div

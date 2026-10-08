@@ -39,6 +39,7 @@ const deal: DealData = {
   interestRate: 8.9,
   downPayment: 3000,
   vehicleCondition: "used",
+  vehicleConditionVin: vehicle.vin,
   backendProducts: 2000,
   profitInputs: {
     allInUnitCosts: { [vehicle.vin]: 23000 },

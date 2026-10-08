@@ -282,6 +282,7 @@ describe("PocketBase hook runtime hardening", () => {
         expect(typeof t).toBe("object");
         expect(t).not.toHaveProperty("baseInterestRate");
         expect(t).not.toHaveProperty("rateAdder");
+        expect(t.rateCheckRequired).toBe(true);
       }
       expect(tiers[0]).toMatchObject({
         minFico: 660,
@@ -290,6 +291,20 @@ describe("PocketBase hook runtime hardening", () => {
         maxMileage: 110000,
       });
       expect(tiers[1]).toMatchObject({ name: "Tier 2", minFico: 600 });
+    });
+
+    it.each([0, "0", 6.49, "6.49"])("preserves the rate-review requirement for finite base %s", (baseInterestRate) => {
+      const handlers = loadEnrichHandlers();
+      const sales = lender([{ name: "Published", baseInterestRate }]);
+      enrich(handlers.lender_profiles, authFor("sales"), sales.record);
+      expect(sales.json("tiers")).toEqual([{ name: "Published", rateCheckRequired: true }]);
+    });
+
+    it("does not invent a rate-review requirement when no base exists", () => {
+      const handlers = loadEnrichHandlers();
+      const sales = lender([{ name: "Eligibility only", minFico: 600 }]);
+      enrich(handlers.lender_profiles, authFor("sales"), sales.record);
+      expect(sales.json("tiers")).toEqual([{ name: "Eligibility only", minFico: 600 }]);
     });
 
     it("falls back to the JSONRaw's text (never its byte values) when getString is unavailable", () => {

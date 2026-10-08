@@ -164,10 +164,17 @@ support mailbox on a registered domain (`VITE_SUPPORT_EMAIL`).
 - **Topology.** One Fly machine (`ord`, `auto_stop_machines = off`,
   `min_machines_running = 1`). SQLite lives on the machine's volume;
   **Litestream** streams the WAL to object storage continuously.
-- **Recovery.** Lose the machine → `recover-fly.yml` recreates it and
-  Litestream restores the latest replica. RPO is seconds (WAL shipping
-  interval); RTO is the time to boot a machine and restore (minutes). There is
-  **no hot standby**: a Fly region incident is downtime, not data loss.
+- **Recovery.** Lose the machine → follow `docs/runbooks/db-restore.md` to
+  provision a replacement volume and machine while preserving the original.
+  `recover-fly.yml` only enables emergency operation without R2 replication;
+  it does not recreate machines or restore data. The configured remote sync
+  interval is 10 seconds; actual RPO depends on successful remote sync and
+  must be measured in restore drills. RTO target is 5–15 minutes for a small
+  database, not a measured guarantee. There is
+  **no hot standby**: a Fly region incident causes downtime; recovery depends
+  on a readable backup. R2 replication covers `data.db` only, while Fly volume
+  snapshots cover uploaded files too. An R2-only restore does not recover
+  dealer logos or other local file content.
 - **Deploys.** Vercel for the SPA + proxy (preview per PR, promote on main);
   `deploy-backend-fly.yml` for PocketBase (the Dockerfile ships `pb_hooks` and
   `pb_migrations`; migrations run on boot).
@@ -180,13 +187,18 @@ support mailbox on a registered domain (`VITE_SUPPORT_EMAIL`).
 
 ## 7. Scale
 
-Sizing is per dealership, and dealerships are small: a 300-unit lot with 15
-lender programs reprices in tens of milliseconds in the browser; PocketBase
-serves a few requests per user action. One 1 GB machine comfortably serves
-dozens of dealerships; the first real limit is SQLite write contention under
-many concurrent importers, far beyond pilot scale. Scaling steps, in order:
-bigger Fly machine → read-heavy caching in React Query (already) → separate
-import workers → Postgres only if a group with hundreds of stores signs.
+Repricing runs in the browser, while imports, saved deals, authorization,
+realtime connections, and AI quotas share one PocketBase machine. The repository
+has functional tests, but no concurrent dealer load benchmark establishing a
+supported store/user count or p95 latency on the 1 GB shared-CPU VM. SQLite
+serializes writes; simultaneous imports and quota updates need measurement.
+Before increasing the pilot envelope, benchmark representative simultaneous
+imports, saves, reads, and SSE connections; record latency, errors, memory,
+volume growth, and backup lag. Scale vertically first if those measurements
+justify it. Do not add another independent SQLite writer: Fly volumes are
+not replicated and Litestream backup is not multi-writer coordination.
+Revisit database topology when measured capacity or availability targets
+require it, rather than promising a dealership count from VM size alone.
 
 ## 8. Trade-offs made deliberately
 

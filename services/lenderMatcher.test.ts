@@ -345,6 +345,8 @@ describe("edge coverage gaps (pre-1980, float term, blank, negative)", () => {
     const result = checkBankEligibility(badVehicle, badDeal, mockLender());
     expect(result.eligible).toBe(false);
     expect(result.reasons[0]).toMatch(/financed amount unavailable/i);
+    expect(result.status).toBe("pending");
+    expect(result.uncheckedConstraints).toContain("computed payment inputs / financed amount");
   });
 
   it("treats negative amountToFinance as ineligible (LTV/amount checks)", () => {
@@ -436,7 +438,7 @@ describe("conservative lender-wide constraints and pending inputs", () => {
     expect(result.eligible).toBe(false);
     expect(result.status).toBe("pending");
     expect(result.uncheckedConstraints).toEqual(
-      expect.arrayContaining(["credit score", "vehicle mileage", "vehicle make", "quoted APR"])
+      expect.arrayContaining(["credit score", "vehicle mileage", "vehicle make", "quoted rate"])
     );
   });
 
@@ -464,6 +466,111 @@ describe("conservative lender-wide constraints and pending inputs", () => {
 
     expect(result.matchedTier?.name).toBe("Better");
     expect(result.effectiveRate).toBe(6.75);
+  });
+
+  it("does not count an artificially low quote as a published program fit", () => {
+    const result = checkBankEligibility(
+      mockVehicle({ monthlyPayment: 350 }),
+      mockDeal({ interestRate: 0 }),
+      mockLender({ tiers: [{ name: "Published", minFico: 600, baseInterestRate: 10, maxPti: 8 }] })
+    );
+    expect(result.status).toBe("ineligible");
+    expect(result.eligible).toBe(false);
+    expect(result.reasons.join(" ")).not.toMatch(/10|buy rate/i);
+  });
+
+  it("holds a missing quote pending when the program publishes a rate", () => {
+    const result = checkBankEligibility(
+      mockVehicle(),
+      mockDeal({ interestRate: "" }),
+      mockLender({ tiers: [{ name: "Published", baseInterestRate: 8 }] })
+    );
+    expect(result.status).toBe("pending");
+    expect(result.uncheckedConstraints).toContain("quoted rate");
+  });
+
+  it("holds a redacted program rate pending for sales without revealing its value", () => {
+    const result = checkBankEligibility(
+      mockVehicle(),
+      mockDeal({ interestRate: 0 }),
+      mockLender({ tiers: [{ name: "Redacted", minFico: 600, rateCheckRequired: true }] })
+    );
+    expect(result.status).toBe("pending");
+    expect(result.effectiveRate).toBeNull();
+    expect(result.reasons).toEqual(["Program rate check requires manager review."]);
+    expect(result.uncheckedConstraints).toContain("program rate check requires manager review");
+    expect(result.matchedTier).not.toHaveProperty("baseInterestRate");
+  });
+
+  it("still evaluates the published rate when a manager can read it", () => {
+    const lender = mockLender({
+      tiers: [{ name: "Visible", minFico: 600, baseInterestRate: 8, rateCheckRequired: true }],
+    });
+    expect(checkBankEligibility(mockVehicle(), mockDeal({ interestRate: 8 }), lender).status).toBe(
+      "eligible"
+    );
+    expect(checkBankEligibility(mockVehicle(), mockDeal({ interestRate: 0 }), lender).status).toBe(
+      "ineligible"
+    );
+  });
+
+  it("accepts an explicit zero promotional rate and applies legitimate rate discounts", () => {
+    for (const tier of [
+      { name: "Zero promo", baseInterestRate: 0 },
+      { name: "Discounted", baseInterestRate: 1, rateAdder: -1 },
+    ]) {
+      expect(
+        checkBankEligibility(
+          mockVehicle(),
+          mockDeal({ interestRate: 0 }),
+          mockLender({ tiers: [tier] })
+        ).status
+      ).toBe("eligible");
+    }
+  });
+
+  it("holds an invalid effective rate for review rather than treating it as a fit", () => {
+    const result = checkBankEligibility(
+      mockVehicle(),
+      mockDeal(),
+      mockLender({ tiers: [{ name: "Invalid", baseInterestRate: 1, rateAdder: -2 }] })
+    );
+    expect(result.status).toBe("pending");
+    expect(result.effectiveRate).toBeNull();
+  });
+
+  it("holds a future program until its actual effective date, inclusive", () => {
+    const lender = mockLender({ effectiveDate: "2026-10-09" });
+    expect(
+      checkBankEligibility(
+        mockVehicle(),
+        mockDeal(),
+        lender,
+        2026,
+        new Date("2026-10-08T12:00:00Z")
+      ).status
+    ).toBe("pending");
+    expect(
+      checkBankEligibility(
+        mockVehicle(),
+        mockDeal(),
+        lender,
+        2026,
+        new Date("2026-10-09T00:00:00Z")
+      ).status
+    ).toBe("eligible");
+  });
+
+  it("does not invent expiry from a past effective date, and holds malformed dates", () => {
+    expect(
+      checkBankEligibility(mockVehicle(), mockDeal(), mockLender({ effectiveDate: "2020-01-01" }))
+        .status
+    ).toBe("eligible");
+    for (const effectiveDate of ["not a date", "2026-02-30"]) {
+      expect(
+        checkBankEligibility(mockVehicle(), mockDeal(), mockLender({ effectiveDate })).status
+      ).toBe("pending");
+    }
   });
 
   it("keeps an otherwise fitting sample program pending", () => {
@@ -821,5 +928,66 @@ describe("markTierVerified — never saves a tier with no limit for a flagged fi
     const tier = { name: "T", rangeFlags: ["mysteryField=9 outside 0-1"], needsReview: true };
     expect(unverifiedReviewFields(tier)).toEqual([]);
     expect(tierNeedsReview(markTierVerified(tier))).toBe(false);
+  });
+});
+
+describe("unit-specific lender condition constraints", () => {
+  it("matches mixed inventory and treats certified as used while enforcing certified-only programs", () => {
+    const program = (vehicleType: "new" | "used" | "certified" | "all") =>
+      mockLender({ tiers: [{ name: "Condition", minFico: 600, vehicleType }] });
+    const deal = mockDeal({ vehicleCondition: "new" }); // deliberately unscoped historical value
+    expect(
+      checkBankEligibility(mockVehicle({ condition: "new" }), deal, program("new")).status
+    ).toBe("eligible");
+    expect(
+      checkBankEligibility(mockVehicle({ condition: "used" }), deal, program("new")).status
+    ).toBe("ineligible");
+    expect(
+      checkBankEligibility(mockVehicle({ condition: "certified" }), deal, program("used")).status
+    ).toBe("eligible");
+    expect(
+      checkBankEligibility(mockVehicle({ condition: "certified" }), deal, program("certified"))
+        .status
+    ).toBe("eligible");
+    expect(
+      checkBankEligibility(mockVehicle({ condition: "used" }), deal, program("certified")).status
+    ).toBe("ineligible");
+    expect(checkBankEligibility(mockVehicle(), deal, program("new")).status).toBe("pending");
+    expect(checkBankEligibility(mockVehicle(), deal, program("all")).status).toBe("eligible");
+  });
+  it("applies confirmed condition overrides only to the VIN they name", () => {
+    const program = mockLender({ tiers: [{ name: "New", vehicleType: "new" }] });
+    const deal = mockDeal({ vehicleConditions: { TEST123: "new" } });
+    expect(checkBankEligibility(mockVehicle({ condition: "used" }), deal, program).status).toBe(
+      "eligible"
+    );
+    expect(
+      checkBankEligibility(mockVehicle({ vin: "OTHER", condition: "used" }), deal, program).status
+    ).toBe("ineligible");
+  });
+});
+
+describe("program source review", () => {
+  it("withholds an otherwise fitting program until its source is reviewed", () => {
+    const result = checkBankEligibility(
+      mockVehicle(),
+      mockDeal(),
+      mockLender({ reviewRequired: true })
+    );
+    expect(result.status).toBe("pending");
+    expect(result.eligible).toBe(false);
+    expect(result.reasons.join(" ")).toMatch(/human review/);
+  });
+
+  it("withholds expired or malformed expiration dates rather than claiming a fit", () => {
+    for (const expiresOn of ["2000-01-01", "2026-02-30"]) {
+      expect(
+        checkBankEligibility(mockVehicle(), mockDeal(), mockLender({ expiresOn })).status
+      ).toBe("pending");
+    }
+    expect(
+      checkBankEligibility(mockVehicle(), mockDeal(), mockLender({ expiresOn: "2099-12-31" }))
+        .status
+    ).toBe("eligible");
   });
 });

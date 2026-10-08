@@ -2,7 +2,9 @@
 
 Precision deal structuring, lender intelligence, and desking in one refined workspace.
 
-**LTV & Desking Pro** is a full-stack automotive finance management platform built for dealership F&I teams. It combines real-time LTV calculations, AI-powered lender rate sheet extraction, and multi-lender eligibility matching into a single, fast workspace.
+**LTV Desking PRO** is a retail-finance desking companion for dealership F&I teams. It combines live payment/LTV estimates, explainable deal checks, dealer-supplied lender program extraction and inventory-wide rule matching. The current tax engine models a Michigan dealership; it does not replace a DMS, lender decision, national tax service or contracting platform.
+
+The [launch handoff](docs/LAUNCH_REVIEW_2026-10-08.md) records verified fixes and remaining rollout gates. Nationwide launch readiness has not been established.
 
 ## Tech Stack
 
@@ -18,11 +20,11 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 ## Features
 
 - **Real-time LTV Calculations** — Front-end LTV, OTD LTV, gross profit, and monthly payments update instantly as deal parameters change
-- **Upload rate sheet** — Upload PDF rate sheets and the selected server-side model extracts lender tiers, LTV limits, FICO ranges, and restrictions
+- **Upload rate sheet** — Extract draft tiers and restrictions from dealer-supplied PDFs; source review is required before the program can count as a fit
 - **Model Switching** — Choose current top, balanced, and fast OpenAI/ChatGPT, Anthropic, and Gemini models per workflow
-- **Multi-Lender Matching** — See which lenders approve a deal based on credit score, income, vehicle age, and mileage
+- **Multi-Lender Matching** — Compare entered facts with configured lender rules; missing facts, source-review holds and supplied expiration dates can keep a program pending. A fit is not lender approval
 - **Deal Structuring Modal** — Full deal worksheet with down payment, trade equity, backend products, and term selection
-- **Inventory Management** — Admin-scoped CSV/XLSX import, VIN lookup, sorting, and favorites tracking
+- **Inventory Management** — Admin-scoped CSV/XLSX import, VIN lookup, explicit new/used/certified condition per VIN, sorting and favorites
 - **PDF Deal Sheets** — Download a two-page Letter-size deal jacket with structure, backend products, lender paths, assumptions, and disclosures
 - **Multi-Tenant** — PocketBase enforces dealer isolation; superadmins can switch between dealerships
 - **Dark Mode** — Full light/dark theme support
@@ -146,7 +148,7 @@ Precision deal structuring, lender intelligence, and desking in one refined work
 - E2E: `tests/e2e/auth.spec.ts` (desk, auth, inventory import, AI lender, deal save, lender match, PDF); `playwright.config.ts` with webServer. Runs in CI.
 - Coverage: `npm run test:coverage` (v8 + thresholds configured; artifact in CI).
 - Audit: `npm run audit` + dedicated CI step. Current status (2026-09-18, see docs/runbooks/secrets-rotation.md): `npm audit` reports **0 vulnerabilities at every severity** after the vitest 4→5 upgrade (the last open advisories were dev-only in the vitest/mocker chain). CI includes a dry-run audit-fix report; re-verify after any dependency change.
-- Model governance: [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) documents the approval-odds score — inputs, the exact formula, guardrails, fairness posture, known limitations, and the disclaimer language every score-bearing surface must carry. Any change to `APPROVAL_CONFIG` updates the card in the same PR.
+- Model governance: [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) documents the `rules-v1` twelve-check readiness assessment, denominators, private-input boundaries and estimate limitations. Legacy approval heuristics remain uncalibrated compatibility fields. Update the card when the assessment or matching rules change.
 - Accessibility: [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md) is the WCAG 2.2 AA conformance summary; `tests/e2e/a11y.spec.ts` runs axe-core on every pull request into `main` and on pushes to `main`, and fails the build on serious/critical violations (on other branch pushes the e2e/axe steps are skipped).
 - Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — components, data model, tenant/field-confidentiality model and its known debt, recovery posture, scale limits, and the decisions to revisit.
 - CI (`.github/workflows/check.yml`): type/lint/test/coverage (v8 + thresholds + artifact)/audit + e2e (Playwright + report artifact) on every PR. Enhanced coverage + e2e hygiene.

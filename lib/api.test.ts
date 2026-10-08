@@ -90,6 +90,34 @@ import {
   updateDealerSettings,
 } from "./api";
 
+describe("inventory condition persistence", () => {
+  beforeEach(() => {
+    mocks.update.mockReset();
+    mocks.getFullList.mockReset();
+    mocks.getCurrentDealerId.mockReturnValue("dealer-1");
+  });
+  it("writes an explicit cleared status so unknown survives a server reload", async () => {
+    mocks.update.mockResolvedValue({ id: "existing", condition: "" });
+    const result = await updateInventoryItem("existing", { condition: undefined });
+    expect(mocks.update).toHaveBeenCalledWith("existing", { condition: "" });
+    expect(result?.condition).toBe("");
+  });
+  it("preserves known status when a recurring feed lacks the optional column", async () => {
+    mocks.getFullList.mockResolvedValue([{ id: "existing", vin: "VIN1", condition: "certified" }]);
+    mocks.update.mockResolvedValue({});
+    await syncInventory([{ vin: "VIN1", year: 2024, make: "Ford", model: "Escape", price: 20000 }]);
+    expect(mocks.update.mock.calls[0]?.[1]).not.toHaveProperty("condition");
+  });
+  it("persists an explicit imported new or certified status", async () => {
+    mocks.getFullList.mockResolvedValue([{ id: "existing", vin: "VIN1" }]);
+    mocks.update.mockResolvedValue({});
+    await syncInventory([
+      { vin: "VIN1", condition: "new", year: 2024, make: "Ford", model: "Escape", price: 20000 },
+    ]);
+    expect(mocks.update.mock.calls[0]?.[1]).toMatchObject({ condition: "new" });
+  });
+});
+
 describe("Inventory mileage provenance", () => {
   beforeEach(() => {
     mocks.getCurrentDealerId.mockReturnValue("dealer-1");

@@ -34,6 +34,7 @@ import type {
   Settings,
 } from "../types";
 import type { InventoryItem } from "../lib/pocketbase";
+import { normalizeVehicleCondition } from "../services/vehicleCondition";
 import { getCurrentDealerId } from "../lib/pocketbase";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useSafeData } from "../hooks/useSafeData";
@@ -58,6 +59,7 @@ import { createLogger } from "../lib/logger";
 import { queryClient, queryKeys } from "../lib/queryClient";
 import { capture } from "../lib/analytics";
 import { normalizeAiSettings } from "../lib/aiModelRegistry";
+import { getPrivateSessionEpoch } from "../lib/privateSession";
 
 const dealContextLogger = createLogger("deal-context");
 
@@ -144,7 +146,7 @@ interface DealContextType {
   toggleFavorite: (vin: string) => void;
   toggleInventoryRowExpansion: (vin: string) => void;
   toggleFavoriteRowExpansion: (vin: string) => void;
-  handleInventoryUpdate: (vin: string, updatedData: Partial<Vehicle>) => void;
+  handleInventoryUpdate: (vin: string, updatedData: Partial<Vehicle>) => Promise<void>;
   clearDealAndFilters: () => void;
   loadSampleData: () => void;
   isShowroomMode: boolean;
@@ -271,6 +273,7 @@ const normalizeSavedDeal = (deal: Partial<SavedDeal>): SavedDeal | null => {
 // Accepts InventoryItem (from api) — extra fields (dealer, status) are ignored.
 const mapInventoryItem = (i: InventoryItem): Vehicle => ({
   id: i.id,
+  condition: normalizeVehicleCondition(i.condition),
   vehicle: `${i.year} ${i.make} ${i.model} ${i.trim || ""}`.trim(),
   stock: i.stockNumber || "N/A",
   vin: i.vin,
@@ -295,6 +298,18 @@ const mapWorkingInventory = (items: InventoryItem[]): Vehicle[] =>
   items.filter((item) => item.status !== "sold").map(mapInventoryItem);
 
 export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const sessionEpoch = useRef(getPrivateSessionEpoch()).current;
+  const providerActive = useRef(true);
+  useEffect(() => {
+    providerActive.current = true;
+    return () => {
+      providerActive.current = false;
+    };
+  }, []);
+  const canWriteSession = useCallback(
+    () => providerActive.current && sessionEpoch === getPrivateSessionEpoch(),
+    [sessionEpoch]
+  );
   const [settings, setSettings] = useState<Settings>(loadInitialSettings);
 
   // Bumped whenever the superadmin dealer override changes so queries + subs
@@ -353,30 +368,33 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setInventory = useCallback<React.Dispatch<React.SetStateAction<Vehicle[]>>>(
     (action) => {
+      if (!canWriteSession()) return;
       queryClient.setQueryData<Vehicle[]>(inventoryKey, (old) => {
         const prev = old ?? [];
         return typeof action === "function" ? action(prev) : action;
       });
     },
-    [inventoryKey]
+    [inventoryKey, canWriteSession]
   );
   const setLenderProfiles = useCallback<React.Dispatch<React.SetStateAction<LenderProfile[]>>>(
     (action) => {
+      if (!canWriteSession()) return;
       queryClient.setQueryData<LenderProfile[]>(lenderProfilesKey, (old) => {
         const prev = old ?? [];
         return typeof action === "function" ? action(prev) : action;
       });
     },
-    [lenderProfilesKey]
+    [lenderProfilesKey, canWriteSession]
   );
   const setSavedDeals = useCallback<React.Dispatch<React.SetStateAction<SavedDeal[]>>>(
     (action) => {
+      if (!canWriteSession()) return;
       queryClient.setQueryData<SavedDeal[]>(savedDealsKey, (old) => {
         const prev = old ?? [];
         return typeof action === "function" ? action(prev) : action;
       });
     },
-    [savedDealsKey]
+    [savedDealsKey, canWriteSession]
   );
 
   const dataLoading =
@@ -540,6 +558,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [settings]);
   const updateSettings: React.Dispatch<React.SetStateAction<Settings>> = useCallback(
     (action) => {
+      if (!canWriteSession()) return;
       const newSettings = typeof action === "function" ? action(settingsRef.current) : action;
       settingsRef.current = newSettings;
       setSettings(newSettings);
@@ -552,7 +571,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       settingsSavesRef.current = settingsSavesRef.current
         .then(async () => {
-          if (getCurrentDealerId() !== scope) return;
+          if (!canWriteSession() || getCurrentDealerId() !== scope) return;
           const saved = await updateDealerSettings({
             defaultTerm: newSettings.defaultTerm,
             defaultApr: newSettings.defaultApr,
@@ -566,14 +585,16 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
             vscPrice: newSettings.vscPrice,
             gapPrice: newSettings.gapPrice,
           });
+          if (!canWriteSession()) return;
           if (!saved) toast.error("Server save failed — settings kept in this browser.");
         })
         .catch((err) => {
+          if (!canWriteSession()) return;
           dealContextLogger.error("Failed to persist settings", err);
           toast.error("Server save failed — settings kept in this browser.");
         });
     },
-    [setSettings]
+    [setSettings, canWriteSession]
   );
 
   // Mark the deal dirty only on USER edits while a vehicle is active. The desk
@@ -588,7 +609,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!activeVehicle) return;
     if (vehicleChanged) return; // focusing/auto-selection is not an edit
     setIsDealDirty(true);
-  }, [dealData, filters, customerName, salespersonName, activeVehicle]);
+  }, [dealData, filters, customerName, salespersonName, scratchPadNotes, activeVehicle]);
 
   // Debounce expensive calculation inputs
   const debouncedDealData = useDebouncedValue(dealData, 300);
@@ -678,6 +699,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleInventoryUpdate = useCallback(
     async (vin: string, updatedData: Partial<Vehicle>) => {
+      if (!canWriteSession()) return;
       const item = inventory.find((v) => v.vin === vin);
 
       // Snapshot before the optimistic write so we can roll back on failure.
@@ -699,6 +721,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const apiData: Partial<Vehicle> = { ...updatedData };
         if (apiData.mileage === "N/A") delete apiData.mileage;
         const result = await updateInventoryItem(item.id, apiData as Partial<InventoryItem>);
+        if (!canWriteSession()) return;
         if (!result) {
           setInventory(prevInventory);
           setFavorites(prevFavorites);
@@ -715,7 +738,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     },
-    [inventory, favorites, setInventory, setFavorites, setMessage]
+    [inventory, favorites, setInventory, setFavorites, setMessage, canWriteSession]
   );
 
   // Keep favorites in sync with live inventory so a CSV re-sync or an inline

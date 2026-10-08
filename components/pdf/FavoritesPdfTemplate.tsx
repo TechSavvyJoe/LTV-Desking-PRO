@@ -458,7 +458,7 @@ const CoverPage: React.FC<{
         <Field label="Loan term" value={`${loanTerm} months`} />
         {/* A cleared APR arrives as "" (typed-around via `as number`). Guard like
             every other APR site so the cover page doesn't crash the whole PDF. [G5] */}
-        <Field label="APR" value={typeof apr === "number" ? `${apr.toFixed(2)}%` : "—"} />
+        <Field label="Interest rate" value={typeof apr === "number" ? `${apr.toFixed(2)}%` : "—"} />
       </section>
 
       {notes && (
@@ -574,7 +574,7 @@ const VehiclePage: React.FC<{
           <p className="payment">{formatCurrencyExact(vehicle?.monthlyPayment)}</p>
           <p className="caption">
             {typeof dealData?.interestRate === "number"
-              ? `Estimate at ${dealData.interestRate.toFixed(2)}% APR for ${dealData?.loanTerm} months — not an offer of credit`
+              ? `Estimate at ${dealData.interestRate.toFixed(2)}% interest for ${dealData?.loanTerm} months — not an offer of credit`
               : "Estimate — enter a rate for payment terms; not an offer of credit"}
           </p>
         </div>
@@ -598,7 +598,7 @@ const VehiclePage: React.FC<{
             label="Est. interest rate"
             value={
               typeof dealData?.interestRate === "number"
-                ? `${dealData.interestRate.toFixed(2)}% APR`
+                ? `${dealData.interestRate.toFixed(2)}% interest`
                 : "—"
             }
           />

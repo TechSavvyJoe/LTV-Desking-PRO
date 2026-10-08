@@ -24,8 +24,42 @@ All per-dealer data lives in collections linked by a `dealer` relation field:
 
 ## Step 1 — Export the dealer's data
 
-Either click through the PB Admin UI (each collection → filter
-`dealer = '<id>'` → export), or script it:
+Deactivate the dealership in Owner Console before collecting the final
+archive. This prevents ordinary tenant writes; also pause owner writes for
+this dealership until export and deletion finish. Retain the original active
+state if the request is only an export and the dealership will resume service.
+
+Use the paginated read-only export tool from the repository root:
+
+```bash
+# Obtain a short-lived PB _superusers bearer token through your authorized
+# administrator session and load it into PB_EXPORT_TOKEN without shell history.
+: "${PB_EXPORT_TOKEN:?load the authorized PB superuser token}"
+npx tsx backend/tools/export-dealer.ts \
+  --url https://ltv-desking-pro-api.fly.dev \
+  --dealer '<dealer-record-id>' \
+  --output '<new-private-directory>'
+unset PB_EXPORT_TOKEN
+```
+
+The tool requires explicit origin/dealer/output and superuser schema-read
+access (app-admin reads may redact private fields). It fetches all pages of
+every collection below, checks dealer scope and counts, and writes JSON arrays
+plus `receipt.json` with SHA-256 hashes. The directory is mode 0700, data files
+0600, receipt 0400; existing output directories are never overwritten. Failure
+removes its partial directory. It never changes or deletes remote records and
+prints no customer data. Verify hashes and counts before delivery. The receipt
+does not contain credentials. Keep it with the private export; do not commit it.
+File fields contain filenames, not uploaded bytes; include a separately
+verified download of dealer logos/local files if the requested archive covers
+those assets. The JSON receipt verifies only the JSON files it lists.
+
+A live export requires the explicit `--allow-active` option. It is not suitable
+as the final offboarding archive: REST pagination is not an atomic database
+snapshot, and even stable counts cannot detect concurrent record edits.
+
+Alternatively click through the PB Admin UI (each collection → filter
+`dealer = '<id>'` → export), or use the legacy manual procedure below:
 
 ```bash
 # Authenticate as superadmin
@@ -105,13 +139,26 @@ each collection with the filter from Step 1.
 Verify: re-run the Step 1 export loop; every file should show
 `"totalItems": 0`, and the `dealers` fetch should return 404.
 
+Also remove `ai_rate_limits` counters whose `subjectType = 'dealer'` and
+`subjectId` equals the dealer ID, and whose `subjectType = 'user'` and
+`subjectId` is one of the exported user IDs. These locked internal counters
+have no dealer relation and are excluded from the dealer-data export. Use
+the PB superuser dashboard; verify the filtered counts reach zero. Audit logs
+have a separate retention policy; review any dealer/user identifiers there
+under `DATA_RETENTION_POLICY.md` rather than treating tenant deletion as an
+audit-log purge.
+
 ## Step 4 — Backups
 
-No action needed: Litestream point-in-time backups in R2 have a **14-day
-retention**, so the deleted records age out of all backup generations within
-14 days of the deletion date. Do not manually edit R2 generations.
+Litestream snapshot/LTX retention and Fly volume snapshot retention are
+configured for **14 days**. This is configuration, not evidence that old
+objects have been removed. Do not manually edit R2 backup chains. Verify
+retention is operating in both R2 and Fly, and account for isolated restore
+copies and privately delivered export archives.
 
-Full purge is therefore complete on: **deletion date + 14 days**.
+Record **deletion date + 14 days** as the expected backup expiry date. Confirm
+the evidence before marking backup purge complete; failed replication,
+retention jobs, or retained recovery volumes require investigation.
 
 ## Step 5 — Log completion
 

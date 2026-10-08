@@ -8,6 +8,7 @@ import { logDealEvent } from "../../lib/api";
 import { toast } from "../../lib/toast";
 import { applyBackendProductPatch, getBackendProductSplit } from "../../services/backendProducts";
 import { activeLenderCount, lenderFitForVehicle } from "../../services/lenderFit";
+import { scopeDealToVehicle } from "../../services/vehicleCondition";
 import { holdIncompleteFits } from "../../services/dealAssessment";
 import { getCurrentUser } from "../../lib/pocketbase";
 import type { LenderFitEntry } from "../../services/lenderFit";
@@ -84,7 +85,7 @@ const DeskScreenBase: React.FC = () => {
     loadSampleData,
   } = useDealContext();
 
-  const { handleSaveDeal } = useSaveDeal();
+  const { handleSaveDeal, isSaving } = useSaveDeal();
   const canViewProfit = ["admin", "manager", "superadmin"].includes(getCurrentUser()?.role ?? "");
   const totalLenders = activeLenderCount(safeLenderProfiles);
   const thresholds = settings.ltvThresholds;
@@ -191,7 +192,11 @@ const DeskScreenBase: React.FC = () => {
   const focusedEntries = useMemo<LenderFitEntry[]>(() => {
     if (!focused) return [];
     return holdIncompleteFits(
-      lenderFitForVehicle(focused, { ...dealData, ...filters }, safeLenderProfiles),
+      lenderFitForVehicle(
+        focused,
+        scopeDealToVehicle(focused, { ...dealData, ...filters }),
+        safeLenderProfiles
+      ),
       filters
     ).entries;
   }, [dealData, filters, focused, safeLenderProfiles]);
@@ -225,7 +230,7 @@ const DeskScreenBase: React.FC = () => {
   const applyBuyRate = useCallback(() => {
     if (!buyRate || !focused) return;
     setDeal({ interestRate: buyRate.rate });
-    toast.success(`APR set to ${buyRate.rate}% (${buyRate.lender})`);
+    toast.success(`Interest rate set to ${buyRate.rate}% (${buyRate.lender})`);
     logDealEvent("buy_rate_applied", {
       vin: focused.vin,
       snapshot: { apr: buyRate.rate, lender: buyRate.lender },
@@ -343,9 +348,8 @@ const DeskScreenBase: React.FC = () => {
     if (focused) handleSaveDeal(focused);
   }, [focused, handleSaveDeal]);
   const saveFromDealSheet = useCallback(() => {
-    setDealSheetOpen(false);
-    saveFocusedDeal();
-  }, [saveFocusedDeal]);
+    if (focused && handleSaveDeal(focused)) setDealSheetOpen(false);
+  }, [focused, handleSaveDeal]);
   const openDealSheet = useCallback(() => {
     setInspectorOpen(false);
     setDealSheetOpen(true);
@@ -444,6 +448,7 @@ const DeskScreenBase: React.FC = () => {
               filters={filters}
               setFilter={setFilter}
               dealData={dealData}
+              selectedVehicle={focused}
               setDeal={setDeal}
               buyerState={buyerState}
               aprText={aprText}
@@ -527,6 +532,7 @@ const DeskScreenBase: React.FC = () => {
               onOtherBackendChange={setOtherBackend}
               onDealSheet={openDealSheet}
               onSaveDeal={saveFocusedDeal}
+              isSaving={isSaving}
             />
           )}
         </div>
@@ -568,6 +574,7 @@ const DeskScreenBase: React.FC = () => {
             vehicle={focused}
             onClose={() => setDealSheetOpen(false)}
             onSaveToPipeline={saveFromDealSheet}
+            isSaving={isSaving}
           />
         </Suspense>
       )}

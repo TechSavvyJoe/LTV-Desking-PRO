@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { InventoryItem } from "../lib/pocketbase";
 import { queryClient } from "../lib/queryClient";
+import { announcePrivateSessionBoundary } from "../lib/privateSession";
 
 const mocks = vi.hoisted(() => ({
   isAuthenticated: vi.fn(() => true),
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   subscribeToLenderProfiles: vi.fn(() => () => {}),
   capture: vi.fn(),
   updateDealerSettings: vi.fn(),
+  updateInventoryItem: vi.fn(),
   toastError: vi.fn(),
 }));
 
@@ -34,7 +36,7 @@ vi.mock("../lib/api", () => ({
   subscribeToSavedDeals: mocks.subscribeToSavedDeals,
   subscribeToLenderProfiles: mocks.subscribeToLenderProfiles,
   updateDealerSettings: mocks.updateDealerSettings,
-  updateInventoryItem: vi.fn(),
+  updateInventoryItem: mocks.updateInventoryItem,
 }));
 
 vi.mock("../lib/auth", () => ({
@@ -142,6 +144,64 @@ describe("DealProvider derivations", () => {
       ]);
     });
     await waitFor(() => expect(ctx.inventory.map((v) => v.id)).toEqual([sold.id]));
+  });
+
+  it("rejects stale manager responses and cache setters after a same-dealer session switch", async () => {
+    const item: InventoryItem = {
+      id: "unit",
+      vin: "1HGCM82633A004352",
+      year: 2024,
+      make: "Ford",
+      model: "Escape",
+      price: 26000,
+      unitCost: 19000,
+      status: "available",
+      dealer: "dealer-test",
+      created: "",
+      updated: "",
+    };
+    mocks.getInventory.mockResolvedValue([item]);
+    let release!: (value: InventoryItem) => void;
+    mocks.updateInventoryItem.mockReturnValue(
+      new Promise<InventoryItem>((resolve) => {
+        release = resolve;
+      })
+    );
+    let manager!: ReturnType<typeof useDealContext>;
+    const mounted = renderProvider((c) => {
+      manager = c;
+    });
+    await waitFor(() => expect(manager.inventory[0]?.id).toBe("unit"));
+    let pending!: Promise<void>;
+    act(() => {
+      pending = manager.handleInventoryUpdate(item.vin, { price: 27000 });
+    });
+    act(() => {
+      // Both transitions happen before React unmount: returning to A must not revive its old request.
+      announcePrivateSessionBoundary();
+      announcePrivateSessionBoundary();
+      manager.setInventory([{ ...manager.inventory[0]!, unitCost: 99999 }]);
+    });
+    expect(queryClient.getQueryData(["dealerData", "inventory", "dealer-test"])).toBeUndefined();
+    mounted.unmount();
+    mocks.getInventory.mockResolvedValue([{ ...item, unitCost: undefined }]);
+    let sales!: ReturnType<typeof useDealContext>;
+    renderProvider((c) => {
+      sales = c;
+    });
+    await waitFor(() => expect(sales.inventory[0]?.unitCost).toBe("N/A"));
+    await act(async () => {
+      release({ ...item, price: 27000 });
+      await pending;
+    });
+    expect(sales.inventory[0]?.unitCost).toBe("N/A");
+    expect(sales.inventory[0]?.price).toBe(26000);
+    act(() => {
+      manager.setLenderProfiles([{ id: "private", name: "Private", tiers: [] }]);
+      manager.setSavedDeals([]);
+    });
+    expect(sales.lenderProfiles).toEqual([]);
+    expect(queryClient.getQueryData(["dealerData", "lenderProfiles", "dealer-test"])).toEqual([]);
   });
 
   it("persists settings once per edit in StrictMode and surfaces a null save", async () => {
