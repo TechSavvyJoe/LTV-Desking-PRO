@@ -3584,3 +3584,351 @@ select.dc-input:focus {
     min-height: 44px;
   }
 }
+
+/* Deal documents: a full worksheet preview with actions outside the paper. */
+.deal-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7, 16, 27, 0.72);
+  z-index: var(--z-modal);
+}
+.deal-sheet-modal {
+  width: min(100%, 1000px);
+  max-height: calc(100dvh - 40px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.deal-sheet-toolbar {
+  flex-shrink: 0;
+  background: #17344f;
+  color: #fff;
+  padding: 10px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.deal-sheet-toolbar h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 2px 0 0;
+}
+.deal-sheet-eyebrow {
+  color: #c8d8e8;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+.deal-sheet-close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.deal-sheet-pages {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.deal-sheet-pages button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 0;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.deal-sheet-pages button span {
+  font-size: 10px;
+  opacity: 0.85;
+}
+.deal-sheet-pages button[aria-pressed="true"] {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+.deal-sheet-page-hint {
+  margin-left: auto;
+  color: var(--color-text-subtle);
+  font-size: 11px;
+}
+.deal-sheet-preview {
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: 20px;
+  background: var(--color-bg-subtle);
+  flex: 1 1 auto;
+}
+.deal-sheet-modal .deal-pdf-page {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 20px 28px;
+  gap: 14px;
+  border: 1px solid #c7d2dd;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+  overflow: visible;
+}
+.deal-sheet-modal .deal-pdf-page .topbar {
+  padding-bottom: 14px;
+}
+.deal-sheet-modal .deal-pdf-page h1 {
+  font-size: 25px;
+}
+.deal-sheet-modal .deal-pdf-page .dealer-name {
+  font-size: 14px;
+}
+.deal-sheet-modal .deal-pdf-page .payment {
+  font-size: 38px;
+}
+.deal-sheet-modal .deal-pdf-page .financed-figure {
+  font-size: 24px;
+}
+.deal-sheet-modal .deal-pdf-page .page-footer {
+  margin-top: 8px;
+}
+.deal-sheet-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 14px 22px;
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+}
+.deal-sheet-footer-note {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--color-text);
+}
+.deal-sheet-footer-note span {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-subtle);
+  font-weight: 400;
+  margin-top: 3px;
+}
+.deal-sheet-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.deal-sheet-button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 10px 15px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 7px;
+  color: var(--color-text);
+  background: var(--color-bg-muted);
+  cursor: pointer;
+}
+.deal-sheet-download {
+  background: var(--color-bg);
+}
+.deal-sheet-save {
+  color: var(--on-primary);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.deal-sheet-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.deal-sheet-button:hover:not(:disabled),
+.deal-sheet-close:hover {
+  filter: brightness(0.94);
+}
+.deal-sheet-modal button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.deal-sheet-close:focus-visible {
+  outline-color: #fff !important;
+}
+.deal-sheet-pdf-status {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px 12px;
+  padding: 9px 12px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.deal-sheet-pdf-status strong {
+  color: var(--color-text);
+}
+.deal-sheet-pdf-status a {
+  color: var(--color-primary);
+  font-weight: 700;
+  margin-left: auto;
+}
+.deal-sheet-pdf-status[data-error="true"] {
+  border-color: var(--color-danger);
+}
+@media (max-width: 700px) {
+  .deal-sheet-backdrop {
+    padding: 8px;
+  }
+  .deal-sheet-modal {
+    max-height: calc(100dvh - 16px);
+    border-radius: 10px;
+  }
+  .deal-sheet-toolbar {
+    padding: 12px 14px;
+  }
+  .deal-sheet-pages {
+    padding: 0 14px;
+    gap: 16px;
+  }
+  .deal-sheet-page-hint {
+    display: none;
+  }
+  .deal-sheet-preview {
+    padding: 10px;
+  }
+  .deal-sheet-modal .deal-pdf-page {
+    padding: 20px 16px;
+    gap: 18px;
+  }
+  .deal-sheet-modal .deal-pdf-page .topbar {
+    gap: 10px;
+  }
+  .deal-sheet-modal .deal-pdf-page h1 {
+    font-size: 23px;
+  }
+  .deal-sheet-modal .deal-pdf-page .meta {
+    font-size: 10px;
+  }
+  .deal-sheet-modal .deal-pdf-page .document-tag {
+    display: none;
+  }
+  .deal-sheet-modal .deal-pdf-page .subtitle {
+    font-size: 11px;
+  }
+  .deal-sheet-modal .deal-pdf-page .customer-strip {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .deal-sheet-modal .deal-pdf-page .customer-strip .field:last-child {
+    grid-column: 1 / -1;
+  }
+  .deal-sheet-modal .deal-pdf-page .vehicle-strip h2 {
+    font-size: 17px;
+  }
+  .deal-sheet-modal .deal-pdf-page .vehicle-meta {
+    gap: 8px;
+  }
+  .deal-sheet-modal .deal-pdf-page .payment-band {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .deal-sheet-modal .deal-pdf-page .payment-band > :first-child {
+    grid-column: 1 / -1;
+  }
+  .deal-sheet-modal .deal-pdf-page .loan-terms {
+    gap: 16px;
+  }
+  .deal-sheet-modal .deal-pdf-page .loan-terms strong {
+    font-size: 16px;
+  }
+  .deal-sheet-modal .deal-pdf-page .financed-figure {
+    font-size: 20px;
+  }
+  .deal-sheet-modal .deal-pdf-page .pair {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .deal-sheet-modal .deal-pdf-page .lender-table {
+    display: block;
+    font-size: 12px;
+  }
+  .deal-sheet-modal .deal-pdf-page .lender-table thead {
+    display: none;
+  }
+  .deal-sheet-modal .deal-pdf-page .lender-table tbody {
+    display: grid;
+    gap: 14px;
+  }
+  .deal-sheet-modal .deal-pdf-page .lender-table tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #c7d2dd;
+    padding: 10px;
+    gap: 8px 12px;
+  }
+  .deal-sheet-modal .deal-pdf-page .lender-table td {
+    border: 0;
+    padding: 0;
+  }
+  .deal-sheet-modal .deal-pdf-page .lender-table td:nth-child(2) {
+    text-align: right;
+  }
+  .deal-sheet-modal .deal-pdf-page .lender-table td:nth-child(3),
+  .deal-sheet-modal .deal-pdf-page .lender-table td:nth-child(6),
+  .deal-sheet-modal .deal-pdf-page .lender-table td[colspan] {
+    grid-column: 1 / -1;
+  }
+  .deal-sheet-modal .deal-pdf-page .lender-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    color: #465c70;
+    margin-bottom: 3px;
+    font-weight: 600;
+  }
+  .deal-sheet-modal .deal-pdf-page .page-footer {
+    grid-template-columns: 1fr;
+  }
+  .deal-sheet-actions {
+    padding: 10px;
+    gap: 8px;
+  }
+  .deal-sheet-footer-note {
+    display: none;
+  }
+  .deal-sheet-action-buttons {
+    width: 100%;
+  }
+  .deal-sheet-button {
+    padding: 11px 10px;
+  }
+  .deal-sheet-action-buttons > :nth-child(2) {
+    flex: 1;
+  }
+}

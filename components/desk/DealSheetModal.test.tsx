@@ -237,6 +237,35 @@ describe("DealSheetModal PDF states", () => {
     });
   });
 
+  it("holds lender fits with missing customer debt in both preview and export", async () => {
+    mocks.context = {
+      ...mocks.context,
+      filters: { creditScore: 680, monthlyIncome: 5200, monthlyDebt: null },
+    };
+    mocks.checkBankEligibility.mockReturnValue({
+      eligible: true,
+      status: "eligible",
+      reasons: [],
+      matchedTier: { name: "A" },
+      evaluatedConstraints: 1,
+    });
+    renderModal();
+    await screen.findByText("Bob Maxey Ford");
+    fireEvent.click(screen.getByRole("button", { name: "02 Lender review" }));
+    expect(screen.getByText("Pending")).toBeTruthy();
+    expect(screen.getByText(/Complete customer inputs: monthly debt/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
+    await waitFor(() => expect(mocks.generateDealPdf).toHaveBeenCalledTimes(1));
+    const pdfData = mocks.generateDealPdf.mock.calls[0]?.[0];
+    expect(pdfData.vehicle.fitCount).toBe(0);
+    expect(pdfData.lenderEligibility[0]).toMatchObject({
+      eligible: false,
+      status: "pending",
+      uncheckedConstraints: ["monthly debt"],
+    });
+    expect(pdfData.dealerName).toBe("Bob Maxey Ford");
+  });
+
   it("shows coded PDF errors", async () => {
     mocks.generateDealPdf.mockRejectedValue(
       new PdfGenerationError("blank_canvas", "Canvas rendered blank.")

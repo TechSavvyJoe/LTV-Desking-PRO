@@ -119,6 +119,33 @@ test.describe("Load desk", () => {
     await expect(dealSheet).toBeVisible();
     await expect(page.locator(".desk-inspector")).toHaveAttribute("data-open", "false");
     await dealSheet.getByRole("button", { name: "Download PDF" }).click({ trial: true });
+    const topClose = dealSheet.getByRole("button", { name: "Close", exact: true }).first();
+    await expect(topClose).toBeInViewport();
+    // The modal is portaled above the app header's stacking context.
+    expect(
+      await topClose.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        return el.contains(
+          document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+        );
+      })
+    ).toBe(true);
+    const preview = dealSheet.locator(".deal-sheet-preview");
+    await preview.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await expect(dealSheet.getByText("Page 1 of 2")).toBeInViewport();
+    await expect(dealSheet.getByRole("button", { name: "Download PDF" })).toBeInViewport();
+    await dealSheet.getByRole("button", { name: "02 Lender review" }).click();
+    await expect(
+      dealSheet.getByRole("heading", { name: "Lender review", exact: true })
+    ).toBeInViewport();
+    expect(await preview.evaluate((el) => el.scrollTop)).toBe(0);
+    const lenderRow = dealSheet.locator(".lender-table tbody tr").first();
+    await expect(lenderRow.locator('[data-label="Matched program"]')).toBeVisible();
+    await expect(lenderRow.locator('[data-label="OTD cap"]')).toBeVisible();
+    await expect(lenderRow.locator('[data-label="Term range"]')).toBeVisible();
+    expect(await preview.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   });
 });
 
@@ -1277,7 +1304,19 @@ test.describe("PDF generation", () => {
       const current = JSON.parse(localStorage.getItem(key) || "{}");
       localStorage.setItem(
         key,
-        JSON.stringify({ ...current, notes: "Detailed deal note ".repeat(80) })
+        JSON.stringify({
+          ...current,
+          notes: "Detailed deal note ".repeat(80),
+          dealerDiscount: 1000,
+          manufacturerRebate: 500,
+          transactionFees: 125,
+          tradeInValue: 3000,
+          tradeInPayoff: 5000,
+          buyerState: "OH",
+          vscAmount: 2495,
+          gapAmount: 895,
+          backendProducts: 3890,
+        })
       );
     });
     await page.reload();
@@ -1287,11 +1326,15 @@ test.describe("PDF generation", () => {
     await page.getByRole("button", { name: /Deal sheet/i }).click();
     const dialog = page.getByRole("dialog", { name: "Deal sheet" });
     await expect(dialog).toBeVisible();
-    const [download] = await Promise.all([
-      page.waitForEvent("download"),
-      dialog.getByRole("button", { name: /Download PDF/i }).click(),
-    ]);
-
+    const downloadPromise = page.waitForEvent("download");
+    const errorPromise = dialog
+      .locator('.deal-sheet-pdf-status[data-error="true"]')
+      .waitFor({ state: "visible" })
+      .then(async () => {
+        throw new Error(await dialog.locator(".deal-sheet-pdf-status").innerText());
+      });
+    await dialog.getByRole("button", { name: /Download PDF/i }).click();
+    const download = await Promise.race([downloadPromise, errorPromise]);
     expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
   });
 

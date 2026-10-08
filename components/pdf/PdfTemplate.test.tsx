@@ -3,26 +3,26 @@
  */
 
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
 import type { DealPdfData, Settings } from "../../types";
 import { INTERNAL_USE_POLICY } from "./InternalUseNotice";
+import { calculateFinancials } from "../../services/calculator";
 import { PdfTemplate } from "./PdfTemplate";
 
-// Light tokens from index.css that printed paper may use.
+// Paper colors are fixed in both themes; printing never inherits dark ink.
 const PAPER_TOKENS = new Set([
   "#ffffff",
-  "#111827",
-  "#4b5563",
-  "#e5e7eb",
-  "#f3f4f6",
-  "#eef2ff",
-  "#4f46e5",
+  "#13283e",
+  "#17344f",
+  "#315a7f",
+  "#465c70",
+  "#c7d2dd",
+  "#edf2f6",
   "#15803d",
   "#dcfce7",
   "#b45309",
-  "#fef3c7",
   "#b91c1c",
   "#fee2e2",
 ]);
@@ -206,7 +206,7 @@ describe("PdfTemplate", () => {
       />
     );
 
-    expect(screen.getAllByText("Out-of-state transit fee")).toHaveLength(2);
+    expect(screen.getAllByText("Out-of-state transit fee")).toHaveLength(1);
     expect(screen.getByText("$1,885.00")).toBeTruthy();
   });
 
@@ -273,14 +273,76 @@ describe("PdfTemplate", () => {
     expect(printed).not.toContain("4,321"); // frontEndGross
   });
 
-  it("keeps paper on the light tokens with white ink on the indigo mark", () => {
+  it("keeps paper contrast and style selectors isolated from the app theme", () => {
     const { container } = render(<PdfTemplate {...data} settings={settings} />);
     const css = cssOf(container);
-
-    // The dark theme's on-primary ink (#07120e) once leaked onto paper at ~2.3:1.
-    expect(css).toMatch(/\.mark\s*\{[^}]*background:\s*#4f46e5;[^}]*color:\s*#ffffff;/);
+    expect(css).toMatch(/background: #ffffff !important; color: #13283e;/);
     expect(hexesOf(css).filter((hex) => !PAPER_TOKENS.has(hex))).toEqual([]);
     expect(unscopedSelectors(css, ".deal-pdf-page")).toEqual([]);
-    expect(container.querySelectorAll(".mark")).toHaveLength(2);
+  });
+
+  it("itemizes discounts, fees, products, rebate and negative equity without double counting", () => {
+    const edited = {
+      ...data.dealData,
+      buyerState: "OH" as const,
+      dealerDiscount: 1000,
+      manufacturerRebate: 500,
+      rebate: 9999,
+      transactionFees: 125,
+      tradeInPayoff: 5000,
+    };
+    const taxSettings = { ...settings, customTaxRate: 0 };
+    const calculated = calculateFinancials(data.vehicle, edited, taxSettings);
+    render(
+      <PdfTemplate
+        {...data}
+        dealerName="Bob Maxey Ford"
+        vehicle={calculated}
+        dealData={edited}
+        settings={taxSettings}
+      />
+    );
+    const pricing = screen.getByRole("table", { name: "Vehicle pricing and fees" });
+    const financing = screen.getByRole("table", { name: "Financing breakdown" });
+    const rowValue = (table: HTMLElement, label: string) =>
+      within(table).getByText(label).closest("tr")?.lastElementChild?.textContent;
+    expect(screen.getAllByText("Bob Maxey Ford")).toHaveLength(2);
+    expect(rowValue(pricing, "Dealer discount")).toBe("− $1,000.00");
+    expect(rowValue(pricing, "Transaction fees")).toBe("+ $125.00");
+    expect(rowValue(pricing, "Out-the-door price")).toBe("$23,970.00");
+    expect(rowValue(financing, "Total with products")).toBe("$27,860.00");
+    expect(rowValue(financing, "Negative trade equity")).toBe("+ $2,000.00");
+    expect(rowValue(financing, "Manufacturer rebate")).toBe("− $500.00");
+    expect(rowValue(financing, "Amount financed")).toBe("$28,360.00");
+    const rows = within(financing).getAllByRole("row");
+    const sum = rows
+      .filter((row) => !row.className)
+      .reduce((total, row) => {
+        const text = row.lastElementChild?.textContent ?? "";
+        const value = Number(text.replace(/[^0-9.]/g, ""));
+        return total + (text.includes("−") ? -value : value);
+      }, 0);
+    expect(sum).toBe(calculated.amountToFinance);
+  });
+
+  it("preserves unset APR and term and shows no fabricated payment or interest", () => {
+    const edited = { ...data.dealData, interestRate: "" as const, loanTerm: 0 };
+    const calculated = calculateFinancials(data.vehicle, edited, settings);
+    const { container } = render(
+      <PdfTemplate
+        {...data}
+        vehicle={calculated}
+        dealData={edited}
+        settings={settings}
+        previewPage={1}
+      />
+    );
+    expect(container.querySelectorAll("[data-pdf-page]")).toHaveLength(1);
+    expect(container.querySelector(".payment")?.textContent).toBe("— /mo");
+    expect(screen.queryByText("0.00%")).toBeNull();
+    expect(screen.getByText("Estimated loan interest").closest(".kv")?.textContent).toBe(
+      "Estimated loan interest—"
+    );
+    expect(container.textContent).not.toMatch(/FICO|Gross income|Payment-to-income/);
   });
 });

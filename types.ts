@@ -279,6 +279,7 @@ export interface LenderEligibilityStatus {
 }
 
 export interface DealPdfData {
+  dealerName?: string;
   vehicle: CalculatedVehicle;
   dealData: DealData;
   customerFilters: {
