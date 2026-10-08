@@ -5,12 +5,15 @@ import { mkdir, mkdtemp, rm, stat } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { performance } from "node:perf_hooks";
 
 const root = process.cwd();
 const binary = path.resolve(process.env.CAPACITY_PB_BIN || "backend/pocketbase");
 const base = "http://127.0.0.1:8098";
+const pbRuntimeEnvironment = { GOMEMLIMIT: "512MiB", GOMAXPROCS: "1" };
+const runtimeSettings = { ...pbRuntimeEnvironment, GOGC: "default (unset)" };
 const envelope = {
   dealers: 5,
   sessionsPerDealer: 2,
@@ -21,13 +24,78 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const samples = new Map<string, number[]>();
 let errors = 0;
 let measuredFailure: Error | undefined;
-const cancellation = new AbortController();
-process.once("SIGINT", () => cancellation.abort());
-process.once("SIGTERM", () => cancellation.abort());
+let cancellation = new AbortController();
+let running = false;
 const execFileAsync = promisify(execFile);
 const streamErrors: string[] = [];
 const resources: { rssKiB: number; cpuPercent: number }[] = [];
 const progress = { phase: "preflight", seededInventory: 0, createdInventory: 0, createdDeals: 0 };
+export interface BenchmarkContext {
+  directory: string;
+  flags: string[];
+  env: NodeJS.ProcessEnv;
+  password: string;
+}
+export interface BenchmarkLauncher {
+  name: string;
+  runtimeSettings?: Record<string, unknown>;
+  version(): string | Promise<string>;
+  prepare(context: BenchmarkContext): void | Promise<void>;
+  start(context: BenchmarkContext): ChildProcess | Promise<ChildProcess>;
+  readyMarker: string;
+  sampleResources?(child: ChildProcess): Promise<{ rssKiB: number; cpuPercent: number }>;
+  stop(child: ChildProcess): Promise<void>;
+  finalize?(): Promise<Record<string, unknown>>;
+  cleanup?(): Promise<void>;
+}
+export class BenchmarkLauncherError extends Error {
+  constructor(
+    message: string,
+    readonly details: Record<string, unknown>
+  ) {
+    super(message);
+  }
+}
+export type BenchmarkReceipt = Record<string, unknown> & { passed: boolean };
+interface RunLifecycle {
+  directory?: string;
+  child?: ChildProcess;
+  finalizationAttempted?: boolean;
+  supplemental?: Record<string, unknown>;
+}
+const nativeLauncher: BenchmarkLauncher = {
+  name: "native",
+  version: () => execFileSync(binary, ["--version"], { encoding: "utf8" }).trim(),
+  prepare: ({ flags, env, password }) => {
+    execFileSync(binary, ["migrate", "up", ...flags], { stdio: "pipe", env });
+    execFileSync(binary, ["superuser", "upsert", "benchmark@example.invalid", password, ...flags], {
+      stdio: "pipe",
+      env,
+    });
+  },
+  start: ({ flags, env }) =>
+    spawn(
+      binary,
+      ["serve", "--http=127.0.0.1:8098", ...flags, "--hooksWatch=false", "--automigrate=false"],
+      { stdio: ["ignore", "pipe", "pipe"], env }
+    ),
+  readyMarker: "Server started at http://127.0.0.1:8098",
+  sampleResources: async (child) => {
+    const { stdout } = await execFileAsync("ps", ["-o", "rss=,%cpu=", "-p", String(child.pid)], {
+      encoding: "utf8",
+    });
+    const [rssKiB, cpuPercent] = stdout.trim().split(/\s+/).map(Number);
+    assert(
+      rssKiB !== undefined &&
+        cpuPercent !== undefined &&
+        Number.isFinite(rssKiB) &&
+        Number.isFinite(cpuPercent),
+      "Invalid process resource sample"
+    );
+    return { rssKiB, cpuPercent };
+  },
+  stop,
+};
 function resourceSummary() {
   return {
     samples: resources.length,
@@ -198,7 +266,10 @@ function latencySummary() {
     })
   );
 }
-async function main() {
+async function executeBenchmark(
+  launcher: BenchmarkLauncher,
+  lifecycle: RunLifecycle
+): Promise<BenchmarkReceipt> {
   assert(
     (await stat(path.join(root, "backend/pb_hooks"))).isDirectory(),
     "Run from repository root"
@@ -206,12 +277,6 @@ async function main() {
   assert(
     (await stat(path.join(root, "backend/pb_migrations"))).isDirectory(),
     "Run from repository root"
-  );
-  const version = execFileSync(binary, ["--version"], { encoding: "utf8" }).trim();
-  assert.equal(
-    version,
-    "pocketbase version 0.39.6",
-    "Use an existing verified 0.39.6 binary via CAPACITY_PB_BIN; no download is performed"
   );
   // Refuse to connect to or kill another process. A busy port aborts before creating any data.
   const probe = createServer();
@@ -222,7 +287,14 @@ async function main() {
   await new Promise<void>((resolve, reject) =>
     probe.close((error) => (error ? reject(error) : resolve()))
   );
+  const version = await launcher.version();
+  assert.equal(
+    version,
+    "pocketbase version 0.39.6",
+    "Use an existing verified 0.39.6 binary via CAPACITY_PB_BIN; no download is performed"
+  );
   const directory = await mkdtemp(path.join(os.tmpdir(), "ltv-capacity-"));
+  lifecycle.directory = directory;
   const flags = [
     `--dir=${directory}`,
     `--migrationsDir=${path.join(root, "backend/pb_migrations")}`,
@@ -231,24 +303,17 @@ async function main() {
   ];
   let child: ChildProcess | undefined;
   let monitor: ReturnType<typeof setInterval> | undefined;
+  let samplingTask: Promise<void> | undefined;
   const streams: Stream[] = [];
   const password = "SyntheticBenchmark123!";
   try {
     await mkdir(path.join(directory, "public"));
-    const env = { PATH: process.env.PATH, TMPDIR: directory };
-    execFileSync(binary, ["migrate", "up", ...flags], { stdio: "pipe", env });
-    execFileSync(binary, ["superuser", "upsert", "benchmark@example.invalid", password, ...flags], {
-      stdio: "pipe",
-      env,
-    });
-    child = spawn(
-      binary,
-      ["serve", "--http=127.0.0.1:8098", ...flags, "--hooksWatch=false", "--automigrate=false"],
-      {
-        stdio: ["ignore", "pipe", "pipe"],
-        env,
-      }
-    );
+    const env = { PATH: process.env.PATH, TMPDIR: directory, ...pbRuntimeEnvironment };
+    const context = { directory, flags, env, password };
+    await launcher.prepare(context);
+    cancellation.signal.throwIfAborted();
+    child = await launcher.start(context);
+    lifecycle.child = child;
     let startup = "";
     let spawnError: Error | undefined;
     child.once("error", (error) => {
@@ -269,7 +334,7 @@ async function main() {
       );
       try {
         await request("/api/health");
-        if (!startup.includes("Server started at http://127.0.0.1:8098")) {
+        if (!startup.includes(launcher.readyMarker)) {
           await sleep(100);
           continue;
         }
@@ -333,20 +398,19 @@ async function main() {
       streams.push(await subscribe(session));
     }
     let sampling = false;
-    monitor = setInterval(() => {
-      if (sampling) return;
-      sampling = true;
-      void execFileAsync("ps", ["-o", "rss=,%cpu=", "-p", String(child!.pid)], { encoding: "utf8" })
-        .then(({ stdout }) => {
-          const [rss, cpu] = stdout.trim().split(/\s+/).map(Number);
-          if (rss !== undefined && cpu !== undefined)
-            resources.push({ rssKiB: rss, cpuPercent: cpu });
-        })
-        .catch(() => {})
-        .finally(() => {
-          sampling = false;
-        });
-    }, 1000);
+    if (launcher.sampleResources)
+      monitor = setInterval(() => {
+        if (sampling) return;
+        sampling = true;
+        samplingTask = launcher.sampleResources!(child!)
+          .then((sample) => {
+            resources.push(sample);
+          })
+          .catch(() => {})
+          .finally(() => {
+            sampling = false;
+          });
+      }, 1000);
     console.error("Starting 10-session measured workload.");
     progress.phase = "workload";
     const started = performance.now();
@@ -483,69 +547,153 @@ async function main() {
     }
     assert.deepEqual(streamErrors, [], "SSE stream failed during integrity probes");
     const summary = latencySummary();
-    console.log(
-      JSON.stringify(
-        {
-          passed: true,
-          version,
-          host: {
-            platform: os.platform(),
-            arch: os.arch(),
-            cpu: os.cpus()[0]?.model,
-            logicalCpus: os.cpus().length,
-            loadAverage: os.loadavg(),
-            memoryGiB: Number((os.totalmem() / 2 ** 30).toFixed(1)),
-          },
-          envelope,
-          elapsedSeconds: Number(elapsedSeconds.toFixed(3)),
-          workloadRequests: 1200,
-          workloadRequestsPerSecond: Number((1200 / elapsedSeconds).toFixed(2)),
-          errors,
-          latency: summary,
-          integrity: {
-            inventory: 1200,
-            savedDeals: 200,
-            denialProbes,
-            sseConnections: streams.length,
-            sseEvents: streams.reduce(
-              (sum, stream) => sum + [...stream.events.values()].reduce((a, b) => a + b, 0),
-              0
-            ),
-            passed: true,
-          },
-          resources: {
-            ...resourceSummary(),
-            databaseBytes: (await stat(path.join(directory, "data.db"))).size,
-          },
-        },
-        null,
-        2
-      )
-    );
+    lifecycle.finalizationAttempted = true;
+    const supplemental = launcher.finalize ? await launcher.finalize() : {};
+    lifecycle.supplemental = supplemental;
+    assert.deepEqual(streamErrors, [], "SSE stream failed during launcher verification");
+    cancellation.signal.throwIfAborted();
+    return {
+      passed: true,
+      launcher: { name: launcher.name, supplemental },
+      version,
+      runtimeSettings: launcher.runtimeSettings ?? runtimeSettings,
+      host: {
+        platform: os.platform(),
+        arch: os.arch(),
+        cpu: os.cpus()[0]?.model,
+        logicalCpus: os.cpus().length,
+        loadAverage: os.loadavg(),
+        memoryGiB: Number((os.totalmem() / 2 ** 30).toFixed(1)),
+      },
+      envelope,
+      elapsedSeconds: Number(elapsedSeconds.toFixed(3)),
+      workloadRequests: 1200,
+      workloadRequestsPerSecond: Number((1200 / elapsedSeconds).toFixed(2)),
+      errors,
+      latency: summary,
+      integrity: {
+        inventory: 1200,
+        savedDeals: 200,
+        denialProbes,
+        sseConnections: streams.length,
+        sseEvents: streams.reduce(
+          (sum, stream) => sum + [...stream.events.values()].reduce((a, b) => a + b, 0),
+          0
+        ),
+        passed: true,
+      },
+      resources: {
+        ...resourceSummary(),
+        databaseBytes: (await stat(path.join(directory, "data.db"))).size,
+      },
+    };
   } finally {
     if (monitor) clearInterval(monitor);
     for (const stream of streams) stream.controller.abort();
     await Promise.allSettled(streams.map((stream) => stream.done));
-    if (child) await stop(child);
-    await rm(directory, { recursive: true, force: true });
+    await samplingTask;
   }
 }
-main().catch((error) => {
-  console.log(
-    JSON.stringify(
-      {
+function failureReceipt(error: unknown, launcher: BenchmarkLauncher): BenchmarkReceipt {
+  return {
+    passed: false,
+    launcher: {
+      name: launcher.name,
+      supplemental: error instanceof BenchmarkLauncherError ? error.details : {},
+    },
+    runtimeSettings: launcher.runtimeSettings ?? runtimeSettings,
+    failure: error instanceof Error ? error.message : "Benchmark failed",
+    errors,
+    latency: latencySummary(),
+    hostLoadAverage: os.loadavg(),
+    progress: { ...progress },
+    resources: resourceSummary(),
+    streamErrors: [...streamErrors],
+  };
+}
+/** Fixed loopback workload. Launchers own only the processes/resources they create. */
+export async function runBenchmark(
+  launcher: BenchmarkLauncher = nativeLauncher
+): Promise<BenchmarkReceipt> {
+  assert(!running, "A benchmark is already running in this process");
+  running = true;
+  samples.clear();
+  resources.length = 0;
+  streamErrors.length = 0;
+  errors = 0;
+  measuredFailure = undefined;
+  cancellation = new AbortController();
+  Object.assign(progress, {
+    phase: "preflight",
+    seededInventory: 0,
+    createdInventory: 0,
+    createdDeals: 0,
+  });
+  const cancel = () => cancellation.abort();
+  process.once("SIGINT", cancel);
+  process.once("SIGTERM", cancel);
+  const lifecycle: RunLifecycle = {};
+  let receipt: BenchmarkReceipt;
+  const cleanupFailures: string[] = [];
+  try {
+    try {
+      receipt = await executeBenchmark(launcher, lifecycle);
+    } catch (error) {
+      receipt = failureReceipt(error, launcher);
+      if (lifecycle.supplemental)
+        receipt.launcher = { name: launcher.name, supplemental: lifecycle.supplemental };
+      if (lifecycle.child && !lifecycle.finalizationAttempted && launcher.finalize) {
+        try {
+          receipt.launcher = { name: launcher.name, supplemental: await launcher.finalize() };
+        } catch (finalizationError) {
+          receipt.launcher = {
+            name: launcher.name,
+            supplemental:
+              finalizationError instanceof BenchmarkLauncherError ? finalizationError.details : {},
+          };
+          receipt.finalizationFailure =
+            finalizationError instanceof Error
+              ? finalizationError.message
+              : "Launcher finalization failed";
+        }
+      }
+    }
+    try {
+      if (lifecycle.child) await launcher.stop(lifecycle.child);
+    } catch (error) {
+      cleanupFailures.push(error instanceof Error ? error.message : "Launcher stop failed");
+    }
+    try {
+      await launcher.cleanup?.();
+    } catch (error) {
+      cleanupFailures.push(error instanceof Error ? error.message : "Launcher cleanup failed");
+    }
+    // Preserve disposable data if owned-process cleanup failed; never delete under a possibly live server.
+    if (lifecycle.directory && cleanupFailures.length === 0) {
+      try {
+        await rm(lifecycle.directory, { recursive: true, force: true });
+      } catch (error) {
+        cleanupFailures.push(
+          error instanceof Error ? error.message : "Temporary data cleanup failed"
+        );
+      }
+    }
+    if (cleanupFailures.length)
+      return {
+        ...receipt,
         passed: false,
-        failure: error instanceof Error ? error.message : "Benchmark failed",
-        errors,
-        latency: latencySummary(),
-        hostLoadAverage: os.loadavg(),
-        progress,
-        resources: resourceSummary(),
-        streamErrors,
-      },
-      null,
-      2
-    )
-  );
-  process.exitCode = 1;
-});
+        failure: receipt.failure || "Benchmark cleanup failed",
+        cleanupFailures,
+      };
+    return receipt;
+  } finally {
+    process.removeListener("SIGINT", cancel);
+    process.removeListener("SIGTERM", cancel);
+    running = false;
+  }
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  const receipt = await runBenchmark();
+  console.log(JSON.stringify(receipt, null, 2));
+  if (!receipt.passed) process.exitCode = 1;
+}

@@ -38,17 +38,34 @@ if [ "$1" = "restore" ]; then
   exit 0
 fi
 echo replicate >> "$HARNESS_ROOT/events"
+printf '%s\n' "GOMEMLIMIT=\${GOMEMLIMIT-}" > "$HARNESS_ROOT/replicator-env"
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-exec" ]; then shift; command="$1"; fi
+  shift
+done
+# Execute the real argv command, rather than merely asserting its text.
+# Fixture paths contain no spaces; disable globbing before splitting argv.
+set -f
+set -- $command
+HARNESS_LAUNCH=supervised "$@"
 `,
     { mode: 0o700 }
   );
-  writeFileSync(join(root, "pocketbase"), '#!/bin/sh\necho plain >> "$HARNESS_ROOT/events"\n', {
-    mode: 0o700,
-  });
-  const run = (env: Record<string, string> = {}) =>
-    spawnSync("/bin/sh", [join(root, "start.sh")], {
+  writeFileSync(
+    join(root, "pocketbase"),
+    `#!/bin/sh
+if [ "$HARNESS_LAUNCH" != "supervised" ]; then echo plain >> "$HARNESS_ROOT/events"; fi
+printf '%s\n' "GOMEMLIMIT=\${GOMEMLIMIT-}" "GOGC=\${GOGC-}" > "$HARNESS_ROOT/pb-env"
+`,
+    { mode: 0o700 }
+  );
+  const run = (env: Record<string, string> = {}) => {
+    const inherited = { ...process.env };
+    delete inherited.GOGC;
+    return spawnSync("/bin/sh", [join(root, "start.sh")], {
       encoding: "utf8",
       env: {
-        ...process.env,
+        ...inherited,
         PATH: `${root}/bin:${process.env.PATH}`,
         HARNESS_ROOT: root,
         LITESTREAM_ACCESS_KEY_ID: "test",
@@ -60,6 +77,7 @@ echo replicate >> "$HARNESS_ROOT/events"
         ...env,
       },
     });
+  };
   const events = () =>
     existsSync(join(root, "events")) ? readFileSync(join(root, "events"), "utf8") : "";
   return { root, run, events, db: join(root, "pb_data/data.db") };
@@ -109,5 +127,23 @@ describe("PocketBase startup restore publication", () => {
     expect(h.events()).toBe("");
     expect(h.run({ LITESTREAM_BUCKET: "", ALLOW_NO_BACKUP: "1" }).status).toBe(0);
     expect(h.events()).toBe("plain\n");
+  });
+  it("passes the memory target to the plain PocketBase child without changing GOGC", () => {
+    const h = harness();
+    expect(h.run({ LITESTREAM_BUCKET: "", ALLOW_NO_BACKUP: "1", GOMEMLIMIT: "99MiB" }).status).toBe(
+      0
+    );
+    expect(readFileSync(join(h.root, "pb-env"), "utf8")).toBe("GOMEMLIMIT=512MiB\nGOGC=\n");
+    expect(existsSync(join(h.root, "replicator-env"))).toBe(false);
+  });
+
+  it("applies the memory target through Litestream exec without applying it to the replicator", () => {
+    const h = harness();
+    writeFileSync(h.db, "existing");
+    expect(h.run({ GOMEMLIMIT: "99MiB" }).status).toBe(0);
+    expect(readFileSync(join(h.root, "pb-env"), "utf8")).toBe("GOMEMLIMIT=512MiB\nGOGC=\n");
+    expect(readFileSync(join(h.root, "replicator-env"), "utf8")).toBe("GOMEMLIMIT=99MiB\n");
+    expect(readFileSync(h.db, "utf8")).toBe("existing");
+    expect(h.events()).toBe("replicate\n");
   });
 });

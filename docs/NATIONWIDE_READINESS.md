@@ -10,7 +10,11 @@ validation covered by the launch review.
 ## Enforced release behavior
 
 - `check.yml` runs format/types/lint/unit/coverage/build/audit, with seeded
-  real-PocketBase E2E for PRs and main. Functional E2E is not a load test.
+  real-PocketBase E2E for PRs and main. Functional E2E is not a load test. It also
+  rehearses full synthetic recovery, runs the five-dealer API/SSE workload,
+  and repeats that workload with PocketBase and Litestream in the backend image
+  under a hard one-CPU/1-GiB container limit. This short synthetic verification
+  does not establish sustained capacity, remote backup durability or an SLA.
 - `deploy-backend-fly.yml` requires the current main SHA and a successful
   main-push Verification run. It validates migrations and schema on an empty
   database and proves a second boot, snapshots the active production volume,
@@ -26,6 +30,10 @@ validation covered by the launch review.
   PocketBase is pinned at 0.39.6 and Litestream at 0.5.14 with download hashes.
   Horizontal machine scaling is blocked by the release workflow. This is
   intentional: independent SQLite volumes would be separate writers.
+- PocketBase's startup command sets a 512-MiB Go memory target independently
+  of Litestream. This is a soft garbage-collection target, not a machine memory
+  cap. Resource acceptance requires the combined processes to fit with
+  headroom under the hard container limit; default Go GC behavior is retained.
 - Missing R2 configuration and missing-database restore failures fail closed.
   `ALLOW_NO_BACKUP` and `ALLOW_FRESH_DB` remain explicit emergency/bootstrap
   bypasses. A restore candidate is published only after a successful integrity
@@ -33,17 +41,17 @@ validation covered by the launch review.
 
 ## Evidence required before expanding the pilot
 
-| Gate             | Required receipt                                                                                                                | Current repository evidence                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Release identity | main SHA, successful Verification/release runs, Fly image and Vercel deployment IDs; exact-route smoke results                  | Workflow enforcement exists; no new production release was performed during this audit                                                  |
-| Recovery         | Read-only R2 restore with transaction/time, integrity result, expected tenant counts; replacement drill RPO/RTO                 | Safe runbooks exist; the audit did not access backups or execute a live drill                                                           |
-| Uploaded files   | Verified restore of dealer logos/local files, or explicit accepted file-loss scope                                              | Isolated native full-backup drill recovered both fixture logos; R2 still replicates only `data.db`, so off-host delivery remains a gate |
-| Alert delivery   | External frontend/PB monitors, backup freshness monitor, named responder, delivered test alert                                  | Alerting runbook says nothing pages; code configuration alone cannot establish monitor activation                                       |
-| Capacity         | Concurrent import/save/read/SSE workload at declared tenant/user envelope; p95/p99 latency, errors, memory, disk and backup lag | Reproducible isolated five-dealer/ten-session workload added to CI; an overloaded Mac run timed out and establishes no supported bound  |
-| Upgrade/rollback | Version changelog review, production-shape database rehearsal, hook/rule tests, restore and rollback rehearsal                  | Fresh-db/idempotency checks exist; image rollback does not undo database migrations                                                     |
-| User lifecycle   | Authorized-admin onboarding, reset-email delivery, deactivation with an existing token, recovery/support receipt                | Admin provisioning and dealer/user active gates exist; SMTP operation is externally configured and unverified                           |
-| Cancellation     | Frozen complete export, verified hashes/counts, explicit deletion receipt, all backup/copy expiry evidence                      | Paginated read-only export tool exists; deletion and retention execution remain separate operator actions                               |
-| Commercial terms | Executed pilot agreement, support contact/response envelope, fees/user cap, retention responsibilities                          | Draft agreement uses direct invoicing; no software billing, license tier, seat cap or renewal enforcement is implemented                |
+| Gate             | Required receipt                                                                                                                | Current repository evidence                                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Release identity | main SHA, successful Verification/release runs, Fly image and Vercel deployment IDs; exact-route smoke results                  | Workflow enforcement exists; no new production release was performed during this audit                                                                                                  |
+| Recovery         | Read-only R2 restore with transaction/time, integrity result, expected tenant counts; replacement drill RPO/RTO                 | Safe runbooks exist; the audit did not access backups or execute a live drill                                                                                                           |
+| Uploaded files   | Verified restore of dealer logos/local files, or explicit accepted file-loss scope                                              | Isolated native full-backup drill recovered both fixture logos; R2 still replicates only `data.db`, so off-host delivery remains a gate                                                 |
+| Alert delivery   | External frontend/PB monitors, backup freshness monitor, named responder, delivered test alert                                  | Alerting runbook says nothing pages; code configuration alone cannot establish monitor activation                                                                                       |
+| Capacity         | Concurrent import/save/read/SSE workload at declared tenant/user envelope; p95/p99 latency, errors, memory, disk and backup lag | Five-dealer workload integrity passed in CI at `a1449df`; its 1,088.4-MiB process RSS exceeds Fly memory. Constrained combined-process verification and sustained evidence are required |
+| Upgrade/rollback | Version changelog review, production-shape database rehearsal, hook/rule tests, restore and rollback rehearsal                  | Fresh-db/idempotency checks exist; image rollback does not undo database migrations                                                                                                     |
+| User lifecycle   | Authorized-admin onboarding, reset-email delivery, deactivation with an existing token, recovery/support receipt                | Admin provisioning and dealer/user active gates exist; SMTP operation is externally configured and unverified                                                                           |
+| Cancellation     | Frozen complete export, verified hashes/counts, explicit deletion receipt, all backup/copy expiry evidence                      | Paginated read-only export tool exists; deletion and retention execution remain separate operator actions                                                                               |
+| Commercial terms | Executed pilot agreement, support contact/response envelope, fees/user cap, retention responsibilities                          | Draft agreement uses direct invoicing; no software billing, license tier, seat cap or renewal enforcement is implemented                                                                |
 
 ## Bounded engineering follow-ups
 
@@ -54,8 +62,9 @@ validation covered by the launch review.
    private configuration. Keep `/api/health` as API liveness; monitor successful
    remote backup sync independently. Test remote-write denial and delivered
    freshness alerts in an isolated environment.
-3. Add an isolated reproducible capacity benchmark and record the supported
-   envelope before increasing stores. Vertical scaling follows measurements;
+3. Retain constrained combined-process benchmark receipts with exact source
+   revision and runtime settings, then establish a sustained supported envelope
+   before increasing stores. Vertical scaling follows measurements;
    another machine requires a reviewed replication/failover design.
 4. Keep offboarding deletion as a separately reviewed operation. The new
    [read-only retention report](runbooks/retention-review.md) counts saved deals,

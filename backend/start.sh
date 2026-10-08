@@ -21,7 +21,7 @@ log() { printf "[start] %s\n" "$*"; }
 
 run_pb_plain() {
   log "WARNING: Booting plain PocketBase because ALLOW_NO_BACKUP=1 is set."
-  exec "$PB_BIN" serve \
+  exec /usr/bin/env GOMEMLIMIT=512MiB "$PB_BIN" serve \
     --http=0.0.0.0:8080 \
     --dir="$DATA_DIR" \
     --migrationsDir=/pb/pb_migrations \
@@ -106,8 +106,11 @@ if [ ! -f "$DB_PATH" ]; then
   fi
 fi
 
+# Limit only PocketBase's Go-managed memory; Litestream keeps its own environment.
+# This is a soft GC target, not a cap on the entire 1 GiB machine. Keep GOGC default.
+# Litestream parses -exec as argv, so use env rather than a shell assignment.
 # Litestream supervises PocketBase's process. Remote sync failures can retry
 # while both processes remain alive; backup freshness needs separate monitoring.
 log "Booting PocketBase under supervised Litestream replication."
-PB_COMMAND="$PB_BIN serve --http=0.0.0.0:8080 --dir=$DATA_DIR --migrationsDir=/pb/pb_migrations --hooksDir=/pb/pb_hooks --hooksWatch=false"
+PB_COMMAND="/usr/bin/env GOMEMLIMIT=512MiB $PB_BIN serve --http=0.0.0.0:8080 --dir=$DATA_DIR --migrationsDir=/pb/pb_migrations --hooksDir=/pb/pb_hooks --hooksWatch=false"
 exec "$LITESTREAM_BIN" replicate -config /pb/litestream.yml -exec "$PB_COMMAND"

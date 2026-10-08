@@ -51,17 +51,31 @@ The standard security review is scan `a2ecdd9d-f997-4c4e-89d6-081ca4287885`, bou
 - A native full ZIP backup/recovery rehearsal on 0.39.6 restored two tenants,
   their records and both uploaded logos with exact content hashes, tenant denial
   checks and SQLite integrity `ok`. The local fixture restored to ready in
-  5.095 seconds; this is not production RPO/RTO or off-host backup evidence.
+  5.095 seconds. The later CI fixture restored to ready in 1.152 seconds and
+  passed the retention report, access checks and file hashes; this is not
+  production RPO/RTO or off-host backup evidence.
   See [the rehearsal runbook](runbooks/backup-rehearsal.md).
 - A five-dealer, ten-session backend workload checks 1,200 CRUD/list requests,
   800 inventory SSE events and 80 cross-dealer denial probes. An overloaded Mac
-  attempt timed out; no capacity bound follows from it. The reproducible final
-  harness runs in CI, with receipts retained separately. Production-resource
-  and sustained-load evidence remain required. See [the workload definition](runbooks/capacity-benchmark.md).
+  attempt timed out; no capacity bound follows from it. The final harness at
+  `a1449df` passed all requests/events/probes with zero errors in CI, but the
+  backend reached 1,088.4 MiB RSS and 315% CPU on a four-CPU/15.6-GiB runner.
+  That exceeds the configured Fly memory budget before accounting for
+  Litestream or the operating system. Workload integrity passed; the proposed
+  five-dealer capacity envelope remains unaccepted. Production-resource and
+  sustained-load evidence remain required. See [the workload definition](runbooks/capacity-benchmark.md).
 - [Read-only retention reporting](runbooks/retention-review.md) adds aggregate
   saved-deal/event age visibility and explicitly opted-in global audit counts,
   with no customer payloads or disposal actions. Missing/invalid dates require
   review; live pagination is not a transactional deletion manifest.
+
+The [continuation CI run](https://github.com/TechSavvyJoe/LTV-Desking-PRO/actions/runs/37846688236)
+at source head `a1449df` passed 818 unit tests in 68 files, 67 browser tests
+(two intentional mocked-login skips), formatting, type-check, lint, build,
+coverage, audit and both operational drills. The recovery receipt's `cede514`
+is GitHub's generated PR merge checkout, rather than the source branch head.
+An independent continuation review found no merge-blocking tooling defect but
+rejected using that unconstrained workload as a production capacity claim.
 
 The operational receipts are fixture evidence. R2 delivery/freshness, restored
 production files, real capacity and commercial/jurisdiction gates remain open.
@@ -88,8 +102,9 @@ Seven specialist lanes were used, with three specialists at once: product/financ
 
 The continuation used two additional specialists: **GPT-6.1 Sol/medium** for the
 load harness and **GPT-6.1 Sol/high** for recovery, plus bounded peer checks of
-the retention/runtime guards. The earlier Astra decision applies to the earlier
-reviewed desking revision; added operational scripts receive their own CI
-verification and do not constitute nationwide release approval.
+the retention/runtime guards. The operations and Astra final-gate specialists
+were reused to review resource constraints and the added operational tooling.
+Their tooling acceptance does not establish production capacity or constitute
+nationwide release approval.
 
 The repository and this PR contain the reviewable code changes. Production deployment, legal acceptance, lender source review and live operational gates remain separate recorded decisions.
