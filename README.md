@@ -145,6 +145,11 @@ The [launch handoff](docs/LAUNCH_REVIEW_2026-10-08.md) records verified fixes an
 ## Testing & Ops Hygiene
 
 - Unit tests: `services/*.test.ts`, `lib/*.test.ts`, security/edge suites.
+- Runtime pin: the seed helper verifies PocketBase 0.39.6 **before** resetting
+  fixture data. A stale local executable is preserved and rejected; use `PB_BIN`
+  to select an existing matching binary. Missing binaries are downloaded from
+  the pinned official release and checked against the archive SHA-256. Importing
+  `seedData` does not start the CLI or reset a database.
 - E2E: `tests/e2e/auth.spec.ts` (desk, auth, inventory import, AI lender, deal save, lender match, PDF); `playwright.config.ts` with webServer. Runs in CI.
 - Coverage: `npm run test:coverage` (v8 + thresholds configured; artifact in CI).
 - Audit: `npm run audit` + dedicated CI step. Current status (2026-09-18, see docs/runbooks/secrets-rotation.md): `npm audit` reports **0 vulnerabilities at every severity** after the vitest 4→5 upgrade (the last open advisories were dev-only in the vitest/mocker chain). CI includes a dry-run audit-fix report; re-verify after any dependency change.
@@ -153,6 +158,11 @@ The [launch handoff](docs/LAUNCH_REVIEW_2026-10-08.md) records verified fixes an
 - Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — components, data model, tenant/field-confidentiality model and its known debt, recovery posture, scale limits, and the decisions to revisit.
 - CI (`.github/workflows/check.yml`): type/lint/test/coverage (v8 + thresholds + artifact)/audit + e2e (Playwright + report artifact) on every PR. Enhanced coverage + e2e hygiene.
 - Runbooks: see `docs/runbooks/README.md` (expanded index: breach response, dealer offboarding, plus quarterly dep audit notes). PostHog (deal_saved / lender_matched / pdf_generated / inventory_uploaded / sample_loaded + identify) + Sentry wired and gated.
+- Operational checks: PR/main CI runs the isolated [full-backup rehearsal](docs/runbooks/backup-rehearsal.md)
+  and [multi-dealer backend workload](docs/runbooks/capacity-benchmark.md), retaining
+  their receipts. They use synthetic loopback databases and establish neither
+  production backup delivery nor nationwide capacity. The [retention report](docs/runbooks/retention-review.md)
+  is a separate read-only review aid with no disposal actions.
 
 ## Deployment
 

@@ -105,6 +105,31 @@ jobs:
           PLAYWRIGHT_CROSS_BROWSER: "1"
           VITE_POCKETBASE_URL: "http://127.0.0.1:8090"
 
+      - name: Rehearse full backup recovery (isolated synthetic database and uploads)
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+        timeout-minutes: 3
+        run: ./node_modules/.bin/tsx backend/tools/rehearse-backup.ts --binary "$GITHUB_WORKSPACE/backend/pocketbase"
+        env:
+          TMPDIR: ${{ runner.temp }}
+
+      - name: Exercise isolated multi-dealer backend workload
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+        timeout-minutes: 5
+        run: ./node_modules/.bin/tsx scripts/capacity-benchmark.ts > "$RUNNER_TEMP/ltv-capacity-receipt.json"
+        env:
+          CAPACITY_PB_BIN: ${{ github.workspace }}/backend/pocketbase
+          TMPDIR: ${{ runner.temp }}
+
+      - name: Upload isolated operational receipts
+        if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: operational-receipts
+          path: |
+            ${{ runner.temp }}/ltv-capacity-receipt.json
+            ${{ runner.temp }}/ltv-full-backup-rehearsal-*/receipt.json
+          retention-days: 14
+
       - name: Upload E2E report (on failure or always for review)
         if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

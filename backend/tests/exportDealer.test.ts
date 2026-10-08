@@ -18,6 +18,8 @@ function harness(mode = "normal") {
   const fetcher = (async (input: URL | RequestInfo, init?: RequestInit) => {
     const url = new URL(String(input));
     calls.push(url);
+    if (mode === "invalid-json")
+      return new Response("PRIVATE_PAYLOAD is not JSON", { status: 200 });
     expect(init?.method).toBe("GET");
     expect(init?.redirect).toBe("error");
     let body: unknown = { id: "users", name: "users" };
@@ -91,6 +93,14 @@ describe("read-only dealer export", () => {
     const h = harness("denied");
     await expect(exportDealer(h.options)).rejects.toThrow("HTTP 403");
     expect(h.calls).toHaveLength(1);
+    expect(existsSync(h.output)).toBe(false);
+  });
+
+  it("does not expose malformed successful response content in an error", async () => {
+    const h = harness("invalid-json");
+    await expect(exportDealer(h.options)).rejects.toThrow(
+      "PocketBase export response was invalid JSON."
+    );
     expect(existsSync(h.output)).toBe(false);
   });
 

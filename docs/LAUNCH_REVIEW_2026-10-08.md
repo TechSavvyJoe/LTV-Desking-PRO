@@ -1,6 +1,6 @@
 # Launch review and engineering handoff
 
-Reviewed 2026-10-08, starting from `007134a` on `codex/deal-sheet-polish`, with the accompanying changes prepared for PR #27. This supersedes the earlier local audit's test counts for this revision. No production deployment or nationwide acceptance is asserted.
+Reviewed 2026-10-08, starting from `007134a` on `codex/deal-sheet-polish`, with the accompanying changes prepared for PR #27. The initial desking-repair receipt below applies to `340ec2f`; later operational additions are recorded under Engineering continuation and verified against the PR's current SHA. No production deployment or nationwide acceptance is asserted.
 
 **Decision:** the independent final reviewer accepts the reviewed code for a bounded Michigan retail-finance companion pilot. Nationwide commercial launch remains blocked by the evidence gates below. No review can establish that every possible defect is absent.
 
@@ -21,9 +21,9 @@ Reviewed 2026-10-08, starting from `007134a` on `codex/deal-sheet-polish`, with 
 
 The source-review timestamp records a dealer action; it does not prove document authenticity. Existing legacy non-sample programs have not received fabricated provenance. Source snapshots, reviewer/version history, authoritative guide/options evidence and actual lender decisions remain distinct requirements.
 
-## Verification receipt
+## Initial desking-repair verification receipt
 
-Environment: macOS arm64, Node 24.20.0, PocketBase 0.39.6, Playwright 1.61.1. Browser tests used disposable seeded local dealerships on port 8096 with the frontend on 3101; manual inspection used the existing synthetic local workspace on 3100. No production customer records or lender documents were placed in fixtures.
+Environment: macOS arm64, Node 24.20.0, Playwright 1.61.1. Initial local browser tests used disposable seeded dealerships on port 8096 with the frontend on 3101; manual inspection used the existing synthetic local workspace on 3100. A continuation discovered that the local seed helper silently accepted an older PocketBase 0.23.4 binary. The initial local runtime was incorrectly recorded as 0.39.6 here. GitHub's successful real-backend suite at `340ec2f` used the deployment-pinned 0.39.6 binary. The helper now verifies the exact runtime before any fixture database reset. No production customer records or lender documents were placed in fixtures.
 
 | Check                                      | Result                                                                                                                                                                                                                                  |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -41,6 +41,30 @@ Early new browser failures were test setup defects: a mobile drawer needed openi
 Local receipts and screenshots are under `Documents/Codex/2026-10-08/ltv-launch-review`; detailed logs remain in `/tmp/ltv-launch-complete-*.log`. CI is tracked on [PR #27](https://github.com/TechSavvyJoe/LTV-Desking-PRO/pull/27); use its current SHA/checks before merging. These local results do not confirm production state.
 
 The standard security review is scan `a2ecdd9d-f997-4c4e-89d6-081ca4287885`, bound to the original HEAD. It found two medium-severity boundary defects whose fixes are included here. Its canonical report explicitly records partial coverage; neither that scan nor this handoff claims every tracked file was fully audited. The final deferred-response repair also strengthens that session boundary.
+
+## Engineering continuation
+
+- The seed helper now refuses a mismatched PocketBase runtime before resetting
+  fixture data, verifies downloaded archive hashes, preserves existing binaries,
+  and uses argument-array subprocess calls. Exported seed functions can be
+  imported without starting the CLI. Deployment pins were not upgraded.
+- A native full ZIP backup/recovery rehearsal on 0.39.6 restored two tenants,
+  their records and both uploaded logos with exact content hashes, tenant denial
+  checks and SQLite integrity `ok`. The local fixture restored to ready in
+  5.095 seconds; this is not production RPO/RTO or off-host backup evidence.
+  See [the rehearsal runbook](runbooks/backup-rehearsal.md).
+- A five-dealer, ten-session backend workload checks 1,200 CRUD/list requests,
+  800 inventory SSE events and 80 cross-dealer denial probes. An overloaded Mac
+  attempt timed out; no capacity bound follows from it. The reproducible final
+  harness runs in CI, with receipts retained separately. Production-resource
+  and sustained-load evidence remain required. See [the workload definition](runbooks/capacity-benchmark.md).
+- [Read-only retention reporting](runbooks/retention-review.md) adds aggregate
+  saved-deal/event age visibility and explicitly opted-in global audit counts,
+  with no customer payloads or disposal actions. Missing/invalid dates require
+  review; live pagination is not a transactional deletion manifest.
+
+The operational receipts are fixture evidence. R2 delivery/freshness, restored
+production files, real capacity and commercial/jurisdiction gates remain open.
 
 ## Meaningful numbers
 
@@ -61,5 +85,11 @@ The detailed feature comparison and acceptance criteria are in [the product revi
 ## Review team and ownership
 
 Seven specialist lanes were used, with three specialists at once: product/finance, operations, security, independent security, vehicle evidence, browser quality and final release critique. Five used **GPT-6.1 Sol/high**, browser quality used **GPT-6 Luna/medium**, and the independent final gate used **GPT-6 Astra/high**. An additional **GPT-6 Luna/medium** specialist checked the surviving handoff receipts and document links after the app restart. Daybreak was unavailable; it was not represented as the executing security reviewer. Root integrated the changes and executed final checks. The roles used product-analysis, frontend-testing and security-audit skill instructions where applicable.
+
+The continuation used two additional specialists: **GPT-6.1 Sol/medium** for the
+load harness and **GPT-6.1 Sol/high** for recovery, plus bounded peer checks of
+the retention/runtime guards. The earlier Astra decision applies to the earlier
+reviewed desking revision; added operational scripts receive their own CI
+verification and do not constitute nationwide release approval.
 
 The repository and this PR contain the reviewable code changes. Production deployment, legal acceptance, lender source review and live operational gates remain separate recorded decisions.

@@ -50,7 +50,11 @@ export async function exportDealer(options: {
     // Never include response bodies (which may contain private data) in errors.
     if (!response.ok)
       throw new Error(`PocketBase export request failed (HTTP ${response.status}).`);
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      throw new Error("PocketBase export response was invalid JSON.");
+    }
   };
 
   // Schema reads require PB superuser access. App admins can receive redacted

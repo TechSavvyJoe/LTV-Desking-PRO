@@ -33,17 +33,17 @@ validation covered by the launch review.
 
 ## Evidence required before expanding the pilot
 
-| Gate             | Required receipt                                                                                                                | Current repository evidence                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Release identity | main SHA, successful Verification/release runs, Fly image and Vercel deployment IDs; exact-route smoke results                  | Workflow enforcement exists; no new production release was performed during this audit                                   |
-| Recovery         | Read-only R2 restore with transaction/time, integrity result, expected tenant counts; replacement drill RPO/RTO                 | Safe runbooks exist; the audit did not access backups or execute a live drill                                            |
-| Uploaded files   | Verified restore of dealer logos/local files, or explicit accepted file-loss scope                                              | R2 replicates only `data.db`; Fly snapshots cover volume contents                                                        |
-| Alert delivery   | External frontend/PB monitors, backup freshness monitor, named responder, delivered test alert                                  | Alerting runbook says nothing pages; code configuration alone cannot establish monitor activation                        |
-| Capacity         | Concurrent import/save/read/SSE workload at declared tenant/user envelope; p95/p99 latency, errors, memory, disk and backup lag | No multi-dealer load benchmark or supported capacity bound is recorded                                                   |
-| Upgrade/rollback | Version changelog review, production-shape database rehearsal, hook/rule tests, restore and rollback rehearsal                  | Fresh-db/idempotency checks exist; image rollback does not undo database migrations                                      |
-| User lifecycle   | Authorized-admin onboarding, reset-email delivery, deactivation with an existing token, recovery/support receipt                | Admin provisioning and dealer/user active gates exist; SMTP operation is externally configured and unverified            |
-| Cancellation     | Frozen complete export, verified hashes/counts, explicit deletion receipt, all backup/copy expiry evidence                      | Paginated read-only export tool exists; deletion and retention execution remain separate operator actions                |
-| Commercial terms | Executed pilot agreement, support contact/response envelope, fees/user cap, retention responsibilities                          | Draft agreement uses direct invoicing; no software billing, license tier, seat cap or renewal enforcement is implemented |
+| Gate             | Required receipt                                                                                                                | Current repository evidence                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Release identity | main SHA, successful Verification/release runs, Fly image and Vercel deployment IDs; exact-route smoke results                  | Workflow enforcement exists; no new production release was performed during this audit                                                  |
+| Recovery         | Read-only R2 restore with transaction/time, integrity result, expected tenant counts; replacement drill RPO/RTO                 | Safe runbooks exist; the audit did not access backups or execute a live drill                                                           |
+| Uploaded files   | Verified restore of dealer logos/local files, or explicit accepted file-loss scope                                              | Isolated native full-backup drill recovered both fixture logos; R2 still replicates only `data.db`, so off-host delivery remains a gate |
+| Alert delivery   | External frontend/PB monitors, backup freshness monitor, named responder, delivered test alert                                  | Alerting runbook says nothing pages; code configuration alone cannot establish monitor activation                                       |
+| Capacity         | Concurrent import/save/read/SSE workload at declared tenant/user envelope; p95/p99 latency, errors, memory, disk and backup lag | Reproducible isolated five-dealer/ten-session workload added to CI; an overloaded Mac run timed out and establishes no supported bound  |
+| Upgrade/rollback | Version changelog review, production-shape database rehearsal, hook/rule tests, restore and rollback rehearsal                  | Fresh-db/idempotency checks exist; image rollback does not undo database migrations                                                     |
+| User lifecycle   | Authorized-admin onboarding, reset-email delivery, deactivation with an existing token, recovery/support receipt                | Admin provisioning and dealer/user active gates exist; SMTP operation is externally configured and unverified                           |
+| Cancellation     | Frozen complete export, verified hashes/counts, explicit deletion receipt, all backup/copy expiry evidence                      | Paginated read-only export tool exists; deletion and retention execution remain separate operator actions                               |
+| Commercial terms | Executed pilot agreement, support contact/response envelope, fees/user cap, retention responsibilities                          | Draft agreement uses direct invoicing; no software billing, license tier, seat cap or renewal enforcement is implemented                |
 
 ## Bounded engineering follow-ups
 
@@ -57,9 +57,10 @@ validation covered by the launch review.
 3. Add an isolated reproducible capacity benchmark and record the supported
    envelope before increasing stores. Vertical scaling follows measurements;
    another machine requires a reviewed replication/failover design.
-4. Keep offboarding deletion as a separately reviewed operation. Implement
-   dry-run retention reporting for saved deals, deal events and audit logs;
-   the written quarterly purge currently only specifies saved deals.
+4. Keep offboarding deletion as a separately reviewed operation. The new
+   [read-only retention report](runbooks/retention-review.md) counts saved deals,
+   deal events and explicitly opted-in global audit logs. Review disposal and
+   holds separately; the written quarterly purge currently only specifies saved deals.
 5. Establish a PocketBase/Litestream version owner and changelog review
    cadence. Update all binary/hash pins together, then rehearse migration,
    hooks, quotas and recovery. Do not auto-upgrade from the current pin merely
@@ -72,7 +73,7 @@ this application's external services are configured or a commercial account
 has an appropriate plan.
 
 - [PocketBase introduction](https://pocketbase.io/docs/): currently identifies
-  0.40.4, warns pre-1.0 backward compatibility is not guaranteed, and requires
+  a newer 0.40.x release, warns pre-1.0 backward compatibility is not guaranteed, and requires
   changelog/manual migration ownership for production-critical use.
 - [PocketBase production guidance](https://pocketbase.io/docs/going-to-production/):
   recommends SMTP and rate limiting; full backups include local uploaded files.
