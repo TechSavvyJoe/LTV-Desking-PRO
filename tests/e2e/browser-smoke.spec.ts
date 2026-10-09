@@ -125,9 +125,11 @@ test.describe("Cross-browser smoke (seeded backend)", () => {
 
     await page.goto("/desk");
     await expect(page.locator('[data-screen-label="Dealer desk"]')).toBeVisible();
-    await expect(page.getByLabel("Customer")).toBeVisible();
-    await expect(page.getByLabel("FICO")).toBeVisible();
-    await expect(page.getByLabel("Search inventory")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Customer", exact: true })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "FICO", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("textbox", { name: "Search inventory", exact: true })
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Trade, taxes & advanced inputs" })
     ).toBeVisible();
