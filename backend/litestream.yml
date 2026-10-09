@@ -1,5 +1,6 @@
 # Litestream config — continuous LTX replication of PocketBase's SQLite DB
-# to a Cloudflare R2 bucket. Recovery point objective: seconds.
+# to a Cloudflare R2 bucket. Target recovery point: seconds while replication
+# is healthy; remote freshness must be measured, not inferred from uptime.
 #
 # Required Fly secrets (set via `fly secrets set …`):
 #   LITESTREAM_ACCESS_KEY_ID       R2 access key id
@@ -9,7 +10,8 @@
 #                                  (e.g. https://<accountid>.r2.cloudflarestorage.com)
 #
 # The container's start.sh wraps PocketBase with `litestream replicate -exec`
-# so a failed replicator cannot leave an apparently healthy, unprotected API.
+# so an exited replicator stops the API. Remote errors can be retried while
+# the process remains alive; heartbeat and restore checks must detect gaps.
 
 # Preserve 14 days of point-in-time recovery with daily full snapshots and
 # hourly/daily LTX compaction. Validation catches remote gaps before a restore.

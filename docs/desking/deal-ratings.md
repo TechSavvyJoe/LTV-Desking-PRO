@@ -22,3 +22,9 @@ Pareto comparison considers only deals passing all twelve checks. Another unit d
 Saved ratings carry a validated `rules-v1` snapshot. Historical structure indices remain legacy values and are not relabelled as readiness. Reopening a deal recalculates against current programs and restores its saved budget and VIN-specific costs. Sales cannot read or write manager profit inputs; financial edits by sales preserve private costs and invalidate the private saved assessment. Customer PDFs omit internal costs and gross.
 
 Implementation: `services/dealAssessment.ts`. Formula and edge-case tests: `services/dealAssessment.test.ts`. Real persistence, responsive panels and role boundaries: `tests/e2e/deal-ratings.spec.ts` and `tests/e2e/field-visibility.spec.ts`.
+
+## Program and jurisdiction boundaries
+
+A quoted rate below a known published base rate plus adder does not count as a program fit. Missing quotes remain pending when the program publishes a rate; an actual 0% program is valid. Missing financed amount stays pending, rather than being presented as a completed failure. Enter effective dates as `YYYY-MM-DD`: malformed or future dates hold a program pending. Past effective dates do not establish expiry or source verification.
+
+The tax calculator models a Michigan dealer with MI/OH/IN/IL/FL buyers, not dealers nationwide. Readiness does not establish authoritative tax, source-document authenticity, book-date, stipulation completion or funding verification. A 100% checklist is twelve configured checks passed, not a lender approval or national compliance certificate. Book values lack guide/version/options provenance; new/used/certified condition and manual overrides are scoped per VIN. Imported or edited programs stay pending for source review; supplied expiration dates are enforced, while a blank expiry remains unknown. See `docs/MODEL_CARD.md` for these limitations and the distinction between estimated nominal-rate payments and disclosure APR.

@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { getCurrentDealerId } from "./pocketbase";
+import { AUTH_IDENTITY_CHANGED_EVENT } from "./privateSession";
 
 /**
  * Configured QueryClient for the application.
@@ -25,6 +26,11 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Role-filtered server data must never survive an authentication boundary.
+if (typeof window !== "undefined") {
+  window.addEventListener(AUTH_IDENTITY_CHANGED_EVENT, () => queryClient.clear());
+}
 
 // Query keys for cache invalidation + useQuery / fetchQuery.
 export const queryKeys = {

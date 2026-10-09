@@ -1,20 +1,12 @@
-import React, { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { calculateMonthlyPayment, calculateLoanAmount } from "../services/calculator";
 import { formatCurrency } from "./common/TableCell";
 import * as Icons from "./common/Icons";
 import { DealData, CalculatedVehicle, LenderProfile, FilterData } from "../types";
 import { DocumentScanner } from "./DocumentScanner";
 import { useRovingTabs } from "../hooks/useRovingTabs";
-
-// Lazy load heavy chart components (recharts) so the library is only fetched
-// when the Analytics tab is opened inside the already-lazy FinanceTools.
-// This further splits recharts out of the FinanceTools chunk for better perf.
-const PaymentBreakdownChart = lazy(() =>
-  import("./DealCharts").then((m) => ({ default: m.PaymentBreakdownChart }))
-);
-const LenderComparisonChart = lazy(() =>
-  import("./DealCharts").then((m) => ({ default: m.LenderComparisonChart }))
-);
+// FinanceTools is already a lazy route, including its lightweight native charts.
+import { PaymentBreakdownChart, LenderComparisonChart } from "./DealCharts";
 
 // Hoisted + memoized presentational components (were defined inside FinanceTools
 // causing fresh function identities on every render of the tools panel).
@@ -192,18 +184,36 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     return () => media.removeEventListener?.("change", syncIsNarrowNav);
   }, []);
 
-  // --- Defaults from Props ---
-  const defaultPrice = typeof activeVehicle?.price === "number" ? activeVehicle.price : 30000;
-  const defaultRate = dealData?.interestRate || 7.99;
-  const defaultTermVal = dealData?.loanTerm || 72;
+  // Calculator values are copied once and only refreshed by an explicit action.
+  const finite = (value: unknown): number | "" =>
+    typeof value === "number" && Number.isFinite(value) ? value : "";
+  const deskSource =
+    activeVehicle && dealData
+      ? {
+          vin: activeVehicle.vin,
+          stock: activeVehicle.stock,
+          amount: finite(activeVehicle.amountToFinance),
+          rate: finite(dealData.interestRate),
+          term: finite(dealData.loanTerm),
+          down: finite(dealData.downPayment),
+          budget: finite(customerFilters?.maxPayment),
+          income: finite(customerFilters?.monthlyIncome),
+        }
+      : null;
+  const [copiedSource, setCopiedSource] = useState(deskSource);
+  const [edited, setEdited] = useState(false);
+  const deskChanged = JSON.stringify(deskSource) !== JSON.stringify(copiedSource);
+  const defaultPrice = deskSource?.amount ?? "";
+  const defaultRate = deskSource?.rate ?? "";
+  const defaultTermVal = Number(deskSource?.term) || 0;
 
   // --- Reserve Calculator State ---
   const [resAmount, setResAmount] = useState<number | "">(defaultPrice);
-  const [buyRate, setBuyRate] = useState<number | "">(defaultRate);
-  const [sellRate, setSellRate] = useState<number | "">(defaultRate + 2);
+  const [buyRate, setBuyRate] = useState<number | "">("");
+  const [sellRate, setSellRate] = useState<number | "">("");
   const [resTerm, setResTerm] = useState<number>(defaultTermVal);
-  const [splitPercent, setSplitPercent] = useState<number | "">(70);
-  const [flatPercent, setFlatPercent] = useState<number | "">(2.0);
+  const [splitPercent, setSplitPercent] = useState<number | "">("");
+  const [flatPercent, setFlatPercent] = useState<number | "">("");
 
   // --- Payment Calculator State ---
   const [payAmount, setPayAmount] = useState<number | "">(defaultPrice);
@@ -211,41 +221,40 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const [payTerm, setPayTerm] = useState<number>(defaultTermVal);
 
   // --- Budget Calculator State ---
-  const [budgetPmt, setBudgetPmt] = useState<number | "">(450);
+  const [budgetPmt, setBudgetPmt] = useState<number | "">(finite(customerFilters?.maxPayment));
   const [budgetRate, setBudgetRate] = useState<number | "">(defaultRate);
   const [budgetTerm, setBudgetTerm] = useState<number>(defaultTermVal);
-  const [budgetDown, setBudgetDown] = useState<number | "">(2000);
+  const [budgetDown, setBudgetDown] = useState<number | "">(finite(dealData?.downPayment));
 
   // --- Compare State ---
   const [compAmount, setCompAmount] = useState<number | "">(defaultPrice);
   const [compRate, setCompRate] = useState<number | "">(defaultRate);
 
   // --- Qualify (PTI) State ---
-  const [qualPmt, setQualPmt] = useState<number | "">(550);
-  const [qualIncome, setQualIncome] = useState<number | "">(4000);
-  const [qualLimit, setQualLimit] = useState<number | "">(15);
+  const [qualPmt, setQualPmt] = useState<number | "">("");
+  const [qualIncome, setQualIncome] = useState<number | "">(finite(customerFilters?.monthlyIncome));
+  const [qualLimit, setQualLimit] = useState<number | "">("");
 
   // --- Max Approval State ---
-  const [maxAppAmount, setMaxAppAmount] = useState<number | "">(30000);
-  const [maxAppTax, setMaxAppTax] = useState<number | "">(6.0);
-  const [maxAppFees, setMaxAppFees] = useState<number | "">(300);
-  const [maxAppDown, setMaxAppDown] = useState<number | "">(1000);
-  const [maxAppTradeEq, setMaxAppTradeEq] = useState<number | "">(0);
+  const [maxAppAmount, setMaxAppAmount] = useState<number | "">("");
+  const [maxAppTax, setMaxAppTax] = useState<number | "">("");
+  const [maxAppFees, setMaxAppFees] = useState<number | "">("");
+  const [maxAppDown, setMaxAppDown] = useState<number | "">(finite(dealData?.downPayment));
+  const [maxAppTradeEq, setMaxAppTradeEq] = useState<number | "">("");
 
   // --- Warranty Analysis State ---
-  const [warrCostMo, setWarrCostMo] = useState<number | "">(40);
-  const [warrTerm, setWarrTerm] = useState<number>(60);
-  const [warrRepairCost, setWarrRepairCost] = useState<number | "">(4000);
+  const [warrCostMo, setWarrCostMo] = useState<number | "">("");
+  const [warrTerm, setWarrTerm] = useState<number>(defaultTermVal);
+  const [warrRepairCost, setWarrRepairCost] = useState<number | "">("");
 
   // --- Document Scanner State ---
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const handleSyncToDeal = () => {
     if (!dealData || !activeVehicle) return;
-    const price = typeof activeVehicle.price === "number" ? activeVehicle.price : 30000;
     // A cleared APR arrives as "" at runtime (the DealData type lies). The old
     // code string-concatenated it: "" + 2 → "2" → a fabricated 2% sell rate fed
-    // into the reserve calc. Skip rate syncing when no real rate exists. [C-modals]
+    // into the reserve calc. Clear rates when no real rate exists. [C-modals]
     const rawRate = dealData.interestRate as number | "";
     const rate = typeof rawRate === "number" && Number.isFinite(rawRate) ? rawRate : null;
     const term = dealData.loanTerm;
@@ -253,27 +262,50 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     // Sync the financed amount, not the sticker price, into the reserve calc —
     // reserve is earned on the amount financed.
     const principal =
-      typeof activeVehicle.amountToFinance === "number" ? activeVehicle.amountToFinance : price;
+      typeof activeVehicle.amountToFinance === "number" &&
+      Number.isFinite(activeVehicle.amountToFinance)
+        ? activeVehicle.amountToFinance
+        : "";
 
     setResAmount(principal);
-    if (rate !== null) {
-      setBuyRate(rate);
-      setSellRate(rate + 2);
-      setPayRate(rate);
-      setBudgetRate(rate);
-      setCompRate(rate);
-    }
+    // The desk quote does not establish contractual lender compensation terms.
+    setBuyRate("");
+    setSellRate("");
+    setSplitPercent("");
+    setFlatPercent("");
+    setPayRate(rate ?? "");
+    setBudgetRate(rate ?? "");
+    setCompRate(rate ?? "");
     setResTerm(term);
 
-    setPayAmount(price);
+    setPayAmount(principal);
     setPayTerm(term);
 
     setBudgetTerm(term);
+    setBudgetPmt(finite(customerFilters?.maxPayment));
+    setBudgetDown(finite(dealData.downPayment));
+    setQualIncome(finite(customerFilters?.monthlyIncome));
+    setMaxAppDown(finite(dealData.downPayment));
+    setWarrTerm(term);
 
-    setCompAmount(price);
+    setCompAmount(principal);
+    setCopiedSource(deskSource);
+    setEdited(false);
   };
 
   // --- Calculations ---
+  const reserveComplete =
+    [resAmount, buyRate, sellRate, splitPercent, flatPercent].every(
+      (value) => typeof value === "number" && Number.isFinite(value) && value >= 0
+    ) &&
+    Number(resAmount) > 0 &&
+    Number.isInteger(resTerm) &&
+    resTerm > 0 &&
+    resTerm <= 120 &&
+    Number(buyRate) <= 50 &&
+    Number(sellRate) <= 50 &&
+    Number(splitPercent) <= 100 &&
+    Number(flatPercent) <= 100;
   const reserveStats = useMemo(() => {
     const principal = Number(resAmount) || 0;
     const t = Number(resTerm) || 0;
@@ -304,6 +336,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   }, [resAmount, buyRate, sellRate, resTerm, splitPercent, flatPercent]);
 
   const paymentResult = useMemo(() => {
+    if (payAmount === "" || payRate === "") return "N/A";
     const p = Number(payAmount) || 0;
     const r = Number(payRate) || 0;
     const t = Number(payTerm) || 0;
@@ -311,6 +344,8 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   }, [payAmount, payRate, payTerm]);
 
   const budgetResult = useMemo(() => {
+    if (budgetPmt === "" || budgetRate === "" || budgetDown === "")
+      return { maxLoan: "N/A" as const, maxPrice: "N/A" as const };
     const pmt = Number(budgetPmt) || 0;
     const r = Number(budgetRate) || 0;
     const t = Number(budgetTerm) || 0;
@@ -318,7 +353,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
 
     const maxLoan = calculateLoanAmount(pmt, r, t);
 
-    if (typeof maxLoan !== "number") return { maxLoan: 0, maxPrice: 0 };
+    if (typeof maxLoan !== "number") return { maxLoan: maxLoan, maxPrice: maxLoan };
 
     const maxPrice = maxLoan + down;
     return { maxLoan, maxPrice };
@@ -327,10 +362,11 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const compareResults = useMemo(() => {
     const p = Number(compAmount) || 0;
     const r = Number(compRate) || 0;
-    const terms = [24, 36, 48, 54, 60, 66, 72, 75, 84];
+    const terms = [24, 36, 48, 54, 60, 66, 72, 75, 84, 96];
     return terms.map((t) => ({
       term: t,
-      payment: calculateMonthlyPayment(p, r, t),
+      payment:
+        compAmount === "" || compRate === "" ? ("N/A" as const) : calculateMonthlyPayment(p, r, t),
     }));
   }, [compAmount, compRate]);
 
@@ -338,13 +374,33 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     const pmt = Number(qualPmt) || 0;
     const inc = Number(qualIncome) || 0;
     const limit = Number(qualLimit) || 0;
-    if (inc <= 0) return { ratio: 0, status: "N/A" };
+    if (
+      qualPmt === "" ||
+      qualIncome === "" ||
+      qualLimit === "" ||
+      inc <= 0 ||
+      pmt < 0 ||
+      limit <= 0 ||
+      limit > 100
+    )
+      return { ratio: null, status: "Inputs needed" };
     const ratio = (pmt / inc) * 100;
-    const status = ratio <= limit ? "Qualified" : "Over Limit";
+    const status = ratio <= limit ? "Within entered PTI limit" : "Over entered PTI limit";
     return { ratio, status };
   }, [qualPmt, qualIncome, qualLimit]);
 
   const maxApprovalResult = useMemo(() => {
+    if (
+      [maxAppAmount, maxAppTax, maxAppFees, maxAppDown, maxAppTradeEq].some(
+        (value) => value === "" || !Number.isFinite(value)
+      ) ||
+      Number(maxAppAmount) <= 0 ||
+      Number(maxAppTax) < 0 ||
+      Number(maxAppTax) > 100 ||
+      Number(maxAppFees) < 0 ||
+      Number(maxAppDown) < 0
+    )
+      return "N/A" as const;
     const approval = Number(maxAppAmount) || 0;
     const tax = Number(maxAppTax) || 0;
     const fees = Number(maxAppFees) || 0;
@@ -359,6 +415,20 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   }, [maxAppAmount, maxAppTax, maxAppFees, maxAppDown, maxAppTradeEq]);
 
   const warrantyAnalysis = useMemo(() => {
+    if (
+      [warrCostMo, warrRepairCost].some(
+        (value) => value === "" || !Number.isFinite(value) || Number(value) < 0
+      ) ||
+      warrTerm <= 0
+    )
+      return {
+        totalWarrantyCost: "N/A" as const,
+        potentialSavings: "N/A" as const,
+        isPositive: false,
+        complete: false,
+        costShare: 0,
+        repairShare: 0,
+      };
     const costMo = Number(warrCostMo) || 0;
     const term = Number(warrTerm) || 0;
     const repairCost = Number(warrRepairCost) || 0;
@@ -367,7 +437,15 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     const potentialSavings = repairCost - totalWarrantyCost;
     const isPositive = potentialSavings > 0;
 
-    return { totalWarrantyCost, potentialSavings, isPositive };
+    const combined = totalWarrantyCost + repairCost;
+    return {
+      totalWarrantyCost,
+      potentialSavings,
+      isPositive,
+      complete: true,
+      costShare: combined > 0 ? (totalWarrantyCost / combined) * 100 : 0,
+      repairShare: combined > 0 ? (repairCost / combined) * 100 : 0,
+    };
   }, [warrCostMo, warrTerm, warrRepairCost]);
 
   // One-sentence summary of whatever the active tool is showing, for the
@@ -375,9 +453,13 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const resultSummary = useMemo(() => {
     switch (activeTab) {
       case "reserve":
-        return `Total reserve ${formatCurrency(reserveStats.totalReserve)}. Split ${splitPercent} percent ${formatCurrency(reserveStats.dealerSplit)}. Flat ${flatPercent} percent ${formatCurrency(reserveStats.flatFee)}. ${
-          reserveStats.dealerSplit >= reserveStats.flatFee ? "Split" : "Flat"
-        } is higher.`;
+        if (!reserveComplete)
+          return "Complete the amount, rates, split and flat fee to compare estimates.";
+        return `Interest spread estimate ${formatCurrency(reserveStats.totalReserve)}. Split ${splitPercent} percent ${formatCurrency(reserveStats.dealerSplit)}. Flat ${flatPercent} percent ${formatCurrency(reserveStats.flatFee)}. ${
+          reserveStats.dealerSplit === reserveStats.flatFee
+            ? "Estimates are equal"
+            : `${reserveStats.dealerSplit > reserveStats.flatFee ? "Split" : "Flat"} is higher`
+        }.`;
       case "payment":
         return `Monthly payment ${formatCurrency(paymentResult)}.`;
       case "budget":
@@ -387,7 +469,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
           .map((r) => `${r.term} months ${formatCurrency(r.payment)}`)
           .join(". ");
       case "qualify":
-        return `Payment-to-income ratio ${qualifyResult.ratio.toFixed(1)} percent. ${qualifyResult.status}.`;
+        return `Payment-to-income ratio ${qualifyResult.ratio?.toFixed(1) ?? "—"} percent. ${qualifyResult.status}.`;
       case "max":
         return `Max vehicle price ${formatCurrency(maxApprovalResult)}, before tax and fees.`;
       case "warranty":
@@ -398,6 +480,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   }, [
     activeTab,
     reserveStats,
+    reserveComplete,
     splitPercent,
     flatPercent,
     paymentResult,
@@ -458,29 +541,87 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             </button>
           ))}
         </div>
-        {dealData && (
-          <div className="finance-tools-reset p-4 border-t border-[var(--color-border)]">
-            <button
-              onClick={handleSyncToDeal}
-              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)] transition-colors duration-[var(--duration-fast)]"
-            >
-              <Icons.ArrowPathIcon className="w-3.5 h-3.5" />
-              Reset to active deal
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Main Content */}
       <div className="finance-tools-main flex-1 flex flex-col bg-transparent">
-        <div className="finance-tools-content flex-1 p-6" {...tabs.getPanelProps(activeTab)}>
+        {activeTab !== "analytics" && activeTab !== "notes" && (
+          <section
+            aria-label="Calculator source"
+            className="p-3 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-xs text-[var(--color-text)]"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <strong>
+                  {copiedSource
+                    ? `Copied from stock ${copiedSource.stock}`
+                    : "Independent calculator · no desk values copied"}
+                </strong>
+                {copiedSource && (
+                  <p className="mt-1 text-[var(--color-text-muted)]">
+                    VIN {copiedSource.vin} · Financed{" "}
+                    {formatCurrency(copiedSource.amount === "" ? "N/A" : copiedSource.amount)}
+                    {" · Interest rate "}
+                    {copiedSource.rate === "" ? "unknown" : `${copiedSource.rate}%`}
+                    {" · Term "}
+                    {copiedSource.term === "" || copiedSource.term <= 0
+                      ? "unknown"
+                      : `${copiedSource.term} mo`}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleSyncToDeal}
+                disabled={!deskSource}
+                aria-describedby={!deskSource ? "finance-source-unavailable" : undefined}
+                className="px-3 py-1.5 border border-[var(--color-border)] rounded font-medium hover:bg-[var(--color-bg-muted)] disabled:opacity-50"
+              >
+                Use current desk values
+              </button>
+            </div>
+            <p role="status" className="mt-1 text-[var(--color-text-muted)]">
+              {edited
+                ? "Calculator inputs edited."
+                : copiedSource
+                  ? "Using copied desk values."
+                  : "Enter values to calculate."}
+              {deskChanged &&
+                " Desk values changed; calculator inputs are preserved until you use current desk values."}
+              {deskChanged &&
+                deskSource &&
+                ` Current desk: stock ${deskSource.stock}, VIN ${deskSource.vin}.`}
+            </p>
+            {!deskSource && (
+              <p id="finance-source-unavailable" className="mt-1">
+                Select a vehicle on the desk to copy its values.
+              </p>
+            )}
+            <p className="mt-1 text-[var(--color-text-muted)]">
+              Copying desk values clears reserve rates, split and flat fee. Enter contractual terms
+              separately.
+            </p>
+          </section>
+        )}
+        <div
+          className="finance-tools-content flex-1 p-6"
+          {...tabs.getPanelProps(activeTab)}
+          onChangeCapture={(event) => {
+            if (
+              event.target instanceof HTMLInputElement ||
+              event.target instanceof HTMLSelectElement
+            )
+              setEdited(true);
+          }}
+        >
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-semibold text-[var(--color-text)]">
                 {navItems.find((n) => n.id === activeTab)?.label}
               </h2>
               <p className="text-sm text-[var(--color-text-muted)]">
-                {activeTab === "reserve" && "Calculate dealer reserve and splits."}
+                {activeTab === "reserve" &&
+                  "Compare interest-spread and flat-fee estimates. Actual reserve depends on the lender’s agreement."}
                 {activeTab === "payment" && "Estimate monthly payments."}
                 {activeTab === "budget" && "Find max loan from monthly budget."}
                 {activeTab === "compare" && "Compare terms side-by-side."}
@@ -495,38 +636,22 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             {activeTab === "analytics" && dealData && (
               <div className="space-y-6">
                 <div className="p-4 bg-[var(--color-bg-subtle)] rounded-md border border-[var(--color-border)]">
-                  <h4 className="font-semibold text-[var(--color-text)] mb-4">Payment breakdown</h4>
-                  <Suspense
-                    fallback={
-                      <div className="h-64 flex items-center justify-center text-[var(--color-text-muted)] text-sm">
-                        Loading chart…
-                      </div>
-                    }
-                  >
-                    <PaymentBreakdownChart
-                      dealData={dealData}
-                      activeVehicle={activeVehicle || null}
-                    />
-                  </Suspense>
+                  <h3 className="font-semibold text-[var(--color-text)] mb-4">Payment breakdown</h3>
+                  <PaymentBreakdownChart
+                    dealData={dealData}
+                    activeVehicle={activeVehicle || null}
+                  />
                 </div>
                 <div className="p-4 bg-[var(--color-bg-subtle)] rounded-md border border-[var(--color-border)]">
-                  <h4 className="font-semibold text-[var(--color-text)] mb-4">
+                  <h3 className="font-semibold text-[var(--color-text)] mb-4">
                     Matched lender payments (est.)
-                  </h4>
-                  <Suspense
-                    fallback={
-                      <div className="h-64 flex items-center justify-center text-[var(--color-text-muted)] text-sm">
-                        Loading chart…
-                      </div>
-                    }
-                  >
-                    <LenderComparisonChart
-                      dealData={dealData}
-                      activeVehicle={activeVehicle || null}
-                      lenderProfiles={lenderProfiles}
-                      customerFilters={customerFilters}
-                    />
-                  </Suspense>
+                  </h3>
+                  <LenderComparisonChart
+                    dealData={dealData}
+                    activeVehicle={activeVehicle || null}
+                    lenderProfiles={lenderProfiles}
+                    customerFilters={customerFilters}
+                  />
                 </div>
               </div>
             )}
@@ -549,7 +674,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       value={resTerm}
                       onChange={(e) => setResTerm(Number(e.target.value))}
                     >
-                      {[36, 48, 54, 60, 66, 72, 75, 84].map((t) => (
+                      <option value={0} disabled>
+                        Select term
+                      </option>
+                      {[24, 36, 48, 54, 60, 66, 72, 75, 84, 96].map((t) => (
                         <option key={t} value={t}>
                           {t} Months
                         </option>
@@ -601,13 +729,19 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   </InputGroup>
                 </div>
 
+                {!reserveComplete && (
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    Enter contractual buy and sell rates, split and flat fee to compare estimates.
+                    Blank terms are unknown; 0 is valid.
+                  </p>
+                )}
                 <div className="space-y-3 pt-4 border-t border-[var(--color-border)]">
                   <ResultDisplay
-                    label="Total reserve"
-                    value={formatCurrency(reserveStats.totalReserve)}
+                    label="Interest spread estimate"
+                    value={formatCurrency(reserveComplete ? reserveStats.totalReserve : "N/A")}
                     valueColorClass="text-[var(--color-text)]"
                   />
-                  {reserveStats.sellBelowBuy && (
+                  {reserveComplete && reserveStats.sellBelowBuy && (
                     <p role="alert" className="text-xs font-medium text-[var(--color-warning)]">
                       Sell rate is below the buy rate — reserve would be negative. Reserve shown as
                       $0.
@@ -616,44 +750,48 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   <div className="grid grid-cols-2 gap-4">
                     <div
                       className={`p-4 rounded-md border transition-colors ${
-                        reserveStats.dealerSplit >= reserveStats.flatFee
+                        reserveComplete && reserveStats.dealerSplit > reserveStats.flatFee
                           ? "bg-[var(--color-success-subtle)] border-[var(--color-success)]/30"
                           : "bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                       }`}
                     >
-                      <p className="text-xs font-medium text-[var(--color-success)] mb-1 flex items-center gap-1.5">
-                        Split ({splitPercent}%)
-                        {reserveStats.dealerSplit >= reserveStats.flatFee && <HigherBadge />}
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1 flex items-center gap-1.5">
+                        Split ({splitPercent === "" ? "unknown" : `${splitPercent}%`})
+                        {reserveComplete && reserveStats.dealerSplit > reserveStats.flatFee && (
+                          <HigherBadge />
+                        )}
                       </p>
                       <p
                         className={`text-2xl font-semibold tabular-nums ${
-                          reserveStats.dealerSplit >= reserveStats.flatFee
+                          reserveComplete && reserveStats.dealerSplit > reserveStats.flatFee
                             ? "text-[var(--color-success)]"
                             : "text-[var(--color-text)]"
                         }`}
                       >
-                        {formatCurrency(reserveStats.dealerSplit)}
+                        {formatCurrency(reserveComplete ? reserveStats.dealerSplit : "N/A")}
                       </p>
                     </div>
                     <div
                       className={`p-4 rounded-md border transition-colors ${
-                        reserveStats.flatFee > reserveStats.dealerSplit
+                        reserveComplete && reserveStats.flatFee > reserveStats.dealerSplit
                           ? "bg-[var(--color-success-subtle)] border-[var(--color-success)]/30"
                           : "bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                       }`}
                     >
-                      <p className="text-xs font-medium text-[var(--color-success)] mb-1 flex items-center gap-1.5">
-                        Flat ({flatPercent}%)
-                        {reserveStats.flatFee > reserveStats.dealerSplit && <HigherBadge />}
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1 flex items-center gap-1.5">
+                        Flat ({flatPercent === "" ? "unknown" : `${flatPercent}%`})
+                        {reserveComplete && reserveStats.flatFee > reserveStats.dealerSplit && (
+                          <HigherBadge />
+                        )}
                       </p>
                       <p
                         className={`text-2xl font-semibold tabular-nums ${
-                          reserveStats.flatFee > reserveStats.dealerSplit
+                          reserveComplete && reserveStats.flatFee > reserveStats.dealerSplit
                             ? "text-[var(--color-success)]"
                             : "text-[var(--color-text)]"
                         }`}
                       >
-                        {formatCurrency(reserveStats.flatFee)}
+                        {formatCurrency(reserveComplete ? reserveStats.flatFee : "N/A")}
                       </p>
                     </div>
                   </div>
@@ -691,7 +829,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                         value={payTerm}
                         onChange={(e) => setPayTerm(Number(e.target.value))}
                       >
-                        {[36, 48, 60, 72, 84].map((t) => (
+                        <option value={0} disabled>
+                          Select term
+                        </option>
+                        {[24, 36, 48, 54, 60, 66, 72, 75, 84, 96].map((t) => (
                           <option key={t} value={t}>
                             {t} Months
                           </option>
@@ -739,7 +880,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       value={budgetTerm}
                       onChange={(e) => setBudgetTerm(Number(e.target.value))}
                     >
-                      {[36, 48, 54, 60, 66, 72, 75, 84].map((t) => (
+                      <option value={0} disabled>
+                        Select term
+                      </option>
+                      {[24, 36, 48, 54, 60, 66, 72, 75, 84, 96].map((t) => (
                         <option key={t} value={t}>
                           {t} Months
                         </option>
@@ -868,9 +1012,9 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                 <div className="pt-6 border-t border-[var(--color-border)]">
                   <ResultDisplay
                     label="PTI ratio"
-                    value={`${qualifyResult.ratio.toFixed(1)}%`}
+                    value={`${qualifyResult.ratio?.toFixed(1) ?? "—"}%`}
                     valueColorClass={
-                      qualifyResult.status === "Qualified"
+                      qualifyResult.status === "Within entered PTI limit"
                         ? "text-[var(--color-success)]"
                         : "text-[var(--color-danger)]"
                     }
@@ -997,12 +1141,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       <div
                         className="h-full bg-[var(--color-primary)] rounded-full"
                         style={{
-                          width: `${Math.min(
-                            100,
-                            (warrantyAnalysis.totalWarrantyCost /
-                              (warrantyAnalysis.totalWarrantyCost + Number(warrRepairCost))) *
-                              100
-                          )}%`,
+                          width: `${warrantyAnalysis.costShare}%`,
                         }}
                       />
                     </div>
@@ -1010,21 +1149,18 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
 
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium">
-                      <span className="text-[var(--color-text-muted)]">Est. repair risk</span>
+                      <span className="text-[var(--color-text-muted)]">
+                        Entered repair estimate
+                      </span>
                       <span className="text-[var(--color-text)]">
-                        {formatCurrency(Number(warrRepairCost))}
+                        {formatCurrency(warrantyAnalysis.complete ? Number(warrRepairCost) : "N/A")}
                       </span>
                     </div>
                     <div className="h-2 bg-[var(--color-bg-muted)] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-[var(--color-danger)] rounded-full"
                         style={{
-                          width: `${Math.min(
-                            100,
-                            (Number(warrRepairCost) /
-                              (warrantyAnalysis.totalWarrantyCost + Number(warrRepairCost))) *
-                              100
-                          )}%`,
+                          width: `${warrantyAnalysis.repairShare}%`,
                         }}
                       />
                     </div>
@@ -1050,9 +1186,11 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                       {formatCurrency(warrantyAnalysis.potentialSavings)}
                     </p>
                     <p className="text-xs mt-1 opacity-80 text-[var(--color-text-muted)]">
-                      {warrantyAnalysis.isPositive
-                        ? "It's cheaper to protect the vehicle."
-                        : "Warranty cost exceeds estimated repairs."}
+                      {!warrantyAnalysis.complete
+                        ? "Enter product cost, term and an estimated covered repair cost."
+                        : warrantyAnalysis.isPositive
+                          ? "Entered repair estimate exceeds product cost. Confirm coverage, exclusions and deductibles."
+                          : "Product cost exceeds the entered repair estimate."}
                     </p>
                   </div>
                 </div>

@@ -16,6 +16,7 @@ import { confirmAction } from "../lib/confirm";
 import { MI_DOC_FEE_WARN_THRESHOLD, INITIAL_SETTINGS, STORAGE_KEYS } from "../constants";
 import { getCurrentUser } from "../lib/pocketbase";
 import { createLogger } from "../lib/logger";
+import { useFocusTrap, useRestoreFocus } from "../hooks/useKeyboard";
 
 const settingsModalLogger = createLogger("settings-modal");
 
@@ -23,7 +24,7 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: Settings;
-  onSave: (newSettings: Settings) => void;
+  onSave: (newSettings: Settings) => Promise<boolean> | void;
 }
 
 const mono: React.CSSProperties = { fontFamily: "var(--mono)" };
@@ -82,6 +83,9 @@ const STATE_OPTIONS: { value: AppState; label: string }[] = [
  */
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
   const [localSettings, setLocalSettings] = useState<Settings>(settings);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const savingRef = useRef(false);
   const [modelRegistry, setModelRegistry] = useState<AiModelRegistryResponse | null>(null);
 
   const role = getCurrentUser()?.role;
@@ -110,6 +114,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     };
   }, [isOpen]);
 
+  const requestClose = () => {
+    if (!savingRef.current) onClose();
+  };
+
   // Close on Escape while open. ConfirmDialog already consumes Escape before it
   // reaches this listener (stopImmediatePropagation on the native event), but
   // guard here too in case some other alert dialog is stacked on top without
@@ -119,7 +127,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (document.querySelector('[role="alertdialog"][aria-modal="true"]')) return;
-      onClose();
+      if (!savingRef.current) onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -127,6 +135,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
   // Initial focus: move the keyboard user into the dialog on open. [a11y]
   const dialogRef = useRef<HTMLDivElement>(null);
+  useRestoreFocus(isOpen);
+  useFocusTrap(dialogRef as React.RefObject<HTMLElement>, isOpen);
   useEffect(() => {
     if (isOpen) dialogRef.current?.focus();
   }, [isOpen]);
@@ -149,16 +159,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
       }));
     };
 
-  const handleSave = () => {
-    if (!canEdit) return;
+  const handleSave = async () => {
+    if (!canEdit || savingRef.current) return;
+    savingRef.current = true;
+    setIsSaving(true);
+    setSaveError(null);
     const next: Settings = { ...localSettings, ai: normalizeAiSettings(localSettings.ai) };
-    // Single write path: DealContext.updateSettings persists locally AND to
-    // PocketBase with the real dealer_settings column names. A second direct
-    // updateDealerSettings here raced the context's write — two concurrent
-    // get-then-create calls could duplicate the dealer_settings record on
-    // first save. [review/P2]
-    onSave(next);
-    onClose();
+    try {
+      const receipt = await onSave(next);
+      if (receipt === true) onClose();
+      else
+        setSaveError(
+          receipt === false
+            ? "Server save wasn't confirmed. Settings are kept in this browser only. Retry to save them for the dealership."
+            : "Server save wasn't confirmed. Your changes are still here. Retry to save them for the dealership."
+        );
+    } catch {
+      setSaveError(
+        "Couldn't save settings to the server. Your changes are still here. Check your connection and retry."
+      );
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   const handleProviderChange = (provider: AiProvider) => {
@@ -229,7 +252,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
   return (
     <div
       className="modal-backdrop"
-      onClick={onClose}
+      onClick={requestClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -297,11 +320,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               )}
             </div>
             <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 2 }}>
-              Defaults applied to new deals across this dealership.
+              Deal defaults apply across this dealership. AI preferences and LTV colors are kept in
+              this browser.
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={requestClose}
             className="transition-colors"
             aria-label="Close"
             style={{
@@ -330,6 +354,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
           </button>
         </div>
 
+        {saveError && (
+          <p
+            role="alert"
+            style={{ margin: "14px 22px 0", color: "var(--color-danger)", fontSize: 13 }}
+          >
+            {saveError}
+          </p>
+        )}
+        {isSaving && (
+          <p role="status" style={{ margin: "14px 22px 0", fontSize: 13 }}>
+            Saving dealership settings…
+          </p>
+        )}
         {/* Body */}
         <div style={{ padding: 22, overflowY: "auto" }}>
           {/* DEAL DEFAULTS */}
@@ -343,7 +380,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 <select
                   id="settings-default-term"
                   className="dc-input"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={termValue}
                   onChange={(e) =>
                     setLocalSettings((prev) => ({ ...prev, defaultTerm: Number(e.target.value) }))
@@ -359,14 +396,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               </div>
               <div>
                 <label style={fieldLabel} htmlFor="settings-default-apr">
-                  Default APR (%)
+                  Default interest rate (%)
                 </label>
                 <input
                   id="settings-default-apr"
                   className="dc-input"
                   type="number"
                   step="0.1"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.defaultApr}
                   onChange={setNum("defaultApr")}
                   style={numInput}
@@ -374,12 +411,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               </div>
               <div>
                 <label style={fieldLabel} htmlFor="settings-default-state">
-                  Default state
+                  Default buyer state (Michigan dealership)
                 </label>
                 <select
                   id="settings-default-state"
                   className="dc-input"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.defaultState}
                   onChange={(e) =>
                     setLocalSettings((prev) => ({
@@ -395,6 +432,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                     </option>
                   ))}
                 </select>
+                <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6 }}>
+                  Estimates model a sale by a Michigan dealership. Other dealership locations, local
+                  taxes and delivery exceptions require an external tax calculation.
+                </p>
               </div>
             </div>
           </section>
@@ -413,7 +454,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-doc-fee"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.docFee}
                   onChange={setNum("docFee")}
                   style={numInput}
@@ -432,7 +473,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-cvr-fee"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.cvrFee}
                   onChange={setNum("cvrFee")}
                   style={numInput}
@@ -446,7 +487,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-title-reg"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.defaultStateFees}
                   onChange={setNum("defaultStateFees")}
                   style={numInput}
@@ -460,7 +501,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-vsc-price"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.vscPrice}
                   onChange={setNum("vscPrice")}
                   style={numInput}
@@ -474,7 +515,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-gap-price"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.gapPrice}
                   onChange={setNum("gapPrice")}
                   style={numInput}
@@ -488,7 +529,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-mi-cap"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.miTradeInCreditCap ?? INITIAL_SETTINGS.miTradeInCreditCap}
                   onChange={setNum("miTradeInCreditCap")}
                   style={numInput}
@@ -500,6 +541,53 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
             </div>
           </section>
 
+          {hr}
+
+          <section>
+            <h3 style={sectionH}>Tax override</h3>
+            <label className="flex items-center gap-2 text-sm text-[var(--color-text)]">
+              <input
+                type="checkbox"
+                disabled={!canEdit || isSaving}
+                checked={typeof localSettings.customTaxRate === "number"}
+                onChange={(e) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    customTaxRate: e.target.checked ? 6 : null,
+                  }))
+                }
+              />
+              Use a custom tax rate
+            </label>
+            {typeof localSettings.customTaxRate === "number" && (
+              <div className="mt-3">
+                <label style={fieldLabel} htmlFor="settings-custom-tax-rate">
+                  Custom tax rate (%)
+                </label>
+                <input
+                  id="settings-custom-tax-rate"
+                  className="dc-input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.001"
+                  disabled={!canEdit || isSaving}
+                  value={localSettings.customTaxRate}
+                  onChange={(e) => {
+                    const rate = Number(e.target.value);
+                    if (Number.isFinite(rate) && rate >= 0 && rate <= 100)
+                      setLocalSettings((prev) => ({ ...prev, customTaxRate: rate }));
+                  }}
+                  style={numInput}
+                />
+              </div>
+            )}
+            <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--color-text-subtle)" }}>
+              Applies to every deal estimate for this dealership. Leave off to use modeled
+              buyer-state tax rules. Confirm the custom rate before enabling; 0% requires an
+              explicit override.
+            </p>
+          </section>
           {hr}
 
           {/* LTV THRESHOLDS */}
@@ -520,7 +608,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-ltv-warn"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.ltvThresholds?.warn ?? 115}
                   onChange={setThreshold("warn")}
                   style={numInput}
@@ -537,7 +625,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-ltv-danger"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.ltvThresholds?.danger ?? 125}
                   onChange={setThreshold("danger")}
                   style={numInput}
@@ -551,7 +639,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                   id="settings-ltv-critical"
                   className="dc-input"
                   type="number"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={localSettings.ltvThresholds?.critical ?? 135}
                   onChange={setThreshold("critical")}
                   style={numInput}
@@ -569,7 +657,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               Model catalog verified from official docs on{" "}
               {modelRegistry?.verifiedDate ?? AI_MODEL_DOCS_VERIFIED_DATE}.
             </p>
-            {modelRegistry?.warnings.map((warning) => (
+            {modelRegistry?.warnings?.map((warning) => (
               <p
                 key={warning}
                 style={{ fontSize: 12, color: "var(--color-warning)", margin: "0 0 6px" }}
@@ -591,7 +679,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 <select
                   id="aiProvider"
                   className="dc-input"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={aiSettings.provider}
                   onChange={(event) => handleProviderChange(event.target.value as AiProvider)}
                   style={selectInput}
@@ -616,7 +704,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 <select
                   id="lenderExtractModel"
                   className="dc-input"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={aiSettings.lenderExtractModel}
                   onChange={(event) => handleAiModelChange("lenderExtract", event.target.value)}
                   style={selectInput}
@@ -636,7 +724,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 <select
                   id="dealAnalysisModel"
                   className="dc-input"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={aiSettings.dealAnalysisModel}
                   onChange={(event) => handleAiModelChange("dealAnalysis", event.target.value)}
                   style={selectInput}
@@ -657,7 +745,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 <select
                   id="quickModel"
                   className="dc-input"
-                  disabled={!canEdit}
+                  disabled={!canEdit || isSaving}
                   value={aiSettings.quickModel}
                   onChange={(event) => handleAiModelChange("quick", event.target.value)}
                   style={selectInput}
@@ -751,7 +839,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
             </button>
           )}
           <button
-            onClick={onClose}
+            onClick={requestClose}
             className="transition-colors"
             style={{
               background: "transparent",
@@ -770,6 +858,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
           {canEdit && (
             <button
               onClick={handleSave}
+              disabled={isSaving}
+              aria-busy={isSaving}
               className="btn-primary"
               style={{
                 border: "1px solid transparent",
@@ -781,7 +871,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 fontFamily: "inherit",
               }}
             >
-              Save changes
+              {isSaving ? "Saving…" : saveError ? "Retry save" : "Save changes"}
             </button>
           )}
         </div>

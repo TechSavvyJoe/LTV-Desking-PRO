@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 import { useDealContext } from "../context/DealContext";
+import { normalizeVehicleCondition } from "../services/vehicleCondition";
 import { parseFile } from "../services/fileParser";
 import { decodeVin } from "../services/vinDecoder";
 import { calculateFinancials } from "../services/calculator";
 import { generateFavoritesPdf } from "../services/pdfGenerator";
-import { checkBankEligibility } from "../services/lenderMatcher";
-import { getInventory, syncInventory, logDealEvent } from "../lib/api";
+import { holdIncompleteFits } from "../services/dealAssessment";
+import { lenderFitForVehicle } from "../services/lenderFit";
+import { getInventory, syncInventory, logDealEvent, addInventoryItem } from "../lib/api";
 import { capture } from "../lib/analytics";
 import { createLogger } from "../lib/logger";
 import { currentDealerQueryKeys, queryClient, queryKeys } from "../lib/queryClient";
@@ -17,11 +19,12 @@ const inventoryImportLogger = createLogger("inventory-import");
 
 const mapPersistedInventoryItem = (item: InventoryItem): Vehicle => ({
   id: item.id,
+  condition: normalizeVehicleCondition(item.condition),
   vehicle: `${item.year} ${item.make} ${item.model} ${item.trim || ""}`.trim(),
   stock: item.stockNumber || "N/A",
   vin: item.vin,
   modelYear: item.year,
-  mileage: typeof item.mileage === "number" ? item.mileage : "N/A",
+  mileage: !item.mileageUnknown && typeof item.mileage === "number" ? item.mileage : "N/A",
   price: item.price,
   jdPower: typeof item.jdPower === "number" && item.jdPower > 0 ? item.jdPower : "N/A",
   jdPowerRetail:
@@ -49,6 +52,7 @@ export function useInventoryImport() {
     setMessage,
     setInventory,
     setActiveVehicle,
+    setFocusVin,
     setPagination,
     fileName,
     setFileName,
@@ -145,6 +149,7 @@ export function useInventoryImport() {
       // Prepare items for sync
       const itemsToSync = data.map((v) => ({
         vin: v.vin,
+        condition: v.condition,
         stockNumber: v.stock !== "N/A" ? v.stock : undefined,
         year: typeof v.modelYear === "number" ? v.modelYear : new Date().getFullYear(),
         make: v.make || "",
@@ -160,7 +165,9 @@ export function useInventoryImport() {
       // A file import is an intentional full-feed replacement. VINs omitted
       // from the uploaded feed are marked sold; the one-off VIN decoder below
       // continues to use partial-update semantics.
-      const syncResult = await syncInventory(itemsToSync, { markMissingSold: true });
+      // Rejected rows can describe vehicles still on the lot. Only a fully
+      // parsed feed is allowed to archive VINs absent from the accepted rows.
+      const syncResult = await syncInventory(itemsToSync, { markMissingSold: skipped === 0 });
 
       // Re-read server state so partial write failures can never install
       // unpersisted parsed rows in the local inventory.
@@ -178,9 +185,13 @@ export function useInventoryImport() {
         syncResult.failed > 0
           ? ` ${syncResult.failed} ${syncResult.failed === 1 ? "change" : "changes"} couldn't be saved — import the file again.`
           : "";
+      const retainedNote =
+        skipped > 0 || syncResult.archivingSkipped
+          ? ` Omitted vehicles were kept available because the import was incomplete.${skippedNote}`
+          : "";
       setMessage({
-        type: syncResult.failed > 0 ? "warning" : "success",
-        text: `Inventory imported: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.${failedNote}`,
+        type: syncResult.failed > 0 || skipped > 0 ? "warning" : "success",
+        text: `Inventory imported: ${syncResult.added} added, ${syncResult.updated} updated, ${syncResult.removed} marked sold.${failedNote}${retainedNote}`,
       });
       capture("import_completed", {
         vehicles: data.length,
@@ -226,6 +237,7 @@ export function useInventoryImport() {
       "J.D. Power Trade In",
       "J.D. Power Retail",
       "Unit Cost",
+      "Condition",
     ];
     const sampleData = [
       [
@@ -241,6 +253,7 @@ export function useInventoryImport() {
         "24000",
         "29000",
         "25000",
+        "used",
       ],
     ];
     const csvContent = [headers.join(","), ...sampleData.map((r) => r.join(","))].join("\n");
@@ -261,6 +274,12 @@ export function useInventoryImport() {
 
   // VIN Lookup Handler
   const handleVinLookup = async () => {
+    if (isVinLoading) return;
+    const role = getCurrentUser()?.role;
+    if (role !== "admin" && role !== "superadmin") {
+      setVinLookupResult("Error: Only admins can add inventory from a VIN.");
+      return;
+    }
     // NHTSA decode needs the full 17-character VIN (the old 11-char gate let
     // short VINs through to fail server-side with a generic error).
     if (!vinLookup || vinLookup.length !== 17) {
@@ -272,10 +291,21 @@ export function useInventoryImport() {
     try {
       const decoded = await decodeVin(vinLookup);
       if (decoded) {
+        // Decoding a VIN is an add, not a re-sync: never zero out an existing
+        // vehicle's price, mileage or availability with decoder defaults.
+        const existing = (await getInventory()).find(
+          (item) => item.vin.toUpperCase() === vinLookup.trim().toUpperCase()
+        );
+        if (existing) {
+          setVinLookupResult(
+            "Error: This VIN is already in inventory. Edit the existing vehicle instead."
+          );
+          return;
+        }
         const newVehicle = {
           vehicle: `${decoded.year} ${decoded.make} ${decoded.model}`,
           stock: `VIN-${Date.now()}`,
-          vin: vinLookup,
+          vin: vinLookup.trim().toUpperCase(),
           make: decoded.make,
           model: decoded.model,
           trim: decoded.trim,
@@ -287,36 +317,29 @@ export function useInventoryImport() {
           unitCost: "N/A" as const,
           baseOutTheDoorPrice: "N/A" as const,
         };
-        setInventory((prev) => [newVehicle, ...(prev || [])]);
-        setActiveVehicle(calculateFinancials(newVehicle, dealData, settings));
+        const persisted = await addInventoryItem({
+          vin: newVehicle.vin,
+          stockNumber: newVehicle.stock,
+          year: newVehicle.modelYear,
+          make: newVehicle.make,
+          model: newVehicle.model,
+          trim: newVehicle.trim,
+          price: 0,
+          status: "available",
+        });
+        if (!persisted)
+          throw new Error("Couldn't save this vehicle. Check your connection and try again.");
+        const savedVehicle = mapPersistedInventoryItem(persisted);
+        setInventory((prev) => [
+          savedVehicle,
+          ...(prev || []).filter((v) => v.vin !== savedVehicle.vin),
+        ]);
+        setActiveVehicle(calculateFinancials(savedVehicle, dealData, settings));
+        setFocusVin(savedVehicle.vin);
         setVinLookupResult("Success: Vehicle added to inventory");
         setVinLookup("");
 
-        // Also sync to PocketBase
-        syncInventory([
-          {
-            vin: newVehicle.vin,
-            year: newVehicle.modelYear,
-            make: newVehicle.make || "",
-            model: newVehicle.model || "",
-            trim: newVehicle.trim,
-            mileage: typeof newVehicle.mileage === "number" ? newVehicle.mileage : undefined,
-            price: typeof newVehicle.price === "number" ? newVehicle.price : 0,
-          },
-        ])
-          .then(() => {
-            inventoryImportLogger.debug("VIN lookup vehicle synced to PocketBase");
-            queryClient.invalidateQueries({ queryKey: queryKeys.inventory });
-          })
-          .catch((err: unknown) => {
-            inventoryImportLogger.error("Failed to sync VIN lookup to PocketBase", err);
-            // Surface the silent persistence failure (e.g. no dealership selected)
-            // instead of leaving the user believing the vehicle was saved.
-            setMessage({
-              type: "warning",
-              text: "Vehicle is shown locally but couldn't be saved to the server.",
-            });
-          });
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventory });
 
         setMessage({
           type: "success",
@@ -350,10 +373,10 @@ export function useInventoryImport() {
         .map((vehicle) => {
           const calculatedVehicle = calculateFinancials(vehicle, dealData, settings);
 
-          const lenderEligibility = safeLenderProfiles.map((bank) => ({
-            name: bank.name,
-            ...checkBankEligibility(calculatedVehicle, { ...dealData, ...filters }, bank),
-          }));
+          const lenderEligibility = holdIncompleteFits(
+            lenderFitForVehicle(calculatedVehicle, { ...dealData, ...filters }, safeLenderProfiles),
+            filters
+          ).entries;
 
           return {
             vehicle: calculatedVehicle,

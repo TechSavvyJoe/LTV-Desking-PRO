@@ -266,6 +266,13 @@ onRecordEnrich((e) => {
         if (!tier || typeof tier !== "object" || Array.isArray(tier)) {
           wellFormed = false;
         } else {
+          // Preserve the need for a rate-floor check without exposing its value.
+          // Sales must receive a pending advisory when the confidential floor
+          // cannot be evaluated. Explicit zero is still a known rate.
+          var base = tier.baseInterestRate;
+          var hasBase = (typeof base === "number" && Number.isFinite(base)) ||
+            (typeof base === "string" && base.trim() !== "" && Number.isFinite(Number(base)));
+          if (hasBase) tier.rateCheckRequired = true;
           for (var j = 0; j < rateCostFields.length; j++) {
             delete tier[rateCostFields[j]];
           }

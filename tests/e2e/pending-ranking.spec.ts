@@ -44,10 +44,10 @@ async function enterCredit(page: Page) {
   await page.getByLabel("FICO", { exact: true }).fill("720");
   await page.getByLabel("Income / mo").fill("");
   await page.getByLabel("Income / mo").fill("6500");
-  await page.getByRole("button", { name: "More filters", exact: true }).click();
+  await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
   await page.getByLabel("Monthly debt", { exact: true }).fill("500");
   await page.getByLabel("Vehicle condition", { exact: true }).selectOption("used");
-  await page.getByRole("button", { name: "More filters", exact: true }).click();
+  await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
   await page.keyboard.press("Tab");
 }
 

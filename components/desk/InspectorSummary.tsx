@@ -107,7 +107,7 @@ const InspectorSummary: React.FC<InspectorSummaryProps> = ({
         </div>
         <div className="desk-payment-meta">
           <span style={{ ...metaItem, ...sansNum }}>{loanTerm} mo</span>{" "}
-          <span style={{ ...metaItem, ...sansNum }}>{apr} APR</span> <span>estimate</span>
+          <span style={{ ...metaItem, ...sansNum }}>{apr} rate</span> <span>estimate</span>
         </div>
       </div>
       {assessment && (

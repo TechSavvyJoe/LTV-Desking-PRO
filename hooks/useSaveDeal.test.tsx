@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { CalculatedVehicle } from "../types";
@@ -52,6 +52,7 @@ vi.mock("../lib/analytics", () => ({
 import { DealProvider, useDealContext } from "../context/DealContext";
 import useSaveDeal from "./useSaveDeal";
 import { DEFAULT_LENDER_PROFILES } from "../constants";
+import { announcePrivateSessionBoundary } from "../lib/privateSession";
 
 const staleVehicle: CalculatedVehicle = {
   id: "veh-1",
@@ -102,8 +103,31 @@ function SaveProbe({ onSave }: { onSave: () => void }) {
 }
 
 function SaveHarness() {
-  const { handleSaveDeal } = useSaveDeal();
-  return <SaveProbe onSave={() => handleSaveDeal(staleVehicle)} />;
+  const { handleSaveDeal, isSaving, saveError } = useSaveDeal();
+  const { isDealDirty, savedDeals, setCustomerName, setInventory, setSettings } = useDealContext();
+  const [receipt, setReceipt] = useState<string>("None");
+  return (
+    <>
+      <SaveProbe
+        onSave={() => {
+          setReceipt("Pending");
+          void handleSaveDeal(staleVehicle).then((saved) => setReceipt(String(saved)));
+        }}
+      />
+      <button onClick={() => setCustomerName("Newer Buyer")}>Edit customer</button>
+      <button onClick={() => setInventory([{ ...staleVehicle, price: 23000 }])}>
+        Update same VIN price
+      </button>
+      <button onClick={() => setSettings((prev) => ({ ...prev, docFee: prev.docFee + 10 }))}>
+        Update fees
+      </button>
+      <span data-testid="receipt">{receipt}</span>
+      <span data-testid="dirty">{String(isDealDirty)}</span>
+      <span data-testid="saved-count">{savedDeals.length}</span>
+      {saveError && <p role="alert">{saveError}</p>}
+      <output role="status">{isSaving ? "Saving" : "Ready"}</output>
+    </>
+  );
 }
 
 describe("useSaveDeal", () => {
@@ -168,5 +192,142 @@ describe("useSaveDeal", () => {
 
     await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledOnce());
     expect(mocks.logDealEvent).not.toHaveBeenCalled();
+  });
+
+  it("permits only one pending write, then releases the guard after failure", async () => {
+    let rejectWrite!: (error: Error) => void;
+    mocks.saveDeal.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectWrite = reject;
+        })
+    );
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DealProvider>
+          <SaveHarness />
+        </DealProvider>
+      </QueryClientProvider>
+    );
+    const button = await screen.findByRole("button", { name: /save deal/i });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledOnce());
+    rejectWrite(new Error("write failed"));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Ready"));
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledTimes(2));
+  });
+  it("returns no success receipt until the server resolves and keeps newer edits dirty", async () => {
+    let release!: (saved: Record<string, unknown>) => void;
+    mocks.saveDeal.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DealProvider>
+          <SaveHarness />
+        </DealProvider>
+      </QueryClientProvider>
+    );
+    const button = await screen.findByRole("button", { name: /save deal/i });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledOnce());
+    expect(screen.getByTestId("receipt").textContent).toBe("Pending");
+    fireEvent.click(screen.getByRole("button", { name: "Edit customer" }));
+    await act(async () =>
+      release({
+        id: "saved-delayed",
+        customerName: "Jane Buyer",
+        vehicleData: {},
+        dealData: {},
+        customerFilters: {},
+      })
+    );
+    await waitFor(() => expect(screen.getByTestId("receipt").textContent).toBe("false"));
+    expect(screen.getByTestId("dirty").textContent).toBe("true");
+    expect(screen.getByRole("alert").textContent).toContain("Newer edits are still unsaved");
+  });
+
+  it("returns a confirmed success receipt and clears only the saved version's dirty state", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DealProvider>
+          <SaveHarness />
+        </DealProvider>
+      </QueryClientProvider>
+    );
+    const button = await screen.findByRole("button", { name: /save deal/i });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "Edit customer" }));
+    fireEvent.click(button);
+    await waitFor(() => expect(screen.getByTestId("receipt").textContent).toBe("true"));
+    expect(screen.getByTestId("dirty").textContent).toBe("false");
+  });
+
+  it.each(["Update same VIN price", "Update fees"])(
+    "retains unsaved state when %s changes during a write",
+    async (label) => {
+      let release!: (value: Record<string, unknown>) => void;
+      mocks.saveDeal.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = resolve;
+          })
+      );
+      render(
+        <QueryClientProvider client={queryClient}>
+          <DealProvider>
+            <SaveHarness />
+          </DealProvider>
+        </QueryClientProvider>
+      );
+      const button = await screen.findByRole("button", { name: /save deal/i });
+      await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+      fireEvent.click(button);
+      await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledOnce());
+      fireEvent.click(screen.getByRole("button", { name: label }));
+      await act(async () =>
+        release({ id: "old-quote", vehicleData: {}, dealData: {}, customerFilters: {} })
+      );
+      await waitFor(() => expect(screen.getByTestId("receipt").textContent).toBe("false"));
+      expect(screen.getByRole("alert").textContent).toContain("Newer edits are still unsaved");
+      expect(screen.getByTestId("dirty").textContent).toBe("true");
+    }
+  );
+
+  it("drops post-save events and receipts after switching private sessions", async () => {
+    let release!: (value: Record<string, unknown>) => void;
+    mocks.saveDeal.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DealProvider>
+          <SaveHarness />
+        </DealProvider>
+      </QueryClientProvider>
+    );
+    const button = await screen.findByRole("button", { name: /save deal/i });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.saveDeal).toHaveBeenCalledOnce());
+    await act(async () => {
+      announcePrivateSessionBoundary();
+      release({ id: "old-session", vehicleData: {}, dealData: {}, customerFilters: {} });
+    });
+    await waitFor(() => expect(screen.getByTestId("receipt").textContent).toBe("false"));
+    expect(mocks.logDealEvent).not.toHaveBeenCalled();
+    expect(mocks.capture).not.toHaveBeenCalled();
+    expect(screen.getByTestId("saved-count").textContent).toBe("0");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

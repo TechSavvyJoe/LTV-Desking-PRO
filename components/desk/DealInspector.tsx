@@ -12,6 +12,7 @@ import LenderLadder from "./LenderLadder";
 import FinancialBreakdown from "./FinancialBreakdown";
 import BackendAddons from "./BackendAddons";
 import StructureMatrix from "./StructureMatrix";
+import { PaymentTarget } from "./PaymentTarget";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../../types";
 import { summarizePending } from "../../services/lenderFit";
 import type { LenderFitEntry } from "../../services/lenderFit";
@@ -23,6 +24,7 @@ interface DealInspectorProps {
   totalLenders: number;
   dealData: DealData;
   filters?: FilterData;
+  onResolveCheck?: (checkId: string) => void;
   onProfitChange?: (patch: NonNullable<DealData["profitInputs"]>) => void;
   settings: Settings;
   pinned: boolean;
@@ -41,6 +43,7 @@ interface DealInspectorProps {
   onOtherBackendChange: (n: number) => void;
   onDealSheet: () => void;
   onSaveDeal: () => void;
+  isSaving?: boolean;
 }
 
 type InspectorTab = "summary" | "lenders" | "addons" | "matrix";
@@ -61,6 +64,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   dealData,
   filters,
   onProfitChange,
+  onResolveCheck,
   settings,
   pinned,
   onPin,
@@ -68,6 +72,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   compactMode,
   compactOpen,
   onCloseCompact,
+  isSaving = false,
   vscAmount,
   gapAmount,
   otherBackend,
@@ -311,7 +316,32 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
       <div className="desk-inspector-body" {...tabs.getPanelProps(tab, { focusable: true })}>
         {tab === "summary" && (
           <>
-            <DealRatings vehicle={v} dealData={dealData} onProfitChange={onProfitChange} />
+            {filters && (
+              <PaymentTarget
+                key={v.vin}
+                vehicle={v}
+                dealData={dealData}
+                settings={settings}
+                filters={filters}
+                profiles={Array.from(profilesById.values())}
+                onApply={onSetTermDown}
+              />
+            )}
+            <DealRatings
+              vehicle={v}
+              dealData={dealData}
+              onProfitChange={onProfitChange}
+              onResolveCheck={
+                onResolveCheck
+                  ? (checkId) => {
+                      if (checkId === "lender") {
+                        setTab("lenders");
+                        document.getElementById("desk-inspector-tab-lenders")?.focus();
+                      } else onResolveCheck(checkId);
+                    }
+                  : undefined
+              }
+            />
             <FinancialBreakdown
               price={price}
               taxFees={taxFees}
@@ -380,6 +410,8 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
         <button
           type="button"
           onClick={onSaveDeal}
+          disabled={isSaving}
+          aria-busy={isSaving}
           className="desk-primary-action transition-colors"
         >
           <svg
@@ -394,7 +426,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
             <path d="M17 21v-8H7v8M7 3v5h8" />
           </svg>
-          Save deal
+          {isSaving ? "Saving…" : "Save deal"}
         </button>
       </div>
     </Panel>

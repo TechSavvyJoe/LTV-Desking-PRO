@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDealContext } from "../../context/DealContext";
 import { useOpenDealInDesk } from "../../hooks/useOpenDealInDesk";
@@ -16,6 +16,7 @@ import Button from "../common/Button";
 import { EmptyState } from "../common/states";
 import * as Icons from "../common/Icons";
 import { fmt } from "../../utils/format";
+import { aprLabel } from "../desk/deskConstants";
 import type { SavedDeal } from "../../types";
 
 const mono = "var(--mono)";
@@ -126,6 +127,10 @@ const PipelineScreenBase: React.FC = () => {
 
   const navigate = useNavigate();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<CanonicalDealStatus | "all">("all");
+  const pendingWrites = useRef(new Set<string>());
+  const [updatingIds, setUpdatingIds] = useState(new Set<string>());
   const { warn, danger } = settings.ltvThresholds;
 
   // OTD LTV colors come from settings.ltvThresholds — never hardcoded 115/125.
@@ -139,6 +144,22 @@ const PipelineScreenBase: React.FC = () => {
   };
 
   const deals = useMemo<PipelineSavedDeal[]>(() => savedDeals.map(asPipelineDeal), [savedDeals]);
+  const visibleDeals = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return deals.filter(
+      (deal) =>
+        (statusFilter === "all" || deal.status === statusFilter) &&
+        (!query ||
+          [
+            deal.customerName,
+            deal.salespersonName,
+            deal.vehicle.vehicle,
+            deal.vehicle.stock,
+            deal.vehicle.vin,
+            deal.lenderName,
+          ].some((value) => typeof value === "string" && value.toLowerCase().includes(query)))
+    );
+  }, [deals, search, statusFilter]);
 
   const counts = useMemo(() => {
     let pending = 0;
@@ -185,7 +206,9 @@ const PipelineScreenBase: React.FC = () => {
 
   const handleStatusChange = (deal: PipelineSavedDeal, next: CanonicalDealStatus) => {
     const from = deal.status;
-    if (from === next) return;
+    if (from === next || pendingWrites.current.has(deal.id)) return;
+    pendingWrites.current.add(deal.id);
+    setUpdatingIds(new Set(pendingWrites.current));
 
     // Optimistic update; the realtime subscription confirms, and a failed
     // write reverts so the pill never lies about what the server holds.
@@ -215,6 +238,10 @@ const PipelineScreenBase: React.FC = () => {
       .catch(() => {
         applyStatus(from);
         setMessage({ type: "error", text: "Couldn't update the deal status. Try again." });
+      })
+      .finally(() => {
+        pendingWrites.current.delete(deal.id);
+        setUpdatingIds(new Set(pendingWrites.current));
       });
   };
 
@@ -238,7 +265,7 @@ const PipelineScreenBase: React.FC = () => {
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <h1 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Pipeline</h1>
           <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-            {counts.total} working {counts.total === 1 ? "deal" : "deals"}
+            {counts.total} saved {counts.total === 1 ? "deal" : "deals"}
           </span>
         </div>
         <Button
@@ -273,14 +300,49 @@ const PipelineScreenBase: React.FC = () => {
             marginBottom: 16,
           }}
         >
-          <KpiCard label="Working deals" value={counts.total} />
+          <KpiCard label="Saved deals" value={counts.total} />
           <KpiCard
             label="Approved / funded"
             value={counts.approvedFunded}
             color="var(--color-success)"
           />
-          <KpiCard label="Pending lender" value={counts.pending} color="var(--color-warning)" />
+          <KpiCard label="In progress" value={counts.pending} color="var(--color-warning)" />
         </div>
+
+        {deals.length > 0 && (
+          <div className="pipeline-filters">
+            <label className="pipeline-search">
+              <span>Find a deal</span>
+              <input
+                type="search"
+                className="dc-input"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Customer, stock, VIN, salesperson or lender"
+              />
+            </label>
+            <label>
+              <span>Deal status</span>
+              <select
+                className="dc-input"
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(event.target.value as CanonicalDealStatus | "all")
+                }
+              >
+                <option value="all">All statuses</option>
+                {CANONICAL_DEAL_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {titleCase(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span role="status" className="pipeline-result-count">
+              {visibleDeals.length} of {deals.length} deals
+            </span>
+          </div>
+        )}
 
         {deals.length === 0 ? (
           <EmptyState
@@ -288,6 +350,18 @@ const PipelineScreenBase: React.FC = () => {
             title="No saved deals yet"
             description="Structure a vehicle on the desk and click Save deal to add it here."
             primaryAction={{ label: "New deal", onClick: handleNewDeal }}
+          />
+        ) : visibleDeals.length === 0 ? (
+          <EmptyState
+            title="No matching deals"
+            description="Try a different search or status."
+            primaryAction={{
+              label: "Clear filters",
+              onClick: () => {
+                setSearch("");
+                setStatusFilter("all");
+              },
+            }}
           />
         ) : (
           <div
@@ -339,7 +413,7 @@ const PipelineScreenBase: React.FC = () => {
             </div>
 
             <div role="rowgroup">
-              {deals.map((deal) => {
+              {visibleDeals.map((deal) => {
                 const bucket = statusBucket(deal.status);
                 const meta = STATUS_BUCKET_META[bucket];
                 const expanded = expandedId === deal.id;
@@ -456,7 +530,7 @@ const PipelineScreenBase: React.FC = () => {
                           color: "var(--color-text-muted)",
                         }}
                       >
-                        {deal.dealData.loanTerm} mo
+                        {deal.dealData.loanTerm > 0 ? `${deal.dealData.loanTerm} mo` : "—"}
                       </span>
                       <span
                         role="cell"
@@ -546,8 +620,8 @@ const PipelineScreenBase: React.FC = () => {
                               <div style={metricValue}>{fmt(deal.dealData.downPayment || 0)}</div>
                             </div>
                             <div>
-                              <div style={metricLabel}>APR</div>
-                              <div style={metricValue}>{deal.dealData.interestRate}%</div>
+                              <div style={metricLabel}>Interest rate</div>
+                              <div style={metricValue}>{aprLabel(deal.dealData.interestRate)}</div>
                             </div>
                             <div>
                               <div style={metricLabel}>Financed</div>
@@ -575,12 +649,14 @@ const PipelineScreenBase: React.FC = () => {
                                 color: "var(--color-text-muted)",
                               }}
                             >
-                              Status
+                              Dealer-entered status
                             </label>
                             <select
                               id={`deal-status-${deal.id}`}
                               className="dc-input"
                               value={deal.status}
+                              disabled={updatingIds.has(deal.id)}
+                              aria-busy={updatingIds.has(deal.id)}
                               onChange={(e) =>
                                 handleStatusChange(deal, e.target.value as CanonicalDealStatus)
                               }

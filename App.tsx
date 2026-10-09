@@ -9,7 +9,11 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { isAuthenticated, onAuthStateChange, getCurrentUser, refreshSession } from "./lib/auth";
-import { setSuperadminDealerOverride, getSuperadminDealerOverride } from "./lib/pocketbase";
+import {
+  setSuperadminDealerOverride,
+  getSuperadminDealerOverride,
+  getAuthIdentity,
+} from "./lib/pocketbase";
 import { identify } from "./lib/analytics";
 import { OwnerLogin } from "./components/auth/OwnerLogin";
 import { Login } from "./components/auth/Login";
@@ -33,7 +37,7 @@ const ReportsScreen = lazy(() => import("./components/screens/ReportsScreen"));
 
 // Code-split the heavy, conditionally-rendered surfaces so a salesperson on the
 // default route never downloads the admin dashboards (~3,200 lines), the legal
-// pages, or recharts (via FinanceTools) on first paint. [perf]
+// pages, or finance tools on first paint. [perf]
 const PrivacyPolicy = lazy(() => import("./components/legal/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./components/legal/TermsOfService"));
 const FinanceTools = lazy(() => import("./components/FinanceTools"));
@@ -57,8 +61,15 @@ const DeskRoute: React.FC = () => <DeskScreen />;
 
 /** Finance tools drawer route — the old "scratchpad" tab, now at /tools. */
 const ToolsRoute: React.FC = () => {
-  const { scratchPadNotes, setScratchPadNotes, dealData, activeVehicle, processedInventory } =
-    useDealContext();
+  const {
+    scratchPadNotes,
+    setScratchPadNotes,
+    dealData,
+    activeVehicle,
+    processedInventory,
+    safeLenderProfiles,
+    filters,
+  } = useDealContext();
   // activeVehicle is a snapshot frozen at focus time; resolve the LIVE
   // computed vehicle so the tools' charts reprice with the deal. [review/P2]
   const liveVehicle =
@@ -73,6 +84,8 @@ const ToolsRoute: React.FC = () => {
           setScratchPadNotes={setScratchPadNotes}
           dealData={dealData}
           activeVehicle={liveVehicle}
+          lenderProfiles={safeLenderProfiles}
+          customerFilters={filters}
         />
       </Suspense>
     </div>
@@ -99,6 +112,7 @@ const LegacyTabRedirect: React.FC = () => {
 
 const App: React.FC = () => {
   const [isAuth, setIsAuth] = useState(isAuthenticated());
+  const [authIdentity, setAuthIdentity] = useState(getAuthIdentity);
   const [view, setView] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(true);
   const [, setImpersonationTick] = useState(0);
@@ -129,6 +143,7 @@ const App: React.FC = () => {
 
     const unsubscribe = onAuthStateChange((user) => {
       setIsAuth(!!user);
+      setAuthIdentity(getAuthIdentity());
       if (user?.id) {
         identify(user.id, { role: user.role, dealer: user.dealer });
       }
@@ -141,11 +156,11 @@ const App: React.FC = () => {
     const refreshTimer = setInterval(() => void refreshSession(), 12 * 60 * 60 * 1000);
 
     // Global 401 broadcast from lib/pocketbase: show the login screen with an
-    // explanation instead of a zombie "logged in" UI. The in-progress deal
-    // survives in localStorage.
+    // explanation instead of a zombie "logged in" UI. Private browser data is
+    // cleared before another identity can sign in.
     const onSessionExpired = () => {
       setIsAuth(false);
-      toast.warning("Your session expired. Sign in again — your in-progress deal is saved.");
+      toast.warning("Your session ended. Sign in again. Private browser drafts were cleared.");
     };
     window.addEventListener("sessionExpired", onSessionExpired);
 
@@ -258,7 +273,7 @@ const App: React.FC = () => {
     // (navigation performed by the redirect effect above).
     PageFallback
   ) : (
-    <DealProvider>
+    <DealProvider key={`${authIdentity}:${getSuperadminDealerOverride() ?? ""}`}>
       <AppShell />
     </DealProvider>
   );

@@ -1,6 +1,7 @@
 import PocketBase, { type RecordModel } from "pocketbase";
-import type { LenderTier } from "../types";
+import type { LenderTier, VehicleCondition } from "../types";
 import { createLogger } from "./logger";
+import { announcePrivateSessionBoundary, clearPrivateSessionStorage } from "./privateSession";
 
 const pbLogger = createLogger("pocketbase");
 
@@ -21,13 +22,27 @@ if (!import.meta.env.VITE_POCKETBASE_URL) {
 
 export const pb = new PocketBase(POCKETBASE_URL);
 
+export const getAuthIdentity = (): string => {
+  const record = pb.authStore.record;
+  return JSON.stringify([record?.id ?? "", record?.dealer ?? "", record?.role ?? ""]);
+};
+let lastAuthIdentity = getAuthIdentity();
+pb.authStore.onChange(() => {
+  const identity = getAuthIdentity();
+  if (identity === lastAuthIdentity) return;
+  lastAuthIdentity = identity;
+  clearPrivateSessionStorage();
+  announcePrivateSessionBoundary();
+});
+
 // Global session-expiry detection: when any API call returns 401 while we
 // believe we're authenticated, the token has expired or been revoked. Clear it
 // and broadcast so the app can show the login screen with an explanation
-// instead of leaving a zombie "logged in" UI where every call fails. The
-// in-progress deal survives in localStorage. [G65]
+// instead of leaving a zombie "logged in" UI where every call fails.
+// Private drafts and caches are purged before another identity can sign in.
 pb.afterSend = (response, data) => {
-  if (response.status === 401 && pb.authStore.isValid) {
+  if (response.status === 401 && (pb.authStore.token || pb.authStore.record)) {
+    clearPrivateSessionStorage();
     pb.authStore.clear();
     window.dispatchEvent(new CustomEvent("sessionExpired"));
   }
@@ -137,6 +152,9 @@ let superadminDealerOverride: string | null = (() => {
 })();
 
 export const setSuperadminDealerOverride = (dealerId: string | null): void => {
+  if (getSuperadminDealerOverride() === dealerId) return;
+  clearPrivateSessionStorage();
+  announcePrivateSessionBoundary();
   superadminDealerOverride = dealerId;
 
   // Persist to sessionStorage
@@ -174,13 +192,7 @@ export const getSuperadminDealerOverride = (): string | null => {
 };
 
 export const clearSuperadminDealerOverride = (): void => {
-  superadminDealerOverride = null;
-  try {
-    sessionStorage.removeItem(DEALER_OVERRIDE_KEY);
-  } catch {
-    // Ignore
-  }
-  window.dispatchEvent(new CustomEvent("dealerOverrideChanged", { detail: null }));
+  setSuperadminDealerOverride(null);
 };
 
 // Types for our collections
@@ -218,6 +230,7 @@ export interface User {
 }
 
 export interface InventoryItem {
+  condition?: VehicleCondition | "";
   id: string;
   dealer: string;
   vin: string;
@@ -227,6 +240,7 @@ export interface InventoryItem {
   model: string;
   trim?: string;
   mileage?: number;
+  mileageUnknown?: boolean;
   price: number;
   unitCost?: number;
   jdPower?: number;
@@ -260,6 +274,10 @@ export interface LenderProfile {
   maxAmountFinanced?: number;
   stipulations?: string;
   effectiveDate?: string;
+  reviewRequired?: boolean;
+  sourceReference?: string;
+  verifiedAt?: string;
+  expiresOn?: string;
   notes?: string;
   contactName?: string;
   contactPhone?: string;
@@ -313,7 +331,8 @@ export interface DealerSettings {
   defaultStateFees: number;
   defaultState: string;
   outOfStateTransitFee: number;
-  customTaxRate?: number;
+  customTaxRate?: number | null;
+  customTaxRateEnabled?: boolean;
   /** REAL PB column (1746999005 baseline): default loan term in months. */
   defaultTerm?: number;
   /** REAL PB column (1746999005 baseline): default APR %. */

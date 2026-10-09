@@ -209,7 +209,15 @@ If you hit this:
 
 ### Function timeout
 
-`api/ai/[...path].ts` sets `maxDuration: 300` (Fluid Compute default). Lender extract with Gemini grounding can take 60-120 s on large PDFs; this leaves headroom. Hobby plan tops out at 60s — production must be on Pro or higher.
+`api/ai/[...path].ts` sets `maxDuration: 300`. With Fluid Compute enabled,
+Vercel's current documented Hobby default/maximum is 300 seconds; Pro and
+Enterprise default to 300 seconds with higher configurable limits. The older
+60-second Hobby claim does not apply to current Fluid Compute. Confirm the
+project's compute configuration and test representative documents rather than
+inferring timeout behavior from plan name. This does not establish that a
+commercial deployment is permitted on any particular plan.
+See [Vercel function limits](https://vercel.com/docs/functions/limitations#max-duration)
+(accessed 2026-10-08).
 
 ### Authentication
 

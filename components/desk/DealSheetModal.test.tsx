@@ -3,7 +3,7 @@
  */
 
 import React from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
 import type { CalculatedVehicle, DealData, Settings } from "../../types";
@@ -64,6 +64,7 @@ vi.mock("../../lib/toast", () => ({
 import { PdfGenerationError } from "../../services/pdfGenerator";
 import { calculateFinancials } from "../../services/calculator";
 import DealSheetModal from "./DealSheetModal";
+import { announcePrivateSessionBoundary } from "../../lib/privateSession";
 
 const settings: Settings = {
   defaultTerm: 72,
@@ -125,6 +126,33 @@ const renderModal = () =>
   render(<DealSheetModal vehicle={vehicle} onClose={vi.fn()} onSaveToPipeline={vi.fn()} />);
 
 describe("DealSheetModal PDF states", () => {
+  it.each(["unmount", "session switch"])(
+    "drops a delayed PDF after %s without downloading or logging",
+    async (boundary) => {
+      let release!: (blob: Blob) => void;
+      mocks.generateDealPdf.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = resolve;
+          })
+      );
+      const view = render(
+        <DealSheetModal vehicle={vehicle} onClose={vi.fn()} onSaveToPipeline={vi.fn()} />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
+      await waitFor(() => expect(mocks.generateDealPdf).toHaveBeenCalledOnce());
+      await act(async () => {
+        if (boundary === "unmount") view.unmount();
+        else announcePrivateSessionBoundary();
+        release(new Blob(["synthetic PDF"], { type: "application/pdf" }));
+      });
+      expect(mocks.downloadBlob).not.toHaveBeenCalled();
+      expect(mocks.logDealEvent).not.toHaveBeenCalled();
+      expect(mocks.toastSuccess).not.toHaveBeenCalled();
+      expect(mocks.toastError).not.toHaveBeenCalled();
+      expect(mocks.capture).not.toHaveBeenCalled();
+    }
+  );
   beforeEach(() => {
     mocks.context = {
       settings,
@@ -237,6 +265,35 @@ describe("DealSheetModal PDF states", () => {
     });
   });
 
+  it("holds lender fits with missing customer debt in both preview and export", async () => {
+    mocks.context = {
+      ...mocks.context,
+      filters: { creditScore: 680, monthlyIncome: 5200, monthlyDebt: null },
+    };
+    mocks.checkBankEligibility.mockReturnValue({
+      eligible: true,
+      status: "eligible",
+      reasons: [],
+      matchedTier: { name: "A" },
+      evaluatedConstraints: 1,
+    });
+    renderModal();
+    await screen.findByText("Bob Maxey Ford");
+    fireEvent.click(screen.getByRole("button", { name: "02 Lender review" }));
+    expect(screen.getByText("Pending")).toBeTruthy();
+    expect(screen.getByText(/Complete customer inputs: monthly debt/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /download pdf/i }));
+    await waitFor(() => expect(mocks.generateDealPdf).toHaveBeenCalledTimes(1));
+    const pdfData = mocks.generateDealPdf.mock.calls[0]?.[0];
+    expect(pdfData.vehicle.fitCount).toBe(0);
+    expect(pdfData.lenderEligibility[0]).toMatchObject({
+      eligible: false,
+      status: "pending",
+      uncheckedConstraints: ["monthly debt"],
+    });
+    expect(pdfData.dealerName).toBe("Bob Maxey Ford");
+  });
+
   it("shows coded PDF errors", async () => {
     mocks.generateDealPdf.mockRejectedValue(
       new PdfGenerationError("blank_canvas", "Canvas rendered blank.")
@@ -347,5 +404,37 @@ describe("DealSheetModal PDF states", () => {
     unmount();
     expect(document.activeElement).toBe(trigger);
     trigger.remove();
+  });
+  it("keeps the worksheet open for delayed saves, ignores duplicate clicks and closes after confirmation", async () => {
+    let resolveWrite!: (saved: boolean) => void;
+    const onSave = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveWrite = resolve;
+        })
+    );
+    const onClose = vi.fn();
+    render(<DealSheetModal vehicle={vehicle} onClose={onClose} onSaveToPipeline={onSave} />);
+    fireEvent.click(screen.getByRole("button", { name: "Save deal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Saving…" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    await act(async () => resolveWrite(true));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("retains the worksheet after a failed receipt and offers an explicit retry", async () => {
+    const onSave = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const onClose = vi.fn();
+    render(<DealSheetModal vehicle={vehicle} onClose={onClose} onSaveToPipeline={onSave} />);
+    fireEvent.click(screen.getByRole("button", { name: "Save deal" }));
+    await screen.findByRole("alert");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Retry save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(onSave).toHaveBeenCalledTimes(2);
   });
 });

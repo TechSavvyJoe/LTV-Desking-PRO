@@ -10,6 +10,11 @@ import { Vehicle, DealData, Settings } from "../types";
 import { DEFAULT_AI_SETTINGS } from "../lib/aiModelRegistry";
 
 describe("Calculator Service", () => {
+  it("rounds decimal half cents away from zero despite binary representation", () => {
+    expect(roundCents(1.005)).toBe(1.01);
+    expect(roundCents(10.075)).toBe(10.08);
+    expect(roundCents(-10.075)).toBe(-10.08);
+  });
   describe("calculateMonthlyPayment", () => {
     it("should calculate correct payment for standard loan", () => {
       // $30,000 at 5% for 60 months
@@ -355,6 +360,38 @@ describe("Calculator Service", () => {
       expect(result.salesTax).toBeCloseTo(1096.5, 2);
     });
 
+    describe("per-vehicle tax condition", () => {
+      it("uses each recorded condition in a mixed lot and never shares an unscoped deal-wide condition", () => {
+        const deal = {
+          ...mockDealData,
+          tradeInValue: 20000,
+          buyerState: "OH" as const,
+          vehicleCondition: "new" as const,
+        };
+        const settings = { ...mockSettings, outOfStateTransitFee: 0 };
+        const newUnit = calculateFinancials(
+          { ...mockVehicle, vin: "NEW", condition: "new" },
+          deal,
+          settings
+        );
+        const usedUnit = calculateFinancials(
+          { ...mockVehicle, vin: "USED", condition: "used" },
+          deal,
+          settings
+        );
+        const certifiedUnit = calculateFinancials(
+          { ...mockVehicle, vin: "CPO", condition: "certified" },
+          deal,
+          settings
+        );
+        const unknownUnit = calculateFinancials({ ...mockVehicle, vin: "UNKNOWN" }, deal, settings);
+        expect(newUnit.salesTax).toBeCloseTo(590.81, 2);
+        expect(usedUnit.salesTax).toBeCloseTo(1096.5, 2);
+        expect(certifiedUnit.salesTax).toBe(usedUnit.salesTax);
+        expect(unknownUnit.salesTax).toBe(usedUnit.salesTax);
+      });
+    });
+
     it("applies Ohio's full trade allowance only to an explicitly new vehicle", () => {
       const settingsOOS: Settings = { ...mockSettings, outOfStateTransitFee: 0 };
       const newVehicle = calculateFinancials(
@@ -364,6 +401,7 @@ describe("Calculator Service", () => {
           tradeInValue: 20000,
           buyerState: "OH",
           vehicleCondition: "new",
+          vehicleConditionVin: mockVehicle.vin,
         },
         settingsOOS
       );
@@ -374,6 +412,7 @@ describe("Calculator Service", () => {
           tradeInValue: 20000,
           buyerState: "OH",
           vehicleCondition: "used",
+          vehicleConditionVin: mockVehicle.vin,
         },
         settingsOOS
       );
@@ -390,6 +429,7 @@ describe("Calculator Service", () => {
           tradeInValue: 20000,
           buyerState: "IN",
           vehicleCondition: "used",
+          vehicleConditionVin: mockVehicle.vin,
         },
         { ...mockSettings, outOfStateTransitFee: 0 }
       );

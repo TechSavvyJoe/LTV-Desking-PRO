@@ -107,7 +107,7 @@ test.describe("Load desk", () => {
       .toBe(financedBefore + 2_495);
   });
 
-  test("opens the deal sheet above the compact mobile inspector", async ({ page }) => {
+  test("opens the deal sheet above the compact mobile inspector", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await setupTest(page, "/desk");
 
@@ -119,6 +119,34 @@ test.describe("Load desk", () => {
     await expect(dealSheet).toBeVisible();
     await expect(page.locator(".desk-inspector")).toHaveAttribute("data-open", "false");
     await dealSheet.getByRole("button", { name: "Download PDF" }).click({ trial: true });
+    const topClose = dealSheet.getByRole("button", { name: "Close", exact: true }).first();
+    await expect(topClose).toBeInViewport();
+    // The modal is portaled above the app header's stacking context.
+    expect(
+      await topClose.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        return el.contains(
+          document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+        );
+      })
+    ).toBe(true);
+    const preview = dealSheet.locator(".deal-sheet-preview");
+    await preview.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await expect(dealSheet.getByText("Page 1 of 2")).toBeInViewport();
+    await expect(dealSheet.getByRole("button", { name: "Download PDF" })).toBeInViewport();
+    await dealSheet.getByRole("button", { name: "02 Lender review" }).click();
+    await expect(
+      dealSheet.getByRole("heading", { name: "Lender review", exact: true })
+    ).toBeInViewport();
+    expect(await preview.evaluate((el) => el.scrollTop)).toBe(0);
+    const lenderRow = dealSheet.locator(".lender-table tbody tr").first();
+    await expect(lenderRow.locator('[data-label="Matched program"]')).toBeVisible();
+    await expect(lenderRow.locator('[data-label="OTD cap"]')).toBeVisible();
+    await expect(lenderRow.locator('[data-label="Term range"]')).toBeVisible();
+    expect(await preview.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("mobile-deal-sheet.png") });
   });
 });
 
@@ -920,6 +948,7 @@ test.describe("Administrative console login", () => {
 // INVENTORY IMPORT
 // ---------------------------------------------------------------------------
 test.describe("Inventory import", () => {
+  test.describe.configure({ mode: "serial" });
   test("imports CSV via hidden input and shows success state", async ({ page }) => {
     await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
 
@@ -999,10 +1028,16 @@ test.describe("Inventory import", () => {
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
     await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
-    await expect(page.getByRole("status").filter({ hasText: /^1 of 1 unit$/ })).toBeVisible();
+    // A failed reconciliation must retain omitted units rather than silently
+    // marking the rest of the lot sold. This was previously asserted as 1/1.
+    const beforeReload = await page
+      .getByRole("status")
+      .filter({ hasText: /^\d+ of \d+ units?$/ })
+      .innerText();
+    expect(beforeReload).not.toBe("1 of 1 unit");
     await page.reload();
     await expect(page.getByText(/STK SAVED01/)).toBeVisible();
-    await expect(page.getByRole("status").filter({ hasText: /^1 of 1 unit$/ })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: beforeReload })).toBeVisible();
     await expect(page.getByText(/STK FAILED01/)).toHaveCount(0);
   });
 
@@ -1015,7 +1050,57 @@ test.describe("Inventory import", () => {
       page.getByRole("button", { name: "Download sample CSV", exact: true })
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Import inventory" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "VIN decode", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Compare PDF/i })).toBeVisible();
+  });
+
+  test("retains a rejected row's existing vehicle when a CSV contains invalid data", async ({
+    page,
+  }) => {
+    await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
+    const input = page.locator('input[type="file"]');
+    const headers = "Stock #,Year,Make,Model,VIN,Mileage,Price";
+    await input.setInputFiles({
+      name: "complete.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(`${headers}\nKEEP01,2024,Ford,Escape,1M8GDM9AXKP042788,10000,25000`),
+    });
+    await expect(page.getByText(/STK KEEP01/)).toBeVisible();
+    await input.setInputFiles({
+      name: "rejected-row.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        `${headers}\nKEEP01,2024,Ford,Escape,1M8GDM9AXKP042788,10000,INVALID\nGOOD01,2023,Honda,Civic,2T1BURHE0JC000001,18000,22000`
+      ),
+    });
+    await expect(
+      page.getByRole("alert").filter({ hasText: /Omitted vehicles were kept available/ })
+    ).toBeVisible();
+    await expect(page.getByText(/STK KEEP01/)).toBeVisible();
+    await expect(page.getByText(/STK GOOD01/)).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(/STK KEEP01/)).toBeVisible();
+    await expect(page.getByText(/STK GOOD01/)).toBeVisible();
+  });
+
+  test("imports a real Excel workbook and preserves cents on the server", async ({ page }) => {
+    await setupTest(page, "/inventory", ADMIN_B_TEST_AUTH);
+    const savedRow = page.waitForResponse((response) => {
+      const request = response.request();
+      return (
+        response.url().includes("/api/collections/inventory/records") &&
+        ["POST", "PATCH"].includes(request.method()) &&
+        request.postDataJSON()?.stockNumber === "XLSX01"
+      );
+    });
+    await page.locator('input[type="file"]').setInputFiles("tests/e2e/fixtures/inventory.xlsx");
+    const persisted = await savedRow;
+    expect(persisted.ok()).toBe(true);
+    expect((await persisted.json()).price).toBe(30000.5);
+    await expect(page.getByRole("status").filter({ hasText: /Inventory imported:/ })).toBeVisible();
+    await expect(page.getByText(/STK XLSX01/)).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(/STK XLSX01/)).toBeVisible();
   });
 });
 
@@ -1144,10 +1229,10 @@ test.describe("Lender match", () => {
     await page.locator("#desk-income").fill("6500");
     await page.locator("#desk-down").fill("4000");
 
-    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
     await page.getByLabel("Monthly debt", { exact: true }).fill("500");
     await page.getByLabel("Vehicle condition", { exact: true }).selectOption("used");
-    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
     await page.getByRole("tab", { name: "Lenders", exact: true }).click();
 
     // Lender paths / fit section in inspector
@@ -1220,7 +1305,9 @@ test.describe("PDF generation", () => {
     await dealSheetBtn.click();
 
     // Modal appears (header inside modal)
-    await expect(page.getByText("Deal sheet")).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("dialog", { name: "Deal sheet", exact: true })).toBeVisible({
+      timeout: 8000,
+    });
 
     // Trigger download
     const [download] = await Promise.all([
@@ -1277,7 +1364,19 @@ test.describe("PDF generation", () => {
       const current = JSON.parse(localStorage.getItem(key) || "{}");
       localStorage.setItem(
         key,
-        JSON.stringify({ ...current, notes: "Detailed deal note ".repeat(80) })
+        JSON.stringify({
+          ...current,
+          notes: "Detailed deal note ".repeat(80),
+          dealerDiscount: 1000,
+          manufacturerRebate: 500,
+          transactionFees: 125,
+          tradeInValue: 3000,
+          tradeInPayoff: 5000,
+          buyerState: "OH",
+          vscAmount: 2495,
+          gapAmount: 895,
+          backendProducts: 3890,
+        })
       );
     });
     await page.reload();
@@ -1287,11 +1386,15 @@ test.describe("PDF generation", () => {
     await page.getByRole("button", { name: /Deal sheet/i }).click();
     const dialog = page.getByRole("dialog", { name: "Deal sheet" });
     await expect(dialog).toBeVisible();
-    const [download] = await Promise.all([
-      page.waitForEvent("download"),
-      dialog.getByRole("button", { name: /Download PDF/i }).click(),
-    ]);
-
+    const downloadPromise = page.waitForEvent("download");
+    const errorPromise = dialog
+      .locator('.deal-sheet-pdf-status[data-error="true"]')
+      .waitFor({ state: "visible" })
+      .then(async () => {
+        throw new Error(await dialog.locator(".deal-sheet-pdf-status").innerText());
+      });
+    await dialog.getByRole("button", { name: /Download PDF/i }).click();
+    const download = await Promise.race([downloadPromise, errorPromise]);
     expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
   });
 

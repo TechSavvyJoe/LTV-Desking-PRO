@@ -58,6 +58,50 @@ describe("PipelineScreen empty state", () => {
 });
 
 describe("PipelineScreen deal row disclosure", () => {
+  it("searches stock and filters exact statuses without confusing filtered emptiness with a new dealer", () => {
+    mocks.savedDeals = [
+      {
+        id: "find1",
+        date: "2026-10-08",
+        customerName: "Synthetic One",
+        salespersonName: "Desk",
+        status: "pending",
+        vehicle: { vin: "VINONE", vehicle: "2021 Ford", stock: "STK12" },
+        dealData: {},
+        customerFilters: {},
+        calculatedData: { monthlyPayment: 400, otdLtv: 100, amountToFinance: 20000 },
+      },
+      {
+        id: "find2",
+        date: "2026-10-08",
+        customerName: "Synthetic Two",
+        salespersonName: "Desk",
+        status: "funded",
+        vehicle: { vin: "VINTWO", vehicle: "2022 Ford", stock: "STK13" },
+        dealData: {},
+        customerFilters: {},
+        calculatedData: { monthlyPayment: 500, otdLtv: 100, amountToFinance: 30000 },
+      },
+    ];
+    render(
+      <MemoryRouter>
+        <PipelineScreen />
+      </MemoryRouter>
+    );
+    fireEvent.change(screen.getByRole("searchbox", { name: "Find a deal" }), {
+      target: { value: "stk13" },
+    });
+    expect(screen.queryByRole("row", { name: "Deal for Synthetic One" })).toBeNull();
+    expect(screen.getByRole("row", { name: "Deal for Synthetic Two" })).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Deal status" }), {
+      target: { value: "pending" },
+    });
+    expect(screen.getByText("No matching deals")).toBeTruthy();
+    expect(screen.queryByText("No saved deals yet")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("row", { name: "Deal for Synthetic One" })).toBeTruthy();
+  });
+
   it("puts aria-expanded on the chevron button, not the row", () => {
     mocks.savedDeals = [
       {

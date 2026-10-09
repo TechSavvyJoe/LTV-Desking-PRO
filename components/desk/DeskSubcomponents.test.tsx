@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
 import { splitPay } from "../../utils/format";
 import { calculateFinancials } from "../../services/calculator";
+import { assessDeal } from "../../services/dealAssessment";
+import { lenderFitForVehicle } from "../../services/lenderFit";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../../types";
 import type { LenderFitEntry } from "../../services/lenderFit";
 import { ApprovalGauge } from "../common/ApprovalGauge";
@@ -615,7 +617,10 @@ const emptyFilters: FilterData = {
   minScore: null,
 };
 
-const renderTermsRail = (advancedOpen = false) =>
+const renderTermsRail = (
+  advancedOpen = false,
+  overrides: Partial<React.ComponentProps<typeof DeskTermsRail>> = {}
+) =>
   render(
     <DeskTermsRail
       customerName=""
@@ -634,6 +639,7 @@ const renderTermsRail = (advancedOpen = false) =>
       onReset={vi.fn()}
       onClearFilters={vi.fn()}
       onScanIncome={vi.fn()}
+      {...overrides}
     />
   );
 
@@ -715,7 +721,7 @@ describe("desk reading order", () => {
       "true"
     );
 
-    const filters = screen.getByRole("button", { name: "More filters" });
+    const filters = screen.getByRole("button", { name: "Trade, taxes & advanced inputs" });
     expect(filters.getAttribute("aria-expanded")).toBe("false");
     expect(filters.hasAttribute("aria-controls")).toBe(false);
     expect(screen.getByRole("button", { name: "Reset deal" })).toBeTruthy();
@@ -723,15 +729,48 @@ describe("desk reading order", () => {
 
     // Units are part of the field names.
     expect(screen.getByLabelText("Down ($)").id).toBe("desk-down");
-    expect(screen.getByLabelText("APR (%)").id).toBe("desk-apr");
+    expect(screen.getByLabelText("Interest rate (%)").id).toBe("desk-apr");
     unmount();
 
     renderTermsRail(true);
-    const open = screen.getByRole("button", { name: "More filters" });
+    const open = screen.getByRole("button", { name: "Trade, taxes & advanced inputs" });
     expect(open.getAttribute("aria-expanded")).toBe("true");
     const controlled = document.getElementById(open.getAttribute("aria-controls") ?? "");
     expect(controlled?.classList.contains("desk-terms-advanced")).toBe(true);
     expect(screen.queryByRole("button", { name: /hide filters/i })).toBeNull();
+  });
+
+  it("resolving a program hold opens the existing lender tab and keeps keyboard focus there", () => {
+    const assessment = assessDeal(
+      vehicle,
+      dealData,
+      emptyFilters,
+      lenderProfiles,
+      lenderFitForVehicle(vehicle, { ...dealData, ...emptyFilters }, lenderProfiles)
+    );
+    const onResolve = vi.fn();
+    renderInspector({
+      vehicle: {
+        ...vehicle,
+        assessment: {
+          ...assessment,
+          checks: [
+            {
+              id: "lender",
+              label: "Program rules match",
+              status: "missing",
+              detail: "Program review needed.",
+            },
+          ],
+        },
+      },
+      onResolveCheck: onResolve,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve Program rules match" }));
+    const lenderTab = screen.getByRole("tab", { name: "Lenders" });
+    expect(lenderTab.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(lenderTab);
+    expect(onResolve).not.toHaveBeenCalled();
   });
 
   it("the inspector is a named landmark with an h2, the vehicle as h3 and a quiet numeral", () => {
@@ -865,5 +904,30 @@ describe("desk reading order", () => {
     const bareMeta = rows[2]?.querySelector(".desk-lender-meta") as HTMLElement;
     expect(bareMeta.querySelector('[aria-hidden="true"]')?.textContent).toBe("—");
     expect(bareMeta.querySelector(".sr-only")?.textContent).toBe("limits none listed");
+  });
+});
+
+describe("DeskTermsRail unit condition confirmation", () => {
+  afterEach(cleanup);
+  it("confirms only the selected VIN and shows its independent value on the next unit", () => {
+    const setDeal = vi.fn();
+    const { unmount } = renderTermsRail(true, {
+      selectedVehicle: { vin: "VIN-A", condition: "new" },
+      setDeal,
+      dealData: { ...dealData, vehicleConditions: { "VIN-B": "used" } },
+    });
+    const condition = screen.getByLabelText("Vehicle condition") as HTMLSelectElement;
+    expect(condition.value).toBe("new");
+    fireEvent.change(condition, { target: { value: "certified" } });
+    expect(setDeal).toHaveBeenCalledWith({
+      vehicleConditions: { "VIN-A": "certified", "VIN-B": "used" },
+    });
+    unmount();
+    renderTermsRail(true, { selectedVehicle: { vin: "VIN-B", condition: "used" }, setDeal });
+    expect((screen.getByLabelText("Vehicle condition") as HTMLSelectElement).value).toBe("used");
+  });
+  it("does not allow a condition confirmation without a selected unit", () => {
+    renderTermsRail(true);
+    expect((screen.getByLabelText("Vehicle condition") as HTMLSelectElement).disabled).toBe(true);
   });
 });

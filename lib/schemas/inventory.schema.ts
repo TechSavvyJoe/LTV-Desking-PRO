@@ -28,6 +28,7 @@ export const InventoryItemSchema = z
     make: z.string().min(1, "Make is required").max(100),
     model: z.string().min(1, "Model is required").max(100),
     trim: z.string().max(100).optional(),
+    condition: z.enum(["new", "used", "certified", ""]).optional(),
 
     // Numeric fields
     mileage: z

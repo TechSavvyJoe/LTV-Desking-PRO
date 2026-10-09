@@ -1,3 +1,4 @@
+import { scopeLegacyVehicleCondition } from "../services/vehicleCondition";
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDealContext } from "../context/DealContext";
@@ -45,7 +46,7 @@ export function useOpenDealInDesk(): (deal: SavedDeal) => void {
     (deal: SavedDeal) => {
       setCustomerName(deal.customerName);
       setSalespersonName(deal.salespersonName || "");
-      setDealData(deal.dealData);
+      setDealData(scopeLegacyVehicleCondition(deal.dealData, deal.vehicle?.vin));
       setFilters((prev) => mergeFiltersFromDeal(prev, deal));
       setScratchPadNotes(deal.notes || "");
 

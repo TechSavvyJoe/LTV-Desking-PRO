@@ -175,7 +175,7 @@ const CountChip: React.FC<{ count: number; unit: string; units: string }> = ({
 export const AppShell: React.FC = () => {
   const {
     settings,
-    setSettings,
+    persistSettings,
     inventory,
     lenderProfiles,
     setLenderProfiles,
@@ -322,11 +322,17 @@ export const AppShell: React.FC = () => {
   // BackgroundUploadIndicator while the user keeps working.
   const [aiUploadProgress, setAiUploadProgress] = useState({ progress: 0, stage: "" });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [setupChecklistOpen, setSetupChecklistOpen] = useState(false);
 
   const openAiUpload = useCallback(() => {
     setIsAiModalOpen(true);
     setIsAiMinimized(false);
   }, []);
+
+  const openSetupChecklist = useCallback(() => {
+    setSetupChecklistOpen(true);
+    navigate("/desk");
+  }, [navigate]);
 
   // --- Avatar popover --------------------------------------------------------
   const [menuOpen, setMenuOpen] = useState(false);
@@ -465,6 +471,14 @@ export const AppShell: React.FC = () => {
         onSelect: () => setIsSettingsOpen(true),
       },
       {
+        id: "act-setup-checklist",
+        label: "Setup checklist",
+        detail: "Review dealership setup steps",
+        group: "Actions",
+        keywords: ["getting started", "onboarding", "setup"],
+        onSelect: openSetupChecklist,
+      },
+      {
         id: "act-theme",
         label: theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
         group: "Actions",
@@ -497,6 +511,7 @@ export const AppShell: React.FC = () => {
     theme,
     toggleTheme,
     openAiUpload,
+    openSetupChecklist,
     openDealInDesk,
     setSearchQuery,
     setFocusVin,
@@ -800,6 +815,18 @@ export const AppShell: React.FC = () => {
                   className="rail-btn"
                   style={menuItemStyle}
                   onClick={() => {
+                    setMenuOpen(false);
+                    openSetupChecklist();
+                  }}
+                >
+                  <span aria-hidden="true">✓</span>
+                  Setup checklist
+                </button>
+                <button
+                  role="menuitem"
+                  className="rail-btn"
+                  style={menuItemStyle}
+                  onClick={() => {
                     // [WCAG 2.4.3] This menuitem unmounts in the same commit the
                     // palette mounts, so focus is returned to the Account button
                     // explicitly via returnFocusRef below.
@@ -897,6 +924,9 @@ export const AppShell: React.FC = () => {
           <NavLink to="/reports" className="tab-btn">
             Reports
           </NavLink>
+          <NavLink to="/tools" className="tab-btn">
+            Finance tools
+          </NavLink>
           <div className="app-shell-spacer" style={{ flex: 1 }} />
           {(isSuperAdmin || isDealerAdmin) && (
             <NavLink to="/admin" className="tab-btn">
@@ -928,6 +958,8 @@ export const AppShell: React.FC = () => {
                 dealerId={overrideId ?? currentUser?.dealer ?? "default"}
                 {...setupProgress(inventory, lenderProfiles, savedDeals)}
                 canManageSetup={isSuperAdmin || isDealerAdmin}
+                forceOpen={setupChecklistOpen}
+                onHide={() => setSetupChecklistOpen(false)}
                 onImportInventory={() => navigate("/inventory")}
                 onAddLenders={openAiUpload}
                 onDeskDeal={() => document.getElementById("desk-search")?.focus()}
@@ -947,7 +979,7 @@ export const AppShell: React.FC = () => {
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}
             settings={settings}
-            onSave={setSettings}
+            onSave={persistSettings}
           />
         </Suspense>
       </SectionErrorBoundary>

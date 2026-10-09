@@ -6,7 +6,9 @@ import {
   assertPrintablePageFits,
   assertRenderedCanvas,
   PdfGenerationErrorCode,
+  normalizePdfData,
 } from "./pdfGenerator";
+import type { DealPdfData } from "../types";
 
 const canvasWithColor = (rgba: [number, number, number, number]): HTMLCanvasElement =>
   ({
@@ -24,6 +26,12 @@ const canvasWithColor = (rgba: [number, number, number, number]): HTMLCanvasElem
   }) as unknown as HTMLCanvasElement;
 
 describe("pdfGenerator guards", () => {
+  it("preserves unset quote terms instead of substituting a default in exports", () => {
+    const data = { dealData: { loanTerm: "", interestRate: "" } } as unknown as DealPdfData;
+    expect(normalizePdfData(data).dealData).toMatchObject({ loanTerm: 0, interestRate: "" });
+    const zeroApr = { dealData: { loanTerm: 60, interestRate: 0 } } as DealPdfData;
+    expect(normalizePdfData(zeroApr).dealData).toMatchObject({ loanTerm: 60, interestRate: 0 });
+  });
   it("throws a typed blank_canvas error for empty canvas output", () => {
     expect(() => assertRenderedCanvas({ width: 0, height: 600 }, "data:,")).toThrow(
       PdfGenerationError

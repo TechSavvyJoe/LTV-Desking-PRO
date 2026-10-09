@@ -1,112 +1,64 @@
-# Model Card — Approval-Odds Score
+# Model card — Explainable deal assessment
 
-**System:** LTV Desking PRO · **Component:** `services/approvalScorer.ts` (`APPROVAL_CONFIG`)
-**Version:** config as of 2026-09-18 (weights 0.36 / 0.50 / 0.14, clamp 8–98) · **Owner:** product/engineering
-**Status:** Internal desking aid. **Not** a credit decision, credit score, or offer of credit. **Not validated against observed approval outcomes.**
+**System:** LTV Desking PRO · **Current component:** `services/dealAssessment.ts` · **Version:** `rules-v1`, reviewed 2026-10-08. **Status:** internal finance-desking companion; no approval probability or credit decision is produced.
 
-This card exists so a dealership's compliance officer, a lender partner, or counsel can understand exactly what the number on the gauge is, what it is not, and what controls surround it. It is written against the shipped code, not the design intent.
+## Purpose and permitted interpretation
 
----
+The visible deal-readiness rating counts explicit checks. It helps dealership staff identify missing inputs, infeasible entered structures, payment-budget tradeoffs and estimated dealer gross. It does not approve, decline, offer, price or rank consumers. Lenders make actual credit decisions after their application process. A program failing configured rules is **No fit**, not a lender denial.
 
-## 1. Purpose and scope
+A rating of 100 means all twelve configured checks passed. It does not certify the underlying evidence, taxes, legal compliance, funding or suitability. Do not communicate it as a probability of approval, financial advice, or a funded offer.
 
-The approval-odds score is a **0–100 ranking heuristic** that helps a desk manager sort a lot of vehicles by how _structurally_ well a given deal fits the store's lender programs, and to see at a glance which lever (credit, advance, or affordability) is dragging a structure. It is shown to **dealership staff only**, on the internal desk, and is labeled as an estimate on the deal inspector; see §5 for the surfaces that do not carry the caption yet.
+## Inputs and formulas
 
-It is **not** used to approve, decline, price, or counter-offer any consumer, and it generates no adverse-action, risk-based-pricing, or disclosure artifact. Actual credit decisions are made by the lender after a real application.
+Inputs are manually entered or imported vehicle price/book, FICO, gross monthly income, existing monthly obligations, explicit new/used/certified condition per VIN, payment term/rate, down payment, trade allowance/payoff, rebates, fees, products, budget and manager-confirmed profit inputs. No bureau pull is performed. No demographic attribute is read by the assessment; this does not establish absence of proxy risk or fair-lending compliance.
 
-## 2. Intended users and use
+| Measure                  | Calculation and interpretation                                                                                                                     |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Readiness                | Passed checks / 12, rounded to whole percent. Missing and failed checks receive zero points.                                                       |
+| Completeness             | Resolved checks / 12. A resolved failure is complete but does not pass.                                                                            |
+| Lender match             | Fitting fully checked, non-sample programs / fully checked, non-sample programs. Show denominator and pending count. No denominator means unknown. |
+| Budget used / headroom   | Estimated monthly payment / customer-entered ceiling; ceiling minus payment. No universal affordability threshold is implied.                      |
+| PTI / DTI                | Payment / gross monthly income; (existing monthly obligations + proposed payment) / gross income. Enforce only configured program constraints.     |
+| Estimated total interest | Cents-rounded payment × term minus amount financed. Excludes finance-charge fees and payment-timing differences.                                   |
+| Front gross              | Selling price after dealer discount minus manager-confirmed all-in VIN cost. Imported acquisition cost alone does not establish all-in cost.       |
+| Product gross            | Product selling amount minus entered product cost. No products means zero.                                                                         |
+| Estimated total gross    | Front gross + product gross + explicitly entered reserve/flat. No reserve is inferred from rate spread. Excludes later chargebacks and overhead.   |
+| Gross target             | Estimated gross / entered positive minimum gross; dollar headroom is available with an explicit zero target.                                       |
 
-| Intended                                                                        | Not intended                                              |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| F&I managers and desk managers ranking inventory for a structure                | Anyone communicating a "chance of approval" to a consumer |
-| Sales staff seeing which units _fit_ (band + fit count), never buy-rate/reserve | Any automated decision, gate, or routing without a human  |
-| Founder / QA tuning the config against real approval data                       | Prescreening, solicitation, or any FCRA-regulated use     |
+The twelve checks are: vehicle pricing/book; FICO; income; obligations; condition; payment calculation; configured program match; payment budget; all-in VIN cost; product cost; reserve; gross target. Blank values are unknown; an explicit zero debt, reserve or product amount can be valid. Readiness combines customer inputs and dealer financial checks, so it is a workflow checklist, not a pure measure of customer affordability.
 
-## 3. Inputs
+Pareto comparison considers only structures passing all twelve checks. A unit dominates another only when payment and estimated interest are no higher, estimated gross is no lower, and at least one dimension improves. It describes those three dimensions only: features, condition, preferences, warranty coverage and future resale value are not measured. It must not be presented as the objectively best vehicle for a customer.
 
-All inputs are entered by dealership staff on the desk. **No credit bureau data is ingested** — the FICO is typed by hand from a score the store already obtained. **No protected-class attribute** (race, color, religion, national origin, sex, marital status, age, receipt of public assistance) is an input, and none is derivable from the inputs listed.
+## Program matching safeguards
 
-| Input                                    | Source                                                                                         | Used for                          |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------- |
-| `creditScore` (FICO)                     | manual entry                                                                                   | credit component                  |
-| `otdLtv` (out-the-door loan-to-value, %) | computed by `calculator.ts` from price, tax, fees, down/trade/rebate, book value               | LTV component                     |
-| `monthlyPayment`, `monthlyIncome`        | computed / manual entry                                                                        | payment-to-income (PTI) component |
-| `fitCount`                               | `lenderFit.ts` — count of active lender programs whose published rules the structure satisfies | eligibility cap and band          |
+`services/lenderMatcher.ts` checks configured constraints and returns Fit, Pending or No fit. Missing required facts, samples, AI range-review holds, certified-status checks and undefined lender-specific advance calculations remain pending. Missing financed amount is pending; a known nonpositive amount cannot be financed.
 
-Missing inputs are held **neutral**, never punished or rewarded: unknown FICO or LTV scores the component at 50; unknown income scores PTI at 50 (it cannot earn the best affordability component).
+A published base rate plus rate adder is a program floor. A lower entered quote does not count as a fit; otherwise PTI/DTI would be checked using an artificially low payment. A missing quote remains pending when the program publishes a rate. Explicit 0% programs are valid. Private buy-rate values are not included in public failure reasons.
 
-## 4. Model description (as implemented)
+This guard applies when the client has the published rate. Sales profiles redact private buy-rate fields; the server supplies only `rateCheckRequired: true` on tiers whose private rate must be checked. Those tiers stay Pending for manager review instead of bypassing the rate floor. Managers with the published rate evaluate the actual floor. An absent rate is not inferred or invented, and no private rate value is added to the sales signal.
 
-Each component is mapped to 0–100, then combined with fixed weights, then capped, then clamped.
+An entered effective date must be a real ISO calendar date (`YYYY-MM-DD`). Future programs and malformed dates remain pending. A past effective date is not an expiry date: the engine does not invent one. Imported and edited programs require human source review; source document/version, review timestamp and optional inclusive expiration are stored. Expired or malformed expiration dates remain pending. The timestamp records the dealer action, not independent verification by the lender. A non-sample program with enforceable constraints is counted as configured evidence; that alone does not establish lender-authoritative verification or freshness.
 
-```
-creditComp = clamp((FICO − 450) / 4, 0, 100)                       // 450→0, 850→100
-ltvComp    = clamp(115 − (otdLtv − 100) × 2.2, 0, 105)              // ≤~95% → 105 (cap); ~147.7% → 0
-ptiComp    = clamp(100 − max(0, PTI − 12) × 5, 0, 100)              // ≤12% → 100; 32% → 0
+LTV uses each lender's selected Trade or Retail book with no cross-book fallback. The general inventory display prefers Trade and falls back to Retail. The vehicle data currently stores two numbers without authoritative guide/version/date/options provenance. Explicit new, used and certified condition is stored per VIN; certified counts as used unless a program requires certified specifically. Missing condition stays pending for restricted programs. Lender-specific `maxAdvance` calculations remain unchecked without their authoritative basis.
 
-score = 0.36·creditComp + 0.50·ltvComp + 0.14·ptiComp
+## Saved ratings and role boundaries
 
-Affordability caps:   PTI ≥ 20% → score ≤ 55 ;  PTI ≥ 25% → score ≤ 35
-Eligibility cap:      fitCount = 0 → score ≤ 45 and band = "none"
-                      (or "pending" when pendingCount > 0 — see below)
-Final:                round(clamp(score, 8, 98))
+Saved ratings carry a validated `rules-v1` snapshot. Reopening recalculates against current inputs/programs. Legacy `approvalScore` and `approvalBand` fields can still be computed or persisted for compatibility; they must never be relabelled as readiness or treated as probabilities. Current inventory sorting/filtering and visible ratings use the checklist.
 
-Bands: strong ≥ 72 · moderate ≥ 50 · weak < 50 · none (fits no active lender)
-       · pending (fits no lender yet, but ≥ 1 active lender could not be checked)
-```
+Sales cannot read or write manager profit inputs. Sales financial edits preserve those private values and invalidate private assessment snapshots. Customer/internal PDFs omit costs, gross and the legacy score. See `docs/desking/deal-ratings.md` and role-boundary tests for the persisted contract.
 
-**Pending vs. none.** `lenderFit.ts` reports a lender as _pending_ (not failed) when a rule it needs could not be evaluated — the FICO or income is missing, a book value or price is absent, a published range is flagged for review, or the program is a sample awaiting verification. If nothing fits and at least one lender is pending, the band is `pending` and the headline reason names what unblocks it (field names only, e.g. "Add a FICO score to check 3 lenders"). The numeric cap is identical to `none` (≤ 45); consumers treat a `pending` score as indeterminate — the inspector gauge renders it as an empty arc with no number, the inventory grid, compare strip and pipeline show a neutral "Pending" pill instead of a failing one, and Reports excludes pending units from the band distribution with a one-line note. This keeps "we haven't checked yet" visually distinct from "every lender declined."
+## Finance and geographic limitations
 
-The score also returns up to a handful of **principal drag factors** in plain language ("OTD LTV high (131%)", "Payment-to-income high (21.4%)", "Credit score in subprime range", "No active lender fits this structure", "Monthly income missing; PTI held neutral"). These are diagnostic hints for the desk, not adverse-action reasons.
+The amortization estimate assumes equal monthly payments and entered nominal annual rate. The desk and worksheets label the input interest rate; legacy field names still use APR for compatibility. The engine does not compute disclosure APR including credit-related fees, odd first-payment dates or daily accrual. The worksheets are preliminary internal estimates, not completed Truth-in-Lending disclosures.
 
-## 5. Outputs and how they are shown
+The tax engine models a **Michigan dealer**, with modeled MI/OH/IN/IL/FL buyer states and Michigan reciprocal collection. It is not a national dealer tax engine. Delivery outside Michigan, exempt/nonreciprocal states, local home-state liabilities, leases and state-specific product/fee taxation require additional verified jurisdiction rules. A single custom rate does not supply those rules. Vehicle condition and manual overrides are scoped to each VIN, including restored legacy deals; import feeds without condition do not invent or replace an existing confirmation. The nationwide jurisdiction limitations above still apply.
 
-- **Gauge / numeric score (deal inspector)** — the disclaimer caption _"Estimate, not a credit decision or offer of credit. Final terms require a lender credit check."_ is shown directly under the gauge (`components/desk/InspectorSummary.tsx`).
-- **Deal sheet modal and printed PDFs do not display the score.** They compute it only to persist it (`DealSheetModal.tsx:136-140`, `:194-199`) and never render the number, band, or gauge; each surface instead carries its own general estimate-only disclaimer text (the DealSheetModal footer, the page-1 footer of `components/pdf/PdfTemplate.tsx`, and every page footer of `components/pdf/FavoritesPdfTemplate.tsx`) — not the caption above, and not tied to any score output. Buy rate, rate adder, reserve, unit cost and front-end gross never print either; `PdfTemplate.test.tsx` and `AncillaryPdfTemplates.test.tsx` pin all of this.
-- **Printed paper is marked internal-use (§10).** Every page of the deal sheet and the Compare PDF carries "**Internal use only.** Printed deal worksheets are internal-use unless they carry the full Truth-in-Lending companion disclosures." in its footer (`components/pdf/InternalUseNotice.tsx`, quoted verbatim from §10; tests pin it on every page). The deal sheet calls itself a "Preliminary deal worksheet", not a customer worksheet. The internal lender cheat sheet is marked "Confidential".
-- **Printed lender status uses the same three states as the app** — Fit, Pending (a check the rules engine could not finish, e.g. an unverified sample program) and No fit (a real decline) — so paper never presents a held check as a decline.
-- **Band label** — strong / moderate / weak / none / pending (`pending` shows as "Pending lender checks" with the unblock hint, never as a failing color).
-- **Fit count** — "N of M lenders fit," derived from the published-rules engine (`lenderMatcher.ts`), which is the single source of truth for eligibility. The score is capped so it can never read better than the rules engine allows.
-- **Open gap** — the inventory grid's score column, the compare strip, the pipeline screen's Approval column (`components/screens/PipelineScreen.tsx:489-503`), the `/inventory` route's score column (`components/screens/InventoryScreen.tsx:537,716` — a separate component from the desk inspector's inventory grid), and the reports screen's score column all render the bare number/band with no disclaimer today. Adding an equivalent caption or footnote to those surfaces is tracked as follow-up work, not yet shipped.
+Printed deal worksheets are internal-use unless they carry the full Truth-in-Lending companion disclosures. The print footer remains: **Internal use only. Printed deal worksheets are internal-use unless they carry the full Truth-in-Lending companion disclosures.**
 
-## 6. Guardrails (in code)
+## Validation and launch evidence
 
-1. **Eligibility floor** — a structure that fits no active lender program cannot read above 45 or show any band but "none" (or "pending" when the rules engine could not finish checking at least one lender). The heuristic cannot contradict the rules engine, and an unchecked lender is never presented as a decline.
-2. **Affordability veto** — PTI at or above 20% / 25% caps the score regardless of credit and LTV.
-3. **Neutral unknowns** — missing data never inflates the score.
-4. **Role gating (server-side)** — `sales` users see band and fit count but never lender buy-rate or dealer reserve (`backend/pb_hooks/field_visibility.pb.js`, with `backend/pb_hooks/field_filter_guard.pb.js` rejecting sales `?filter=` / `?sort=` / realtime filters that name those fields so they cannot be recovered by probing).
-5. **Disclaimer today, gap elsewhere** — the estimate caption is rendered with the score on the deal inspector gauge only. The deal sheet modal and printed PDFs do not display the score at all; they carry their own general estimate-only disclaimer text instead, unrelated to any rendered score. The caption is **not yet** rendered on the inventory grid, compare strip, pipeline Approval column, `/inventory` route score column, or reports score columns. Printed deal paper is marked internal-use per the §10 policy on every page (see §5).
-6. **Single tunable config** — every constant lives in `APPROVAL_CONFIG`; changes are code-reviewed and versioned with this card.
+Formula/edge cases: `services/dealAssessment.test.ts`, `services/calculator.test.ts`, `services/lenderMatcher.test.ts`, `services/lenderFit.test.ts`. Persistence and roles: `tests/e2e/deal-ratings.spec.ts`, `tests/e2e/field-visibility.spec.ts`. Test passage proves the tested behavior; it does not certify every lender rule or jurisdiction.
 
-## 7. Fairness and protected classes
+Before broader sale, follow the independent-dealer pilot in `docs/PILOT_CHARTER.md`: reconcile estimates against real funded contract payments and explain deltas. Track sample counts, program/document versions and jurisdiction coverage. The charter's ≤$10/month on ≥80% of sampled deals is a pilot success target, not evidence already achieved or a universal acceptance threshold. The legacy heuristic is uncalibrated; there are no validated lender approval probabilities.
 
-- **No protected-class inputs; no proxies by design.** Inputs are FICO, loan-to-value, payment-to-income, and rules-engine fit. Geography, name, language, and any demographic field are not read.
-- **Residual proxy risk.** FICO, LTV, and PTI are themselves correlated with protected classes in the population. Because the score is advisory, internal, and never a decision, this risk is bounded — but it is the reason the score must **never** be used to steer, price, or discourage a consumer. That restriction is stated in the Terms of Service, Acceptable Use (`components/legal/TermsOfService.tsx`, §3), and should be reinforced in dealer onboarding.
-- **No disparate-treatment vector.** The same inputs produce the same score for every customer; there is no manual override or per-customer adjustment.
-
-## 8. Known limitations (read before trusting the number)
-
-1. **Not calibrated.** A "72" is not a 72% probability of approval. The score has not been fit or validated against real lender decisions. Treat bands as ordinal (better/worse), not as probabilities.
-2. **Labeled weights ≠ effective influence.** Although the config labels credit at 0.36 and LTV at 0.50, the components sit on different scales: one FICO point moves the score ≈0.09, one percentage point of LTV moves it ≈1.1, and the LTV component can reach 105. Across realistic ranges LTV can swing the score ~52 points, FICO ~36, PTI ~14. **The heuristic is LTV-dominant.** This mirrors the desk's structuring lever (advance), but a reviewer must not read the labels as relative importance to lenders, which tier on FICO first.
-3. **Top-end compression.** The 98 ceiling means very strong and merely good prime files can converge; ranking power is weakest at the top.
-4. **Manual FICO.** The score inherits any error in the typed score and knows nothing of tradelines, DTI, or bureau attributes.
-5. **Book-value dependence.** LTV is only as good as the book value on file (J.D. Power / NADA / KBB / Black Book / MMR as imported).
-6. **Michigan-anchored tax engine.** OTD (and therefore LTV) is exact for MI and modeled for OH/IN/IL/FL with MI reciprocity; other states are not supported yet, which affects the score's inputs, not its logic.
-
-## 9. Validation and monitoring plan
-
-- **Before relying on it for ranking in production sales:** collect (score, band, lender decision) pairs from the pipeline's status field and compute approval rate by band. A monotonic relationship (strong > moderate > weak) is the minimum bar; recalibrate `APPROVAL_CONFIG` if it does not hold.
-- **Input/output logging:** every scored deal that is saved records its inputs and score in `saved_deals` / `deal_events`, which is the audit trail for the analysis above.
-- **Change control:** any change to `APPROVAL_CONFIG`, the component curves, caps, or bands requires updating §4 and §8 of this card in the same pull request.
-
-## 10. Required user-facing language
-
-Every surface that renders the score, band, or a payment/APR derived from it must carry, verbatim or equivalent:
-
-> _Estimate based on entered data — not a credit decision or offer of credit. Final terms require a lender credit check._
-
-Printed deal worksheets are internal-use unless they carry the full Truth-in-Lending companion disclosures.
-
----
-
-_Questions about this card: the support contact configured in `VITE_SUPPORT_EMAIL`. Counsel review of this card is recommended before the product is sold outside a pilot._
+Update this card and `deal-ratings.md` when checklist definitions, matching rules, role visibility or finance/tax scope change. Product/legal review must establish permitted consumer-facing use and disclosures before changing internal worksheets into customer offers.

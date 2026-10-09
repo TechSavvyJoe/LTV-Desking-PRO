@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useDealContext } from "../context/DealContext";
 import { saveDeal, logDealEvent } from "../lib/api";
@@ -9,8 +9,9 @@ import { scoreApprovalOdds } from "../services/approvalScorer";
 import { assessDeal, holdIncompleteFits } from "../services/dealAssessment";
 import { normalizeBackendProductFields } from "../services/backendProducts";
 import { mapPocketBaseSavedDeal } from "../lib/dealMappers";
-import { queryClient, queryKeys } from "../lib/queryClient";
-import type { CalculatedVehicle, SavedDeal } from "../types";
+import { currentDealerQueryKeys, queryClient, queryKeys } from "../lib/queryClient";
+import { getPrivateSessionEpoch } from "../lib/privateSession";
+import type { CalculatedVehicle, LenderProfile, SavedDeal, Vehicle } from "../types";
 import type { SavedDeal as PocketBaseSavedDeal } from "../lib/pocketbase";
 
 type NewSavedDealPayload = Omit<
@@ -27,6 +28,7 @@ type NewSavedDealPayload = Omit<
 export function useSaveDeal() {
   const {
     settings,
+    inventory,
     dealData,
     filters,
     customerName,
@@ -40,16 +42,73 @@ export function useSaveDeal() {
     setIsDealDirty,
   } = useDealContext();
 
+  // A ref closes the same-event-loop double-click window before React paints
+  // the disabled button. The request is released on both success and failure.
+  const saving = useRef(false);
+  const mounted = useRef(true);
+  const sessionEpoch = useRef(getPrivateSessionEpoch()).current;
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const isCurrentSession = useCallback(
+    () => mounted.current && sessionEpoch === getPrivateSessionEpoch(),
+    [sessionEpoch]
+  );
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // activeVehicle is the restored/focused snapshot. Inventory can update the
+  // same VIN without replacing that snapshot; quote from its current source.
+  const sourceVehicle = inventory.find((v) => v.vin === activeVehicle?.vin) ?? activeVehicle;
+  const signature = JSON.stringify([
+    customerName,
+    salespersonName,
+    dealData,
+    filters,
+    scratchPadNotes,
+    sourceVehicle && {
+      id: sourceVehicle.id,
+      vin: sourceVehicle.vin,
+      stock: sourceVehicle.stock,
+      vehicle: sourceVehicle.vehicle,
+      price: sourceVehicle.price,
+      jdPower: sourceVehicle.jdPower,
+      jdPowerRetail: sourceVehicle.jdPowerRetail,
+      unitCost: sourceVehicle.unitCost,
+      condition: sourceVehicle.condition,
+      modelYear: sourceVehicle.modelYear,
+      mileage: sourceVehicle.mileage,
+    },
+    settings,
+    safeLenderProfiles,
+  ]);
+  const currentSignature = useRef(signature);
+  useEffect(() => {
+    currentSignature.current = signature;
+  }, [signature]);
+
   const saveMutation = useMutation({
     mutationFn: (payload: NewSavedDealPayload) => saveDeal(payload),
   });
 
   const handleSaveDeal = useCallback(
-    (vehicleOverride?: CalculatedVehicle) => {
-      const vehicleToSave = vehicleOverride || activeVehicle;
+    async (vehicleOverride?: CalculatedVehicle): Promise<boolean> => {
+      if (saving.current || !isCurrentSession()) return false;
+      setSaveError(null);
+      const fail = (text: string) => {
+        if (!isCurrentSession()) return false;
+        setSaveError(text);
+        setMessage({ type: "error", text });
+        return false;
+      };
+      const selected = vehicleOverride || activeVehicle;
+      const scopedKeys = currentDealerQueryKeys();
+      const latestInventory =
+        queryClient.getQueryData<Vehicle[]>(scopedKeys.inventory) ?? inventory;
+      const vehicleToSave = latestInventory.find((v) => v.vin === selected?.vin) ?? selected;
       if (!vehicleToSave) {
-        setMessage({ type: "error", text: "Pick a vehicle on the desk before saving." });
-        return;
+        return fail("Pick a vehicle on the desk before saving.");
       }
       if (
         typeof vehicleToSave.price !== "number" ||
@@ -59,19 +118,15 @@ export function useSaveDeal() {
         !vehicleToSave.vin ||
         vehicleToSave.vin.length < 11
       ) {
-        setMessage({
-          type: "error",
-          text: "Add the vehicle's price, mileage and VIN before saving.",
-        });
-        return;
+        return fail("Add the vehicle's price, mileage and VIN before saving.");
       }
-      if (!customerName) {
+      const trimmedName = customerName.trim();
+      if (!trimmedName) {
         setErrors((prev) => ({
           ...prev,
           customerName: "Enter the customer's name",
         }));
-        setMessage({ type: "error", text: "Enter the customer's name to save the deal." });
-        return;
+        return fail("Enter the customer's name to save the deal.");
       }
 
       const now = new Date().toISOString();
@@ -134,9 +189,9 @@ export function useSaveDeal() {
       });
 
       const newDealData: NewSavedDealPayload = {
-        name: `${now.split("T")[0]} - ${customerName}`,
-        customerName,
-        salespersonName,
+        name: `${now.split("T")[0]} - ${trimmedName}`,
+        customerName: trimmedName,
+        salespersonName: salespersonName.trim(),
         vehicle: vehicleToSave.id, // Assuming calculated vehicle has ID matching inventory
         vehicleData: { ...vehicleSnapshot } as Record<string, unknown>, // Serialized to JSON in PocketBase
         dealData: { ...normalizedDealData } as Record<string, unknown>,
@@ -169,41 +224,58 @@ export function useSaveDeal() {
         } as Record<string, unknown>,
       };
 
-      saveMutation.mutate(newDealData, {
-        onSuccess: (saved) => {
-          if (!saved) {
-            setMessage({
-              type: "error",
-              text: "Couldn't save the deal. Check your connection and try again.",
-            });
-            return;
-          }
-          const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
-          setSavedDeals((prev) => [mappedSaved, ...prev]);
-          void queryClient.invalidateQueries({ queryKey: queryKeys.savedDeals });
-          setMessage({ type: "success", text: "Deal saved" });
-          setIsDealDirty(false);
-          void logDealEvent({
-            action: "deal_saved",
-            customerName,
-            vin: vehicleToSave.vin,
-            snapshot: {
-              dealData: normalizedDealData,
-              monthlyPayment: vehicleSnapshot.monthlyPayment,
-            },
-          });
-          capture("deal_saved", { term: dealData.loanTerm });
-        },
-        onError: () => {
-          setMessage({
-            type: "error",
-            text: "Couldn't save the deal. Check your connection and try again.",
-          });
-        },
-      });
+      saving.current = true;
+      const savedSignature = signature;
+      // React Query notifies observers on a scheduled turn. Read its current
+      // source at receipt time too, so a synchronous same-VIN cache edit cannot
+      // be marked saved before the component has re-rendered.
+      const cacheVersion = () =>
+        JSON.stringify([
+          queryClient
+            .getQueryData<Vehicle[]>(scopedKeys.inventory)
+            ?.find((v) => v.vin === vehicleToSave.vin),
+          queryClient.getQueryData<LenderProfile[]>(scopedKeys.lenderProfiles),
+        ]);
+      const savedCacheVersion = cacheVersion();
+      try {
+        const saved = await saveMutation.mutateAsync(newDealData);
+        // A write may complete after logout, dealer switch or unmount. No old
+        // customer receipt, cache update or audit event belongs to the new identity.
+        if (!isCurrentSession()) return false;
+        if (!saved) return fail("Couldn't save the deal. Check your connection and try again.");
+        const mappedSaved: SavedDeal = mapPocketBaseSavedDeal(saved);
+        setSavedDeals((prev) => [mappedSaved, ...prev.filter((deal) => deal.id !== saved.id)]);
+        void queryClient.invalidateQueries({ queryKey: queryKeys.savedDeals });
+        setMessage({ type: "success", text: "Deal saved" });
+        const unchanged =
+          currentSignature.current === savedSignature && cacheVersion() === savedCacheVersion;
+        // A delayed response must not mark newer customer edits as saved.
+        setIsDealDirty(!unchanged);
+        void logDealEvent({
+          action: "deal_saved",
+          customerName,
+          vin: vehicleToSave.vin,
+          snapshot: {
+            dealData: normalizedDealData,
+            monthlyPayment: vehicleSnapshot.monthlyPayment,
+          },
+        });
+        capture("deal_saved", { term: dealData.loanTerm });
+        if (!unchanged) {
+          return fail(
+            "The previous version was saved. Newer edits are still unsaved — save again to keep them."
+          );
+        }
+        return true;
+      } catch {
+        return fail("Couldn't save the deal. Check your connection and try again.");
+      } finally {
+        saving.current = false;
+      }
     },
     [
       activeVehicle,
+      inventory,
       customerName,
       salespersonName,
       dealData,
@@ -216,10 +288,12 @@ export function useSaveDeal() {
       setErrors,
       setIsDealDirty,
       saveMutation,
+      signature,
+      isCurrentSession,
     ]
   );
 
-  return { handleSaveDeal };
+  return { handleSaveDeal, isSaving: saveMutation.isPending, saveError };
 }
 
 export default useSaveDeal;

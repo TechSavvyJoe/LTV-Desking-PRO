@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   setFocusVin: vi.fn(),
   setActiveVehicle: vi.fn(),
   navigate: vi.fn(),
+  role: "sales",
+  handleInventoryUpdate: vi.fn(),
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -22,7 +24,7 @@ vi.mock("react-router-dom", () => ({
 }));
 
 vi.mock("../../lib/pocketbase", () => ({
-  getCurrentUser: () => ({ role: "sales" }),
+  getCurrentUser: () => ({ role: mocks.role }),
 }));
 
 vi.mock("../../hooks/useInventoryImport", () => ({
@@ -54,6 +56,7 @@ vi.mock("../../context/DealContext", () => ({
     setFocusVin: mocks.setFocusVin,
     setActiveVehicle: mocks.setActiveVehicle,
     safeLenderProfiles: [],
+    handleInventoryUpdate: mocks.handleInventoryUpdate,
   }),
 }));
 
@@ -85,6 +88,7 @@ const unit = (vin: string, over: Partial<CalculatedVehicle> = {}): CalculatedVeh
 });
 
 beforeEach(() => {
+  mocks.role = "sales";
   mocks.inventory = [unit("A"), unit("B", { approvalBand: "pending", stock: "STK1034" })];
   mocks.focusVin = null;
   mocks.sort = { key: "price", direction: "desc" };
@@ -195,5 +199,19 @@ describe("InventoryScreen toolbar and live regions", () => {
     render(<InventoryScreen />);
     expect(screen.getByRole("heading", { level: 1, name: "Inventory" })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "No inventory yet" })).toBeTruthy();
+  });
+});
+
+describe("inventory condition editing", () => {
+  it("persists explicit status for the selected unit and does not navigate away", () => {
+    mocks.role = "admin";
+    render(<InventoryScreen />);
+    const selector = screen.getByLabelText("Inventory condition for SA") as HTMLSelectElement;
+    expect(selector.value).toBe("");
+    fireEvent.change(selector, { target: { value: "certified" } });
+    expect(mocks.handleInventoryUpdate).toHaveBeenCalledWith("A", { condition: "certified" });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    fireEvent.change(selector, { target: { value: "" } });
+    expect(mocks.handleInventoryUpdate).toHaveBeenLastCalledWith("A", { condition: undefined });
   });
 });

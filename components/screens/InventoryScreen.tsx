@@ -11,6 +11,7 @@ import { EmptyState, DataLoading } from "../common/states";
 import * as Icons from "../common/Icons";
 import { fmt, fmtN } from "../../utils/format";
 import type { CalculatedVehicle } from "../../types";
+import { normalizeVehicleCondition } from "../../services/vehicleCondition";
 import { getCurrentUser } from "../../lib/pocketbase";
 
 const mono = "var(--mono)";
@@ -80,6 +81,7 @@ const InventoryScreenBase: React.FC = () => {
     setFocusVin,
     setActiveVehicle,
     safeLenderProfiles,
+    handleInventoryUpdate,
   } = useDealContext();
 
   const {
@@ -282,98 +284,100 @@ const InventoryScreenBase: React.FC = () => {
           </Button>
 
           {/* VIN decode popover */}
-          <div ref={vinRef} style={{ position: "relative" }}>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              aria-haspopup="dialog"
-              aria-expanded={vinOpen}
-              onClick={() => setVinOpen((v) => !v)}
-            >
-              VIN decode
-            </Button>
-            {vinOpen && (
-              <div
-                role="dialog"
-                aria-label="VIN decode"
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "calc(100% + 8px)",
-                  width: 268,
-                  background: "var(--color-bg)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-lg)",
-                  boxShadow: "var(--shadow-md)",
-                  padding: 13,
-                  zIndex: 40,
-                }}
+          {canManageInventory && (
+            <div ref={vinRef} style={{ position: "relative" }}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                aria-haspopup="dialog"
+                aria-expanded={vinOpen}
+                onClick={() => setVinOpen((v) => !v)}
               >
-                <label
-                  htmlFor="inv-vin-decode"
+                VIN decode
+              </Button>
+              {vinOpen && (
+                <div
+                  role="dialog"
+                  aria-label="VIN decode"
                   style={{
-                    display: "block",
-                    fontSize: 11,
-                    fontWeight: 500,
-                    color: "var(--color-text-muted)",
-                    marginBottom: 5,
+                    position: "absolute",
+                    right: 0,
+                    top: "calc(100% + 8px)",
+                    width: 268,
+                    background: "var(--color-bg)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-lg)",
+                    boxShadow: "var(--shadow-md)",
+                    padding: 13,
+                    zIndex: 40,
                   }}
                 >
-                  Decode a VIN into inventory
-                </label>
-                <div style={{ display: "flex", gap: 7 }}>
-                  <input
-                    id="inv-vin-decode"
-                    className="dc-input"
-                    value={vinLookup}
-                    maxLength={17}
-                    onChange={(e) => setVinLookup(e.target.value.toUpperCase().trim())}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !isVinLoading) void handleVinLookup();
-                    }}
-                    placeholder="17-character VIN"
+                  <label
+                    htmlFor="inv-vin-decode"
                     style={{
-                      flex: 1,
-                      minWidth: 0,
-                      background: "var(--color-bg-subtle)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: "7px 10px",
-                      fontSize: 12,
-                      color: "var(--color-text)",
-                      fontFamily: mono,
-                      outline: "none",
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    disabled={isVinLoading}
-                    onClick={() => void handleVinLookup()}
-                  >
-                    {isVinLoading ? <DataLoading label="Decoding…" variant="inline" /> : "Decode"}
-                  </Button>
-                </div>
-                {vinLookupResult && (
-                  <div
-                    role="status"
-                    style={{
-                      marginTop: 8,
-                      fontSize: 12,
-                      lineHeight: 1.4,
-                      color: vinLookupResult.startsWith("Error")
-                        ? "var(--color-danger)"
-                        : "var(--color-success)",
+                      display: "block",
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: "var(--color-text-muted)",
+                      marginBottom: 5,
                     }}
                   >
-                    {vinLookupResult}
+                    Decode a VIN into inventory
+                  </label>
+                  <div style={{ display: "flex", gap: 7 }}>
+                    <input
+                      id="inv-vin-decode"
+                      className="dc-input"
+                      value={vinLookup}
+                      maxLength={17}
+                      onChange={(e) => setVinLookup(e.target.value.toUpperCase().trim())}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !isVinLoading) void handleVinLookup();
+                      }}
+                      placeholder="17-character VIN"
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        background: "var(--color-bg-subtle)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: "var(--radius-md)",
+                        padding: "7px 10px",
+                        fontSize: 12,
+                        color: "var(--color-text)",
+                        fontFamily: mono,
+                        outline: "none",
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      disabled={isVinLoading}
+                      onClick={() => void handleVinLookup()}
+                    >
+                      {isVinLoading ? <DataLoading label="Decoding…" variant="inline" /> : "Decode"}
+                    </Button>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+                  {vinLookupResult && (
+                    <div
+                      role="status"
+                      style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        lineHeight: 1.4,
+                        color: vinLookupResult.startsWith("Error")
+                          ? "var(--color-danger)"
+                          : "var(--color-success)",
+                      }}
+                    >
+                      {vinLookupResult}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <Button
             type="button"
@@ -598,6 +602,41 @@ const InventoryScreenBase: React.FC = () => {
                               }}
                             >
                               <span style={{ fontFamily: mono }}>{stockLabel(v.stock)}</span>
+                              {canManageInventory ? (
+                                <select
+                                  aria-label={`Inventory condition for ${v.stock}`}
+                                  value={v.condition ?? ""}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={(event) => {
+                                    event.stopPropagation();
+                                    void handleInventoryUpdate(v.vin, {
+                                      condition: normalizeVehicleCondition(event.target.value),
+                                    });
+                                  }}
+                                  style={{
+                                    maxWidth: 135,
+                                    color: "inherit",
+                                    background: "var(--color-bg)",
+                                    border: "1px solid var(--color-border)",
+                                    borderRadius: 4,
+                                  }}
+                                >
+                                  <option value="">Unknown condition</option>
+                                  <option value="new">New</option>
+                                  <option value="used">Used</option>
+                                  <option value="certified">Certified pre-owned</option>
+                                </select>
+                              ) : (
+                                <span>
+                                  {v.condition === "certified"
+                                    ? "Certified pre-owned"
+                                    : v.condition === "new"
+                                      ? "New"
+                                      : v.condition === "used"
+                                        ? "Used"
+                                        : "Unknown condition"}
+                                </span>
+                              )}
                               <span style={{ fontVariantNumeric: "tabular-nums" }}>
                                 {typeof v.mileage === "number" ? fmtN(v.mileage) : "—"} mi
                               </span>

@@ -346,6 +346,23 @@ export const LendersScreen: React.FC = () => {
 
   const queueSave = (id: string, patch: Partial<LenderRow>) => {
     if (!canEdit) return;
+    // Changing financial terms invalidates the recorded human review.
+    if (
+      Object.keys(patch).some((key) =>
+        [
+          "tiers",
+          "bookValueSource",
+          "minIncome",
+          "maxPti",
+          "maxDti",
+          "maxBackend",
+          "minAmountFinanced",
+          "maxAmountFinanced",
+        ].includes(key)
+      )
+    ) {
+      patch = { ...patch, reviewRequired: true, verifiedAt: "" };
+    }
     // Optimistic: the context recomputes fits/scores immediately ("adjust to
     // rescore inventory"), the PB write trails by 500ms so keystrokes batch.
     setLenderProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -785,7 +802,7 @@ export const LendersScreen: React.FC = () => {
                             textAlign: "right",
                           }}
                         >
-                          {units}/{shownCount}
+                          {status.pending && units === 0 ? "Pending" : `${units}/${shownCount}`}
                         </span>
                       </div>
                       <span role="cell" data-label="Status" style={{ textAlign: "right" }}>

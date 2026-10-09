@@ -34,6 +34,7 @@ import type {
   Settings,
 } from "../types";
 import type { InventoryItem } from "../lib/pocketbase";
+import { normalizeVehicleCondition } from "../services/vehicleCondition";
 import { getCurrentDealerId } from "../lib/pocketbase";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useSafeData } from "../hooks/useSafeData";
@@ -58,6 +59,7 @@ import { createLogger } from "../lib/logger";
 import { queryClient, queryKeys } from "../lib/queryClient";
 import { capture } from "../lib/analytics";
 import { normalizeAiSettings } from "../lib/aiModelRegistry";
+import { getPrivateSessionEpoch } from "../lib/privateSession";
 
 const dealContextLogger = createLogger("deal-context");
 
@@ -79,6 +81,8 @@ interface DealContextType {
   // State
   settings: Settings;
   setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+  /** Resolves true only after the dealership server confirms the defaults. */
+  persistSettings: (settings: Settings) => Promise<boolean>;
   inventory: Vehicle[];
   setInventory: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   dealData: DealData;
@@ -144,8 +148,9 @@ interface DealContextType {
   toggleFavorite: (vin: string) => void;
   toggleInventoryRowExpansion: (vin: string) => void;
   toggleFavoriteRowExpansion: (vin: string) => void;
-  handleInventoryUpdate: (vin: string, updatedData: Partial<Vehicle>) => void;
+  handleInventoryUpdate: (vin: string, updatedData: Partial<Vehicle>) => Promise<void>;
   clearDealAndFilters: () => void;
+  resetDealState: () => void;
   loadSampleData: () => void;
   isShowroomMode: boolean;
   setIsShowroomMode: React.Dispatch<React.SetStateAction<boolean>>;
@@ -271,13 +276,14 @@ const normalizeSavedDeal = (deal: Partial<SavedDeal>): SavedDeal | null => {
 // Accepts InventoryItem (from api) — extra fields (dealer, status) are ignored.
 const mapInventoryItem = (i: InventoryItem): Vehicle => ({
   id: i.id,
+  condition: normalizeVehicleCondition(i.condition),
   vehicle: `${i.year} ${i.make} ${i.model} ${i.trim || ""}`.trim(),
   stock: i.stockNumber || "N/A",
   vin: i.vin,
   modelYear: i.year,
   // typeof, not ||: a legitimate 0-mile unit must stay 0 — `0 || "N/A"`
   // coerced new/in-transit units to "N/A", which blocked Structure Deal. [C-tables]
-  mileage: typeof i.mileage === "number" ? i.mileage : "N/A",
+  mileage: !i.mileageUnknown && typeof i.mileage === "number" ? i.mileage : "N/A",
   price: i.price,
   jdPower: typeof i.jdPower === "number" && i.jdPower > 0 ? i.jdPower : "N/A",
   jdPowerRetail:
@@ -295,6 +301,18 @@ const mapWorkingInventory = (items: InventoryItem[]): Vehicle[] =>
   items.filter((item) => item.status !== "sold").map(mapInventoryItem);
 
 export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const sessionEpoch = useRef(getPrivateSessionEpoch()).current;
+  const providerActive = useRef(true);
+  useEffect(() => {
+    providerActive.current = true;
+    return () => {
+      providerActive.current = false;
+    };
+  }, []);
+  const canWriteSession = useCallback(
+    () => providerActive.current && sessionEpoch === getPrivateSessionEpoch(),
+    [sessionEpoch]
+  );
   const [settings, setSettings] = useState<Settings>(loadInitialSettings);
 
   // Bumped whenever the superadmin dealer override changes so queries + subs
@@ -353,30 +371,33 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setInventory = useCallback<React.Dispatch<React.SetStateAction<Vehicle[]>>>(
     (action) => {
+      if (!canWriteSession()) return;
       queryClient.setQueryData<Vehicle[]>(inventoryKey, (old) => {
         const prev = old ?? [];
         return typeof action === "function" ? action(prev) : action;
       });
     },
-    [inventoryKey]
+    [inventoryKey, canWriteSession]
   );
   const setLenderProfiles = useCallback<React.Dispatch<React.SetStateAction<LenderProfile[]>>>(
     (action) => {
+      if (!canWriteSession()) return;
       queryClient.setQueryData<LenderProfile[]>(lenderProfilesKey, (old) => {
         const prev = old ?? [];
         return typeof action === "function" ? action(prev) : action;
       });
     },
-    [lenderProfilesKey]
+    [lenderProfilesKey, canWriteSession]
   );
   const setSavedDeals = useCallback<React.Dispatch<React.SetStateAction<SavedDeal[]>>>(
     (action) => {
+      if (!canWriteSession()) return;
       queryClient.setQueryData<SavedDeal[]>(savedDealsKey, (old) => {
         const prev = old ?? [];
         return typeof action === "function" ? action(prev) : action;
       });
     },
-    [savedDealsKey]
+    [savedDealsKey, canWriteSession]
   );
 
   const dataLoading =
@@ -413,6 +434,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [salespersonName, setSalespersonName] = useState<string>("");
   const [activeVehicle, setActiveVehicle] = useState<CalculatedVehicle | null>(null);
   const [isDealDirty, setIsDealDirty] = useState<boolean>(false);
+  const resetDirtyRef = useRef(false);
 
   const [favorites, setFavorites] = useLocalStorage<Vehicle[]>(STORAGE_KEYS.FAVORITES, []);
   const [scratchPadNotes, setScratchPadNotes] = useLocalStorage<string>(
@@ -471,7 +493,12 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       cvrFee: dealerSettings.cvrFee,
       defaultState: toAppState(dealerSettings.defaultState, prev.defaultState),
       outOfStateTransitFee: dealerSettings.outOfStateTransitFee,
-      customTaxRate: normalizeStoredTaxRate(dealerSettings.customTaxRate),
+      customTaxRate:
+        dealerSettings.customTaxRateEnabled === false
+          ? null
+          : dealerSettings.customTaxRateEnabled === true || Number(dealerSettings.customTaxRate) > 0
+            ? normalizeStoredTaxRate(dealerSettings.customTaxRate)
+            : null,
       miTradeInCreditCap: dealerSettings.miTradeInCreditCap ?? prev.miTradeInCreditCap,
       vscPrice: dealerSettings.vscPrice ?? prev.vscPrice,
       gapPrice: dealerSettings.gapPrice ?? prev.gapPrice,
@@ -526,43 +553,65 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDealDirty, activeVehicle]);
 
-  // Sync settings changes to PocketBase
-  const updateSettings: React.Dispatch<React.SetStateAction<Settings>> = useCallback((action) => {
-    setSettings((prev) => {
-      const newSettings =
-        typeof action === "function" ? (action as (prev: Settings) => Settings)(prev) : action;
-
-      // Fire and forget update
+  // Keep the updater pure: StrictMode may invoke state updater functions twice.
+  // Serialize server writes so rapid saves cannot persist an older value last.
+  const settingsRef = useRef(settings);
+  const settingsSavesRef = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+  const persistSettings = useCallback(
+    (newSettings: Settings): Promise<boolean> => {
+      if (!canWriteSession()) return Promise.resolve(false);
+      settingsRef.current = newSettings;
+      setSettings(newSettings);
+      const scope = getCurrentDealerId();
       try {
         window.localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
-        // Same-tab notification for consumers reading settings outside this
-        // provider (hooks/useSettings) — the native "storage" event only
-        // fires in OTHER tabs. [settings-staleness]
         window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
       } catch (error) {
         dealContextLogger.warn("Failed to persist local settings", { error });
       }
-
-      updateDealerSettings({
-        defaultTerm: newSettings.defaultTerm,
-        defaultApr: newSettings.defaultApr,
-        defaultStateFees: newSettings.defaultStateFees,
-        docFee: newSettings.docFee,
-        cvrFee: newSettings.cvrFee,
-        defaultState: newSettings.defaultState,
-        outOfStateTransitFee: newSettings.outOfStateTransitFee,
-        customTaxRate: newSettings.customTaxRate ?? undefined,
-        miTradeInCreditCap: newSettings.miTradeInCreditCap,
-        vscPrice: newSettings.vscPrice,
-        gapPrice: newSettings.gapPrice,
-      }).catch((err) => {
-        dealContextLogger.error("Failed to persist settings", err);
-        toast.error("Server save failed — settings kept in this browser.");
+      const receipt = settingsSavesRef.current.then(async () => {
+        if (!canWriteSession() || getCurrentDealerId() !== scope) return false;
+        try {
+          const saved = await updateDealerSettings({
+            defaultTerm: newSettings.defaultTerm,
+            defaultApr: newSettings.defaultApr,
+            defaultStateFees: newSettings.defaultStateFees,
+            docFee: newSettings.docFee,
+            cvrFee: newSettings.cvrFee,
+            defaultState: newSettings.defaultState,
+            outOfStateTransitFee: newSettings.outOfStateTransitFee,
+            customTaxRate: newSettings.customTaxRate ?? null,
+            miTradeInCreditCap: newSettings.miTradeInCreditCap,
+            vscPrice: newSettings.vscPrice,
+            gapPrice: newSettings.gapPrice,
+          });
+          if (!canWriteSession() || getCurrentDealerId() !== scope) return false;
+          if (!saved) toast.error("Server save failed — settings kept in this browser.");
+          return Boolean(saved);
+        } catch (err) {
+          if (canWriteSession() && getCurrentDealerId() === scope) {
+            dealContextLogger.error("Failed to persist settings", err);
+            toast.error("Server save failed — settings kept in this browser.");
+          }
+          return false;
+        }
       });
-
-      return newSettings;
-    });
-  }, []);
+      // Keep writes ordered without allowing one failure to block the next retry.
+      settingsSavesRef.current = receipt.then(() => undefined);
+      return receipt;
+    },
+    [setSettings, canWriteSession]
+  );
+  const updateSettings: React.Dispatch<React.SetStateAction<Settings>> = useCallback(
+    (action) => {
+      const next = typeof action === "function" ? action(settingsRef.current) : action;
+      void persistSettings(next);
+    },
+    [persistSettings]
+  );
 
   // Mark the deal dirty only on USER edits while a vehicle is active. The desk
   // auto-focuses the top-ranked row (which sets activeVehicle), and that
@@ -573,10 +622,14 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const vin = activeVehicle?.vin ?? null;
     const vehicleChanged = vin !== prevDirtyVinRef.current;
     prevDirtyVinRef.current = vin;
+    if (resetDirtyRef.current) {
+      resetDirtyRef.current = false;
+      return;
+    }
     if (!activeVehicle) return;
     if (vehicleChanged) return; // focusing/auto-selection is not an edit
     setIsDealDirty(true);
-  }, [dealData, filters, customerName, salespersonName, activeVehicle]);
+  }, [dealData, filters, customerName, salespersonName, scratchPadNotes, activeVehicle]);
 
   // Debounce expensive calculation inputs
   const debouncedDealData = useDebouncedValue(dealData, 300);
@@ -666,6 +719,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleInventoryUpdate = useCallback(
     async (vin: string, updatedData: Partial<Vehicle>) => {
+      if (!canWriteSession()) return;
       const item = inventory.find((v) => v.vin === vin);
 
       // Snapshot before the optimistic write so we can roll back on failure.
@@ -687,6 +741,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const apiData: Partial<Vehicle> = { ...updatedData };
         if (apiData.mileage === "N/A") delete apiData.mileage;
         const result = await updateInventoryItem(item.id, apiData as Partial<InventoryItem>);
+        if (!canWriteSession()) return;
         if (!result) {
           setInventory(prevInventory);
           setFavorites(prevFavorites);
@@ -703,7 +758,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     },
-    [inventory, favorites, setInventory, setFavorites, setMessage]
+    [inventory, favorites, setInventory, setFavorites, setMessage, canWriteSession]
   );
 
   // Keep favorites in sync with live inventory so a CSV re-sync or an inline
@@ -729,17 +784,21 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Shared reset for deal-local UI state (removes duplication between
   // clearDealAndFilters + loadSampleData). Settings-derived defaults preserved.
   const resetDealState = useCallback(() => {
+    resetDirtyRef.current = true;
+    setIsDealDirty(false);
     setDealData({
       ...INITIAL_DEAL_DATA,
       loanTerm: settings.defaultTerm,
       interestRate: settings.defaultApr,
       stateFees: settings.defaultStateFees,
+      buyerState: settings.defaultState,
     });
     setFilters(INITIAL_FILTER_DATA);
     setErrors({});
     setCustomerName("");
     setSalespersonName("");
     setScratchPadNotes("");
+    setSearchQuery("");
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
   }, [setDealData, setFilters, setErrors, setScratchPadNotes, settings, setPagination]);
 
@@ -785,6 +844,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     () => ({
       settings,
       setSettings: updateSettings, // Use wrapped setter for persistence
+      persistSettings,
       inventory,
       setInventory,
       dealData,
@@ -841,6 +901,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toggleFavoriteRowExpansion,
       handleInventoryUpdate,
       clearDealAndFilters,
+      resetDealState,
       loadSampleData,
       isShowroomMode,
       setIsShowroomMode,
@@ -851,6 +912,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [
       settings,
       updateSettings,
+      persistSettings,
       inventory,
       setInventory,
       dealData,
@@ -895,6 +957,7 @@ export const DealProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toggleFavoriteRowExpansion,
       handleInventoryUpdate,
       clearDealAndFilters,
+      resetDealState,
       loadSampleData,
       isShowroomMode,
       dataLoading,

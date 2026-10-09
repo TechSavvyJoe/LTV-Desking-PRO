@@ -37,6 +37,19 @@ The replacement starts from a new empty volume. `start.sh` restores R2 before
 PocketBase starts, while the original volume remains attached to the stopped
 original machine.
 
+`start.sh` restores into `data.db.restore`, requests an integrity check, and
+renames the candidate to `data.db` only after the restore exits successfully.
+A cancelled restore may leave a candidate behind; the next missing-database
+boot discards it and retries. Never rename a leftover candidate manually.
+This protects the restart boundary: Litestream 0.5.14 renames its own output
+before the integrity check and preserves it if that check is cancelled.
+See the [version-pinned restore implementation](https://github.com/benbjohnson/litestream/blob/v0.5.14/replica.go#L699-L710)
+(reviewed 2026-10-08).
+
+R2 contains `data.db` only. Uploaded dealer logos/local files require a Fly
+volume snapshot or a separately verified file backup. A successful SQLite
+restore is not proof that file assets were recovered.
+
 ```bash
 set -euo pipefail
 APP=ltv-desking-pro-api

@@ -15,6 +15,7 @@ import Input from "./common/Input";
 import Select from "./common/Select";
 import InputGroup from "./common/InputGroup";
 import * as Icons from "./common/Icons";
+import { programReviewHold } from "../services/programTrust";
 
 interface LenderProfileModalProps {
   profile: LenderProfile | null;
@@ -123,10 +124,12 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     minIncome: NEW_PROFILE_TEMPLATE.minIncome,
     maxPti: NEW_PROFILE_TEMPLATE.maxPti,
     tiers: NEW_PROFILE_TEMPLATE.tiers,
+    reviewRequired: true,
   });
 
   const [formData, setFormData] = useState<LenderProfile>(getDefaultFormData());
   const [activeTierIndex, setActiveTierIndex] = useState<number | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const idPrefix = useId();
   // Each tier's rangeFlags as they were when editing began, carried across the
   // copies every edit makes, so a flagged field that is typed into and then
@@ -140,6 +143,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       setFormData(getDefaultFormData());
     }
     setActiveTierIndex(null);
+    setReviewError(null);
     reviewBaseline.current = new WeakMap();
   }, [profile, isOpen]);
 
@@ -158,9 +162,33 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
   const verifyHintId = (index: number) => `${idPrefix}-tier-${index}-verify-hint`;
 
+  const editProgram = (edit: (previous: LenderProfile) => LenderProfile) => {
+    setReviewError(null);
+    setFormData((previous) => ({ ...edit(previous), reviewRequired: true, verifiedAt: "" }));
+  };
+  const verifyProgram = () => {
+    if (!formData.sourceReference?.trim()) {
+      setReviewError("Enter the current source document and version before verifying the program.");
+      return;
+    }
+    const hold = programReviewHold({ ...formData, reviewRequired: false });
+    if (hold || formData.tiers.some(tierNeedsReview)) {
+      setReviewError(hold ?? "Resolve the flagged tier fields before verifying the program.");
+      return;
+    }
+    setReviewError(null);
+    setFormData((previous) => ({
+      ...previous,
+      isSample: false,
+      reviewRequired: false,
+      sourceReference: previous.sourceReference?.trim(),
+      verifiedAt: new Date().toISOString(),
+    }));
+  };
+
   const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData((prev) => ({
+    editProgram((prev) => ({
       ...prev,
       [name]: type === "number" ? (value === "" ? undefined : Number(value)) : value,
     }));
@@ -191,7 +219,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       reviewBaseline.current.set(updated, baseline);
       tiers[index] = updated;
     }
-    setFormData((prev) => ({ ...prev, tiers }));
+    editProgram((prev) => ({ ...prev, tiers }));
   };
 
   const markTierVerified = (index: number) => {
@@ -203,7 +231,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       reviewBaseline.current.set(verified, baselineFlagsOf(tier));
       tiers[index] = verified;
     }
-    setFormData((prev) => ({ ...prev, tiers }));
+    editProgram((prev) => ({ ...prev, tiers }));
   };
 
   const addTier = () => {
@@ -213,7 +241,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       maxLtv: 120,
       maxTerm: 72,
     };
-    setFormData((prev) => ({
+    editProgram((prev) => ({
       ...prev,
       tiers: [...(prev.tiers || []), newTier],
     }));
@@ -229,7 +257,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
       };
       reviewBaseline.current.set(duplicated, baselineFlagsOf(tiers[index]));
       tiers.splice(index + 1, 0, duplicated);
-      setFormData((prev) => ({ ...prev, tiers }));
+      editProgram((prev) => ({ ...prev, tiers }));
     }
   };
 
@@ -237,7 +265,7 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
     if ((formData.tiers?.length || 0) <= 1) return;
     const tiers = [...(formData.tiers || [])];
     tiers.splice(index, 1);
-    setFormData((prev) => ({ ...prev, tiers }));
+    editProgram((prev) => ({ ...prev, tiers }));
     if (activeTierIndex === index) {
       setActiveTierIndex(null);
     } else if (activeTierIndex !== null && activeTierIndex > index) {
@@ -247,6 +275,10 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      setReviewError("Enter the lender name before saving.");
+      return;
+    }
     onSave(formData);
   };
 
@@ -273,27 +305,57 @@ const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
         {/* Sample programs are held pending by the rules engine until an admin
             confirms the terms against the lender's current rate sheet. This is
             the one place that conversion happens; saving persists it. */}
-        {formData.isSample && (
+        {(formData.isSample || formData.reviewRequired) && (
           <div
             role="group"
-            aria-label="Sample program"
+            aria-label={formData.isSample ? "Sample program" : "Program review"}
             className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning-subtle)] px-4 py-3"
           >
             <p className="m-0 text-sm text-[var(--color-text)]">
-              <strong>Sample program.</strong> Its terms are illustrative, so it never counts as a
-              lender fit. Check every tier against the lender&apos;s current rate sheet, then mark
-              it verified.
+              <strong>{formData.isSample ? "Sample program." : "Source review required."}</strong>{" "}
+              This program stays pending. Check every tier against the current source document,
+              record its version and expiration, then mark it verified.
             </p>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setFormData((prev) => ({ ...prev, isSample: false }))}
-            >
+            <Button type="button" variant="secondary" size="sm" onClick={verifyProgram}>
               Mark program verified
             </Button>
           </div>
         )}
+        {reviewError && (
+          <p role="alert" className="text-sm text-[var(--color-danger)]">
+            {reviewError}
+          </p>
+        )}
+        <fieldset className="rounded-lg border border-[var(--color-border)] p-4">
+          <legend className="px-2 text-sm font-semibold">Program source</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <InputGroup label="Source document / version" htmlFor={`${idPrefix}-source`}>
+              <Input
+                id={`${idPrefix}-source`}
+                name="sourceReference"
+                maxLength={500}
+                value={formData.sourceReference ?? ""}
+                onChange={handleGeneralChange}
+                placeholder="Official rate sheet name and version"
+              />
+            </InputGroup>
+            <InputGroup label="Valid through (if specified)" htmlFor={`${idPrefix}-expires`}>
+              <Input
+                id={`${idPrefix}-expires`}
+                type="date"
+                name="expiresOn"
+                value={formData.expiresOn ?? ""}
+                onChange={handleGeneralChange}
+              />
+            </InputGroup>
+          </div>
+          <p className="text-xs text-[var(--color-text-muted)] mt-3">
+            {formData.verifiedAt
+              ? `Reviewed ${new Date(formData.verifiedAt).toLocaleDateString("en-US")}. `
+              : "No source review recorded. "}
+            A blank expiration is unknown; confirm currency with the lender before submitting.
+          </p>
+        </fieldset>
         {/* General Settings - Premium Card */}
         <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] overflow-hidden shadow-sm">
           <div className="px-5 py-4 bg-[var(--color-primary)]">

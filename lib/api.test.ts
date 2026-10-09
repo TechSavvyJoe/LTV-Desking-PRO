@@ -44,6 +44,8 @@ vi.mock("./pocketbase", () => ({
     },
     dealerSettings: {
       getList: mocks.getList,
+      update: mocks.update,
+      create: mocks.create,
     },
     dealers: {
       getFullList: mocks.getFullList,
@@ -76,6 +78,8 @@ vi.mock("./passwordPolicy", () => ({
 }));
 
 import {
+  addInventoryItem,
+  updateInventoryItem,
   getInventory,
   getLenderProfiles,
   getSavedDeals,
@@ -83,7 +87,76 @@ import {
   saveDeal,
   shouldSwallowFetchError,
   syncInventory,
+  updateDealerSettings,
 } from "./api";
+
+describe("inventory condition persistence", () => {
+  beforeEach(() => {
+    mocks.update.mockReset();
+    mocks.getFullList.mockReset();
+    mocks.getCurrentDealerId.mockReturnValue("dealer-1");
+  });
+  it("writes an explicit cleared status so unknown survives a server reload", async () => {
+    mocks.update.mockResolvedValue({ id: "existing", condition: "" });
+    const result = await updateInventoryItem("existing", { condition: undefined });
+    expect(mocks.update).toHaveBeenCalledWith("existing", { condition: "" });
+    expect(result?.condition).toBe("");
+  });
+  it("preserves known status when a recurring feed lacks the optional column", async () => {
+    mocks.getFullList.mockResolvedValue([{ id: "existing", vin: "VIN1", condition: "certified" }]);
+    mocks.update.mockResolvedValue({});
+    await syncInventory([{ vin: "VIN1", year: 2024, make: "Ford", model: "Escape", price: 20000 }]);
+    expect(mocks.update.mock.calls[0]?.[1]).not.toHaveProperty("condition");
+  });
+  it("persists an explicit imported new or certified status", async () => {
+    mocks.getFullList.mockResolvedValue([{ id: "existing", vin: "VIN1" }]);
+    mocks.update.mockResolvedValue({});
+    await syncInventory([
+      { vin: "VIN1", condition: "new", year: 2024, make: "Ford", model: "Escape", price: 20000 },
+    ]);
+    expect(mocks.update.mock.calls[0]?.[1]).toMatchObject({ condition: "new" });
+  });
+});
+
+describe("Inventory mileage provenance", () => {
+  beforeEach(() => {
+    mocks.getCurrentDealerId.mockReturnValue("dealer-1");
+    mocks.create.mockReset().mockResolvedValue({ id: "new" });
+    mocks.update.mockReset().mockResolvedValue({ id: "existing" });
+  });
+  it("persists missing mileage separately from an explicitly entered zero", async () => {
+    const item = {
+      vin: "1HGCM82633A004352",
+      year: 2003,
+      make: "Honda",
+      model: "Accord",
+      price: 0,
+      status: "available" as const,
+    };
+    await addInventoryItem(item);
+    expect(mocks.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ mileageUnknown: true })
+    );
+    await addInventoryItem({ ...item, mileage: 0 });
+    expect(mocks.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ mileage: 0, mileageUnknown: false })
+    );
+  });
+  it("only changes mileage provenance when mileage is edited", async () => {
+    await updateInventoryItem("existing", { price: 20000 });
+    expect(mocks.update).toHaveBeenLastCalledWith("existing", { price: 20000 });
+    await updateInventoryItem("existing", { mileage: 0 });
+    expect(mocks.update).toHaveBeenLastCalledWith("existing", {
+      mileage: 0,
+      mileageUnknown: false,
+    });
+    await updateInventoryItem("existing", { mileage: undefined });
+    expect(mocks.update).toHaveBeenLastCalledWith("existing", {
+      mileage: undefined,
+      mileageUnknown: true,
+    });
+  });
+});
 
 describe("shouldSwallowFetchError", () => {
   it("defaults to throw (do not swallow)", () => {
@@ -251,6 +324,35 @@ describe("read APIs throw by default (C10)", () => {
       expect(mocks.update).not.toHaveBeenCalledWith("r1", { status: "sold" });
     });
 
+    it("keeps omitted vehicles available when an incoming write fails", async () => {
+      mocks.create.mockRejectedValue(new Error("write failed"));
+      const result = await syncInventory([unit("VIN3")], { markMissingSold: true });
+      expect(result).toMatchObject({ added: 0, removed: 0, failed: 1 });
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it("starts at most 50 inventory writes at a time", async () => {
+      const resolvers: Array<() => void> = [];
+      mocks.getFullList.mockResolvedValue([]);
+      mocks.create.mockImplementation(
+        () => new Promise<void>((resolve) => resolvers.push(resolve))
+      );
+      const pending = syncInventory(Array.from({ length: 120 }, (_, i) => unit(`VIN${i}`)));
+      await vi.waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(50));
+      resolvers.splice(0).forEach((resolve) => resolve());
+      await vi.waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(100));
+      resolvers.splice(0).forEach((resolve) => resolve());
+      await vi.waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(120));
+      resolvers.splice(0).forEach((resolve) => resolve());
+      expect(await pending).toMatchObject({ added: 120, failed: 0 });
+    });
+
+    it("rejects duplicate VINs before starting any writes", async () => {
+      await expect(syncInventory([unit("VIN1"), unit(" vin1 ")])).rejects.toThrow(/duplicate VIN/i);
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.create).not.toHaveBeenCalled();
+    });
+
     it("refuses to sell the whole lot from an EMPTY feed even with markMissingSold", async () => {
       await expect(syncInventory([] as never, { markMissingSold: true })).rejects.toThrow(
         /Refusing to mark inventory sold/
@@ -279,5 +381,26 @@ describe("read APIs throw by default (C10)", () => {
       mocks.getCurrentDealerId.mockReturnValue(null as unknown as string);
       await expect(syncInventory([unit("VIN1")] as never)).rejects.toThrow(/No dealership/);
     });
+  });
+
+  it("does not create duplicate settings when reading existing settings fails", async () => {
+    mocks.getList.mockRejectedValue(new Error("settings read failed"));
+    expect(await updateDealerSettings({ docFee: 250 })).toBeNull();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [null, false],
+    [0, true],
+    [5.875, true],
+  ])("persists the tax override mode alongside rate %s", async (rate, enabled) => {
+    mocks.getList.mockResolvedValue({ items: [{ id: "settings-1" }] });
+    mocks.update.mockReset().mockResolvedValue({ id: "settings-1" });
+    await updateDealerSettings({ customTaxRate: rate });
+    expect(mocks.update).toHaveBeenCalledWith("settings-1", {
+      customTaxRate: rate ?? 0,
+      customTaxRateEnabled: enabled,
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 });

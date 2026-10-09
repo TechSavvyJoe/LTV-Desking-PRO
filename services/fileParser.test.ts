@@ -357,3 +357,28 @@ describe("fileParser", () => {
     });
   });
 });
+
+describe("explicit imported inventory condition", () => {
+  it("reads mixed new, used and certified labels without inferring a missing status", () => {
+    const csv =
+      "Vehicle,VIN,Mileage,Price,New/Used\n2026 Ford Escape,A,0,30000,new\n2026 Ford Escape,B,0,30000,used\n2023 Ford Escape,C,15000,27000,CPO\n2026 Ford Escape,D,0,30000,";
+    expect(parseInventoryCsv(csv, false).vehicles.map((v) => v.condition)).toEqual([
+      "new",
+      "used",
+      "certified",
+      undefined,
+    ]);
+  });
+  it("leaves unknown status unknown when the optional condition column is absent or invalid", () => {
+    expect(
+      parseInventoryCsv("Vehicle,VIN,Mileage,Price\n2026 Ford Escape,A,0,30000", false).vehicles[0]
+        ?.condition
+    ).toBeUndefined();
+    expect(
+      parseInventoryCsv(
+        "Vehicle,VIN,Mileage,Price,Condition\n2026 Ford Escape,A,0,30000,Excellent",
+        false
+      ).vehicles[0]?.condition
+    ).toBeUndefined();
+  });
+});

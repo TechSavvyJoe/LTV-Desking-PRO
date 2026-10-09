@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { InventoryItem } from "../lib/pocketbase";
 import { queryClient } from "../lib/queryClient";
+import { announcePrivateSessionBoundary } from "../lib/privateSession";
 
 const mocks = vi.hoisted(() => ({
   isAuthenticated: vi.fn(() => true),
@@ -21,6 +22,9 @@ const mocks = vi.hoisted(() => ({
   subscribeToSavedDeals: vi.fn(() => () => {}),
   subscribeToLenderProfiles: vi.fn(() => () => {}),
   capture: vi.fn(),
+  updateDealerSettings: vi.fn(),
+  updateInventoryItem: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("../lib/api", () => ({
@@ -31,8 +35,8 @@ vi.mock("../lib/api", () => ({
   subscribeToInventory: mocks.subscribeToInventory,
   subscribeToSavedDeals: mocks.subscribeToSavedDeals,
   subscribeToLenderProfiles: mocks.subscribeToLenderProfiles,
-  updateDealerSettings: vi.fn(),
-  updateInventoryItem: vi.fn(),
+  updateDealerSettings: mocks.updateDealerSettings,
+  updateInventoryItem: mocks.updateInventoryItem,
 }));
 
 vi.mock("../lib/auth", () => ({
@@ -46,6 +50,7 @@ vi.mock("../lib/pocketbase", () => ({
 vi.mock("../lib/analytics", () => ({
   capture: mocks.capture,
 }));
+vi.mock("../lib/toast", () => ({ toast: { error: mocks.toastError } }));
 
 import { DealProvider, useDealContext } from "./DealContext";
 
@@ -91,6 +96,7 @@ describe("DealProvider derivations", () => {
     mocks.getLenderProfiles.mockResolvedValue([]);
     mocks.getSavedDeals.mockResolvedValue([]);
     mocks.getDealerSettings.mockResolvedValue(null);
+    mocks.updateDealerSettings.mockReset().mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -140,6 +146,153 @@ describe("DealProvider derivations", () => {
     await waitFor(() => expect(ctx.inventory.map((v) => v.id)).toEqual([sold.id]));
   });
 
+  it("rejects stale manager responses and cache setters after a same-dealer session switch", async () => {
+    const item: InventoryItem = {
+      id: "unit",
+      vin: "1HGCM82633A004352",
+      year: 2024,
+      make: "Ford",
+      model: "Escape",
+      price: 26000,
+      unitCost: 19000,
+      status: "available",
+      dealer: "dealer-test",
+      created: "",
+      updated: "",
+    };
+    mocks.getInventory.mockResolvedValue([item]);
+    let release!: (value: InventoryItem) => void;
+    mocks.updateInventoryItem.mockReturnValue(
+      new Promise<InventoryItem>((resolve) => {
+        release = resolve;
+      })
+    );
+    let manager!: ReturnType<typeof useDealContext>;
+    const mounted = renderProvider((c) => {
+      manager = c;
+    });
+    await waitFor(() => expect(manager.inventory[0]?.id).toBe("unit"));
+    let pending!: Promise<void>;
+    act(() => {
+      pending = manager.handleInventoryUpdate(item.vin, { price: 27000 });
+    });
+    act(() => {
+      // Both transitions happen before React unmount: returning to A must not revive its old request.
+      announcePrivateSessionBoundary();
+      announcePrivateSessionBoundary();
+      manager.setInventory([{ ...manager.inventory[0]!, unitCost: 99999 }]);
+    });
+    expect(queryClient.getQueryData(["dealerData", "inventory", "dealer-test"])).toBeUndefined();
+    mounted.unmount();
+    mocks.getInventory.mockResolvedValue([{ ...item, unitCost: undefined }]);
+    let sales!: ReturnType<typeof useDealContext>;
+    renderProvider((c) => {
+      sales = c;
+    });
+    await waitFor(() => expect(sales.inventory[0]?.unitCost).toBe("N/A"));
+    await act(async () => {
+      release({ ...item, price: 27000 });
+      await pending;
+    });
+    expect(sales.inventory[0]?.unitCost).toBe("N/A");
+    expect(sales.inventory[0]?.price).toBe(26000);
+    act(() => {
+      manager.setLenderProfiles([{ id: "private", name: "Private", tiers: [] }]);
+      manager.setSavedDeals([]);
+    });
+    expect(sales.lenderProfiles).toEqual([]);
+    expect(queryClient.getQueryData(["dealerData", "lenderProfiles", "dealer-test"])).toEqual([]);
+  });
+
+  it("persists settings once per edit in StrictMode and surfaces a null save", async () => {
+    mocks.updateDealerSettings.mockResolvedValue(null);
+    let ctx!: ReturnType<typeof useDealContext>;
+    render(
+      <React.StrictMode>
+        <QueryClientProvider client={queryClient}>
+          <DealProvider>
+            <ContextProbe
+              onReady={(c) => {
+                ctx = c;
+              }}
+            />
+          </DealProvider>
+        </QueryClientProvider>
+      </React.StrictMode>
+    );
+    await waitFor(() => expect(ctx.dataLoading).toBe(false));
+    act(() => ctx.setSettings((prev) => ({ ...prev, docFee: 321, customTaxRate: null })));
+    await waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Server save failed — settings kept in this browser."
+      )
+    );
+    expect(mocks.updateDealerSettings).toHaveBeenCalledTimes(1);
+    expect(mocks.updateDealerSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ docFee: 321, customTaxRate: null })
+    );
+  });
+
+  it("returns an explicit settings receipt only after persistence and permits retry after failure", async () => {
+    let resolveWrite!: (value: unknown) => void;
+    mocks.updateDealerSettings.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveWrite = resolve;
+        })
+    );
+    let ctx!: ReturnType<typeof useDealContext>;
+    renderProvider((c) => {
+      ctx = c;
+    });
+    await waitFor(() => expect(ctx.dataLoading).toBe(false));
+    let receipt!: Promise<boolean>;
+    let completed = false;
+    act(() => {
+      receipt = ctx.persistSettings({ ...ctx.settings, docFee: 321 });
+      void receipt.then(() => {
+        completed = true;
+      });
+    });
+    await waitFor(() => expect(mocks.updateDealerSettings).toHaveBeenCalledOnce());
+    expect(completed).toBe(false);
+    await act(async () => {
+      resolveWrite(null);
+      expect(await receipt).toBe(false);
+    });
+    expect(ctx.settings.docFee).toBe(321);
+    await act(async () =>
+      expect(await ctx.persistSettings({ ...ctx.settings, docFee: 322 })).toBe(true)
+    );
+    expect(mocks.updateDealerSettings).toHaveBeenCalledTimes(2);
+  });
+
+  it("resets every customer field, notes, validation and search to current defaults", async () => {
+    let ctx!: ReturnType<typeof useDealContext>;
+    renderProvider((c) => {
+      ctx = c;
+    });
+    await waitFor(() => expect(ctx.dataLoading).toBe(false));
+    act(() => {
+      ctx.setCustomerName("Previous Customer");
+      ctx.setSalespersonName("Previous Salesperson");
+      ctx.setScratchPadNotes("Private previous customer notes");
+      ctx.setErrors({ customerName: "Old validation" });
+      ctx.setSearchQuery("old stock");
+      ctx.setFilters((prev) => ({ ...prev, monthlyIncome: 9999 }));
+      ctx.setDealData((prev) => ({ ...prev, downPayment: 7777, buyerState: "FL" }));
+    });
+    act(() => ctx.resetDealState());
+    expect(ctx.customerName).toBe("");
+    expect(ctx.salespersonName).toBe("");
+    expect(ctx.scratchPadNotes).toBe("");
+    expect(ctx.errors).toEqual({});
+    expect(ctx.searchQuery).toBe("");
+    expect(ctx.filters.monthlyIncome).not.toBe(9999);
+    expect(ctx.dealData.downPayment).not.toBe(7777);
+    expect(ctx.dealData.buyerState).toBe(ctx.settings.defaultState);
+  });
+
   it("runs the processedInventory scoring pass after sample data loads", async () => {
     let ctx!: ReturnType<typeof useDealContext>;
     renderProvider((c) => {
@@ -160,6 +313,51 @@ describe("DealProvider derivations", () => {
     expect(screen.getByTestId("first-payment").textContent).not.toBe("na");
     expect(Number(screen.getByTestId("units-accu").textContent)).toBeGreaterThanOrEqual(0);
   });
+
+  it.each([
+    [undefined, 1816.5],
+    [false, 1816.5],
+    [true, 0],
+  ])(
+    "uses standard Michigan tax unless a stored zero override is explicitly enabled (%s)",
+    async (enabled, expectedTax) => {
+      mocks.getDealerSettings.mockResolvedValue({
+        docFee: 250,
+        cvrFee: 25,
+        defaultState: "MI",
+        outOfStateTransitFee: 10,
+        customTaxRate: 0,
+        customTaxRateEnabled: enabled,
+      });
+      mocks.getInventory.mockResolvedValue([
+        {
+          id: "tax-unit",
+          vin: "1HGCM82633A004352",
+          year: 2024,
+          make: "Ford",
+          model: "Escape",
+          price: 30000,
+          mileage: 30000,
+          jdPower: 30000,
+          status: "available",
+        },
+      ]);
+      let ctx!: ReturnType<typeof useDealContext>;
+      renderProvider((c) => {
+        ctx = c;
+      });
+      await waitFor(() => expect(ctx.settings.docFee).toBe(250));
+      act(() =>
+        ctx.setDealData((prev) => ({
+          ...prev,
+          tradeInValue: 0,
+          tradeInPayoff: 0,
+          dealerDiscount: 0,
+        }))
+      );
+      await waitFor(() => expect(ctx.processedInventory[0]?.salesTax).toBe(expectedTax));
+    }
+  );
 
   it("clamps pagination when filters shrink the result set", async () => {
     let ctx!: ReturnType<typeof useDealContext>;

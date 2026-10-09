@@ -2,6 +2,7 @@ import type { CalculatedVehicle, DealData, FilterData, LenderProfile } from "../
 import type { VehicleFit } from "./lenderFit";
 import { getRebateBreakdown } from "./calculator";
 import { z } from "zod";
+import { resolveVehicleCondition } from "./vehicleCondition";
 
 export type CheckStatus = "pass" | "fail" | "missing";
 export interface DealCheck {
@@ -251,18 +252,18 @@ export function assessDeal(
   add(
     "condition",
     "Vehicle condition",
-    deal.vehicleCondition === "new" || deal.vehicleCondition === "used" ? "pass" : "missing",
-    "Select new or used; condition is not inferred from age."
+    resolveVehicleCondition(vehicle, deal) ? "pass" : "missing",
+    "Confirm new, used or certified for this unit; condition is not inferred from age or mileage."
   );
   add(
     "terms",
     "Payment calculation",
     termsKnown ? "pass" : "missing",
-    "Requires a valid financed amount, 6–96 month term and explicit APR (0% is valid)."
+    "Requires a valid financed amount, 6–96 month term and explicit nominal interest rate (0% is valid)."
   );
   add(
     "lender",
-    "Verified program match",
+    "Program rules match",
     fits.length > 0 ? "pass" : unchecked > 0 || !checked.length ? "missing" : "fail",
     `${fits.length} fits / ${checked.length} fully checked programs; ${unchecked} pending, including ${samples.size} samples. Published rules only; no lender decision.`
   );

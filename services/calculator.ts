@@ -9,6 +9,7 @@ import type {
 import { getMiTradeInCreditCap, TAX_RATES } from "../constants";
 import { getBackendProductSplit } from "./backendProducts";
 import { selectBookValue } from "./bookValue";
+import { resolveVehicleCondition } from "./vehicleCondition";
 
 /**
  * Round a monetary value to whole cents. All currency leaving the calculator is
@@ -20,8 +21,12 @@ import { selectBookValue } from "./bookValue";
  * form keeps negative amounts symmetric with positive ones (a bare Math.round
  * would round -0.125 to -0.12 but 0.125 to 0.13).
  */
-export const roundCents = (value: number): number =>
-  (Math.sign(value) * Math.round(Math.abs(value) * 100)) / 100;
+export const roundCents = (value: number): number => {
+  const magnitude = Math.abs(value) * 100;
+  // Decimal halves such as 1.005 can land just below x.5 in binary. Correct
+  // only the representation error before applying the half-up policy.
+  return (Math.sign(value) * Math.round(magnitude + Number.EPSILON * magnitude)) / 100;
+};
 
 /**
  * Coerce a possibly-blank numeric deal field to a number, treating empty string /
@@ -153,7 +158,9 @@ const outOfStateTradeCredit = (
 ): number => {
   if (!buyerStateWasExplicit || !vehicleCondition) return 0;
   const supportedConditions = OUT_OF_STATE_TRADE_CREDIT[state];
-  return supportedConditions.includes(vehicleCondition) ? tradeInValue : 0;
+  return supportedConditions.includes(vehicleCondition === "certified" ? "used" : vehicleCondition)
+    ? tradeInValue
+    : 0;
 };
 
 const calculateSalesTax = (
@@ -305,7 +312,7 @@ export const calculateFinancials = (
       transactionFees,
       settings,
       dealData.buyerState,
-      dealData.vehicleCondition
+      resolveVehicleCondition(vehicle, dealData)
     );
     salesTax = tax;
 

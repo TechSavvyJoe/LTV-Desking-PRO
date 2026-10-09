@@ -12,6 +12,7 @@ import {
   toAppState,
   normalizeStoredTaxRate,
   mapPocketBaseSavedDeal,
+  mapDealData,
   asPipelineDeal,
   pipelineMetricsFromCalculatedData,
 } from "./dealMappers";
@@ -373,5 +374,20 @@ describe("toAppState", () => {
     expect(toAppState("IL", "MI")).toBe("IL");
     expect(toAppState("FL", "MI")).toBe("FL");
     expect(toAppState("CA", "MI")).toBe("MI");
+  });
+});
+
+describe("saved per-VIN condition evidence", () => {
+  it("round trips normalized per-VIN confirmations including explicit unknown", () => {
+    const mapped = mapDealData({
+      vehicleConditions: { " vin-a ": "certified", "VIN-B": null, "VIN-C": "excellent" },
+    });
+    expect(mapped.vehicleConditions).toEqual({ "VIN-A": "certified", "VIN-B": null });
+  });
+  it("scopes old unscoped saved condition to its vehicle snapshot only", () => {
+    const mapped = mapPocketBaseSavedDeal(
+      pbDeal({ dealData: { vehicleCondition: "new" } } as Partial<PocketBaseSavedDeal>)
+    );
+    expect(mapped.dealData.vehicleConditionVin).toBe(mapped.vehicle.vin.toUpperCase());
   });
 });

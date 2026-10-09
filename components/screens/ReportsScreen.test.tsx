@@ -6,19 +6,23 @@ import React from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DealAssessment } from "../../services/dealAssessment";
-import type { CalculatedVehicle } from "../../types";
+import type { CalculatedVehicle, LenderProfile } from "../../types";
+import { INITIAL_DEAL_DATA, INITIAL_FILTER_DATA } from "../../constants";
 
 const mocks = vi.hoisted(() => ({
   inventory: [] as CalculatedVehicle[],
+  lenders: [] as LenderProfile[],
 }));
 
 vi.mock("../../context/DealContext", () => ({
   useDealContext: () => ({
     settings: { ltvThresholds: { warn: 115, danger: 125, critical: 135 } },
     processedInventory: mocks.inventory,
-    safeLenderProfiles: [],
+    safeLenderProfiles: mocks.lenders,
     savedDeals: [],
     unitsPerLender: {},
+    dealData: INITIAL_DEAL_DATA,
+    filters: { ...INITIAL_FILTER_DATA, creditScore: 720, monthlyIncome: 6500, monthlyDebt: 500 },
   }),
 }));
 
@@ -81,9 +85,35 @@ const valueCells = (share: string): string[] =>
 afterEach(() => {
   cleanup();
   mocks.inventory = [];
+  mocks.lenders = [];
 });
 
 describe("ReportsScreen pending units", () => {
+  it("keeps an unchecked mileage program pending even when another lender has checked results", () => {
+    mocks.inventory = [unit("UNKNOWN", 80, { mileage: "N/A" })];
+    mocks.lenders = [
+      { id: "checked", name: "Credit checked", tiers: [{ name: "Prime", minFico: 700 }] },
+      {
+        id: "mileage",
+        name: "Needs mileage",
+        tiers: [{ name: "Prime", minFico: 700, maxMileage: 100000 }],
+      },
+    ];
+    render(<ReportsScreen />);
+    const list = screen.getByRole("list", { name: "Lender reach and units fitting" });
+    const pendingRow = screen.getByText("Needs mileage").closest('[role="listitem"]');
+    expect(pendingRow?.textContent).toContain("Pending");
+    expect(list.textContent).toContain("Credit checked");
+    expect(list.textContent).toContain("0/1");
+  });
+  it("shows sample lender reach as pending instead of a zero-fit result", () => {
+    mocks.inventory = [pendingUnit("C")];
+    mocks.lenders = [{ id: "sample", name: "Example lender", tiers: [], isSample: true }];
+    render(<ReportsScreen />);
+    const list = screen.getByRole("list", { name: "Lender reach and units fitting" });
+    expect(list.textContent).toContain("Pending");
+    expect(list.textContent).not.toContain("0/1");
+  });
   it("shows known checklist counts even while inputs are missing", () => {
     mocks.inventory = [
       unit("A", 100, { approvalBand: "strong", fitCount: 3 }),

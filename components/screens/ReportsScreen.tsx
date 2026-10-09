@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback } from "react";
 import { useDealContext } from "../../context/DealContext";
-import { activeLenderCount } from "../../services/lenderFit";
+import { activeLenderCount, lenderFitForVehicle } from "../../services/lenderFit";
+import { holdIncompleteFits } from "../../services/dealAssessment";
 import {
   asPipelineDeal,
   pipelineMetricsFromCalculatedData,
@@ -165,10 +166,28 @@ const ReportsScreenBase: React.FC = () => {
     safeLenderProfiles,
     savedDeals,
     unitsPerLender,
+    dealData,
+    filters,
     loadSampleData,
   } = useDealContext();
 
   const totalLenders = activeLenderCount(safeLenderProfiles);
+
+  // A program can remain unchecked while another program fits the same unit.
+  // Track checked results per lender rather than using a lot-wide count.
+  const checkedLenderIds = useMemo(() => {
+    const checked = new Set<string>();
+    for (const vehicle of processedInventory) {
+      const fit = holdIncompleteFits(
+        lenderFitForVehicle(vehicle, { ...dealData, ...filters }, safeLenderProfiles),
+        filters
+      );
+      for (const entry of fit.entries) {
+        if (entry.status !== "pending") checked.add(entry.lenderId);
+      }
+    }
+    return checked;
+  }, [processedInventory, dealData, filters, safeLenderProfiles]);
 
   const stats = useMemo(() => {
     const rows = processedInventory;
@@ -644,6 +663,9 @@ const ReportsScreenBase: React.FC = () => {
               </div>
               <div className="dc-card" style={{ ...card, padding: 20 }}>
                 <h2 style={panelLabel}>Lender reach — units fitting</h2>
+                <p style={{ fontSize: 11, color: "var(--color-text-subtle)", margin: "0 0 12px" }}>
+                  Fit counts exclude pending checks. Pending does not mean declined.
+                </p>
                 {lenderReach.length === 0 && (
                   <span
                     role="status"
@@ -664,6 +686,8 @@ const ReportsScreenBase: React.FC = () => {
                 >
                   {lenderReach.map((l) => {
                     const units = unitsPerLender[l.id] ?? 0;
+                    const pending =
+                      l.isSample === true || (stats.n > 0 && !checkedLenderIds.has(l.id));
                     const barPct = stats.rankedN ? (units / stats.rankedN) * 100 : 0;
                     return (
                       <div
@@ -710,12 +734,12 @@ const ReportsScreenBase: React.FC = () => {
                             fontSize: 12,
                             ...tnum,
                             color: "var(--color-text-muted)",
-                            width: 52,
+                            width: 64,
                             textAlign: "right",
                             flexShrink: 0,
                           }}
                         >
-                          {units}/{stats.n}
+                          {pending ? "Pending" : `${units}/${stats.n}`}
                         </span>
                       </div>
                     );

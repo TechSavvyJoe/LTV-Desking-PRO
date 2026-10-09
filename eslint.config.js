@@ -56,7 +56,9 @@ export default [
     ignores: [
       "dist/**",
       "node_modules/**",
-      "backend/**",
+      "backend/pb_data/**",
+      "backend/pb_hooks/**",
+      "backend/pb_migrations/**",
       "*.config.js",
       "*.config.ts",
       "vite.config.ts", // Ignore config files from linting

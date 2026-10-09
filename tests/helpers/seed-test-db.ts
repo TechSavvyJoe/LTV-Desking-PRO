@@ -1,8 +1,9 @@
-import { execSync, spawn } from "child_process";
-import { createHash } from "crypto";
+import { execFileSync, spawn } from "node:child_process";
 import fs from "fs";
 import path from "path";
 import PocketBase from "pocketbase";
+import { pathToFileURL } from "node:url";
+import { ensurePocketBaseBinary } from "./pocketbase-binary";
 import { SAMPLE_INVENTORY, DEFAULT_LENDER_PROFILES } from "../../constants";
 
 // Seed helper for backend (used by e2e integration flows and CI).
@@ -11,7 +12,6 @@ import { SAMPLE_INVENTORY, DEFAULT_LENDER_PROFILES } from "../../constants";
 // For e2e real-backend: set E2E_REAL_BACKEND=1; run seed first (leaves seeded db), start PB, run playwright with VITE_POCKETBASE_URL pointing to it.
 // Exports: seedData(pb) for use in custom node setups; main() for script.
 
-const isCI = !!process.env.CI || !!process.env.E2E_REAL_BACKEND;
 const PB_BIN_OVERRIDE = process.env.PB_BIN || process.env.PB_PATH;
 const PB_DATA_OVERRIDE = process.env.PB_DATA_DIR;
 const KEEP_RUNNING = !!process.env.E2E_KEEP_PB_RUNNING || !!process.env.E2E_REAL_BACKEND;
@@ -94,57 +94,6 @@ async function assertSeededInventoryIdentity(pb: PocketBase, dealerId: string): 
       `inventory seed mapping is invalid for ${dealerId}: stock=${stockNumber || "<empty>"}, year=${String(item?.year ?? "<empty>")}`
     );
   }
-}
-
-/**
- * Download PocketBase linux amd64 binary (for CI ubuntu) if needed.
- * Idempotent; places at targetPath.
- */
-async function ensurePocketBaseBinary(targetPath: string): Promise<string> {
-  if (fs.existsSync(targetPath)) {
-    try {
-      execSync(`"${targetPath}" --version`, { stdio: "ignore" });
-      return targetPath;
-    } catch {
-      // Existing binary is missing, incompatible, or not executable; download below.
-    }
-  }
-  console.log("Downloading PocketBase for current platform (CI/linux fallback)...");
-  // Use a stable recent version known for amd64 linux
-  const version = process.env.PB_VERSION || "0.39.6";
-  const arch = process.arch === "arm64" ? "arm64" : "amd64";
-  const platform = process.platform === "darwin" ? `darwin_${arch}` : `linux_${arch}`;
-  const releaseChecksums: Record<string, string> = {
-    darwin_amd64: "ee642cd5f8b2f77b4f28e36d93536e19887f42f1e01b384e1fe53775428aed88",
-    darwin_arm64: "704111f6c4b489f27cebf525bcbe7fe0b98661a147f05f1c7b9dffeb89dcef6d",
-    linux_amd64: "9251d4ebca4fe91771392dc389a6e449e4e00a34182b0316e7a2d9984d34da3d",
-    linux_arm64: "1787ec2de1821f9464d835ccede697603d45eabe9078c3a4209442b3c6f7d18b",
-  };
-  const expectedChecksum = process.env.PB_SHA256 || releaseChecksums[platform];
-  if (version !== "0.39.6" && !process.env.PB_SHA256) {
-    throw new Error(`PB_SHA256 is required when overriding PB_VERSION (${version}).`);
-  }
-  if (!expectedChecksum) throw new Error(`Unsupported PocketBase platform: ${platform}`);
-  const url = `https://github.com/pocketbase/pocketbase/releases/download/v${version}/pocketbase_${version}_${platform}.zip`;
-  const tmpDir = path.resolve("/tmp/pb-download-" + Date.now());
-  fs.mkdirSync(tmpDir, { recursive: true });
-  const zipPath = path.join(tmpDir, "pocketbase.zip");
-  execSync(`curl -L --max-time 120 --connect-timeout 30 -o "${zipPath}" "${url}"`, {
-    stdio: "inherit",
-  });
-  const actualChecksum = createHash("sha256").update(fs.readFileSync(zipPath)).digest("hex");
-  if (actualChecksum !== expectedChecksum) {
-    throw new Error(
-      `PocketBase checksum mismatch for ${platform}: expected ${expectedChecksum}, got ${actualChecksum}`
-    );
-  }
-  execSync(`unzip -o "${zipPath}" -d "${tmpDir}"`, { stdio: "inherit" });
-  const extracted = path.join(tmpDir, "pocketbase");
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.copyFileSync(extracted, targetPath);
-  fs.chmodSync(targetPath, 0o755);
-  console.log("PocketBase binary ready at", targetPath);
-  return targetPath;
 }
 
 /** Seed just the data records using an already-running/auth'd PB client. Exported for reuse. */
@@ -354,10 +303,11 @@ export async function seedData(
 async function main() {
   console.log("Starting E2E database seeding process... (seed helper, CI-aware)");
 
-  let effectivePbPath = PB_PATH;
-  if (isCI || !fs.existsSync(effectivePbPath)) {
-    effectivePbPath = await ensurePocketBaseBinary(effectivePbPath);
-  }
+  // Validate the runtime before resetting any disposable database.
+  const effectivePbPath = await ensurePocketBaseBinary(PB_PATH, {
+    version: process.env.PB_VERSION,
+    checksum: process.env.PB_SHA256,
+  });
 
   // 1. Reset the disposable E2E database unless reuse was explicitly requested.
   // KEEP_RUNNING controls the process lifetime only; coupling it to data reuse
@@ -373,17 +323,17 @@ async function main() {
 
   // 2. Run initial migrations to create schema
   console.log("Running baseline migrations...");
-  execSync(
-    `"${effectivePbPath}" migrate up --dir="${PB_DATA_DIR}" --migrationsDir="${MIGRATIONS_DIR}"`,
-    {
-      stdio: "inherit",
-    }
+  execFileSync(
+    effectivePbPath,
+    ["migrate", "up", `--dir=${PB_DATA_DIR}`, `--migrationsDir=${MIGRATIONS_DIR}`],
+    { stdio: "inherit" }
   );
 
   // 3. Create superuser
   console.log("Creating PocketBase superuser...");
-  execSync(
-    `"${effectivePbPath}" superuser upsert superadmin@ltvpro.com SuperAdminPass123! --dir="${PB_DATA_DIR}"`,
+  execFileSync(
+    effectivePbPath,
+    ["superuser", "upsert", "superadmin@ltvpro.com", "SuperAdminPass123!", `--dir=${PB_DATA_DIR}`],
     { stdio: "inherit" }
   );
 
@@ -434,7 +384,7 @@ async function main() {
       '1747810007_seed_empty_dealer_samples.js'
     );`;
     try {
-      execSync(`sqlite3 "${DB_PATH}" "${resetQuery}"`, { stdio: "inherit" });
+      execFileSync("sqlite3", [DB_PATH, resetQuery], { stdio: "inherit" });
     } catch (e) {
       console.warn("sqlite reset skipped (may be ok if no sqlite3):", (e as Error).message);
     }
@@ -442,11 +392,10 @@ async function main() {
 
   const rerunRuleMigrations = () => {
     console.log("Re-running rules migrations to apply security guards...");
-    execSync(
-      `"${effectivePbPath}" migrate up --dir="${PB_DATA_DIR}" --migrationsDir="${MIGRATIONS_DIR}"`,
-      {
-        stdio: "inherit",
-      }
+    execFileSync(
+      effectivePbPath,
+      ["migrate", "up", `--dir=${PB_DATA_DIR}`, `--migrationsDir=${MIGRATIONS_DIR}`],
+      { stdio: "inherit" }
     );
   };
 
@@ -573,9 +522,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exitCode = 1;
+  });
+}
 
 export { main as runSeed };

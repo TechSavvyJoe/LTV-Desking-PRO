@@ -35,7 +35,7 @@ export class PdfGenerationError extends Error {
  * confidently failure this app must never have. The templates render "—" and
  * the payment is already "N/A" for an unset rate. [G5/C-services]
  */
-const normalizePdfData = (data: DealPdfData): DealPdfData => {
+export const normalizePdfData = (data: DealPdfData): DealPdfData => {
   const raw: Record<string, unknown> = data.dealData ? { ...data.dealData } : {};
   const mapped = mapDealData(raw);
   const rawRate = raw.interestRate as unknown;
@@ -43,7 +43,12 @@ const normalizePdfData = (data: DealPdfData): DealPdfData => {
   // Avoids polluting with default APR. Use the union type declared in DealData.
   const interestRate: number | "" =
     typeof rawRate === "number" && Number.isFinite(rawRate) ? rawRate : "";
-  return { ...data, dealData: { ...mapped, interestRate } };
+  const rawTerm = raw.loanTerm;
+  const loanTerm =
+    typeof rawTerm === "number" && Number.isFinite(rawTerm) && rawTerm >= 1
+      ? Math.floor(rawTerm)
+      : 0;
+  return { ...data, dealData: { ...mapped, interestRate, loanTerm } };
 };
 
 // jspdf + html2canvas combined add ~400 KB gzipped to the initial bundle.
