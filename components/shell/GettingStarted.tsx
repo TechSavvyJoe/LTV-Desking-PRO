@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import Button from "../common/Button";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
 
 export interface GettingStartedProps {
   /** Scopes the dismissal so hiding it for one dealer never hides it for another. */
@@ -17,6 +16,9 @@ export interface GettingStartedProps {
    * not fail open to every role.
    */
   canManageSetup: boolean;
+  /** Explicit shell request to show this checklist, including after dismissal. */
+  forceOpen?: boolean;
+  onHide?: () => void;
   onImportInventory: () => void;
   onAddLenders: () => void;
   onDeskDeal: () => void;
@@ -66,6 +68,13 @@ const CheckGlyph: React.FC<{ done: boolean }> = ({ done }) => (
 
 /** Below this width the checklist starts as a one-line strip so it never pushes the desk down. */
 const COMPACT_QUERY = "(max-width: 1199px)";
+const readDismissed = (key: string): boolean => {
+  try {
+    return window.localStorage.getItem(key) === "true";
+  } catch {
+    return false;
+  }
+};
 
 const useIsCompact = (): boolean => {
   const [compact, setCompact] = useState(() =>
@@ -96,14 +105,30 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
   lenderCount,
   savedDealCount,
   canManageSetup,
+  forceOpen = false,
+  onHide,
   onImportInventory,
   onAddLenders,
   onDeskDeal,
 }) => {
-  const [dismissed, setDismissed] = useLocalStorage<boolean>(
-    `ltv.gettingStarted.dismissed.${dealerId}`,
-    false
-  );
+  const dismissalKey = `ltv.gettingStarted.dismissed.${dealerId}`;
+  const [dismissal, setDismissal] = useState(() => ({
+    dealerId,
+    dismissed: readDismissed(dismissalKey),
+  }));
+  useEffect(() => {
+    setDismissal({ dealerId, dismissed: readDismissed(dismissalKey) });
+  }, [dealerId, dismissalKey]);
+  const dismissed = dismissal.dealerId === dealerId && dismissal.dismissed;
+  const hide = () => {
+    try {
+      window.localStorage.setItem(dismissalKey, "true");
+    } catch {
+      // Keep the current card dismissible for this session if storage is unavailable.
+    }
+    setDismissal({ dealerId, dismissed: true });
+    onHide?.();
+  };
   // At tablet/phone widths the card defaults to a one-line strip the user can
   // expand; on wide screens it is always open. [R24]
   const isCompact = useIsCompact();
@@ -139,12 +164,16 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
   ];
 
   const doneCount = steps.filter((s) => s.done).length;
-  if (dismissed || doneCount === steps.length) return null;
+  if ((!forceOpen && dismissed) || (!forceOpen && doneCount === steps.length)) return null;
   const pct = Math.round((doneCount / steps.length) * 100);
 
   // Someone who can't import inventory or load lenders only needs the step they
   // can actually take; the admin-only steps are noise for them. [R24]
-  const visibleSteps = canManageSetup ? steps : steps.filter((s) => !s.done && s.onAction);
+  const visibleSteps = canManageSetup
+    ? steps
+    : forceOpen
+      ? steps.filter((s) => !s.done)
+      : steps.filter((s) => !s.done && s.onAction);
   if (visibleSteps.length === 0) return null;
   const adminStepsPending = !canManageSetup && steps.some((s) => !s.done && !s.onAction);
   const collapsed = isCompact && !expanded;
@@ -206,7 +235,7 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
               {doneCount} of {steps.length} done —{" "}
               {adminStepsPending
                 ? "your admin is finishing the rest of setup."
-                : "about ten minutes to a fully working desk."}
+                : "Continue setup at your pace."}
             </p>
           )}
         </div>
@@ -233,12 +262,7 @@ export const GettingStarted: React.FC<GettingStartedProps> = ({
           </Button>
         )}
         {!collapsed && (
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label="Hide setup card"
-            onClick={() => setDismissed(true)}
-          >
+          <Button variant="ghost" size="sm" aria-label="Hide setup card" onClick={hide}>
             Hide
           </Button>
         )}

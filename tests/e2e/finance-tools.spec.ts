@@ -45,10 +45,10 @@ test("lender analytics receives the desk programs and holds incomplete credit in
     await expect(page.getByLabel("FICO", { exact: true })).toBeVisible();
     await page.getByLabel("FICO", { exact: true }).fill("720");
     await page.getByLabel("Income / mo", { exact: true }).fill("6500");
-    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
     await page.getByLabel("Monthly debt", { exact: true }).fill("500");
     await page.getByLabel("Vehicle condition", { exact: true }).selectOption("used");
-    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
     await page.getByRole("button", { name: "Finance tools", exact: true }).click();
     await page.getByRole("tab", { name: "Analytics", exact: true }).click();
     await expect(page.getByText("Lake Trust CU", { exact: true })).toBeVisible();

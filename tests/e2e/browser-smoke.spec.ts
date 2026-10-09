@@ -76,7 +76,10 @@ test.describe("Cross-browser smoke (seeded backend)", () => {
       expect(
         await page.locator("html").evaluate((element) => element.classList.contains("dark"))
       ).toBe(scheme === "dark");
-      const more = page.getByRole("button", { name: "More filters", exact: true });
+      const more = page.getByRole("button", {
+        name: "Trade, taxes & advanced inputs",
+        exact: true,
+      });
       if ((await more.getAttribute("aria-expanded")) !== "true") await more.click();
       const monthlyDebt = page.locator("#desk-monthly-debt");
       await monthlyDebt.scrollIntoViewIfNeeded();
@@ -125,6 +128,8 @@ test.describe("Cross-browser smoke (seeded backend)", () => {
     await expect(page.getByLabel("Customer")).toBeVisible();
     await expect(page.getByLabel("FICO")).toBeVisible();
     await expect(page.getByLabel("Search inventory")).toBeVisible();
-    await expect(page.getByRole("button", { name: "More filters" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Trade, taxes & advanced inputs" })
+    ).toBeVisible();
   });
 });

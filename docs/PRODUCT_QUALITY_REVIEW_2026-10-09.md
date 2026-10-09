@@ -1,0 +1,27 @@
+# Product quality review — October 9, 2026
+
+This pass improves the existing dealership desk rather than replacing its dense financial workflow. Its acceptance target is a reviewable draft PR with working, understandable interactions. It does not establish nationwide transaction coverage or a production release.
+
+## Changes that affect daily work
+
+- **Confirmed saves:** Settings and the deal worksheet wait for a server receipt. Failed saves retain the draft and show an inline retry. A saved older version cannot clear newer work, including a same-VIN price update received before React rerenders. Browser-only AI preferences and LTV colors are explicitly identified.
+- **A safe new-customer boundary:** Reset confirms dirty work and clears names, notes, errors, search and deal inputs through the shared reset path.
+- **Actionable analysis:** The first two supported unresolved checks offer actions that reveal and focus the appropriate inputs. Manager profit controls remain permission-gated; program holds open lender details. Advanced trade/tax inputs have an explicit label, and the phone header wraps its actions.
+- **Exact cash to a payment ceiling:** A full-engine binary search finds the minimum additional whole-cent cash amount that reaches the displayed payment ceiling without changing price, rate, term, trade, products or incentives. The proposal shows its resulting payment, cash, estimated savings and remaining lender holds. Apply is explicit; Undo is available only while the calculation sources still match. A lower ceiling can narrow inventory results without silently changing the selected VIN.
+- **Honest calculator provenance:** Tools identify the copied stock/VIN, principal, nominal rate and term. Source changes do not overwrite manual edits; copying current desk values is explicit. Buy/sell reserve rates, split and flat terms begin unknown. A desk rate does not imply a lender buy rate or universal markup; unknown and equal estimates have neutral presentation.
+- **Recoverable setup:** Finance tools is a labeled navigation destination. Setup remains accessible from the account menu and command palette after dismissal, with per-dealer state and role-gated actions. Checklist progress is task progress, not a certification of lender or tax readiness.
+- **Private asynchronous work:** Delayed saves and PDF exports drop their continuations after session change or unmount. Lender-import batches check session and operation ownership between writes; canceling a batch permits a new batch without a late old receipt affecting it.
+
+## Evidence and limits
+
+Local verification used an isolated PocketBase 0.39.6 database and frontend on ports 8127/3127 with synthetic accounts and inventory. The user's local desk and production customer records were not used. Four changed browser workflows passed in Chromium with one worker: calculator copy/edit, setup recovery, cash Apply/Undo and phone keyboard/inspector scrolling. Fresh captures covered all six dealer routes plus desk/tools in dark and phone layouts, with zero recorded JavaScript/console errors. Actual phone scrolling reached the last inventory row. Blank regions in full-page inventory captures were unpainted virtual rows, not evidence of failed scrolling.
+
+Focused tests cover delayed/failing saves, full reset, source changes, private-session boundaries, canceled/imported batches, actionable field focus, and exact payment-cash minimality including zero interest and negative equity. An independent GPT-6 Astra/high reviewer accepted the reviewed changes for draft review after its concrete findings were repaired. The [PR's current verification checks](https://github.com/TechSavvyJoe/LTV-Desking-PRO/pull/27/checks) remain the canonical full-suite evidence for the final commit.
+
+The review used GPT-6 Luna/medium for route/setup work, GPT-6.1 Sol/medium for research/calculators/browser QA, GPT-6.1 Sol/high for coordinated workflow repair, and GPT-6 Astra/high for the independent gate. Product Design audit/browser rules and frontend testing instructions were applied. Screenshot evidence describes the working diff; no original-versus-redesigned comparison is claimed.
+
+## Research basis
+
+Official guidance accessed October 9: Apple [Entering data](https://developer.apple.com/design/human-interface-guidelines/entering-data), [Disclosure controls](https://developer.apple.com/design/human-interface-guidelines/disclosure-controls) and [Feedback](https://developer.apple.com/design/human-interface-guidelines/feedback); [Reynolds Desking](https://www.reyrey.com/solutions/desking/desking); and DealerCenter [I-MAXX](https://support.dealercenter.net/hc/en-us/articles/360001202043-Using-I-MAXX-Instantly-structure-approvals-on-all-vehicles-in-your-inventory). Reynolds was directly read; Apple/DealerCenter evidence was limited to official indexed material where direct retrieval was unavailable or returned a JavaScript shell. Advertised competitor capabilities do not prove their algorithms' accuracy. The resulting design choices are product recommendations, not claims of Apple affiliation.
+
+Real lender source sheets, funded-deal reconciliation, broader jurisdiction rules and production operational/scale evidence remain the concrete launch gates recorded in [the nationwide product review](NATIONWIDE_PRODUCT_REVIEW_2026-10-08.md). This pass does not turn sample programs into verified lending terms.

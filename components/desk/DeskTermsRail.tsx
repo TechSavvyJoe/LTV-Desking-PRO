@@ -73,7 +73,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
 
   return (
     <section className="desk-terms-card">
-      <div className="desk-terms-head">
+      <div className="desk-terms-head" style={{ flexWrap: "wrap" }}>
         <div className="desk-section-title">
           <span aria-hidden="true">01</span>
           {/* A real heading for the outline; the <strong> keeps its look. */}
@@ -85,7 +85,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             Live
           </span>
         </div>
-        <div className="desk-terms-actions">
+        <div className="desk-terms-actions" style={{ flexWrap: "wrap" }}>
           <span>Every edit reprices inventory and lender fit.</span>
           <button
             type="button"
@@ -94,7 +94,7 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
             aria-expanded={advancedOpen}
             aria-controls={advancedOpen ? ADVANCED_ID : undefined}
           >
-            More filters
+            Trade, taxes &amp; advanced inputs
           </button>
           {/* Clears the customer, credit, terms and filters — say so. */}
           <button type="button" className="desk-ghost-btn transition-colors" onClick={onReset}>
@@ -179,7 +179,12 @@ const DeskTermsRailComponent: React.FC<DeskTermsRailProps> = ({
         </div>
         <div className="desk-field term">
           <label id="desk-term-label">Term</label>
-          <div className="desk-term-buttons" role="group" aria-labelledby="desk-term-label">
+          <div
+            id="desk-term"
+            className="desk-term-buttons"
+            role="group"
+            aria-labelledby="desk-term-label"
+          >
             {DESK_TERMS.map((term) => (
               <button
                 type="button"

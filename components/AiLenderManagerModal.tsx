@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import type { LenderProfile, Settings } from "../types";
 import { processLenderSheet, type ProcessingProgress } from "../services/aiProcessor";
 import { tierNeedsReview } from "../services/lenderMatcher";
 import { saveLenderProfile, updateLenderProfile } from "../lib/api";
 import { createLogger } from "../lib/logger";
+import { getPrivateSessionEpoch } from "../lib/privateSession";
 import Button from "./common/Button";
 
 const modalLogger = createLogger("AiLenderManagerModal");
@@ -212,6 +213,32 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
   // Set when the user cancels mid-batch so the async analyze loop bails out
   // instead of burning tokens and resurrecting state into a closed modal.
   const cancelledRef = useRef(false);
+  const mounted = useRef(true);
+  const openRef = useRef(isOpen);
+  openRef.current = isOpen;
+  const generation = useRef(0);
+  const draftEpoch = useRef<number | null>(null);
+  const saving = useRef<number | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      generation.current += 1;
+    };
+  }, []);
+  useEffect(() => {
+    if (!isOpen) {
+      cancelledRef.current = true;
+      generation.current += 1;
+      saving.current = null;
+    }
+  }, [isOpen]);
+  const currentOperation = (epoch: number, run: number) =>
+    mounted.current &&
+    openRef.current &&
+    !cancelledRef.current &&
+    epoch === getPrivateSessionEpoch() &&
+    run === generation.current;
 
   const existingNames = existingLenderNames ?? [];
 
@@ -236,6 +263,9 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
   const handleAnalyze = async () => {
     if (files.length === 0) return;
+    const epoch = getPrivateSessionEpoch();
+    const run = ++generation.current;
+    draftEpoch.current = epoch;
     cancelledRef.current = false;
     setIsLoading(true);
     setResults([]);
@@ -248,7 +278,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
     for (let i = 0; i < files.length; i++) {
       // Bail out silently if the user cancelled mid-batch
-      if (cancelledRef.current) return;
+      if (!currentOperation(epoch, run)) return;
 
       const file = files[i];
       if (!file) continue;
@@ -260,7 +290,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
         const lenders = await processLenderSheet(
           file,
           (progress) => {
-            if (cancelledRef.current) return;
+            if (!currentOperation(epoch, run)) return;
 
             // Update individual file progress
             setFileProgresses((prev) => {
@@ -282,6 +312,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           settings.ai,
           { enrich: enrichWithWebSearch }
         );
+
+        if (!currentOperation(epoch, run)) return;
 
         // Calculate data quality score
         const totalTiers = lenders.reduce((acc, l) => acc + (l.tiers?.length || 0), 0);
@@ -305,6 +337,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           dataQuality,
         });
       } catch (error) {
+        if (!currentOperation(epoch, run)) return;
         newResults.push({
           fileName: file.name,
           status: "error",
@@ -314,7 +347,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
     }
 
     // Bail out silently if the user cancelled while the last file was processing
-    if (cancelledRef.current) return;
+    if (!currentOperation(epoch, run)) return;
 
     // Default every extracted lender to "included" for the review step
     const allKeys = new Set<string>();
@@ -347,6 +380,13 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
   };
 
   const handleConfirm = async () => {
+    const epoch = draftEpoch.current;
+    if (epoch === null || epoch !== getPrivateSessionEpoch() || saving.current !== null) return;
+    const run = generation.current;
+    const releaseSave = () => {
+      if (saving.current === run) saving.current = null;
+    };
+    if (!currentOperation(epoch, run)) return;
     // Flatten only the lenders the user left checked in the review step
     const allLenders: Partial<LenderProfile>[] = [];
     results.forEach((result, resultIndex) => {
@@ -361,6 +401,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
     if (allLenders.length === 0) return;
 
+    saving.current = run;
     setIsLoading(true);
     setCurrentStage("Saving lender programs…");
 
@@ -370,6 +411,10 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
     // Process each lender and save to PocketBase
     for (const newProfileData of allLenders) {
+      if (!currentOperation(epoch, run)) {
+        releaseSave();
+        return;
+      }
       if (!newProfileData.name) continue;
 
       try {
@@ -390,6 +435,10 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           });
 
           if (updatedProfile) {
+            if (!currentOperation(epoch, run)) {
+              releaseSave();
+              return;
+            }
             // Update local state
             onUpdateProfiles((prev) =>
               prev.map((p) => (p.id === existingProfile.id ? updatedProfile : p))
@@ -412,6 +461,10 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           } satisfies Parameters<typeof saveLenderProfile>[0]);
 
           if (savedProfile) {
+            if (!currentOperation(epoch, run)) {
+              releaseSave();
+              return;
+            }
             // Add to local state
             onUpdateProfiles((prev) => [...prev, savedProfile]);
             savedCount++;
@@ -420,11 +473,17 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
           }
         }
       } catch (error) {
+        if (!currentOperation(epoch, run)) {
+          releaseSave();
+          return;
+        }
         modalLogger.error("Error saving lender", error as Error, { name: newProfileData.name });
         errorCount++;
       }
     }
 
+    releaseSave();
+    if (!currentOperation(epoch, run)) return;
     setIsLoading(false);
 
     // Show summary message
@@ -439,6 +498,7 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
 
     // Close after brief delay to show completion message
     setTimeout(() => {
+      if (!currentOperation(epoch, run)) return;
       onClose();
       resetState();
     }, 1500);
@@ -458,6 +518,8 @@ const AiLenderManagerModal: React.FC<AiLenderManagerModalProps> = ({
     // Abort any in-flight batch so the analyze loop stops burning tokens
     // and stops resurrecting state into a closed modal.
     cancelledRef.current = true;
+    generation.current += 1;
+    saving.current = null;
     onProgress?.(0, "");
     resetState();
     onClose();

@@ -184,27 +184,36 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     return () => media.removeEventListener?.("change", syncIsNarrowNav);
   }, []);
 
-  // --- Defaults from Props ---
-  const defaultPrice: number | "" = activeVehicle
-    ? typeof activeVehicle.amountToFinance === "number" &&
-      Number.isFinite(activeVehicle.amountToFinance)
-      ? activeVehicle.amountToFinance
-      : ""
-    : 30000;
-  const defaultRate: number | "" = dealData
-    ? typeof dealData.interestRate === "number" && Number.isFinite(dealData.interestRate)
-      ? dealData.interestRate
-      : ""
-    : 7.99;
-  const defaultTermVal = dealData ? dealData.loanTerm : 72;
+  // Calculator values are copied once and only refreshed by an explicit action.
+  const finite = (value: unknown): number | "" =>
+    typeof value === "number" && Number.isFinite(value) ? value : "";
+  const deskSource =
+    activeVehicle && dealData
+      ? {
+          vin: activeVehicle.vin,
+          stock: activeVehicle.stock,
+          amount: finite(activeVehicle.amountToFinance),
+          rate: finite(dealData.interestRate),
+          term: finite(dealData.loanTerm),
+          down: finite(dealData.downPayment),
+          budget: finite(customerFilters?.maxPayment),
+          income: finite(customerFilters?.monthlyIncome),
+        }
+      : null;
+  const [copiedSource, setCopiedSource] = useState(deskSource);
+  const [edited, setEdited] = useState(false);
+  const deskChanged = JSON.stringify(deskSource) !== JSON.stringify(copiedSource);
+  const defaultPrice = deskSource?.amount ?? "";
+  const defaultRate = deskSource?.rate ?? "";
+  const defaultTermVal = Number(deskSource?.term) || 0;
 
   // --- Reserve Calculator State ---
   const [resAmount, setResAmount] = useState<number | "">(defaultPrice);
-  const [buyRate, setBuyRate] = useState<number | "">(defaultRate);
-  const [sellRate, setSellRate] = useState<number | "">(defaultRate === "" ? "" : defaultRate + 2);
+  const [buyRate, setBuyRate] = useState<number | "">("");
+  const [sellRate, setSellRate] = useState<number | "">("");
   const [resTerm, setResTerm] = useState<number>(defaultTermVal);
-  const [splitPercent, setSplitPercent] = useState<number | "">(70);
-  const [flatPercent, setFlatPercent] = useState<number | "">(2.0);
+  const [splitPercent, setSplitPercent] = useState<number | "">("");
+  const [flatPercent, setFlatPercent] = useState<number | "">("");
 
   // --- Payment Calculator State ---
   const [payAmount, setPayAmount] = useState<number | "">(defaultPrice);
@@ -212,31 +221,31 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   const [payTerm, setPayTerm] = useState<number>(defaultTermVal);
 
   // --- Budget Calculator State ---
-  const [budgetPmt, setBudgetPmt] = useState<number | "">(450);
+  const [budgetPmt, setBudgetPmt] = useState<number | "">(finite(customerFilters?.maxPayment));
   const [budgetRate, setBudgetRate] = useState<number | "">(defaultRate);
   const [budgetTerm, setBudgetTerm] = useState<number>(defaultTermVal);
-  const [budgetDown, setBudgetDown] = useState<number | "">(2000);
+  const [budgetDown, setBudgetDown] = useState<number | "">(finite(dealData?.downPayment));
 
   // --- Compare State ---
   const [compAmount, setCompAmount] = useState<number | "">(defaultPrice);
   const [compRate, setCompRate] = useState<number | "">(defaultRate);
 
   // --- Qualify (PTI) State ---
-  const [qualPmt, setQualPmt] = useState<number | "">(550);
-  const [qualIncome, setQualIncome] = useState<number | "">(4000);
-  const [qualLimit, setQualLimit] = useState<number | "">(15);
+  const [qualPmt, setQualPmt] = useState<number | "">("");
+  const [qualIncome, setQualIncome] = useState<number | "">(finite(customerFilters?.monthlyIncome));
+  const [qualLimit, setQualLimit] = useState<number | "">("");
 
   // --- Max Approval State ---
-  const [maxAppAmount, setMaxAppAmount] = useState<number | "">(30000);
-  const [maxAppTax, setMaxAppTax] = useState<number | "">(6.0);
-  const [maxAppFees, setMaxAppFees] = useState<number | "">(300);
-  const [maxAppDown, setMaxAppDown] = useState<number | "">(1000);
-  const [maxAppTradeEq, setMaxAppTradeEq] = useState<number | "">(0);
+  const [maxAppAmount, setMaxAppAmount] = useState<number | "">("");
+  const [maxAppTax, setMaxAppTax] = useState<number | "">("");
+  const [maxAppFees, setMaxAppFees] = useState<number | "">("");
+  const [maxAppDown, setMaxAppDown] = useState<number | "">(finite(dealData?.downPayment));
+  const [maxAppTradeEq, setMaxAppTradeEq] = useState<number | "">("");
 
   // --- Warranty Analysis State ---
-  const [warrCostMo, setWarrCostMo] = useState<number | "">(40);
-  const [warrTerm, setWarrTerm] = useState<number>(60);
-  const [warrRepairCost, setWarrRepairCost] = useState<number | "">(4000);
+  const [warrCostMo, setWarrCostMo] = useState<number | "">("");
+  const [warrTerm, setWarrTerm] = useState<number>(defaultTermVal);
+  const [warrRepairCost, setWarrRepairCost] = useState<number | "">("");
 
   // --- Document Scanner State ---
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -259,8 +268,11 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
         : "";
 
     setResAmount(principal);
-    setBuyRate(rate ?? "");
-    setSellRate(rate === null ? "" : rate + 2);
+    // The desk quote does not establish contractual lender compensation terms.
+    setBuyRate("");
+    setSellRate("");
+    setSplitPercent("");
+    setFlatPercent("");
     setPayRate(rate ?? "");
     setBudgetRate(rate ?? "");
     setCompRate(rate ?? "");
@@ -270,8 +282,15 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
     setPayTerm(term);
 
     setBudgetTerm(term);
+    setBudgetPmt(finite(customerFilters?.maxPayment));
+    setBudgetDown(finite(dealData.downPayment));
+    setQualIncome(finite(customerFilters?.monthlyIncome));
+    setMaxAppDown(finite(dealData.downPayment));
+    setWarrTerm(term);
 
     setCompAmount(principal);
+    setCopiedSource(deskSource);
+    setEdited(false);
   };
 
   // --- Calculations ---
@@ -280,7 +299,11 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
       (value) => typeof value === "number" && Number.isFinite(value) && value >= 0
     ) &&
     Number(resAmount) > 0 &&
+    Number.isInteger(resTerm) &&
     resTerm > 0 &&
+    resTerm <= 120 &&
+    Number(buyRate) <= 50 &&
+    Number(sellRate) <= 50 &&
     Number(splitPercent) <= 100 &&
     Number(flatPercent) <= 100;
   const reserveStats = useMemo(() => {
@@ -321,7 +344,7 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
   }, [payAmount, payRate, payTerm]);
 
   const budgetResult = useMemo(() => {
-    if (budgetPmt === "" || budgetRate === "")
+    if (budgetPmt === "" || budgetRate === "" || budgetDown === "")
       return { maxLoan: "N/A" as const, maxPrice: "N/A" as const };
     const pmt = Number(budgetPmt) || 0;
     const r = Number(budgetRate) || 0;
@@ -433,8 +456,10 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
         if (!reserveComplete)
           return "Complete the amount, rates, split and flat fee to compare estimates.";
         return `Interest spread estimate ${formatCurrency(reserveStats.totalReserve)}. Split ${splitPercent} percent ${formatCurrency(reserveStats.dealerSplit)}. Flat ${flatPercent} percent ${formatCurrency(reserveStats.flatFee)}. ${
-          reserveStats.dealerSplit >= reserveStats.flatFee ? "Split" : "Flat"
-        } is higher.`;
+          reserveStats.dealerSplit === reserveStats.flatFee
+            ? "Estimates are equal"
+            : `${reserveStats.dealerSplit > reserveStats.flatFee ? "Split" : "Flat"} is higher`
+        }.`;
       case "payment":
         return `Monthly payment ${formatCurrency(paymentResult)}.`;
       case "budget":
@@ -516,22 +541,79 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
             </button>
           ))}
         </div>
-        {dealData && (
-          <div className="finance-tools-reset p-4 border-t border-[var(--color-border)]">
-            <button
-              onClick={handleSyncToDeal}
-              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text)] transition-colors duration-[var(--duration-fast)]"
-            >
-              <Icons.ArrowPathIcon className="w-3.5 h-3.5" />
-              Reset to active deal
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Main Content */}
       <div className="finance-tools-main flex-1 flex flex-col bg-transparent">
-        <div className="finance-tools-content flex-1 p-6" {...tabs.getPanelProps(activeTab)}>
+        {activeTab !== "analytics" && activeTab !== "notes" && (
+          <section
+            aria-label="Calculator source"
+            className="p-3 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-xs text-[var(--color-text)]"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <strong>
+                  {copiedSource
+                    ? `Copied from stock ${copiedSource.stock}`
+                    : "Independent calculator · no desk values copied"}
+                </strong>
+                {copiedSource && (
+                  <p className="mt-1 text-[var(--color-text-muted)]">
+                    VIN {copiedSource.vin} · Financed{" "}
+                    {formatCurrency(copiedSource.amount === "" ? "N/A" : copiedSource.amount)}
+                    {" · Interest rate "}
+                    {copiedSource.rate === "" ? "unknown" : `${copiedSource.rate}%`}
+                    {" · Term "}
+                    {copiedSource.term === "" || copiedSource.term <= 0
+                      ? "unknown"
+                      : `${copiedSource.term} mo`}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleSyncToDeal}
+                disabled={!deskSource}
+                aria-describedby={!deskSource ? "finance-source-unavailable" : undefined}
+                className="px-3 py-1.5 border border-[var(--color-border)] rounded font-medium hover:bg-[var(--color-bg-muted)] disabled:opacity-50"
+              >
+                Use current desk values
+              </button>
+            </div>
+            <p role="status" className="mt-1 text-[var(--color-text-muted)]">
+              {edited
+                ? "Calculator inputs edited."
+                : copiedSource
+                  ? "Using copied desk values."
+                  : "Enter values to calculate."}
+              {deskChanged &&
+                " Desk values changed; calculator inputs are preserved until you use current desk values."}
+              {deskChanged &&
+                deskSource &&
+                ` Current desk: stock ${deskSource.stock}, VIN ${deskSource.vin}.`}
+            </p>
+            {!deskSource && (
+              <p id="finance-source-unavailable" className="mt-1">
+                Select a vehicle on the desk to copy its values.
+              </p>
+            )}
+            <p className="mt-1 text-[var(--color-text-muted)]">
+              Copying desk values clears reserve rates, split and flat fee. Enter contractual terms
+              separately.
+            </p>
+          </section>
+        )}
+        <div
+          className="finance-tools-content flex-1 p-6"
+          {...tabs.getPanelProps(activeTab)}
+          onChangeCapture={(event) => {
+            if (
+              event.target instanceof HTMLInputElement ||
+              event.target instanceof HTMLSelectElement
+            )
+              setEdited(true);
+          }}
+        >
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-semibold text-[var(--color-text)]">
@@ -647,13 +729,19 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   </InputGroup>
                 </div>
 
+                {!reserveComplete && (
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    Enter contractual buy and sell rates, split and flat fee to compare estimates.
+                    Blank terms are unknown; 0 is valid.
+                  </p>
+                )}
                 <div className="space-y-3 pt-4 border-t border-[var(--color-border)]">
                   <ResultDisplay
                     label="Interest spread estimate"
                     value={formatCurrency(reserveComplete ? reserveStats.totalReserve : "N/A")}
                     valueColorClass="text-[var(--color-text)]"
                   />
-                  {reserveStats.sellBelowBuy && (
+                  {reserveComplete && reserveStats.sellBelowBuy && (
                     <p role="alert" className="text-xs font-medium text-[var(--color-warning)]">
                       Sell rate is below the buy rate — reserve would be negative. Reserve shown as
                       $0.
@@ -662,20 +750,20 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                   <div className="grid grid-cols-2 gap-4">
                     <div
                       className={`p-4 rounded-md border transition-colors ${
-                        reserveComplete && reserveStats.dealerSplit >= reserveStats.flatFee
+                        reserveComplete && reserveStats.dealerSplit > reserveStats.flatFee
                           ? "bg-[var(--color-success-subtle)] border-[var(--color-success)]/30"
                           : "bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                       }`}
                     >
-                      <p className="text-xs font-medium text-[var(--color-success)] mb-1 flex items-center gap-1.5">
-                        Split ({splitPercent}%)
-                        {reserveComplete && reserveStats.dealerSplit >= reserveStats.flatFee && (
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1 flex items-center gap-1.5">
+                        Split ({splitPercent === "" ? "unknown" : `${splitPercent}%`})
+                        {reserveComplete && reserveStats.dealerSplit > reserveStats.flatFee && (
                           <HigherBadge />
                         )}
                       </p>
                       <p
                         className={`text-2xl font-semibold tabular-nums ${
-                          reserveComplete && reserveStats.dealerSplit >= reserveStats.flatFee
+                          reserveComplete && reserveStats.dealerSplit > reserveStats.flatFee
                             ? "text-[var(--color-success)]"
                             : "text-[var(--color-text)]"
                         }`}
@@ -690,8 +778,8 @@ const FinanceTools: React.FC<FinanceToolsProps> = ({
                           : "bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                       }`}
                     >
-                      <p className="text-xs font-medium text-[var(--color-success)] mb-1 flex items-center gap-1.5">
-                        Flat ({flatPercent}%)
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-1 flex items-center gap-1.5">
+                        Flat ({flatPercent === "" ? "unknown" : `${flatPercent}%`})
                         {reserveComplete && reserveStats.flatFee > reserveStats.dealerSplit && (
                           <HigherBadge />
                         )}

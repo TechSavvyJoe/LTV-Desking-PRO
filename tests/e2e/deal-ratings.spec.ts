@@ -20,10 +20,10 @@ test.describe("Explainable dealership ratings", () => {
     await page.getByLabel("Payment budget ($/mo)").fill("900");
     await page.getByLabel("Interest rate (%)", { exact: true }).fill("8.9");
     await page.getByRole("button", { name: "72 months", exact: true }).click();
-    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
     await page.getByLabel("Monthly debt", { exact: true }).fill("500");
     await page.getByLabel("Vehicle condition", { exact: true }).selectOption("used");
-    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
     await page.getByText("Set profit inputs", { exact: true }).click();
     await page.getByLabel("All-in unit cost ($)").fill("38000");
     await page.getByLabel("Total product cost ($)").fill("0");

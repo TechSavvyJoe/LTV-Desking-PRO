@@ -233,6 +233,66 @@ describe("DealProvider derivations", () => {
     );
   });
 
+  it("returns an explicit settings receipt only after persistence and permits retry after failure", async () => {
+    let resolveWrite!: (value: unknown) => void;
+    mocks.updateDealerSettings.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveWrite = resolve;
+        })
+    );
+    let ctx!: ReturnType<typeof useDealContext>;
+    renderProvider((c) => {
+      ctx = c;
+    });
+    await waitFor(() => expect(ctx.dataLoading).toBe(false));
+    let receipt!: Promise<boolean>;
+    let completed = false;
+    act(() => {
+      receipt = ctx.persistSettings({ ...ctx.settings, docFee: 321 });
+      void receipt.then(() => {
+        completed = true;
+      });
+    });
+    await waitFor(() => expect(mocks.updateDealerSettings).toHaveBeenCalledOnce());
+    expect(completed).toBe(false);
+    await act(async () => {
+      resolveWrite(null);
+      expect(await receipt).toBe(false);
+    });
+    expect(ctx.settings.docFee).toBe(321);
+    await act(async () =>
+      expect(await ctx.persistSettings({ ...ctx.settings, docFee: 322 })).toBe(true)
+    );
+    expect(mocks.updateDealerSettings).toHaveBeenCalledTimes(2);
+  });
+
+  it("resets every customer field, notes, validation and search to current defaults", async () => {
+    let ctx!: ReturnType<typeof useDealContext>;
+    renderProvider((c) => {
+      ctx = c;
+    });
+    await waitFor(() => expect(ctx.dataLoading).toBe(false));
+    act(() => {
+      ctx.setCustomerName("Previous Customer");
+      ctx.setSalespersonName("Previous Salesperson");
+      ctx.setScratchPadNotes("Private previous customer notes");
+      ctx.setErrors({ customerName: "Old validation" });
+      ctx.setSearchQuery("old stock");
+      ctx.setFilters((prev) => ({ ...prev, monthlyIncome: 9999 }));
+      ctx.setDealData((prev) => ({ ...prev, downPayment: 7777, buyerState: "FL" }));
+    });
+    act(() => ctx.resetDealState());
+    expect(ctx.customerName).toBe("");
+    expect(ctx.salespersonName).toBe("");
+    expect(ctx.scratchPadNotes).toBe("");
+    expect(ctx.errors).toEqual({});
+    expect(ctx.searchQuery).toBe("");
+    expect(ctx.filters.monthlyIncome).not.toBe(9999);
+    expect(ctx.dealData.downPayment).not.toBe(7777);
+    expect(ctx.dealData.buyerState).toBe(ctx.settings.defaultState);
+  });
+
   it("runs the processedInventory scoring pass after sample data loads", async () => {
     let ctx!: ReturnType<typeof useDealContext>;
     renderProvider((c) => {

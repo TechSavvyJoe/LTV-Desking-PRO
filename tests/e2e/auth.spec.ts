@@ -1229,10 +1229,10 @@ test.describe("Lender match", () => {
     await page.locator("#desk-income").fill("6500");
     await page.locator("#desk-down").fill("4000");
 
-    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
     await page.getByLabel("Monthly debt", { exact: true }).fill("500");
     await page.getByLabel("Vehicle condition", { exact: true }).selectOption("used");
-    await page.getByRole("button", { name: "More filters", exact: true }).click();
+    await page.getByRole("button", { name: "Trade, taxes & advanced inputs", exact: true }).click();
     await page.getByRole("tab", { name: "Lenders", exact: true }).click();
 
     // Lender paths / fit section in inspector

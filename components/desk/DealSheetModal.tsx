@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDealContext } from "../../context/DealContext";
 import { PdfGenerationError, generateDealPdf } from "../../services/pdfGenerator";
@@ -9,6 +9,7 @@ import { assessDeal, holdIncompleteFits } from "../../services/dealAssessment";
 import { normalizeBackendProductFields } from "../../services/backendProducts";
 import { getCurrentDealerDetails, logDealEvent } from "../../lib/api";
 import { capture } from "../../lib/analytics";
+import { getPrivateSessionEpoch } from "../../lib/privateSession";
 import { toast } from "../../lib/toast";
 import { BlobDownloadError, downloadBlob } from "../../utils/downloadBlob";
 import { useFocusTrap, useKeyboardShortcuts, useRestoreFocus } from "../../hooks/useKeyboard";
@@ -19,12 +20,10 @@ interface DealSheetModalProps {
   /** The focused (scored) vehicle the sheet is prepared for. */
   vehicle: CalculatedVehicle;
   onClose: () => void;
-  /**
-   * Save-to-pipeline. The PARENT closes this modal before saving so the
-   * success toast (z-80) never renders under the modal backdrop. [dc-redesign]
-   */
-  onSaveToPipeline: () => void;
+  /** Resolves true only after the server confirms this worksheet's save. */
+  onSaveToPipeline: () => Promise<boolean> | void;
   isSaving?: boolean;
+  saveError?: string | null;
 }
 
 type PdfUiState =
@@ -56,9 +55,23 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
   onClose,
   onSaveToPipeline,
   isSaving = false,
+  saveError,
 }) => {
   const { settings, dealData, filters, customerName, salespersonName, safeLenderProfiles } =
     useDealContext();
+  const mounted = useRef(true);
+  const sessionEpoch = useRef(getPrivateSessionEpoch()).current;
+  const pdfGenerating = useRef(false);
+  const isCurrentSession = useCallback(
+    () => mounted.current && sessionEpoch === getPrivateSessionEpoch(),
+    [sessionEpoch]
+  );
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const [dealerName, setDealerName] = useState<string>("");
   const dealerDetailsRef = useRef<ReturnType<typeof getCurrentDealerDetails> | null>(null);
@@ -69,22 +82,50 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
   const expirePdfFallbackRef = useRef<number | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const pdfBusy = pdfState.status === "generating";
+  const [savePending, setSavePending] = useState(false);
+  const [localSaveError, setLocalSaveError] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const saveBusy = isSaving || savePending;
+  const requestClose = () => {
+    if (!savingRef.current && !isSaving) onClose();
+  };
+  const handleSave = async () => {
+    if (savingRef.current || isSaving || !isCurrentSession()) return;
+    savingRef.current = true;
+    setSavePending(true);
+    setLocalSaveError(null);
+    try {
+      const receipt = await onSaveToPipeline();
+      if (!isCurrentSession()) return;
+      if (receipt === true) onClose();
+      else
+        setLocalSaveError(
+          "Save wasn't confirmed. Your worksheet is still here. Retry when you're ready."
+        );
+    } catch {
+      if (isCurrentSession())
+        setLocalSaveError("Couldn't save the deal. Check your connection and retry.");
+    } finally {
+      savingRef.current = false;
+      if (isCurrentSession()) setSavePending(false);
+    }
+  };
 
   useRestoreFocus(true);
   useFocusTrap(dialogRef as React.RefObject<HTMLElement>, true);
-  useKeyboardShortcuts({ escape: onClose }, true);
+  useKeyboardShortcuts({ escape: requestClose }, true);
 
   useEffect(() => {
     let cancelled = false;
     const lookup = getCurrentDealerDetails().catch(() => null);
     dealerDetailsRef.current = lookup;
     lookup.then((dealer) => {
-      if (!cancelled && dealer?.name) setDealerName(dealer.name);
+      if (!cancelled && isCurrentSession() && dealer?.name) setDealerName(dealer.name);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isCurrentSession]);
 
   useEffect(
     () => () => {
@@ -147,7 +188,8 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
   };
 
   const handleDownloadPdf = async () => {
-    if (pdfBusy) return;
+    if (pdfGenerating.current || pdfBusy || !isCurrentSession()) return;
+    pdfGenerating.current = true;
     setPdfState({ status: "generating", message: "Generating PDF…" });
     try {
       // Recalculate from the live, non-debounced inputs at click time. The
@@ -177,6 +219,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
       };
       freshVehicle.readinessScore = freshVehicle.assessment?.readiness;
       const worksheetDealerName = dealerName || (await dealerDetailsRef.current)?.name || "";
+      if (!isCurrentSession()) return;
       const pdfData: DealPdfData = {
         dealerName: worksheetDealerName,
         vehicle: freshVehicle,
@@ -191,6 +234,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         lenderEligibility: freshFit.entries,
       };
       const blob = await generateDealPdf(pdfData, settings);
+      if (!isCurrentSession()) return;
       const result = downloadBlob(blob, dealSheetFilename(freshVehicle), {
         revokeAfterMs: PDF_FALLBACK_LIFETIME_MS,
       });
@@ -239,6 +283,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         },
       });
     } catch (error) {
+      if (!isCurrentSession()) return;
       // Error surfaced to UI via PdfGenerationError; log at call site if needed.
       const code = pdfErrorCode(error);
       const message = pdfErrorMessage(error);
@@ -250,11 +295,13 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
         fitCount: liveVehicle.fitCount ?? 0,
       });
       toast.error(`Couldn't create the PDF (${code}). Try again.`);
+    } finally {
+      pdfGenerating.current = false;
     }
   };
 
   return createPortal(
-    <div onClick={onClose} className="modal-backdrop deal-sheet-backdrop">
+    <div onClick={requestClose} className="modal-backdrop deal-sheet-backdrop">
       <div
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -269,7 +316,7 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
             <div className="deal-sheet-eyebrow">DEAL DOCUMENTS</div>
             <h2>Deal sheet</h2>
           </div>
-          <button onClick={onClose} className="deal-sheet-close" aria-label="Close">
+          <button onClick={requestClose} className="deal-sheet-close" aria-label="Close">
             <svg
               width="20"
               height="20"
@@ -321,11 +368,17 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               )}
             </div>
           )}
+          {(saveError || localSaveError) && (
+            <p role="alert" style={{ color: "var(--color-danger)", margin: 0, fontSize: 13 }}>
+              {saveError || localSaveError}
+            </p>
+          )}
+          {saveBusy && <span role="status">Saving deal to pipeline…</span>}
           <div className="deal-sheet-footer-note">
             Letter format · 2 pages<span>Internal worksheet · Estimate only</span>
           </div>
           <div className="deal-sheet-action-buttons">
-            <button onClick={onClose} className="deal-sheet-button">
+            <button onClick={requestClose} className="deal-sheet-button">
               Close
             </button>
             <button
@@ -347,12 +400,12 @@ const DealSheetModalBase: React.FC<DealSheetModalProps> = ({
               {pdfBusy ? "Generating…" : "Download PDF"}
             </button>
             <button
-              onClick={onSaveToPipeline}
-              disabled={isSaving}
-              aria-busy={isSaving}
+              onClick={handleSave}
+              disabled={saveBusy}
+              aria-busy={saveBusy}
               className="deal-sheet-button deal-sheet-save"
             >
-              {isSaving ? "Saving…" : "Save deal"}
+              {saveBusy ? "Saving…" : saveError || localSaveError ? "Retry save" : "Save deal"}
             </button>
           </div>
         </footer>

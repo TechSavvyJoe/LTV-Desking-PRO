@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import type { CalculatedVehicle, DealData } from "../../types";
 import { fmt } from "../../utils/format";
 import { assessmentColor } from "../../services/dealAssessment";
@@ -6,15 +6,46 @@ import { assessmentColor } from "../../services/dealAssessment";
 interface Props {
   vehicle: CalculatedVehicle;
   dealData: DealData;
+  onResolveCheck?: (checkId: string) => void;
   onProfitChange?: (patch: NonNullable<DealData["profitInputs"]>) => void;
 }
+const PROFIT_FIELDS: Record<string, string> = {
+  cost: "rating-unit-cost",
+  products: "rating-product-cost",
+  reserve: "rating-reserve",
+  profit: "rating-target",
+};
+const RAIL_CHECKS = new Set(["fico", "income", "debt", "condition", "terms", "budget", "lender"]);
 const money = (n: number | null) => (n === null ? "—" : fmt(n));
 const pct = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)}%`);
 
-export const DealRatings: React.FC<Props> = ({ vehicle, dealData, onProfitChange }) => {
+export const DealRatings: React.FC<Props> = ({
+  vehicle,
+  dealData,
+  onProfitChange,
+  onResolveCheck,
+}) => {
+  const profitDetailsRef = useRef<HTMLDetailsElement>(null);
   const a = vehicle.assessment;
   if (!a) return <p>Ratings require a fresh assessment on the desk.</p>;
   const profit = dealData.profitInputs ?? {};
+  const unresolved = a.checks.filter((check) => check.status !== "pass");
+  const nextChecks = unresolved
+    .filter((check) =>
+      PROFIT_FIELDS[check.id]
+        ? Boolean(onProfitChange)
+        : Boolean(onResolveCheck && RAIL_CHECKS.has(check.id))
+    )
+    .slice(0, 2);
+  const resolveCheck = (checkId: string) => {
+    const profitField = PROFIT_FIELDS[checkId];
+    if (profitField && onProfitChange) {
+      if (profitDetailsRef.current) profitDetailsRef.current.open = true;
+      const field = document.getElementById(profitField);
+      field?.focus();
+      field?.scrollIntoView?.({ block: "nearest", behavior: "auto" });
+    } else if (RAIL_CHECKS.has(checkId)) onResolveCheck?.(checkId);
+  };
   const field = (
     id: string,
     label: string,
@@ -50,6 +81,64 @@ export const DealRatings: React.FC<Props> = ({ vehicle, dealData, onProfitChange
       <p className="desk-rating-caption">
         {a.label}. Counts passed checks; never an approval probability.
       </p>
+      {nextChecks.length > 0 && (
+        <section className="desk-rating-details" aria-label="Next to resolve">
+          <div className="desk-panel-heading">
+            <span>Next to resolve</span>
+          </div>
+          <ul>
+            {nextChecks.map((check) => (
+              <li
+                key={check.id}
+                data-status={check.status}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <strong>{check.label}</strong>
+                  <span>
+                    {check.id === "lender"
+                      ? "Program review: dealership admin. Published rules only; no lender decision."
+                      : check.detail}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="desk-ghost-btn shrink-0"
+                  aria-label={`Resolve ${check.label}`}
+                  onClick={() => resolveCheck(check.id)}
+                >
+                  Resolve
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {!onProfitChange && unresolved.some((check) => PROFIT_FIELDS[check.id]) && (
+        <p className="desk-rating-caption">
+          A manager must confirm costs, expected reserve and the dealer gross target.
+        </p>
+      )}
+      {unresolved.some((check) => check.id === "lender") &&
+        !nextChecks.some((check) => check.id === "lender") && (
+          <p className="desk-rating-caption">
+            Program review: dealership admin. Published rules only; no lender decision.{" "}
+            {onResolveCheck && (
+              <button
+                type="button"
+                className="desk-inline-link"
+                onClick={() => resolveCheck("lender")}
+              >
+                Review program rules
+              </button>
+            )}
+          </p>
+        )}
       <div className="desk-rating-metrics">
         <Metric
           label="Budget used"
@@ -134,7 +223,7 @@ export const DealRatings: React.FC<Props> = ({ vehicle, dealData, onProfitChange
         </ul>
       </details>
       {onProfitChange && (
-        <details className="desk-rating-details">
+        <details ref={profitDetailsRef} className="desk-rating-details">
           <summary>Set profit inputs</summary>
           <p className="desk-rating-caption">
             Confirm costs for{" "}

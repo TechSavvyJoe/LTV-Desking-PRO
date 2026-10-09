@@ -12,6 +12,7 @@ const base = {
   onImportInventory: vi.fn(),
   onAddLenders: vi.fn(),
   onDeskDeal: vi.fn(),
+  onHide: vi.fn(),
 };
 
 /** jsdom has no matchMedia; stub the one query GettingStarted asks about. */
@@ -75,6 +76,30 @@ describe("GettingStarted [takeover: activation]", () => {
 
     render(<GettingStarted {...base} dealerId="d2" />);
     expect(screen.getByRole("region", { name: "Set up your dealership" })).toBeTruthy();
+  });
+
+  it("can be reopened after hiding, with dismissal still scoped to its dealer", () => {
+    const first = render(<GettingStarted {...base} />);
+    fireEvent.click(screen.getByRole("button", { name: "Hide setup card" }));
+    expect(base.onHide).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("region")).toBeNull();
+    first.unmount();
+
+    render(<GettingStarted {...base} forceOpen />);
+    expect(screen.getByRole("region", { name: "Set up your dealership" })).toBeTruthy();
+    cleanup();
+
+    render(<GettingStarted {...base} dealerId="d2" />);
+    expect(screen.getByRole("region", { name: "Set up your dealership" })).toBeTruthy();
+  });
+
+  it("does not present admin-only setup actions when a non-admin reopens the checklist", () => {
+    render(<GettingStarted {...base} canManageSetup={false} forceOpen />);
+    expect(screen.getByText("Import your inventory")).toBeTruthy();
+    expect(screen.getByText("Load your lender programs")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Import inventory" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Upload a rate sheet" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Search inventory" })).toBeTruthy();
   });
 
   it("shows non-admins only the step they can act on", () => {

@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_AI_SETTINGS } from "../../lib/aiModelRegistry";
 import { splitPay } from "../../utils/format";
 import { calculateFinancials } from "../../services/calculator";
+import { assessDeal } from "../../services/dealAssessment";
+import { lenderFitForVehicle } from "../../services/lenderFit";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../../types";
 import type { LenderFitEntry } from "../../services/lenderFit";
 import { ApprovalGauge } from "../common/ApprovalGauge";
@@ -719,7 +721,7 @@ describe("desk reading order", () => {
       "true"
     );
 
-    const filters = screen.getByRole("button", { name: "More filters" });
+    const filters = screen.getByRole("button", { name: "Trade, taxes & advanced inputs" });
     expect(filters.getAttribute("aria-expanded")).toBe("false");
     expect(filters.hasAttribute("aria-controls")).toBe(false);
     expect(screen.getByRole("button", { name: "Reset deal" })).toBeTruthy();
@@ -731,11 +733,44 @@ describe("desk reading order", () => {
     unmount();
 
     renderTermsRail(true);
-    const open = screen.getByRole("button", { name: "More filters" });
+    const open = screen.getByRole("button", { name: "Trade, taxes & advanced inputs" });
     expect(open.getAttribute("aria-expanded")).toBe("true");
     const controlled = document.getElementById(open.getAttribute("aria-controls") ?? "");
     expect(controlled?.classList.contains("desk-terms-advanced")).toBe(true);
     expect(screen.queryByRole("button", { name: /hide filters/i })).toBeNull();
+  });
+
+  it("resolving a program hold opens the existing lender tab and keeps keyboard focus there", () => {
+    const assessment = assessDeal(
+      vehicle,
+      dealData,
+      emptyFilters,
+      lenderProfiles,
+      lenderFitForVehicle(vehicle, { ...dealData, ...emptyFilters }, lenderProfiles)
+    );
+    const onResolve = vi.fn();
+    renderInspector({
+      vehicle: {
+        ...vehicle,
+        assessment: {
+          ...assessment,
+          checks: [
+            {
+              id: "lender",
+              label: "Program rules match",
+              status: "missing",
+              detail: "Program review needed.",
+            },
+          ],
+        },
+      },
+      onResolveCheck: onResolve,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve Program rules match" }));
+    const lenderTab = screen.getByRole("tab", { name: "Lenders" });
+    expect(lenderTab.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(lenderTab);
+    expect(onResolve).not.toHaveBeenCalled();
   });
 
   it("the inspector is a named landmark with an h2, the vehicle as h3 and a quiet numeral", () => {

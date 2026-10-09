@@ -1,11 +1,11 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { INITIAL_DEAL_DATA, INITIAL_FILTER_DATA } from "../../constants";
 import { useDealContext } from "../../context/DealContext";
 import { useDeskShortcuts } from "../../hooks/useDeskShortcuts";
 import { useSaveDeal } from "../../hooks/useSaveDeal";
 import { capture } from "../../lib/analytics";
 import { logDealEvent } from "../../lib/api";
 import { toast } from "../../lib/toast";
+import { confirmAction } from "../../lib/confirm";
 import { applyBackendProductPatch, getBackendProductSplit } from "../../services/backendProducts";
 import { activeLenderCount, lenderFitForVehicle } from "../../services/lenderFit";
 import { scopeDealToVehicle } from "../../services/vehicleCondition";
@@ -83,9 +83,11 @@ const DeskScreenBase: React.FC = () => {
     searchQuery,
     setSearchQuery,
     loadSampleData,
+    resetDealState,
+    isDealDirty,
   } = useDealContext();
 
-  const { handleSaveDeal, isSaving } = useSaveDeal();
+  const { handleSaveDeal, isSaving, saveError } = useSaveDeal();
   const canViewProfit = ["admin", "manager", "superadmin"].includes(getCurrentUser()?.role ?? "");
   const totalLenders = activeLenderCount(safeLenderProfiles);
   const thresholds = settings.ltvThresholds;
@@ -93,6 +95,7 @@ const DeskScreenBase: React.FC = () => {
   const [dealSheetOpen, setDealSheetOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [advancedTermsOpen, setAdvancedTermsOpen] = useState(false);
+  const [pendingResolveField, setPendingResolveField] = useState<string | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [compactInspector, setCompactInspector] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
@@ -147,8 +150,8 @@ const DeskScreenBase: React.FC = () => {
   }, [filteredInventory, sortDirection, sortKey]);
 
   const focused = useMemo(
-    () => rows.find((vehicle) => vehicle.vin === focusVin) ?? rows[0],
-    [focusVin, rows]
+    () => processedInventory.find((vehicle) => vehicle.vin === focusVin) ?? rows[0],
+    [focusVin, processedInventory, rows]
   );
 
   // The top-ranked row is the initial selection, but it must become explicit.
@@ -157,10 +160,10 @@ const DeskScreenBase: React.FC = () => {
   useEffect(() => {
     const firstRow = rows[0];
     if (!firstRow) return;
-    if (!focusVin || !rows.some((vehicle) => vehicle.vin === focusVin)) {
+    if (!focusVin || !processedInventory.some((vehicle) => vehicle.vin === focusVin)) {
       setFocusVin(firstRow.vin);
     }
-  }, [focusVin, rows, setFocusVin]);
+  }, [focusVin, processedInventory, rows, setFocusVin]);
 
   const lastDeskedVinRef = useRef<string | null>(null);
   useEffect(() => {
@@ -309,18 +312,26 @@ const DeskScreenBase: React.FC = () => {
     [setDealData]
   );
 
-  const handleReset = useCallback(() => {
-    setDealData({
-      ...INITIAL_DEAL_DATA,
-      loanTerm: settings.defaultTerm,
-      interestRate: settings.defaultApr,
-      stateFees: settings.defaultStateFees,
-      buyerState: settings.defaultState,
-    });
-    setFilters(INITIAL_FILTER_DATA);
-    setSearchQuery("");
-    setCustomerName("");
-  }, [setCustomerName, setDealData, setFilters, setSearchQuery, settings]);
+  const resettingRef = useRef(false);
+  const handleReset = useCallback(async () => {
+    if (resettingRef.current || isSaving) return;
+    resettingRef.current = true;
+    try {
+      if (isDealDirty) {
+        const confirmed = await confirmAction({
+          title: "Reset this deal?",
+          message: `Clears ${customerName.trim() ? customerName.trim() + "'s" : "this customer's"} unsaved terms, notes and customer details. Saved pipeline deals remain available.`,
+          confirmLabel: "Reset deal",
+          tone: "danger",
+        });
+        if (!confirmed) return;
+      }
+      resetDealState();
+      setSearchQuery("");
+    } finally {
+      resettingRef.current = false;
+    }
+  }, [customerName, isDealDirty, isSaving, resetDealState, setSearchQuery]);
 
   const clearFilters = useCallback(() => {
     setFilters((current) => ({
@@ -345,10 +356,10 @@ const DeskScreenBase: React.FC = () => {
   const isPinned = focused ? favorites.some((favorite) => favorite.vin === focused.vin) : false;
 
   const saveFocusedDeal = useCallback(() => {
-    if (focused) handleSaveDeal(focused);
+    if (focused) void handleSaveDeal(focused);
   }, [focused, handleSaveDeal]);
-  const saveFromDealSheet = useCallback(() => {
-    if (focused && handleSaveDeal(focused)) setDealSheetOpen(false);
+  const saveFromDealSheet = useCallback(async () => {
+    return focused ? handleSaveDeal(focused) : false;
   }, [focused, handleSaveDeal]);
   const openDealSheet = useCallback(() => {
     setInspectorOpen(false);
@@ -420,6 +431,52 @@ const DeskScreenBase: React.FC = () => {
     }
   }, [inspectorOpen]);
 
+  const resolveCheck = useCallback(
+    (checkId: string) => {
+      const fields: Record<string, string> = {
+        fico: "desk-fico",
+        income: "desk-income",
+        budget: "desk-max-payment",
+        terms:
+          typeof dealData.interestRate !== "number" ||
+          !Number.isFinite(dealData.interestRate) ||
+          dealData.interestRate < 0 ||
+          dealData.interestRate > 50
+            ? "desk-apr"
+            : "desk-term",
+        debt: "desk-monthly-debt",
+        condition: "desk-vehicle-condition",
+      };
+      const target = fields[checkId];
+      if (!target) return;
+      if (checkId === "debt" || checkId === "condition") setAdvancedTermsOpen(true);
+      setInspectorOpen(false);
+      setPendingResolveField(target);
+    },
+    [dealData.interestRate]
+  );
+  // Focus after React reveals advanced inputs and the compact inspector restores
+  // its opener. This final transfer keeps focus on the requested editable field.
+  useEffect(() => {
+    if (!pendingResolveField || inspectorOpen) return;
+    if (
+      (pendingResolveField === "desk-monthly-debt" ||
+        pendingResolveField === "desk-vehicle-condition") &&
+      !advancedTermsOpen
+    )
+      return;
+    const field = document.getElementById(pendingResolveField);
+    const target =
+      pendingResolveField === "desk-term"
+        ? (field?.querySelector<HTMLElement>('button[data-active="true"]') ??
+          field?.querySelector<HTMLElement>("button"))
+        : field;
+    if (!target) return;
+    target.focus();
+    target.scrollIntoView?.({ block: "nearest", behavior: "auto" });
+    setPendingResolveField(null);
+  }, [advancedTermsOpen, inspectorOpen, pendingResolveField]);
+
   const orderedVins = useMemo(() => rows.map((row) => row.vin), [rows]);
   useDeskShortcuts({
     orderedVins,
@@ -472,6 +529,11 @@ const DeskScreenBase: React.FC = () => {
               />
             )}
 
+            {focused && !rows.some((vehicle) => vehicle.vin === focused.vin) && (
+              <p role="status" className="desk-rating-caption">
+                Selected unit is outside the current inventory results. Its deal remains open.
+              </p>
+            )}
             <InventoryGrid
               rows={rows}
               inventoryCount={processedInventory.length}
@@ -506,6 +568,7 @@ const DeskScreenBase: React.FC = () => {
               totalLenders={totalLenders}
               dealData={dealData}
               filters={filters}
+              onResolveCheck={resolveCheck}
               onProfitChange={
                 canViewProfit
                   ? (patch) =>
@@ -575,6 +638,7 @@ const DeskScreenBase: React.FC = () => {
             onClose={() => setDealSheetOpen(false)}
             onSaveToPipeline={saveFromDealSheet}
             isSaving={isSaving}
+            saveError={saveError}
           />
         </Suspense>
       )}

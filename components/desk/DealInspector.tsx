@@ -12,6 +12,7 @@ import LenderLadder from "./LenderLadder";
 import FinancialBreakdown from "./FinancialBreakdown";
 import BackendAddons from "./BackendAddons";
 import StructureMatrix from "./StructureMatrix";
+import { PaymentTarget } from "./PaymentTarget";
 import type { CalculatedVehicle, DealData, FilterData, LenderProfile, Settings } from "../../types";
 import { summarizePending } from "../../services/lenderFit";
 import type { LenderFitEntry } from "../../services/lenderFit";
@@ -23,6 +24,7 @@ interface DealInspectorProps {
   totalLenders: number;
   dealData: DealData;
   filters?: FilterData;
+  onResolveCheck?: (checkId: string) => void;
   onProfitChange?: (patch: NonNullable<DealData["profitInputs"]>) => void;
   settings: Settings;
   pinned: boolean;
@@ -62,6 +64,7 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
   dealData,
   filters,
   onProfitChange,
+  onResolveCheck,
   settings,
   pinned,
   onPin,
@@ -313,7 +316,32 @@ const DealInspectorComponent: React.FC<DealInspectorProps> = ({
       <div className="desk-inspector-body" {...tabs.getPanelProps(tab, { focusable: true })}>
         {tab === "summary" && (
           <>
-            <DealRatings vehicle={v} dealData={dealData} onProfitChange={onProfitChange} />
+            {filters && (
+              <PaymentTarget
+                key={v.vin}
+                vehicle={v}
+                dealData={dealData}
+                settings={settings}
+                filters={filters}
+                profiles={Array.from(profilesById.values())}
+                onApply={onSetTermDown}
+              />
+            )}
+            <DealRatings
+              vehicle={v}
+              dealData={dealData}
+              onProfitChange={onProfitChange}
+              onResolveCheck={
+                onResolveCheck
+                  ? (checkId) => {
+                      if (checkId === "lender") {
+                        setTab("lenders");
+                        document.getElementById("desk-inspector-tab-lenders")?.focus();
+                      } else onResolveCheck(checkId);
+                    }
+                  : undefined
+              }
+            />
             <FinancialBreakdown
               price={price}
               taxFees={taxFees}
